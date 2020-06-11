@@ -300,13 +300,15 @@ func selectSmf(ue *context.AmfUe, anType models.AccessType, pduSession *models.P
 		}
 
 		res, problemDetails, err := consumer.NSSelectionGetForPduSession(ue, *pduSession.SNssai)
-		if problemDetails != nil {
-			logger.GmmLog.Errorf("NSSelection Get Failed Problem[%+v]", problemDetails)
-		} else if err != nil {
-			logger.GmmLog.Errorf("NSSelection Get Error[%+v]", err)
-		} else {
-			nsiInformation = res.NsiInformation
+		if err != nil {
+			if problemDetails != nil {
+				logger.GmmLog.Errorf("NSSelection Get Failed Problem[%+v]", problemDetails)
+			} else {
+				logger.GmmLog.Errorf("NSSelection Get Error[%+v]", err)
+			}
+			return "", "", err
 		}
+		nsiInformation = res.NsiInformation
 	}
 
 	pduSession.NsInstance = nsiInformation.NsiId
