@@ -24,6 +24,8 @@ type Info struct {
 type Configuration struct {
 	AmfName string `yaml:"amfName,omitempty"`
 
+	ServerIPv4 string `yaml:"serverIPv4,omitempty"`
+
 	NgapIpList []string `yaml:"ngapIpList,omitempty"`
 
 	Sbi *Sbi `yaml:"sbi,omitempty"`

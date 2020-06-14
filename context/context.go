@@ -58,6 +58,7 @@ type AMFContext struct {
 	HttpIpv4Port                     int
 	HttpIPv4Address                  string
 	HttpIPv6Address                  string
+	ServerIPv4						 string
 	TNLWeightFactor                  int64
 	SupportDnnLists                  []string
 	AMFStatusSubscriptionIDGenerator int
@@ -315,6 +316,7 @@ func (context *AMFContext) Reset() {
 	context.HttpIpv4Port = 0
 	context.HttpIPv4Address = ""
 	context.HttpIPv6Address = ""
+	context.ServerIPv4 = ""
 	context.Name = "amf"
 	context.NrfUri = ""
 	TmsiGenerator = 0

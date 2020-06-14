@@ -7,6 +7,7 @@ import (
 	"free5gc/src/amf/factory"
 	"free5gc/src/amf/logger"
 	"github.com/google/uuid"
+	"os"
 )
 
 func InitAmfContext(context *context.AMFContext) {
@@ -17,6 +18,17 @@ func InitAmfContext(context *context.AMFContext) {
 	if configuration.AmfName != "" {
 		context.Name = configuration.AmfName
 	}
+
+	context.ServerIPv4 = os.Getenv(configuration.ServerIPv4)
+	if context.ServerIPv4 == "" {
+		logger.UtilLog.Warn("Problem parsing ServerIPv4 address from ENV Variable. Trying to parse it as string.")
+		context.ServerIPv4 = configuration.ServerIPv4
+		if context.ServerIPv4 == "" {
+			logger.UtilLog.Warn("Error parsing ServerIPv4 address as string. Using the localhost address as default.")
+			context.ServerIPv4 = "127.0.0.1"
+		}
+	}
+
 	if configuration.NgapIpList != nil {
 		context.NgapIpList = configuration.NgapIpList
 	} else {
