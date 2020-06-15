@@ -58,7 +58,7 @@ type AMFContext struct {
 	HttpIpv4Port                     int
 	HttpIPv4Address                  string
 	HttpIPv6Address                  string
-	ServerIPv4						 string
+	ServiceIPv4                      string
 	TNLWeightFactor                  int64
 	SupportDnnLists                  []string
 	AMFStatusSubscriptionIDGenerator int
@@ -246,7 +246,7 @@ func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 }
 
 func (context *AMFContext) GetIPv4Uri() string {
-	return fmt.Sprintf("%s://%s:%d", context.UriScheme, context.HttpIPv4Address, context.HttpIpv4Port)
+	return fmt.Sprintf("%s://%s:%d", context.UriScheme, context.ServiceIPv4, context.HttpIpv4Port)
 }
 
 func (context *AMFContext) InitNFService(serivceName []string, version string) {
@@ -268,7 +268,7 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 			ApiPrefix:       context.GetIPv4Uri(),
 			IpEndPoints: &[]models.IpEndPoint{
 				{
-					Ipv4Address: context.HttpIPv4Address,
+					Ipv4Address: context.ServiceIPv4,
 					Transport:   models.TransportProtocol_TCP,
 					Port:        int32(context.HttpIpv4Port),
 				},
@@ -316,7 +316,7 @@ func (context *AMFContext) Reset() {
 	context.HttpIpv4Port = 0
 	context.HttpIPv4Address = ""
 	context.HttpIPv6Address = ""
-	context.ServerIPv4 = ""
+	context.ServiceIPv4 = ""
 	context.Name = "amf"
 	context.NrfUri = ""
 	TmsiGenerator = 0
