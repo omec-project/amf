@@ -18,9 +18,15 @@ func InitAmfContext(context *context.AMFContext) {
 	if configuration.AmfName != "" {
 		context.Name = configuration.AmfName
 	}
-
-	context.ServiceIPv4 = configuration.ServiceIPv4
-
+	context.ServerIPv4 = os.Getenv(configuration.ServerIPv4)
+	if context.ServerIPv4 == "" {
+		logger.UtilLog.Warn("Problem parsing ServerIPv4 address from ENV Variable. Trying to parse it as string.")
+		context.ServerIPv4 = configuration.ServerIPv4
+		if context.ServerIPv4 == "" {
+			logger.UtilLog.Warn("Error parsing ServerIPv4 address as string. Using the localhost address as default.")
+			context.ServerIPv4 = "127.0.0.1"
+		}
+	}
 	if configuration.NgapIpList != nil {
 		context.NgapIpList = configuration.NgapIpList
 	} else {
@@ -32,14 +38,7 @@ func InitAmfContext(context *context.AMFContext) {
 	context.HttpIpv4Port = 29518          // default port
 	if sbi != nil {
 		if sbi.IPv4Addr != "" {
-			if os.Getenv(sbi.IPv4Addr) != "" {
-				context.HttpIPv4Address = os.Getenv(sbi.IPv4Addr)
-			} else {
-				logger.UtilLog.Warn("Problem parsing ServerIPv4 address from ENV Variable. Parsing it as plain string...")
-				context.HttpIPv4Address = sbi.IPv4Addr
-			}
-		} else {
-			logger.UtilLog.Warn("Error parsing ServerIPv4 address as string. Using the localhost address as default.")
+			context.HttpIPv4Address = sbi.IPv4Addr
 		}
 		if sbi.Port != 0 {
 			context.HttpIpv4Port = sbi.Port
@@ -57,7 +56,8 @@ func InitAmfContext(context *context.AMFContext) {
 	if configuration.NrfUri != "" {
 		context.NrfUri = configuration.NrfUri
 	} else {
-		context.NrfUri = fmt.Sprintf("%s://%s:%d", context.UriScheme, context.HttpIPv4Address, 29510)
+		logger.UtilLog.Warn("NRF Uri is empty! Using localhost as NRF IPv4 address.")
+		context.NrfUri = fmt.Sprintf("%s://%s:%d", context.UriScheme, "127.0.0.1", 29510)
 	}
 	security := configuration.Security
 	if security != nil {

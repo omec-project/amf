@@ -50,7 +50,7 @@ func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile,
 		err = fmt.Errorf("AMF Address is empty")
 		return
 	}
-	profile.Ipv4Addresses = append(profile.Ipv4Addresses, context.ServiceIPv4)
+	profile.Ipv4Addresses = append(profile.Ipv4Addresses, context.HttpIPv4Address)
 	service := []models.NfService{}
 	for _, nfService := range context.NfService {
 		service = append(service, nfService)
