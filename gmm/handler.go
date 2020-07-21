@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"free5gc/lib/fsm"
 	"free5gc/lib/nas"
@@ -300,12 +301,13 @@ func selectSmf(ue *context.AmfUe, anType models.AccessType, pduSession *models.P
 		}
 
 		res, problemDetails, err := consumer.NSSelectionGetForPduSession(ue, *pduSession.SNssai)
+		if problemDetails != nil {
+			logger.GmmLog.Errorf("NSSelection Get Failed Problem[%+v]", problemDetails)
+			err = errors.New("NSSelection Get Failed Problem")
+			return "", "", err
+		}
 		if err != nil {
-			if problemDetails != nil {
-				logger.GmmLog.Errorf("NSSelection Get Failed Problem[%+v]", problemDetails)
-			} else {
-				logger.GmmLog.Errorf("NSSelection Get Error[%+v]", err)
-			}
+			logger.GmmLog.Errorf("NSSelection Get Error[%+v]", err)
 			return "", "", err
 		}
 		nsiInformation = res.NsiInformation
