@@ -52,6 +52,7 @@ type AMFContext struct {
 	Name                            string
 	NfService                       map[models.ServiceName]models.NfService // use ServiceName as key, nfservice that amf support
 	UriScheme                       models.UriScheme
+	BindingIPv4						string
 	HttpIpv4Port                    int
 	HttpIPv4Address                 string
 	HttpIPv6Address                 string
@@ -376,9 +377,9 @@ func (context *AMFContext) Reset() {
 	context.NfId = ""
 	context.UriScheme = models.UriScheme_HTTPS
 	context.HttpIpv4Port = 0
+	context.BindingIPv4 = ""
 	context.HttpIPv4Address = ""
 	context.HttpIPv6Address = ""
-	context.ServerIPv4 = ""
 	context.Name = "amf"
 	context.NrfUri = ""
 	amfUeNgapIdGenerator = 0

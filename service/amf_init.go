@@ -142,7 +142,7 @@ func (amf *AMF) Start() {
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
 
-	addr := fmt.Sprintf("%s:%d", self.ServerIPv4, self.HttpIpv4Port)
+	addr := fmt.Sprintf("%s:%d", self.BindingIPv4, self.HttpIpv4Port)
 
 	for _, ngapAddr := range self.NgapIpList {
 		sctpListener = sctp.Server(ngapAddr)
