@@ -80,13 +80,18 @@ func (*AMF) Initialize(c *cli.Context) {
 		factory.InitConfigFactory(DefaultAmfConfigPath)
 	}
 
-	initLog.Traceln("AMF debug level(string):", app.ContextSelf().Logger.AMF.DebugLevel)
 	if app.ContextSelf().Logger.AMF.DebugLevel != "" {
-		initLog.Infoln("AMF debug level(string):", app.ContextSelf().Logger.AMF.DebugLevel)
 		level, err := logrus.ParseLevel(app.ContextSelf().Logger.AMF.DebugLevel)
-		if err == nil {
+		if err != nil {
+			initLog.Warnf("Log level [%s] is not valid, set to [info] level", app.ContextSelf().Logger.AMF.DebugLevel)
+			logger.SetLogLevel(logrus.InfoLevel)
+		} else {
 			logger.SetLogLevel(level)
+			initLog.Infof("Log level is set to [%s] level", level)
 		}
+	} else {
+		initLog.Infoln("Log level is default set to [info] level")
+		logger.SetLogLevel(logrus.InfoLevel)
 	}
 
 	logger.SetReportCaller(app.ContextSelf().Logger.AMF.ReportCaller)
@@ -250,9 +255,11 @@ func (amf *AMF) Terminate() {
 	// send AMF status indication to ran to notify ran that this AMF will be unavailable
 	logger.InitLog.Infof("Send AMF Status Indication to Notify RANs due to AMF terminating")
 	unavailableGuamiList := ngap_message.BuildUnavailableGUAMIList(amfSelf.ServedGuamiList)
-	for _, ran := range amfSelf.AmfRanPool {
+	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
+		ran := value.(*context.AmfRan)
 		ngap_message.SendAMFStatusIndication(ran, unavailableGuamiList)
-	}
+		return true
+	})
 
 	logger.InitLog.Infof("Close SCTP server...")
 	sctpListener.Close()

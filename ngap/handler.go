@@ -10,7 +10,6 @@ import (
 	"free5gc/lib/openapi/models"
 	"free5gc/src/amf/consumer"
 	"free5gc/src/amf/context"
-	"free5gc/src/amf/gmm"
 	gmm_message "free5gc/src/amf/gmm/message"
 	"free5gc/src/amf/gmm/state"
 	"free5gc/src/amf/logger"
@@ -969,7 +968,7 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			// TODO: invoke Namf_Communication_UEContextTransfer if serving AMF has changed since last Registration Request procedure
 			// Described in TS 23.502 4.2.2.2.2 step 4 (without UDSF deployment)
 
-			amfUe := amfSelf.AmfUeFindByGuti(guti)
+			amfUe, _ := amfSelf.AmfUeFindByGuti(guti)
 			if amfUe == nil {
 				Ngaplog.Warnf("Unknown UE [GUTI: %s]", guti)
 			} else {
@@ -984,12 +983,6 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				Ngaplog.Debugf("AmfUe Attach RanUe [RanUeNgapID: %d]", ranUe.RanUeNgapId)
 				amfUe.AttachRanUe(ranUe)
 			}
-		} else {
-			ranUe.AmfUe = amfSelf.NewAmfUe("")
-			if err := gmm.InitAmfUeSm(ranUe.AmfUe); err != nil {
-				logger.NgapLog.Errorf("InitAmfUeSm error: %v", err.Error())
-			}
-			ranUe.AmfUe.AttachRanUe(ranUe)
 		}
 	} else {
 		ranUe.AmfUe.AttachRanUe(ranUe)
