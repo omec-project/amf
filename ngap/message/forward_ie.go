@@ -83,7 +83,7 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 	mobilityRestrictionList := ngapType.MobilityRestrictionList{}
 	mobilityRestrictionList.ServingPLMN = ngapConvert.PlmnIdToNgap(ue.PlmnId)
 
-	if len(ue.AccessAndMobilitySubscriptionData.RatRestrictions) > 0 {
+	if ue.AccessAndMobilitySubscriptionData != nil && len(ue.AccessAndMobilitySubscriptionData.RatRestrictions) > 0 {
 		mobilityRestrictionList.RATRestrictions = new(ngapType.RATRestrictions)
 		ratRestrictions := mobilityRestrictionList.RATRestrictions
 		for _, ratType := range ue.AccessAndMobilitySubscriptionData.RatRestrictions {
@@ -94,7 +94,7 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 		}
 	}
 
-	if len(ue.AccessAndMobilitySubscriptionData.ForbiddenAreas) > 0 {
+	if ue.AccessAndMobilitySubscriptionData != nil && len(ue.AccessAndMobilitySubscriptionData.ForbiddenAreas) > 0 {
 		mobilityRestrictionList.ForbiddenAreaInformation = new(ngapType.ForbiddenAreaInformation)
 		forbiddenAreaInformation := mobilityRestrictionList.ForbiddenAreaInformation
 		for _, info := range ue.AccessAndMobilitySubscriptionData.ForbiddenAreas {
