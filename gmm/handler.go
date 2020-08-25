@@ -352,6 +352,7 @@ func selectSmf(ue *context.AmfUe, anType models.AccessType, pduSession *models.P
 		pduSession.NsInstance = ""
 		logger.GmmLog.Errorf("nsiInformation is still nil, use default NRF[%s]", nrfUri)
 	} else {
+		pduSession.NsInstance = nsiInformation.NsiId
 		nrfApiUrl, err := url.Parse(nsiInformation.NrfId)
 		if err != nil {
 			logger.GmmLog.Errorf("Parse NRF URI error, use default NRF[%s]", nrfUri)
