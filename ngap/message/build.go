@@ -1109,7 +1109,8 @@ func BuildInitialContextSetupRequest(
 		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
 		ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentUERadioCapability
 		ie.Value.UERadioCapability = new(ngapType.UERadioCapability)
-		ie.Value.UERadioCapability.Value = []byte(amfUe.UeRadioCapability)
+		uecapa, _ := hex.DecodeString(amfUe.UeRadioCapability)
+		ie.Value.UERadioCapability.Value = []byte(uecapa)
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 	}
 
