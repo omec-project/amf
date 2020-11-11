@@ -176,7 +176,7 @@ func BuildServiceAccept(ue *context.AmfUe, pDUSessionStatus *[16]bool,
 
 	serviceAccept := nasMessage.NewServiceAccept(0)
 	serviceAccept.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
-	serviceAccept.SetSecurityHeaderType(nas.SecurityHeaderTypeIntegrityProtectedAndCiphered)
+	serviceAccept.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
 	serviceAccept.SetMessageType(nas.MsgTypeServiceAccept)
 	if pDUSessionStatus != nil {
 		serviceAccept.PDUSessionStatus = new(nasType.PDUSessionStatus)
