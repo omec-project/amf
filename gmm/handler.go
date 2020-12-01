@@ -1229,7 +1229,6 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 		} else {
 			ngap_message.SendDownlinkNasTransport(ue.RanUe[anType], nasPdu, nil)
 		}
-		ue.ClearRegistrationRequestData(anType)
 		return nil
 	}
 }
