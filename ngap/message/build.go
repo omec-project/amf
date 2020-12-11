@@ -1033,16 +1033,16 @@ func BuildInitialContextSetupRequest(
 
 	ueSecurityCapabilities := ie.Value.UESecurityCapabilities
 	nrEncryptionAlgorighm := []byte{0x00, 0x00}
-	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA1_128_5G()
-	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA2_128_5G()
-	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA3_128_5G()
+	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA1_128_5G() << 7
+	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA2_128_5G() << 6
+	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA3_128_5G() << 5
 	ueSecurityCapabilities.NRencryptionAlgorithms.Value =
 		ngapConvert.ByteToBitString(nrEncryptionAlgorighm, 16)
 
 	nrIntegrityAlgorithm := []byte{0x00, 0x00}
-	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA1_128_5G()
-	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA2_128_5G()
-	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA3_128_5G()
+	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA1_128_5G() << 7
+	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA2_128_5G() << 6
+	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA3_128_5G() << 5
 	ueSecurityCapabilities.NRintegrityProtectionAlgorithms.Value =
 		ngapConvert.ByteToBitString(nrIntegrityAlgorithm, 16)
 
@@ -1649,15 +1649,15 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	ueSecurityCapabilities := ie.Value.UESecurityCapabilities
 
 	nrEncryptionAlgorighm := []byte{0x00, 0x00}
-	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA1_128_5G()
-	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA2_128_5G()
-	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA3_128_5G()
+	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA1_128_5G() << 7
+	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA2_128_5G() << 6
+	nrEncryptionAlgorighm[0] |= amfUe.UESecurityCapability.GetEA3_128_5G() << 5
 	ueSecurityCapabilities.NRencryptionAlgorithms.Value = ngapConvert.ByteToBitString(nrEncryptionAlgorighm, 16)
 
 	nrIntegrityAlgorithm := []byte{0x00, 0x00}
-	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA1_128_5G()
-	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA2_128_5G()
-	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA3_128_5G()
+	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA1_128_5G() << 7
+	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA2_128_5G() << 6
+	nrIntegrityAlgorithm[0] |= amfUe.UESecurityCapability.GetIA3_128_5G() << 5
 	ueSecurityCapabilities.NRintegrityProtectionAlgorithms.Value =
 		ngapConvert.ByteToBitString(nrIntegrityAlgorithm, 16)
 
@@ -1845,15 +1845,15 @@ func BuildPathSwitchRequestAcknowledge(
 
 	ueSecurityCapabilities := ie.Value.UESecurityCapabilities
 	nrEncryptionAlgorighm := []byte{0x00, 0x00}
-	nrEncryptionAlgorighm[0] |= ue.AmfUe.UESecurityCapability.GetEA1_128_5G()
-	nrEncryptionAlgorighm[0] |= ue.AmfUe.UESecurityCapability.GetEA2_128_5G()
-	nrEncryptionAlgorighm[0] |= ue.AmfUe.UESecurityCapability.GetEA3_128_5G()
+	nrEncryptionAlgorighm[0] |= ue.AmfUe.UESecurityCapability.GetEA1_128_5G() << 7
+	nrEncryptionAlgorighm[0] |= ue.AmfUe.UESecurityCapability.GetEA2_128_5G() << 6
+	nrEncryptionAlgorighm[0] |= ue.AmfUe.UESecurityCapability.GetEA3_128_5G() << 5
 	ueSecurityCapabilities.NRencryptionAlgorithms.Value = ngapConvert.ByteToBitString(nrEncryptionAlgorighm, 16)
 
 	nrIntegrityAlgorithm := []byte{0x00, 0x00}
-	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA1_128_5G()
-	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA2_128_5G()
-	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA3_128_5G()
+	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA1_128_5G() << 7
+	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA2_128_5G() << 6
+	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA3_128_5G() << 5
 	ueSecurityCapabilities.NRintegrityProtectionAlgorithms.Value =
 		ngapConvert.ByteToBitString(nrIntegrityAlgorithm, 16)
 
