@@ -31,6 +31,16 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		return
 	}
 
+	if ran.Conn == nil {
+		ngaplog.Error("Ran conn is nil")
+		return
+	}
+
+	if ran.Conn.RemoteAddr() == nil {
+		ngaplog.Error("Ran addr is nil")
+		return
+	}
+
 	ngaplog.Debugf("[NGAP] Send To Ran [IP: %s]", ran.Conn.RemoteAddr().String())
 
 	if n, err := ran.Conn.Write(packet); err != nil {
