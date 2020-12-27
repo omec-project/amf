@@ -1754,6 +1754,38 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 		return nil
 	}
 
+	// TS 24.501 8.2.6.21: if the UE is sending a REGISTRATION REQUEST message as an initial NAS message,
+	// the UE has a valid 5G NAS security context and the UE needs to send non-cleartext IEs
+	// TS 24.501 4.4.6: When the UE sends a REGISTRATION REQUEST or SERVICE REQUEST message that includes a NAS message
+	// container IE, the UE shall set the security header type of the initial NAS message to "integrity protected"
+	if serviceRequest.NASMessageContainer != nil {
+		contents := serviceRequest.NASMessageContainer.GetNASMessageContainerContents()
+
+		// TS 24.501 4.4.6: When the UE sends a REGISTRATION REQUEST or SERVICE REQUEST message that includes a NAS
+		// message container IE, the UE shall set the security header type of the initial NAS message to
+		// "integrity protected"; then the AMF shall decipher the value part of the NAS message container IE
+		err := security.NASEncrypt(ue.CipheringAlg, ue.KnasEnc, ue.ULCount.Get(), security.Bearer3GPP,
+			security.DirectionUplink, contents)
+		if err != nil {
+			ue.SecurityContextAvailable = false
+		} else {
+			m := nas.NewMessage()
+			if err := m.GmmMessageDecode(&contents); err != nil {
+				return err
+			}
+
+			messageType := m.GmmMessage.GmmHeader.GetMessageType()
+			if messageType != nas.MsgTypeServiceRequest {
+				return errors.New("The payload of NAS Message Container is not Service Request")
+			}
+			// TS 24.501 4.4.6: The AMF shall consider the NAS message that is obtained from the NAS message container
+			// IE as the initial NAS message that triggered the procedure
+			serviceRequest = m.ServiceRequest
+		}
+		// TS 33.501 6.4.6 step 3: if the initial NAS message was protected but did not pass the integrity check
+		ue.RetransmissionOfInitialNASMsg = ue.MacFailed
+	}
+
 	serviceType := serviceRequest.GetServiceTypeValue()
 	var reactivationResult, acceptPduSessionPsi *[16]bool
 	var errPduSessionId, errCause []uint8
