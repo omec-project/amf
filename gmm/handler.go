@@ -348,12 +348,17 @@ func selectSmf(ue *context.AmfUe, anType models.AccessType, pduSession *models.P
 		nsiInformation = response.NsiInformation
 	}
 
-	pduSession.NsInstance = nsiInformation.NsiId
-	nrfApiUrl, err := url.Parse(nsiInformation.NrfId)
-	if err != nil {
-		logger.GmmLog.Errorf("Parse NRF URI error, use default NRF[%s]", nrfUri)
+	if nsiInformation == nil {
+		pduSession.NsInstance = ""
+		logger.GmmLog.Errorf("nsiInformation is still nil, use default NRF[%s]", nrfUri)
 	} else {
-		nrfUri = fmt.Sprintf("%s://%s", nrfApiUrl.Scheme, nrfApiUrl.Host)
+		pduSession.NsInstance = nsiInformation.NsiId
+		nrfApiUrl, err := url.Parse(nsiInformation.NrfId)
+		if err != nil {
+			logger.GmmLog.Errorf("Parse NRF URI error, use default NRF[%s]", nrfUri)
+		} else {
+			nrfUri = fmt.Sprintf("%s://%s", nrfApiUrl.Scheme, nrfApiUrl.Host)
+		}
 	}
 
 	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
