@@ -84,6 +84,7 @@ func (ranUe *RanUe) Remove() error {
 	}
 	self := AMF_Self()
 	self.RanUePool.Delete(ranUe.AmfUeNgapId)
+	amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
 	return nil
 }
 
