@@ -295,7 +295,10 @@ func SendRegistrationAccept(
 	ue.T3550RetryTimes = 0
 	ue.T3550 = time.AfterFunc(context.TimeT3550, func() {
 		ue.T3550RetryTimes++
-		if ue.T3550RetryTimes > context.MaxT3550RetryTimes {
+		if ue.RanUe[models.AccessType__3_GPP_ACCESS] == nil {
+			logger.GmmLog.Warnf("[NAS] UE Context released, abort retransmission of Registration Accept")
+			util.StopT3550(ue)
+		} else if ue.T3550RetryTimes > context.MaxT3550RetryTimes {
 			logger.GmmLog.Warnf("T3550 Expires %d times, abort retransmission of Registration Accept", ue.T3550RetryTimes)
 			// TS 24.501 5.5.1.2.8 case c, 5.5.1.3.8 case c
 			ue.State[anType].Set(context.Registered)
