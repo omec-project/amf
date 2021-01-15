@@ -334,7 +334,7 @@ func (ue *AmfUe) InAllowedNssai(targetSNssai models.Snssai, anType models.Access
 
 func (ue *AmfUe) InSubscribedNssai(targetSNssai models.Snssai) bool {
 	for _, sNssai := range ue.SubscribedNssai {
-		if reflect.DeepEqual(sNssai.SubscribedSnssai, targetSNssai) {
+		if reflect.DeepEqual(*sNssai.SubscribedSnssai, targetSNssai) {
 			return true
 		}
 	}
