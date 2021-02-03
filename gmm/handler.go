@@ -1217,7 +1217,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 						Mnc: targetAmfSetToken[1],
 					}
 
-					if !reflect.DeepEqual(guami.PlmnId, targetAmfPlmnId) {
+					if !reflect.DeepEqual(*guami.PlmnId, targetAmfPlmnId) {
 						searchTargetAmfQueryParam.TargetPlmnList =
 							optional.NewInterface(util.MarshToJsonString([]models.PlmnId{targetAmfPlmnId}))
 						searchTargetAmfQueryParam.RequesterPlmnList =
