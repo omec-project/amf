@@ -19,6 +19,10 @@ func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int
 		return errors.New("GSM Message should include in GMM Message")
 	}
 
+	if ue.State[accessType] == nil {
+		return errors.New("UE State is empty. Can't send GSM Message")
+	}
+
 	return gmm.GmmFSM.SendEvent(ue.State[accessType], gmm.GmmMessageEvent, fsm.ArgsType{
 		gmm.ArgAmfUe:         ue,
 		gmm.ArgAccessType:    accessType,
