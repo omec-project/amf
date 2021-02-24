@@ -359,7 +359,9 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		return fmt.Errorf("RanUe is nil")
 	}
 
-	ue.OnGoing[anType].Procedure = context.OnGoingProcedureRegistration
+	ue.SetOnGoing(anType, &context.OnGoing{
+		Procedure: context.OnGoingProcedureRegistration,
+	})
 
 	if ue.T3513 != nil {
 		ue.T3513.Stop()
@@ -1512,6 +1514,15 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	if ue.T3565 != nil {
 		ue.T3565.Stop()
 		ue.T3565 = nil // clear the timer
+	}
+
+	// Set No ongoing
+	if procedure := ue.OnGoing(anType).Procedure; procedure == context.OnGoingProcedurePaging {
+		ue.SetOnGoing(anType, &context.OnGoing{
+			Procedure: context.OnGoingProcedureNothing,
+		})
+	} else if procedure != context.OnGoingProcedureNothing {
+		ue.GmmLog.Warnf("UE should not in OnGoing[%s]", procedure)
 	}
 
 	// Send Authtication / Security Procedure not support

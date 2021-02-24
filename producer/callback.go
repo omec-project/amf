@@ -219,7 +219,9 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 				}
 
 				ue.ConfigurationUpdateMessage = message
-				ue.OnGoing[models.AccessType__3_GPP_ACCESS].Procedure = context.OnGoingProcedurePaging
+				ue.SetOnGoing(models.AccessType__3_GPP_ACCESS, &context.OnGoing{
+					Procedure: context.OnGoingProcedurePaging,
+				})
 
 				pkg, err := ngap_message.BuildPaging(ue, nil, false)
 				if err != nil {

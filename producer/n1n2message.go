@@ -135,37 +135,35 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 		}
 	}
 
-	onGoing := ue.OnGoing[anType]
+	onGoing := ue.OnGoing(anType)
 	// 4xx response cases
 	// TODO: Error Status 307, 403 in TS29.518 Table 6.1.3.5.3.1-3
-	if onGoing != nil {
-		switch onGoing.Procedure {
-		case context.OnGoingProcedurePaging:
-			if requestData.Ppi == 0 || (onGoing.Ppi != 0 && onGoing.Ppi <= requestData.Ppi) {
-				transferErr = new(models.N1N2MessageTransferError)
-				transferErr.Error = &models.ProblemDetails{
-					Status: http.StatusConflict,
-					Cause:  "HIGHER_PRIORITY_REQUEST_ONGOING",
-				}
-				return nil, "", nil, transferErr
-			}
-			ue.T3513.Stop()
-			callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
-		case context.OnGoingProcedureRegistration:
+	switch onGoing.Procedure {
+	case context.OnGoingProcedurePaging:
+		if requestData.Ppi == 0 || (onGoing.Ppi != 0 && onGoing.Ppi <= requestData.Ppi) {
 			transferErr = new(models.N1N2MessageTransferError)
 			transferErr.Error = &models.ProblemDetails{
 				Status: http.StatusConflict,
-				Cause:  "TEMPORARY_REJECT_REGISTRATION_ONGOING",
-			}
-			return nil, "", nil, transferErr
-		case context.OnGoingProcedureN2Handover:
-			transferErr = new(models.N1N2MessageTransferError)
-			transferErr.Error = &models.ProblemDetails{
-				Status: http.StatusConflict,
-				Cause:  "TEMPORARY_REJECT_HANDOVER_ONGOING",
+				Cause:  "HIGHER_PRIORITY_REQUEST_ONGOING",
 			}
 			return nil, "", nil, transferErr
 		}
+		ue.T3513.Stop()
+		callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
+	case context.OnGoingProcedureRegistration:
+		transferErr = new(models.N1N2MessageTransferError)
+		transferErr.Error = &models.ProblemDetails{
+			Status: http.StatusConflict,
+			Cause:  "TEMPORARY_REJECT_REGISTRATION_ONGOING",
+		}
+		return nil, "", nil, transferErr
+	case context.OnGoingProcedureN2Handover:
+		transferErr = new(models.N1N2MessageTransferError)
+		transferErr.Error = &models.ProblemDetails{
+			Status: http.StatusConflict,
+			Cause:  "TEMPORARY_REJECT_HANDOVER_ONGOING",
+		}
+		return nil, "", nil, transferErr
 	}
 
 	// UE is CM-Connected
@@ -293,8 +291,11 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ResourceUri: locationHeader,
 			}
 			ue.N1N2Message = &message
-			onGoing.Procedure = context.OnGoingProcedurePaging
-			onGoing.Ppi = requestData.Ppi
+			ue.SetOnGoing(anType, &context.OnGoing{
+				Procedure: context.OnGoingProcedurePaging,
+				Ppi:       requestData.Ppi,
+			})
+
 			if onGoing.Ppi != 0 {
 				pagingPriority = new(ngapType.PagingPriority)
 				pagingPriority.Value = aper.Enumerated(onGoing.Ppi)
@@ -343,8 +344,10 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			}
 			ue.N1N2Message = &message
 
-			onGoing.Procedure = context.OnGoingProcedurePaging
-			onGoing.Ppi = requestData.Ppi
+			ue.SetOnGoing(anType, &context.OnGoing{
+				Procedure: context.OnGoingProcedurePaging,
+				Ppi:       requestData.Ppi,
+			})
 			if onGoing.Ppi != 0 {
 				pagingPriority = new(ngapType.PagingPriority)
 				pagingPriority.Value = aper.Enumerated(onGoing.Ppi)

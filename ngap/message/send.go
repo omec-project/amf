@@ -433,7 +433,9 @@ func SendHandoverPreparationFailure(sourceUe *context.RanUe, cause ngapType.Caus
 		sourceUe.Log.Error("amfUe is nil")
 		return
 	}
-	amfUe.OnGoing[sourceUe.Ran.AnType].Procedure = context.OnGoingProcedureNothing
+	amfUe.SetOnGoing(sourceUe.Ran.AnType, &context.OnGoing{
+		Procedure: context.OnGoingProcedureNothing,
+	})
 	pkt, err := BuildHandoverPreparationFailure(sourceUe, cause, criticalityDiagnostics)
 	if err != nil {
 		sourceUe.Log.Errorf("Build HandoverPreparationFailure failed : %s", err.Error())
@@ -650,7 +652,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 		}, func() {
 			ue.GmmLog.Warnf("T3513 expires %d times, abort paging procedure", cfg.MaxRetryTimes)
 			ue.T3513 = nil // clear the timer
-			if ue.OnGoing[models.AccessType__3_GPP_ACCESS].Procedure != context.OnGoingProcedureN2Handover {
+			if ue.OnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
 				callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
 			}
 		})

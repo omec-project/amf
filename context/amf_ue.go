@@ -131,7 +131,7 @@ type AmfUe struct {
 	/* Related Context*/
 	RanUe map[models.AccessType]*RanUe
 	/* other */
-	OnGoing                       map[models.AccessType]*OnGoing
+	onGoing                       map[models.AccessType]*OnGoing
 	UeRadioCapability             string // OCTET string
 	Capability5GMM                nasType.Capability5GMM
 	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication
@@ -247,11 +247,11 @@ func (ue *AmfUe) init() {
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
 	ue.N1N2MessageIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.N1N2MessageSubscribeIDGenerator = idgenerator.NewGenerator(1, 2147483647)
-	ue.OnGoing = make(map[models.AccessType]*OnGoing)
-	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoing)
-	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
-	ue.OnGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
-	ue.OnGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.onGoing = make(map[models.AccessType]*OnGoing)
+	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoing)
+	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
+	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
 }
 
@@ -531,7 +531,18 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.RegistrationAcceptForNon3GPPAccess = nil
 	ue.RanUe[accessType].UeContextRequest = false
 	ue.RetransmissionOfInitialNASMsg = false
-	ue.OnGoing[accessType].Procedure = OnGoingProcedureNothing
+	ue.onGoing[accessType].Procedure = OnGoingProcedureNothing
+}
+
+func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoing) {
+	prevOnGoing := ue.onGoing[anType]
+	ue.onGoing[anType] = onGoing
+	ue.GmmLog.Debugf("OnGoing[%s]->[%s] PPI[%d]->[%d]", prevOnGoing.Procedure, onGoing.Procedure,
+		prevOnGoing.Ppi, onGoing.Ppi)
+}
+
+func (ue *AmfUe) OnGoing(anType models.AccessType) OnGoing {
+	return *ue.onGoing[anType]
 }
 
 func (ue *AmfUe) RemoveAmPolicyAssociation() {
