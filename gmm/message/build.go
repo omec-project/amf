@@ -563,9 +563,9 @@ func BuildRegistrationAccept(
 		registrationAccept.PDUSessionReactivationResultErrorCause.Buffer = buf
 	}
 
-	if len(ue.LadnInfo) > 0 {
+	if ue.LadnInfo != nil {
 		registrationAccept.LADNInformation = nasType.NewLADNInformation(nasMessage.RegistrationAcceptLADNInformationType)
-		var buf []uint8
+		buf := make([]uint8, 0)
 		for _, ladn := range ue.LadnInfo {
 			ladnNas := nasConvert.LadnToNas(ladn.Dnn, ladn.TaiLists)
 			buf = append(buf, ladnNas...)

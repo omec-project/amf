@@ -1296,6 +1296,7 @@ func assignLadnInfo(ue *context.AmfUe, accessType models.AccessType) {
 
 	ue.LadnInfo = nil
 	if ue.RegistrationRequest.LADNIndication != nil {
+		ue.LadnInfo = make([]context.LADN, 0)
 		// request for LADN information
 		if ue.RegistrationRequest.LADNIndication.GetLen() == 0 {
 			if ue.HasWildCardSubscribedDNN() {
