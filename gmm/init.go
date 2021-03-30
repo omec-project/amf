@@ -12,6 +12,7 @@ const (
 	AuthSuccessEvent          fsm.EventType = "Authentication Success"
 	AuthRestartEvent          fsm.EventType = "Authentication Restart"
 	AuthFailEvent             fsm.EventType = "Authentication Fail"
+	AuthErrorEvent			  fsm.EventType = "Authentication Error"
 	SecurityModeSuccessEvent  fsm.EventType = "SecurityMode Success"
 	SecurityModeFailEvent     fsm.EventType = "SecurityMode Fail"
 	ContextSetupSuccessEvent  fsm.EventType = "ContextSetup Success"
@@ -42,6 +43,7 @@ var transitions = fsm.Transitions{
 	{Event: AuthRestartEvent, From: context.Authentication, To: context.Authentication},
 	{Event: AuthSuccessEvent, From: context.Authentication, To: context.SecurityMode},
 	{Event: AuthFailEvent, From: context.Authentication, To: context.Deregistered},
+	{Event: AuthErrorEvent, From: context.Authentication, To: context.Deregistered},
 	{Event: SecurityModeSuccessEvent, From: context.SecurityMode, To: context.ContextSetup},
 	{Event: SecurityModeFailEvent, From: context.SecurityMode, To: context.Deregistered},
 	{Event: ContextSetupSuccessEvent, From: context.ContextSetup, To: context.Registered},

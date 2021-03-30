@@ -136,7 +136,12 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 
 		pass, err := AuthenticationProcedure(amfUe, accessType)
 		if err != nil {
-			logger.GmmLog.Errorln(err)
+			if err := GmmFSM.SendEvent(state, AuthErrorEvent, fsm.ArgsType{
+				ArgAmfUe:      amfUe,
+				ArgAccessType: accessType,
+			}); err != nil {
+				logger.GmmLog.Errorln(err)
+			}
 		}
 		if pass {
 			if err := GmmFSM.SendEvent(state, AuthSuccessEvent, fsm.ArgsType{
@@ -182,6 +187,10 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case AuthFailEvent:
 		logger.GmmLog.Debugln(event)
 		logger.GmmLog.Warnln("Reject authentication")
+    case AuthErrorEvent:
+		accessType := args[ArgAccessType].(models.AccessType)
+		logger.GmmLog.Debugln(event)
+		HandleAuthenticationError(amfUe, accessType)
 	case fsm.ExitEvent:
 		// clear authentication related data at exit
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
