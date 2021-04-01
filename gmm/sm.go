@@ -127,6 +127,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	switch event {
 	case fsm.EntryEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
+		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Authentication]")
 		fallthrough
 	case AuthRestartEvent:
