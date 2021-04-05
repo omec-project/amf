@@ -550,10 +550,10 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 
 	if ue.RegistrationRequest.Capability5GMM != nil {
 		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
-	} else {
+	} /*else {
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 		return fmt.Errorf("Capability5GMM is nil")
-	}
+	}*/
 
 	storeLastVisitedRegisteredTAI(ue, ue.RegistrationRequest.LastVisitedRegisteredTAI)
 
@@ -584,10 +584,10 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 		}
 	}
 
-	if len(ue.Pei) == 0 {
+	/*if len(ue.Pei) == 0 {
 		gmm_message.SendIdentityRequest(ue.RanUe[anType], nasMessage.MobileIdentity5GSTypeImei)
 		return nil
-	}
+	}*/
 
 	// TODO (step 12 optional): the new AMF initiates ME identity check by invoking the
 	// N5g-eir_EquipmentIdentityCheck_Get service operation
@@ -2288,7 +2288,7 @@ func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *n
 func HandleAuthenticationError(ue *context.AmfUe, anType models.AccessType) error {
 	ue.GmmLog.Error("Handle Authentication Error")
 	if ue.RegistrationRequest != nil {
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMNetworkFailure, "")
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], 0x26, "")//nasMessage.Cause5GMMNetworkFailure, "")
 	}
 	return nil
 }
