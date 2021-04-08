@@ -8,8 +8,8 @@ import (
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/fsm"
 	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/security"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -189,7 +189,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case AuthFailEvent:
 		logger.GmmLog.Debugln(event)
 		logger.GmmLog.Warnln("Reject authentication")
-    case AuthErrorEvent:
+	case AuthErrorEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
 		logger.GmmLog.Debugln(event)
@@ -233,12 +233,12 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			amfUe.SelectSecurityAlg(amfSelf.SecurityAlgorithm.IntegrityOrder, amfSelf.SecurityAlgorithm.CipheringOrder)
 			// Generate KnasEnc, KnasInt
 			amfUe.DerivateAlgKey()
-        		if amfUe.CipheringAlg == security.AlgCiphering128NEA0 && amfUe.IntegrityAlg == security.AlgIntegrity128NIA0 {
+			if amfUe.CipheringAlg == security.AlgCiphering128NEA0 && amfUe.IntegrityAlg == security.AlgIntegrity128NIA0 {
 				GmmFSM.SendEvent(state, SecuritySkipEvent, fsm.ArgsType{
-                                ArgAmfUe:      amfUe,
-                                ArgAccessType: accessType,
-                                ArgNASMessage: amfUe.RegistrationRequest,
-                        	})
+					ArgAmfUe:      amfUe,
+					ArgAccessType: accessType,
+					ArgNASMessage: amfUe.RegistrationRequest,
+				})
 			} else {
 				gmm_message.SendSecurityModeCommand(amfUe.RanUe[accessType], eapSuccess, eapMessage)
 			}
