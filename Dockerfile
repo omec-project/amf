@@ -1,3 +1,8 @@
+# Copyright 2019-present Open Networking Foundation
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
 FROM golang:1.14.4-stretch AS builder
 
 LABEL maintainer="ONF <omec-dev@opennetworking.org>"

@@ -1,5 +1,7 @@
+# Copyright 2019-present Open Networking Foundation
+#
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2021-present Open Networking Foundation
+#
 
 PROJECT_NAME             := free5GC
 VERSION                  ?= $(shell cat ./VERSION)
@@ -47,14 +49,4 @@ output:
 		--output output \
 		.;
 
-# Golang grpc/protobuf generation
-BESS_PB_DIR ?= pfcpiface
-
-pb:
-	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build $(DOCKER_BUILD_ARGS) \
-		--target pb \
-		--output output \
-		.;
-	cp -a output/bess_pb ${BESS_PB_DIR}
-
-.PHONY: docker-build docker-push output pb
+.PHONY: docker-build docker-push output

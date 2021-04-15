@@ -1,3 +1,8 @@
+# Copyright 2019-present Open Networking Foundation
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
 GO_BIN_PATH = bin
 GO_SRC_PATH = ./
 C_BUILD_PATH = build
