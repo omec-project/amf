@@ -2288,7 +2288,7 @@ func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *n
 func HandleAuthenticationError(ue *context.AmfUe, anType models.AccessType) error {
 	ue.GmmLog.Error("Handle Authentication Error")
 	if ue.RegistrationRequest != nil {
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], 0x26, "") //nasMessage.Cause5GMMNetworkFailure, "")
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], 0x26, "")//nasMessage.Cause5GMMNetworkFailure, "")
 	}
 	return nil
 }
