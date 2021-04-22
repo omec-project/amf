@@ -37,6 +37,7 @@ const (
 	FieldRanAddr     string = "ran_addr"
 	FieldAmfUeNgapID string = "amf_ue_ngap_id"
 	FieldSupi        string = "supi"
+	FieldSuci        string = "suci"
 )
 
 func init() {
@@ -48,7 +49,7 @@ func init() {
 		TrimMessages:    true,
 		NoFieldsSpace:   true,
 		HideKeys:        true,
-		FieldsOrder:     []string{"component", "category", FieldRanAddr, FieldAmfUeNgapID, FieldSupi},
+		FieldsOrder:     []string{"component", "category", FieldRanAddr, FieldAmfUeNgapID, FieldSupi, FieldSuci},
 	}
 
 	free5gcLogHook, err := logger_util.NewFileHook(logger_conf.Free5gcLogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0o666)

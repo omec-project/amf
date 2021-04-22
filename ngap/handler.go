@@ -546,7 +546,20 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 					ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
 				}
 			}
-		}
+		} else {
+				ranUe.Log.Info("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
+				amfUe.SmContextList.Range(func(key, value interface{}) bool {
+					smContext := value.(*context.SmContext)
+					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause)
+					if err != nil {
+						ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
+					} else if response == nil {
+						ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
+					}
+					amfUe.SmContextList.Delete(key)
+					return true
+				})
+			}
 	}
 
 	// Remove UE N2 Connection
@@ -1934,6 +1947,18 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 						ranUe.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
 					}
 				}
+			} else {
+				ranUe.Log.Info("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
+				amfUe.SmContextList.Range(func(key, value interface{}) bool {
+					smContext := value.(*context.SmContext)
+					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll)
+					if err != nil {
+						ranUe.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
+					} else if response == nil {
+						ranUe.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
+					}
+					return true
+				})
 			}
 		} else {
 			ranUe.Log.Info("Ue Context in Non GMM-Registered")

@@ -550,10 +550,12 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 
 	if ue.RegistrationRequest.Capability5GMM != nil {
 		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
-	} else {
+	}
+	//TODO: this is commented because Radysis USIM is not sending this IE
+	/*else {
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 		return fmt.Errorf("Capability5GMM is nil")
-	}
+	}*/
 
 	storeLastVisitedRegisteredTAI(ue, ue.RegistrationRequest.LastVisitedRegisteredTAI)
 
@@ -584,10 +586,11 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 		}
 	}
 
-	if len(ue.Pei) == 0 {
+	// TODO: Not supporting IMEI check with EIR. please uncomment when we support EIR check
+	/*if len(ue.Pei) == 0 {
 		gmm_message.SendIdentityRequest(ue.RanUe[anType], nasMessage.MobileIdentity5GSTypeImei)
 		return nil
-	}
+	}*/
 
 	// TODO (step 12 optional): the new AMF initiates ME identity check by invoking the
 	// N5g-eir_EquipmentIdentityCheck_Get service operation
@@ -2282,5 +2285,13 @@ func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *n
 
 	cause := status5GMM.Cause5GMM.GetCauseValue()
 	ue.GmmLog.Errorf("Error condition [Cause Value: %s]", nasMessage.Cause5GMMToString(cause))
+	return nil
+}
+
+func HandleAuthenticationError(ue *context.AmfUe, anType models.AccessType) error {
+	ue.GmmLog.Error("Handle Authentication Error")
+	if ue.RegistrationRequest != nil {
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork, "")
+	}
 	return nil
 }

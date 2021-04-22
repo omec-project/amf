@@ -9,6 +9,7 @@ import (
 	"github.com/free5gc/fsm"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
+	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -127,6 +128,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	switch event {
 	case fsm.EntryEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
+		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Authentication]")
 		fallthrough
 	case AuthRestartEvent:
@@ -136,7 +138,12 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 
 		pass, err := AuthenticationProcedure(amfUe, accessType)
 		if err != nil {
-			logger.GmmLog.Errorln(err)
+			if err := GmmFSM.SendEvent(state, AuthErrorEvent, fsm.ArgsType{
+				ArgAmfUe:      amfUe,
+				ArgAccessType: accessType,
+			}); err != nil {
+				logger.GmmLog.Errorln(err)
+			}
 		}
 		if pass {
 			if err := GmmFSM.SendEvent(state, AuthSuccessEvent, fsm.ArgsType{
@@ -182,6 +189,11 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case AuthFailEvent:
 		logger.GmmLog.Debugln(event)
 		logger.GmmLog.Warnln("Reject authentication")
+	case AuthErrorEvent:
+		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
+		logger.GmmLog.Debugln(event)
+		HandleAuthenticationError(amfUe, accessType)
 	case fsm.ExitEvent:
 		// clear authentication related data at exit
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -221,7 +233,15 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			amfUe.SelectSecurityAlg(amfSelf.SecurityAlgorithm.IntegrityOrder, amfSelf.SecurityAlgorithm.CipheringOrder)
 			// Generate KnasEnc, KnasInt
 			amfUe.DerivateAlgKey()
-			gmm_message.SendSecurityModeCommand(amfUe.RanUe[accessType], eapSuccess, eapMessage)
+			if amfUe.CipheringAlg == security.AlgCiphering128NEA0 && amfUe.IntegrityAlg == security.AlgIntegrity128NIA0 {
+				GmmFSM.SendEvent(state, SecuritySkipEvent, fsm.ArgsType{
+					ArgAmfUe:      amfUe,
+					ArgAccessType: accessType,
+					ArgNASMessage: amfUe.RegistrationRequest,
+				})
+			} else {
+				gmm_message.SendSecurityModeCommand(amfUe.RanUe[accessType], eapSuccess, eapMessage)
+			}
 		}
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
