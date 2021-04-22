@@ -137,7 +137,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe.GmmLog.Debugln("AuthRestartEvent at GMM State[Authentication]")
 
 		pass, err := AuthenticationProcedure(amfUe, accessType)
-		if err != nil || pass == false {
+		if err != nil {
 			if err := GmmFSM.SendEvent(state, AuthErrorEvent, fsm.ArgsType{
 				ArgAmfUe:      amfUe,
 				ArgAccessType: accessType,
