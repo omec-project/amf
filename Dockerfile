@@ -42,5 +42,5 @@ RUN mkdir -p amf/
 # Copy executable and default certs
 COPY --from=builder /go/src/amf/bin/* ./amf
 WORKDIR /free5gc/amf
-
-
+# Exposed ports
+EXPOSE 29518
