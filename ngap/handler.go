@@ -1140,9 +1140,6 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 	if criticalityDiagnostics != nil {
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
-	//amfUe := ranUe.AmfUe
-	//ngap_message.SendUEContextReleaseCommand(amfUe.RanUe["3GPP_ACCESS"], context.UeContextN2NormalRelease,
-	//	             ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
 }
 
 func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
