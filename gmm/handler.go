@@ -1493,7 +1493,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 		return false, errors.New("Authentication procedure failed")
 	} else if problemDetails != nil {
 		ue.GmmLog.Errorf("Nausf_UEAU Authenticate Request Failed: %+v", problemDetails)
-		return false, nil
+		return false, errors.New("Error Response from AUSF")
 	}
 	ue.AuthenticationCtx = response
 	ue.ABBA = []uint8{0x00, 0x00} // set ABBA value as described at TS 33.501 Annex A.7.1

@@ -1,6 +1,7 @@
 package oam
 
 import (
+	"os"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -65,6 +66,12 @@ var routes = Routes{
 		"GET",
 		"/",
 		Index,
+	},
+	{
+		"amf pod",
+		"GET",
+		os.Getenv("POD_NAME"),
+		HTTPRegisteredUEContext,
 	},
 
 	{
