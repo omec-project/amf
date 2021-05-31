@@ -6,6 +6,7 @@ package factory
 
 import (
 	"fmt"
+	"reflect"
 	"io/ioutil"
 
 	"gopkg.in/yaml.v2"
@@ -27,6 +28,82 @@ func InitConfigFactory(f string) error {
 		}
 	}
 
+	return nil
+}
+
+func UpdateAmfConfig(f string) error {
+	if content, err := ioutil.ReadFile(f); err != nil {
+		return err
+	} else {
+		var amfConfig Config
+
+		if yamlErr := yaml.Unmarshal(content, &amfConfig); yamlErr != nil {
+			return yamlErr
+		}
+		//Checking which config has been changed
+		if reflect.DeepEqual(AmfConfig.Configuration.AmfName, amfConfig.Configuration.AmfName) == false {
+			logger.CfgLog.Infoln("updated AMF Name is changed to ", amfConfig.Configuration.AmfName)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.NgapIpList, amfConfig.Configuration.NgapIpList) == false {
+			logger.CfgLog.Infoln("updated NgapList ", amfConfig.Configuration.NgapIpList)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.Sbi, amfConfig.Configuration.Sbi) == false {
+			logger.CfgLog.Infoln("updated Sbi ", amfConfig.Configuration.Sbi)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.NetworkFeatureSupport5GS, amfConfig.Configuration.NetworkFeatureSupport5GS) == false {
+			logger.CfgLog.Infoln("updated NetworkFeatureSupport5GS ", amfConfig.Configuration.NetworkFeatureSupport5GS)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.ServiceNameList, amfConfig.Configuration.ServiceNameList) == false {
+			logger.CfgLog.Infoln("updated ServiceNameList ", amfConfig.Configuration.ServiceNameList)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.ServedGumaiList, amfConfig.Configuration.ServedGumaiList) == false {
+			logger.CfgLog.Infoln("updated ServedGumaiList ", amfConfig.Configuration.ServedGumaiList)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.SupportTAIList, amfConfig.Configuration.SupportTAIList) == false {
+			logger.CfgLog.Infoln("updated SupportTAIList ", amfConfig.Configuration.SupportTAIList)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.PlmnSupportList, amfConfig.Configuration.PlmnSupportList) == false {
+			logger.CfgLog.Infoln("updated PlmnSupportList ", amfConfig.Configuration.PlmnSupportList)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.SupportDnnList, amfConfig.Configuration.SupportDnnList) == false {
+			logger.CfgLog.Infoln("updated SupportDnnList ", amfConfig.Configuration.SupportDnnList)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.NrfUri, amfConfig.Configuration.NrfUri) == false {
+			logger.CfgLog.Infoln("updated NrfUri ", amfConfig.Configuration.NrfUri)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.Security, amfConfig.Configuration.Security) == false {
+			logger.CfgLog.Infoln("updated Security ", amfConfig.Configuration.Security)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.NetworkName, amfConfig.Configuration.NetworkName) == false {
+			logger.CfgLog.Infoln("updated NetworkName ", amfConfig.Configuration.NetworkName)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3502Value, amfConfig.Configuration.T3502Value) == false {
+			logger.CfgLog.Infoln("updated T3502Value ", amfConfig.Configuration.T3502Value)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3512Value, amfConfig.Configuration.T3512Value) == false {
+			logger.CfgLog.Infoln("updated T3512Value ", amfConfig.Configuration.T3512Value)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.Non3gppDeregistrationTimerValue, amfConfig.Configuration.Non3gppDeregistrationTimerValue) == false {
+			logger.CfgLog.Infoln("updated Non3gppDeregistrationTimerValue ", amfConfig.Configuration.Non3gppDeregistrationTimerValue)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3513, amfConfig.Configuration.T3513) == false {
+			logger.CfgLog.Infoln("updated T3513 ", amfConfig.Configuration.T3513)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3522, amfConfig.Configuration.T3522) == false {
+			logger.CfgLog.Infoln("updated T3522 ", amfConfig.Configuration.T3522)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3550, amfConfig.Configuration.T3550) == false {
+			logger.CfgLog.Infoln("updated T3550 ", amfConfig.Configuration.T3550)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3560, amfConfig.Configuration.T3560) == false {
+			logger.CfgLog.Infoln("updated T3560 ", amfConfig.Configuration.T3560)
+		} 
+		if reflect.DeepEqual(AmfConfig.Configuration.T3565, amfConfig.Configuration.T3565) == false {
+			logger.CfgLog.Infoln("updated T3565 ", amfConfig.Configuration.T3565)
+		}
+		
+		AmfConfig = amfConfig
+	}
 	return nil
 }
 

@@ -66,7 +66,6 @@ var routes = Routes{
 		"/",
 		Index,
 	},
-
 	{
 		"Registered UE Context",
 		"GET",

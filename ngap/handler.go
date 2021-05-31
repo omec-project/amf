@@ -556,7 +556,6 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 					} else if response == nil {
 						ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
 					}
-					amfUe.SmContextList.Delete(key)
 					return true
 				})
 			}
