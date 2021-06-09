@@ -1847,7 +1847,7 @@ func BuildPathSwitchRequestAcknowledge(
 	ueSecurityCapabilities.NRencryptionAlgorithms.Value = ngapConvert.ByteToBitString(nrEncryptionAlgorighm, 16)
 
 	nrIntegrityAlgorithm := []byte{0x00, 0x00}
-	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA1_128_5G() << 7
+	nrIntegrityAlgorithm[0] |= 0x01 << 7//ue.AmfUe.UESecurityCapability.GetIA1_128_5G() << 7
 	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA2_128_5G() << 6
 	nrIntegrityAlgorithm[0] |= ue.AmfUe.UESecurityCapability.GetIA3_128_5G() << 5
 	ueSecurityCapabilities.NRintegrityProtectionAlgorithms.Value =
