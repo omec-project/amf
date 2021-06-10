@@ -2514,13 +2514,17 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	// successfully, the AMF shall send an N2 Path Switch Request Failure message to the Target NG-RAN
 	if len(pduSessionResourceSwitchedList.List) > 0 {
 		// TODO: set newSecurityContextIndicator to true if there is a new security context
+		ngap_message.SendPathSwitchRequestAcknowledge(ranUe, pduSessionResourceSwitchedList,
+			pduSessionResourceReleasedListPSAck, false, nil, nil, nil)
+		for _, ranUe1 := range ran.RanUeList {
+			ngap_message.SendUEContextReleaseCommand(ranUe1, context.UeContextReleaseHandover, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		}
+		
 		err := ranUe.SwitchToRan(ran, rANUENGAPID.Value)
 		if err != nil {
 			ranUe.Log.Error(err.Error())
 			return
 		}
-		ngap_message.SendPathSwitchRequestAcknowledge(ranUe, pduSessionResourceSwitchedList,
-			pduSessionResourceReleasedListPSAck, false, nil, nil, nil)
 	} else if len(pduSessionResourceReleasedListPSFail.List) > 0 {
 		ngap_message.SendPathSwitchRequestFailure(ran, sourceAMFUENGAPID.Value, rANUENGAPID.Value,
 			&pduSessionResourceReleasedListPSFail, nil)
