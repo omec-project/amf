@@ -2517,7 +2517,9 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ngap_message.SendPathSwitchRequestAcknowledge(ranUe, pduSessionResourceSwitchedList,
 			pduSessionResourceReleasedListPSAck, false, nil, nil, nil)
 		for _, ranUe1 := range ran.RanUeList {
-			ngap_message.SendUEContextReleaseCommand(ranUe1, context.UeContextReleaseHandover, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+			if ranUe1 != ranUe {
+				ngap_message.SendUEContextReleaseCommand(ranUe1, context.UeContextReleaseHandover, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+			}
 		}
 		
 		err := ranUe.SwitchToRan(ran, rANUENGAPID.Value)
