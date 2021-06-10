@@ -2519,13 +2519,14 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		for _, ranUe1 := range ran.RanUeList {
 			if ranUe1 != ranUe {
 				ngap_message.SendUEContextReleaseCommand(ranUe1, context.UeContextReleaseHandover, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
-			}
-		}
 		
 		err := ranUe.SwitchToRan(ran, rANUENGAPID.Value)
 		if err != nil {
 			ranUe.Log.Error(err.Error())
 			return
+		}
+		break
+			}
 		}
 	} else if len(pduSessionResourceReleasedListPSFail.List) > 0 {
 		ngap_message.SendPathSwitchRequestFailure(ran, sourceAMFUENGAPID.Value, rANUENGAPID.Value,
