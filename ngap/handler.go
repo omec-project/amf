@@ -2388,7 +2388,7 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			ran.Log.Trace("Decode IE UserLocationInformation")
 		case ngapType.ProtocolIEIDUESecurityCapabilities: // ignore
 			uESecurityCapabilities = ie.Value.UESecurityCapabilities
-			ran.Log.Trace("Decode IE UESecurityCapabilities")
+			ran.Log.Error("Decode IE UESecurityCapabilities ", uESecurityCapabilities)
 		case ngapType.ProtocolIEIDPDUSessionResourceToBeSwitchedDLList: // reject
 			pduSessionResourceToBeSwitchedInDLList = ie.Value.PDUSessionResourceToBeSwitchedDLList
 			ran.Log.Trace("Decode IE PDUSessionResourceToBeSwitchedDLList")
