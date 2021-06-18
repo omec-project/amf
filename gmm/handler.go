@@ -1583,6 +1583,8 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 		ue.GmmLog.Warnf("emergency service is not supported")
 	}
 
+	//TODO: workaround to send service accept in ICSR
+	ue.RanUe[anType].UeContextRequest = true
 	if serviceType == nasMessage.ServiceTypeSignalling {
 		err := sendServiceAccept(ue, anType, ctxList, suList, nil, nil, nil, nil)
 		return err
