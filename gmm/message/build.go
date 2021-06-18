@@ -598,12 +598,13 @@ func BuildRegistrationAccept(
 		registrationAccept.ServiceAreaList.SetPartialServiceAreaList(partialServiceAreaList)
 	}
 
-	if anType == models.AccessType__3_GPP_ACCESS && ue.T3512Value != 0 {
+	// Radysis: commented this timer because UESIM is not supporting
+	/*if anType == models.AccessType__3_GPP_ACCESS && ue.T3512Value != 0 {
 		registrationAccept.T3512Value = nasType.NewT3512Value(nasMessage.RegistrationAcceptT3512ValueType)
 		registrationAccept.T3512Value.SetLen(1)
 		t3512 := nasConvert.GPRSTimer3ToNas(ue.T3512Value)
 		registrationAccept.T3512Value.Octet = t3512
-	}
+	}*/
 
 	if anType == models.AccessType_NON_3_GPP_ACCESS {
 		registrationAccept.Non3GppDeregistrationTimerValue =
@@ -613,12 +614,13 @@ func BuildRegistrationAccept(
 		registrationAccept.Non3GppDeregistrationTimerValue.SetGPRSTimer2Value(timerValue)
 	}
 
-	if ue.T3502Value != 0 {
+	// Radysis: commented this timer because UESIM is not supporting
+	/*if ue.T3502Value != 0 {
 		registrationAccept.T3502Value = nasType.NewT3502Value(nasMessage.RegistrationAcceptT3502ValueType)
 		registrationAccept.T3502Value.SetLen(1)
 		t3502 := nasConvert.GPRSTimer2ToNas(ue.T3502Value)
 		registrationAccept.T3502Value.SetGPRSTimer2Value(t3502)
-	}
+	}*/
 
 	if ue.UESpecificDRX != nasMessage.DRXValueNotSpecified {
 		registrationAccept.NegotiatedDRXParameters =
