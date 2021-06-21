@@ -1583,6 +1583,15 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 		ue.GmmLog.Warnf("emergency service is not supported")
 	}
 
+	if ue.MacFailed {
+		ue.SecurityContextAvailable = false
+		ue.GmmLog.Warnf("Security Context Exist, But Integrity Check Failed with existing Context: SUPI[%s]", ue.Supi)
+		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
+		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
+			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		return nil
+	}
+
 	//TODO: workaround to send service accept in ICSR
 	ue.RanUe[anType].UeContextRequest = true
 	if serviceType == nasMessage.ServiceTypeSignalling {
