@@ -119,6 +119,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
 			ue, _ = context.AMF_Self().AmfUeFindBySuci(suci)
+			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not 
+			   present in UE. Hence, AMF either 1) clear existing existing context or 2) delete current ue context and create
+			   new context. AMF took 2nd option, below code added for 2nd option
+			*/
 			if ue != nil {
 				context.AMF_Self().AmfUeDeleteBySuci(suci)
 				ue = nil
@@ -245,10 +249,36 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 				return nil, fmt.Errorf("Encrypt error: %+v", err)
 			}
 		}
-
+		
 		// remove sequece Number
 		payload = payload[1:]
 		err = msg.PlainNasDecode(&payload)
+	
+		/*
+		integrity check failed, as per spec 24501 section 4.4.4.3 AMF shouldnt process or forward to SMF
+		except below message types
+		*/
+		if err == nil && ue.MacFailed { 
+			switch msg.GmmHeader.GetMessageType() {
+			case nas.MsgTypeRegistrationRequest:
+				return msg, nil
+			case nas.MsgTypeIdentityResponse:
+				return msg, nil
+			case nas.MsgTypeAuthenticationResponse:
+				return msg, nil
+			case nas.MsgTypeAuthenticationFailure:
+				return msg, nil
+			case nas.MsgTypeSecurityModeReject:
+				return msg, nil
+			case nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration:
+				return msg, nil
+			case nas.MsgTypeDeregistrationAcceptUETerminatedDeregistration:
+				return msg, nil
+			default:
+				return nil, fmt.Errorf("Mac Verification for the nas message [%v] failed", msg.GmmHeader.GetMessageType())
+			}
+		}
+
 		return msg, err
 	}
 }
