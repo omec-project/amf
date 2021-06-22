@@ -405,6 +405,12 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 				gmmMessage.GetMessageType(), state.Current())
 		}
 	case DeregistrationAcceptEvent:
+		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
+		if accessType == models.AccessType__3_GPP_ACCESS{
+			amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
+            amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+		}
 		logger.GmmLog.Debugln(event)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
