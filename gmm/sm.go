@@ -39,6 +39,10 @@ func DeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 					logger.GmmLog.Errorln(err)
 				}
 			}
+		case nas.MsgTypeServiceRequest:
+			if err := HandleServiceRequest(amfUe, accessType, gmmMessage.ServiceRequest); err != nil {
+				logger.GmmLog.Errorln(err)
+			}
 		default:
 			amfUe.GmmLog.Errorf("state mismatch: receieve gmm message[message type 0x%0x] at %s state",
 				gmmMessage.GetMessageType(), state.Current())

@@ -270,6 +270,8 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 				return msg, nil
 			case nas.MsgTypeSecurityModeReject:
 				return msg, nil
+			case nas.MsgTypeServiceRequest:
+				return msg, nil
 			case nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration:
 				return msg, nil
 			case nas.MsgTypeDeregistrationAcceptUETerminatedDeregistration:
