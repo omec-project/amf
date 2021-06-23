@@ -690,6 +690,9 @@ func HandlePDUSessionResourceReleaseResponse(ran *context.AmfRan, message *ngapT
 			}
 			_, responseErr, problemDetail, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
 				models.N2SmInfoType_PDU_RES_REL_RSP, transfer)
+			if err == nil && smContext != nil {
+				smContext.SetPduSessionInActive(true)
+			}
 			// TODO: error handling
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceReleaseResponse] Error: %+v", err)
@@ -1956,6 +1959,10 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 				ranUe.Log.Info("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
 				amfUe.SmContextList.Range(func(key, value interface{}) bool {
 					smContext := value.(*context.SmContext)
+					if !smContext.IsPduSessionActive() {
+						ranUe.Log.Info("Pdu Session is inactive so not sending deactivate to SMF")
+						return false
+					}
 					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll)
 					if err != nil {
 						ranUe.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
