@@ -118,15 +118,12 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
-			ue, _ = context.AMF_Self().AmfUeFindBySuci(suci)
 			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not 
 			   present in UE. Hence, AMF either 1) clear existing existing context or 2) delete current ue context and create
 			   new context. AMF took 2nd option, below code added for 2nd option
 			*/
-			if ue != nil {
-				context.AMF_Self().AmfUeDeleteBySuci(suci)
-				ue = nil
-			}
+			context.AMF_Self().AmfUeDeleteBySuci(suci)
+			ue = nil
 		}
 			if ue != nil {
 				ue.NASLog.Infof("UE Context derived from Mobile Identity")
