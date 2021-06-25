@@ -426,7 +426,7 @@ func BuildDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrat
 	return m.PlainNasEncode()
 }
 
-func BuildDeregistrationAccept(ue *context.AmfUe) ([]byte, error) {
+func BuildDeregistrationAccept() ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
