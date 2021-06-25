@@ -7,6 +7,8 @@ import (
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/nas"
+	"github.com/free5gc/nas/nasConvert"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 )
@@ -79,6 +81,57 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 		ue.DLCount.AddOne()
 		return payload, nil
 	}
+}
+
+/*
+fetch Guti if present incase of integrity protected Nas Message
+*/
+func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
+	if payload == nil {
+		return nil
+	}
+
+	msg := new(nas.Message)
+	msg.SecurityHeaderType = nas.GetSecurityHeaderType(payload) & 0x0f
+	fmt.Println("securityHeaderType is ", msg.SecurityHeaderType)
+	switch msg.SecurityHeaderType {
+	case nas.SecurityHeaderTypeIntegrityProtected:
+		fmt.Println("Security header type: Integrity Protected")
+		p := payload[7:]
+		if err := msg.PlainNasDecode(&p); err != nil {
+			return nil
+		}
+	case nas.SecurityHeaderTypePlainNas:
+		fmt.Println("Security header type: PlainNas Message")
+		if err := msg.PlainNasDecode(&payload); err != nil {
+			return nil
+		}
+	default:
+		fmt.Println("Security header type is not plain or integrity protected")
+		return nil
+	}
+	var ue *context.AmfUe = nil
+	if msg.GmmHeader.GetMessageType() == nas.MsgTypeRegistrationRequest {
+		mobileIdentity5GSContents := msg.RegistrationRequest.MobileIdentity5GS.GetMobileIdentity5GSContents()
+		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
+			_, guti := nasConvert.GutiToString(mobileIdentity5GSContents)
+			ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
+		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
+			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
+			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not 
+			   present in UE. Hence, AMF either 1) clear existing existing context or 2) delete current ue context and create
+			   new context. AMF took 2nd option, below code added for 2nd option
+			*/
+			context.AMF_Self().AmfUeDeleteBySuci(suci)
+			ue = nil
+		}
+			if ue != nil {
+				ue.NASLog.Infof("UE Context derived from Mobile Identity")
+				return ue
+			}
+	}
+
+	return nil
 }
 
 /*
@@ -193,10 +246,38 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 				return nil, fmt.Errorf("Encrypt error: %+v", err)
 			}
 		}
-
+		
 		// remove sequece Number
 		payload = payload[1:]
 		err = msg.PlainNasDecode(&payload)
+	
+		/*
+		integrity check failed, as per spec 24501 section 4.4.4.3 AMF shouldnt process or forward to SMF
+		except below message types
+		*/
+		if err == nil && ue.MacFailed { 
+			switch msg.GmmHeader.GetMessageType() {
+			case nas.MsgTypeRegistrationRequest:
+				return msg, nil
+			case nas.MsgTypeIdentityResponse:
+				return msg, nil
+			case nas.MsgTypeAuthenticationResponse:
+				return msg, nil
+			case nas.MsgTypeAuthenticationFailure:
+				return msg, nil
+			case nas.MsgTypeSecurityModeReject:
+				return msg, nil
+			case nas.MsgTypeServiceRequest:
+				return msg, nil
+			case nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration:
+				return msg, nil
+			case nas.MsgTypeDeregistrationAcceptUETerminatedDeregistration:
+				return msg, nil
+			default:
+				return nil, fmt.Errorf("Mac Verification for the nas message [%v] failed", msg.GmmHeader.GetMessageType())
+			}
+		}
+
 		return msg, err
 	}
 }

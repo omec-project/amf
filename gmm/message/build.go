@@ -426,11 +426,11 @@ func BuildDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrat
 	return m.PlainNasEncode()
 }
 
-func BuildDeregistrationAccept() ([]byte, error) {
+func BuildDeregistrationAccept(ue *context.AmfUe) ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
-
+	
 	deregistrationAccept := nasMessage.NewDeregistrationAcceptUEOriginatingDeregistration(0)
 	deregistrationAccept.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
 	deregistrationAccept.SpareHalfOctetAndSecurityHeaderType.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
@@ -438,7 +438,7 @@ func BuildDeregistrationAccept() ([]byte, error) {
 	deregistrationAccept.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
 
 	m.GmmMessage.DeregistrationAcceptUEOriginatingDeregistration = deregistrationAccept
-
+	
 	return m.PlainNasEncode()
 }
 

@@ -22,7 +22,11 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 	}
 
 	if ue.AmfUe == nil {
-		ue.AmfUe = amfSelf.NewAmfUe("")
+		ue.AmfUe = nas_security.FetchUeContextWithMobileIdentity(nasPdu)
+		if ue.AmfUe == nil {
+			ue.AmfUe = amfSelf.NewAmfUe("")
+		}
+
 		ue.AmfUe.AttachRanUe(ue)
 
 		// set log information
