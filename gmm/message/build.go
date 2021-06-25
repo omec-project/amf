@@ -438,14 +438,7 @@ func BuildDeregistrationAccept(ue *context.AmfUe) ([]byte, error) {
 	deregistrationAccept.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
 
 	m.GmmMessage.DeregistrationAcceptUEOriginatingDeregistration = deregistrationAccept
-
-	if ue != nil && ue.SecurityContextAvailable {
-		m.SecurityHeader = nas.SecurityHeader{
-			ProtocolDiscriminator: nasMessage.Epd5GSMobilityManagementMessage,
-			SecurityHeaderType:    nas.SecurityHeaderTypeIntegrityProtectedAndCiphered,
-		}
-		return nas_security.Encode(ue, m)
-	}
+	
 	return m.PlainNasEncode()
 }
 
