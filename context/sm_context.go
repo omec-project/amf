@@ -31,6 +31,9 @@ type SmContext struct {
 	hSmfID string
 	vSmfID string
 
+	//status of pdusession
+	pduSessionInactive bool
+
 	// for duplicate pdu session id handling
 	ulNASTransport *nasMessage.ULNASTransport
 	duplicated     bool
@@ -39,6 +42,14 @@ type SmContext struct {
 func NewSmContext(pduSessionID int32) *SmContext {
 	c := &SmContext{pduSessionID: pduSessionID}
 	return c
+}
+
+func (c*SmContext) IsPduSessionActive() bool {
+	return !c.pduSessionInactive
+}
+
+func (c*SmContext) SetPduSessionInActive(s bool) {
+	c.pduSessionInactive = s
 }
 
 func (c *SmContext) PduSessionID() int32 {

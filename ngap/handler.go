@@ -582,7 +582,11 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
-		amfUe.Remove()
+		//Valid Security is not exist for this UE then only delete AMfUe Context
+		if !amfUe.SecurityContextAvailable {
+			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
+			amfUe.Remove()
+		}
 	case context.UeContextReleaseHandover:
 		ran.Log.Infof("Release UE[%s] Context : Release for Handover", amfUe.Supi)
 		// TODO: it's a workaround, need to fix it.
@@ -691,6 +695,9 @@ func HandlePDUSessionResourceReleaseResponse(ran *context.AmfRan, message *ngapT
 			}
 			_, responseErr, problemDetail, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
 				models.N2SmInfoType_PDU_RES_REL_RSP, transfer)
+			if err == nil && smContext != nil {
+				smContext.SetPduSessionInActive(true)
+			}
 			// TODO: error handling
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceReleaseResponse] Error: %+v", err)
@@ -1102,6 +1109,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
 					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					continue
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
 					models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer)
@@ -1697,6 +1705,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				return
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 			_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
@@ -1722,6 +1731,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				return
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 			_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
@@ -1943,6 +1953,7 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 					smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 					if !ok {
 						ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+						continue
 					}
 					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll)
 					if err != nil {
@@ -1955,6 +1966,10 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 				ranUe.Log.Info("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
 				amfUe.SmContextList.Range(func(key, value interface{}) bool {
 					smContext := value.(*context.SmContext)
+					if !smContext.IsPduSessionActive() {
+						ranUe.Log.Info("Pdu Session is inactive so not sending deactivate to SMF")
+						return false
+					}
 					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll)
 					if err != nil {
 						ranUe.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())

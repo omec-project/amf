@@ -243,6 +243,30 @@ func (context *AMFContext) AmfUeFindByPei(pei string) (ue *AmfUe, ok bool) {
 	return
 }
 
+func (context *AMFContext) AmfUeFindBySuci(suci string) (ue *AmfUe, ok bool) {
+	context.UePool.Range(func(key, value interface{}) bool {
+		candidate := value.(*AmfUe)
+		if ok = (candidate.Suci == suci); ok {
+			ue = candidate
+			return false
+		}
+		return true
+	})
+	return
+}
+
+func (context *AMFContext) AmfUeDeleteBySuci(suci string) (ue *AmfUe, ok bool) {
+	context.UePool.Range(func(key, value interface{}) bool {
+		candidate := value.(*AmfUe)
+		if ok = (candidate.Suci == suci); ok {
+			context.UePool.Delete(candidate.Supi)
+			return false
+		}
+		return true
+	})
+	return
+}
+
 func (context *AMFContext) NewAmfRan(conn net.Conn) *AmfRan {
 	ran := AmfRan{}
 	ran.SupportedTAList = make([]SupportedTAI, 0, MaxNumOfTAI*MaxNumOfBroadcastPLMNs)
