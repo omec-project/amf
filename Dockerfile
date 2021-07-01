@@ -18,12 +18,6 @@ RUN apt-get update
 RUN apt-get -y install gcc cmake autoconf libtool pkg-config libmnl-dev libyaml-dev  nodejs yarn
 RUN apt-get clean
 
-ENV GITHUB_TOKEN=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
-RUN git config --global url."https://$GITHUB_TOKEN@github.com".insteadOf "https://github.com"
-ENV GO111MODULE=on
-ENV GOSUMDB=off
-#RUN go get -u github.com/omec-project/config5g
-
 RUN cd $GOPATH/src && mkdir -p amf
 COPY . $GOPATH/src/amf
 RUN cd $GOPATH/src/amf \
