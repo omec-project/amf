@@ -6,11 +6,16 @@ package factory
 
 import (
 	"time"
+	"strconv"
+	"fmt"
 
+	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/logger_util"
 	"github.com/free5gc/openapi/models"
+	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 )
 
+var MinConfigAvailable bool = false
 const (
 	AMF_EXPECTED_CONFIG_VERSION = "1.0.0"
 )
@@ -156,4 +161,82 @@ func (c *Config) GetVersion() string {
 		return c.Info.Version
 	}
 	return ""
+}
+
+func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
+	for {
+		select {
+		case rsp := <-commChannel:
+			fmt.Println("Received updateConfig in the amf app : ", rsp)
+			MinConfigAvailable = true
+			for i := 0; i < len(rsp.NetworkSlice); i++ {
+				var plmn *PlmnSupportItem 
+				var tai *models.Tai
+				var guami *models.Guami
+				var snssai *models.Snssai
+				ns := rsp.NetworkSlice[i]
+				logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
+				if ns.Nssai != nil {
+					snssai = new(models.Snssai)
+					snssai.Sst = ns.Nssai.Sst
+					snssai.Sd = strconv.Itoa(int(ns.Nssai.Sd))
+				}
+				if ns.Site != nil {
+					logger.GrpcLog.Infoln("Network Slice has site name present ")
+					site := ns.Site
+					logger.GrpcLog.Infoln("Site name ", site.SiteName)
+					if site.Plmn != nil {
+						guami = new(models.Guami)
+						tai = new(models.Tai)
+						guami.PlmnId = new(models.PlmnId)
+						guami.PlmnId.Mnc = site.Plmn.Mnc
+						guami.PlmnId.Mcc = site.Plmn.Mnc
+
+						logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
+						plmn.PlmnId.Mnc = site.Plmn.Mnc
+						plmn.PlmnId.Mcc = site.Plmn.Mcc
+						//AmfConfig.Configuration.PlmnSupportList = 
+						//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
+						tai.PlmnId.Mnc = site.Plmn.Mnc
+						tai.PlmnId.Mcc = site.Plmn.Mcc
+						if ns.Nssai != nil {
+							plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
+						}
+						if site.Gnb != nil {
+							for _, gnb := range site.Gnb {
+								tai.Tac = strconv.Itoa(int(gnb.Tac))
+							}
+						}
+
+					} else {
+						logger.GrpcLog.Infoln("Plmn not present in the message ")
+					}
+
+				}
+
+				//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
+				if ns.Site != nil && ns.Site.Plmn != nil {
+					site := ns.Site
+					var plmnfound bool
+					for _, plmnExist := range AmfConfig.Configuration.PlmnSupportList {
+						if plmnExist.PlmnId.Mnc == site.Plmn.Mnc && 
+								plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
+									plmnfound = true
+									break
+						}
+					}
+					if !plmnfound {
+						AmfConfig.Configuration.PlmnSupportList =
+							append(AmfConfig.Configuration.PlmnSupportList, *plmn)
+						AmfConfig.Configuration.SupportTAIList = 
+							append(AmfConfig.Configuration.SupportTAIList, *tai)
+						AmfConfig.Configuration.ServedGumaiList = 
+							append(AmfConfig.Configuration.ServedGumaiList, *guami)
+					}
+					
+				}
+			}
+		}
+	}
+	return true
 }
