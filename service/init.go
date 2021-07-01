@@ -284,6 +284,16 @@ func (amf *AMF) Start() {
 		}
 	}
 
+	for {
+		if factory.MinConfigAvailable == true {
+			initLog.Infof("Minimum configuration from config pod available")
+			break
+		} else {
+			initLog.Infof("Waiting for initial configuration from config pod")
+			time.Sleep(2 * time.Second)
+		}
+	}
+
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
 
@@ -295,15 +305,7 @@ func (amf *AMF) Start() {
 	}
 	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
 	//before register with NRF, checking minimum config availability
-	for {
-		if factory.MinConfigAvailable == true {
-			initLog.Infof("Minimum configuration from config pod available")
-			break
-		} else {
-			initLog.Infof("Waiting for initial configuration from config pod")
-			time.Sleep(2 * time.Second)
-		}
-	}
+
 	// Register to NRF
 	var profile models.NfProfile
 	if profileTmp, err := consumer.BuildNFInstance(self); err != nil {

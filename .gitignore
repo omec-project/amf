@@ -16,4 +16,4 @@ cscope.*
 # debug
 *.log
 *.pcap
-
+vendor*

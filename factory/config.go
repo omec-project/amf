@@ -186,8 +186,10 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 					site := ns.Site
 					logger.GrpcLog.Infoln("Site name ", site.SiteName)
 					if site.Plmn != nil {
+						plmn = new(PlmnSupportItem)
 						guami = new(models.Guami)
 						tai = new(models.Tai)
+						tai.PlmnId = new(models.PlmnId)
 						guami.PlmnId = new(models.PlmnId)
 						guami.PlmnId.Mnc = site.Plmn.Mnc
 						guami.PlmnId.Mcc = site.Plmn.Mnc
@@ -228,10 +230,13 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 					if !plmnfound {
 						AmfConfig.Configuration.PlmnSupportList =
 							append(AmfConfig.Configuration.PlmnSupportList, *plmn)
+						logger.GrpcLog.Infoln("SupportedPlmnLIst received from Roc: ", *plmn)
 						AmfConfig.Configuration.SupportTAIList = 
 							append(AmfConfig.Configuration.SupportTAIList, *tai)
+						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", *tai)
 						AmfConfig.Configuration.ServedGumaiList = 
 							append(AmfConfig.Configuration.ServedGumaiList, *guami)
+						logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)
 					}
 					
 				}

@@ -31,5 +31,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/urfave/cli v1.22.4
 	golang.org/x/sys v0.0.0-20201214210602-f9fddec55a1e // indirect
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0 // indirect
+	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
