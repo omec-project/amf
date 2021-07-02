@@ -178,8 +178,9 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 				logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
 				if ns.Nssai != nil {
 					snssai = new(models.Snssai)
-					snssai.Sst = ns.Nssai.Sst
-					snssai.Sd = strconv.Itoa(int(ns.Nssai.Sd))
+					val, _ := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
+					snssai.Sst = int32(val)
+					snssai.Sd = ns.Nssai.Sd
 				}
 				if ns.Site != nil {
 					logger.GrpcLog.Infoln("Network Slice has site name present ")
@@ -192,7 +193,7 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 						tai.PlmnId = new(models.PlmnId)
 						guami.PlmnId = new(models.PlmnId)
 						guami.PlmnId.Mnc = site.Plmn.Mnc
-						guami.PlmnId.Mcc = site.Plmn.Mnc
+						guami.PlmnId.Mcc = site.Plmn.Mcc
 
 						logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
 						plmn.PlmnId.Mnc = site.Plmn.Mnc
