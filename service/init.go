@@ -284,7 +284,8 @@ func (amf *AMF) Start() {
 		}
 	}
 
-	for {
+	//before register with NRF, checking minimum config availability
+	for os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
 		if factory.MinConfigAvailable == true {
 			initLog.Infof("Minimum configuration from config pod available")
 			break
@@ -304,8 +305,6 @@ func (amf *AMF) Start() {
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
 	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
-	//before register with NRF, checking minimum config availability
-
 	// Register to NRF
 	var profile models.NfProfile
 	if profileTmp, err := consumer.BuildNFInstance(self); err != nil {

@@ -234,6 +234,7 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 						AmfConfig.Configuration.SupportTAIList = 
 							append(AmfConfig.Configuration.SupportTAIList, *tai)
 						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", *tai)
+						guami.AmfId = "cafe00"
 						AmfConfig.Configuration.ServedGumaiList = 
 							append(AmfConfig.Configuration.ServedGumaiList, *guami)
 						logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)

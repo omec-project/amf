@@ -5,6 +5,7 @@
 package factory
 
 import (
+	"os"
 	"fmt"
 	"reflect"
 	"io/ioutil"
@@ -27,12 +28,14 @@ func InitConfigFactory(f string) error {
 		if yamlErr := yaml.Unmarshal(content, &AmfConfig); yamlErr != nil {
 			return yamlErr
 		}
-		AmfConfig.Configuration.ServedGumaiList = nil
-		AmfConfig.Configuration.SupportTAIList = nil
-		AmfConfig.Configuration.PlmnSupportList = nil
-		fmt.Printf("Reading Amf related configuration from ROC \n")
-		configChannel := gClient.ConfigWatcher()
-		go AmfConfig.updateConfig(configChannel)
+		if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
+			AmfConfig.Configuration.ServedGumaiList = nil
+			AmfConfig.Configuration.SupportTAIList = nil
+			AmfConfig.Configuration.PlmnSupportList = nil
+			fmt.Printf("Reading Amf related configuration from ROC \n")
+			configChannel := gClient.ConfigWatcher()
+			go AmfConfig.updateConfig(configChannel)
+		}
 	}
 
 	return nil
@@ -63,8 +66,10 @@ func UpdateAmfConfig(f string) error {
 		if reflect.DeepEqual(AmfConfig.Configuration.ServiceNameList, amfConfig.Configuration.ServiceNameList) == false {
 			logger.CfgLog.Infoln("updated ServiceNameList ", amfConfig.Configuration.ServiceNameList)
 		}
+		
 		/* commenting below 3 if conditions as this config comes from ROC */
-		/*if reflect.DeepEqual(AmfConfig.Configuration.ServedGumaiList, amfConfig.Configuration.ServedGumaiList) == false {
+		if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
+		if reflect.DeepEqual(AmfConfig.Configuration.ServedGumaiList, amfConfig.Configuration.ServedGumaiList) == false {
 			logger.CfgLog.Infoln("updated ServedGumaiList ", amfConfig.Configuration.ServedGumaiList)
 		} 
 		if reflect.DeepEqual(AmfConfig.Configuration.SupportTAIList, amfConfig.Configuration.SupportTAIList) == false {
@@ -72,7 +77,8 @@ func UpdateAmfConfig(f string) error {
 		} 
 		if reflect.DeepEqual(AmfConfig.Configuration.PlmnSupportList, amfConfig.Configuration.PlmnSupportList) == false {
 			logger.CfgLog.Infoln("updated PlmnSupportList ", amfConfig.Configuration.PlmnSupportList)
-		} */
+		} 
+		}
 		if reflect.DeepEqual(AmfConfig.Configuration.SupportDnnList, amfConfig.Configuration.SupportDnnList) == false {
 			logger.CfgLog.Infoln("updated SupportDnnList ", amfConfig.Configuration.SupportDnnList)
 		} 
