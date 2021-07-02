@@ -5,9 +5,9 @@
 package factory
 
 import (
-	"time"
-	"strconv"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/logger_util"
@@ -16,6 +16,7 @@ import (
 )
 
 var MinConfigAvailable bool = false
+
 const (
 	AMF_EXPECTED_CONFIG_VERSION = "1.0.0"
 )
@@ -170,7 +171,7 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 			fmt.Println("Received updateConfig in the amf app : ", rsp)
 			MinConfigAvailable = true
 			for i := 0; i < len(rsp.NetworkSlice); i++ {
-				var plmn *PlmnSupportItem 
+				var plmn *PlmnSupportItem
 				var tai *models.Tai
 				var guami *models.Guami
 				var snssai *models.Snssai
@@ -198,7 +199,7 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 						logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
 						plmn.PlmnId.Mnc = site.Plmn.Mnc
 						plmn.PlmnId.Mcc = site.Plmn.Mcc
-						//AmfConfig.Configuration.PlmnSupportList = 
+						//AmfConfig.Configuration.PlmnSupportList =
 						//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
 						tai.PlmnId.Mnc = site.Plmn.Mnc
 						tai.PlmnId.Mcc = site.Plmn.Mcc
@@ -222,25 +223,25 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 					site := ns.Site
 					var plmnfound bool
 					for _, plmnExist := range AmfConfig.Configuration.PlmnSupportList {
-						if plmnExist.PlmnId.Mnc == site.Plmn.Mnc && 
-								plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
-									plmnfound = true
-									break
+						if plmnExist.PlmnId.Mnc == site.Plmn.Mnc &&
+							plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
+							plmnfound = true
+							break
 						}
 					}
 					if !plmnfound {
 						AmfConfig.Configuration.PlmnSupportList =
 							append(AmfConfig.Configuration.PlmnSupportList, *plmn)
 						logger.GrpcLog.Infoln("SupportedPlmnLIst received from Roc: ", *plmn)
-						AmfConfig.Configuration.SupportTAIList = 
+						AmfConfig.Configuration.SupportTAIList =
 							append(AmfConfig.Configuration.SupportTAIList, *tai)
 						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", *tai)
 						guami.AmfId = "cafe00"
-						AmfConfig.Configuration.ServedGumaiList = 
+						AmfConfig.Configuration.ServedGumaiList =
 							append(AmfConfig.Configuration.ServedGumaiList, *guami)
 						logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)
 					}
-					
+
 				}
 			}
 		}
