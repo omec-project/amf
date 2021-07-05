@@ -284,6 +284,8 @@ github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32/go.mod h1:9wM+0iRr9ahx58uY
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/omec-project/config5g v0.0.0-20210701194054-b9cb5aee4619 h1:db+l4Y+FsrzpaWqTR0FFR1SwOd1fYo3vKHi6Vz9sULY=
 github.com/omec-project/config5g v0.0.0-20210701194054-b9cb5aee4619/go.mod h1:PPc0gTq/5wuyn3TDtNYNKclHqGxaNj/I5v8/xyiBToQ=
+github.com/omec-project/config5g v1.0.0 h1:oVNV8Bv2R71rLrhvl3Cc06MgnZ55gpbOkzNx9GUSJpg=
+github.com/omec-project/config5g v1.0.0/go.mod h1:PPc0gTq/5wuyn3TDtNYNKclHqGxaNj/I5v8/xyiBToQ=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0 h1:T5zMGML61Wp+FlcbWjRDT7yAxhJNAiPPLOFECq181zc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
