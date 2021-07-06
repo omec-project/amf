@@ -2,6 +2,7 @@ package ngap
 
 import (
 	"net"
+	"reflect"
 
 	"git.cs.nctu.edu.tw/calee/sctp"
 
@@ -151,6 +152,19 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 		logger.NgapLog.Warnf("RAN context has been removed[addr: %+v]", conn.RemoteAddr())
 		return
 	}
+	
+	//Removing Stale Connections in AmfRanPool
+	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
+		amfRan := value.(*context.AmfRan)
+
+		conn := amfRan.Conn.(*sctp.SCTPConn)
+		errorConn := sctp.NewSCTPConn(-1, nil)
+		if reflect.DeepEqual(conn, errorConn) == true {
+			amfRan.Remove()
+			ran.Log.Infof("removed stale entry in AmfRan pool")
+		}
+		return true
+	})
 
 	switch notification.Type() {
 	case sctp.SCTP_ASSOC_CHANGE:
