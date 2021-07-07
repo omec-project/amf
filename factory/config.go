@@ -5,18 +5,22 @@
 package factory
 
 import (
+<<<<<<< HEAD
 	"fmt"
 	"strconv"
+=======
+>>>>>>> parent of bb87454... SDCORE-187: AMF config update through RoC interface
 	"time"
 
-	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/logger_util"
 	"github.com/free5gc/openapi/models"
-	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 )
 
+<<<<<<< HEAD
 var MinConfigAvailable bool = false
 
+=======
+>>>>>>> parent of bb87454... SDCORE-187: AMF config update through RoC interface
 const (
 	AMF_EXPECTED_CONFIG_VERSION = "1.0.0"
 )
@@ -163,6 +167,7 @@ func (c *Config) GetVersion() string {
 	}
 	return ""
 }
+<<<<<<< HEAD
 
 func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for {
@@ -248,3 +253,5 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 	}
 	return true
 }
+=======
+>>>>>>> parent of bb87454... SDCORE-187: AMF config update through RoC interface

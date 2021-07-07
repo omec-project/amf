@@ -305,6 +305,10 @@ func (amf *AMF) Start() {
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
 	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
+<<<<<<< HEAD
+=======
+
+>>>>>>> parent of bb87454... SDCORE-187: AMF config update through RoC interface
 	// Register to NRF
 	var profile models.NfProfile
 	if profileTmp, err := consumer.BuildNFInstance(self); err != nil {

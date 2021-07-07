@@ -18,6 +18,10 @@ RUN apt-get update
 RUN apt-get -y install gcc cmake autoconf libtool pkg-config libmnl-dev libyaml-dev  nodejs yarn
 RUN apt-get clean
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> parent of bb87454... SDCORE-187: AMF config update through RoC interface
 RUN cd $GOPATH/src && mkdir -p amf
 COPY . $GOPATH/src/amf
 RUN cd $GOPATH/src/amf \
