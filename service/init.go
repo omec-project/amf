@@ -21,6 +21,7 @@ import (
 	"github.com/free5gc/amf/httpcallback"
 	"github.com/free5gc/amf/location"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/metrics"
 	"github.com/free5gc/amf/mt"
 	"github.com/free5gc/amf/ngap"
 	ngap_message "github.com/free5gc/amf/ngap/message"
@@ -283,6 +284,8 @@ func (amf *AMF) Start() {
 		}
 	}
 
+	go metrics.InitMetrics()
+	
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
 

@@ -7,8 +7,10 @@ import (
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/metrics"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/amf/msgtypes/ngapmsgtypes"
 )
 
 func Dispatch(conn net.Conn, msg []byte) {
@@ -40,6 +42,12 @@ func Dispatch(conn net.Conn, msg []byte) {
 			ran.Log.Errorln("Initiating Message is nil")
 			return
 		}
+
+		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId, 
+									  ngapmsgtypes.NgapMsg[initiatingMessage.ProcedureCode.Value],
+									  "in", 
+									  "", 
+									  "")
 		switch initiatingMessage.ProcedureCode.Value {
 		case ngapType.ProcedureCodeNGSetup:
 			HandleNGSetupRequest(ran, pdu)
@@ -96,6 +104,11 @@ func Dispatch(conn net.Conn, msg []byte) {
 			ran.Log.Errorln("successful Outcome is nil")
 			return
 		}
+		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId, 
+									  ngapmsgtypes.NgapMsg[successfulOutcome.ProcedureCode.Value],
+									  "in", 
+									  "", 
+									  "")
 		switch successfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeNGReset:
 			HandleNGResetAcknowledge(ran, pdu)
@@ -126,6 +139,11 @@ func Dispatch(conn net.Conn, msg []byte) {
 			ran.Log.Errorln("unsuccessful Outcome is nil")
 			return
 		}
+		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId, 
+									  ngapmsgtypes.NgapMsg[unsuccessfulOutcome.ProcedureCode.Value],
+									  "in", 
+									  "", 
+									  "")
 		switch unsuccessfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			HandleAMFconfigurationUpdateFailure(ran, pdu)

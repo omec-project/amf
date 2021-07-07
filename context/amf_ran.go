@@ -9,6 +9,7 @@ import (
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/amf/metrics"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -16,6 +17,8 @@ const (
 	RanPresentGNbId   = 1
 	RanPresentNgeNbId = 2
 	RanPresentN3IwfId = 3
+	RanConnected = "Connected"
+	RanDisconnected = "Disconnected"
 )
 
 type AmfRan struct {
@@ -23,6 +26,7 @@ type AmfRan struct {
 	RanId      *models.GlobalRanNodeId
 	Name       string
 	AnType     models.AccessType
+	GnbIp      string
 	/* socket Connect*/
 	Conn net.Conn
 	/* Supported TA List */
@@ -46,6 +50,7 @@ func NewSupportedTAI() (tai SupportedTAI) {
 }
 
 func (ran *AmfRan) Remove() {
+	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
 	AMF_Self().DeleteAmfRan(ran.Conn)
@@ -58,6 +63,7 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Allocate AMF UE NGAP ID error: %+v", err)
 	}
+	ran.GnbIp = ran.Conn.RemoteAddr().String()
 	ranUe.AmfUeNgapId = amfUeNgapID
 	ranUe.RanUeNgapId = ranUeNgapID
 	ranUe.Ran = ran
@@ -106,5 +112,15 @@ func (ran *AmfRan) RanID() string {
 		return fmt.Sprintf("<PlmnID: %+v, NgeNbID: %s>", *ran.RanId.PlmnId, ran.RanId.NgeNbId)
 	default:
 		return ""
+	}
+}
+
+func (ran *AmfRan) SetRanStats(state string) {
+	for _,tai := range ran.SupportedTAList {
+		if state == RanConnected {
+			metrics.SetGnbSessProfileStats(ran.Name, ran.Conn.RemoteAddr().String(), state, tai.Tai.Tac, 1)
+		} else {
+			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 0)
+		}
 	}
 }
