@@ -26,6 +26,7 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
+	github.com/prometheus/client_golang v0.9.3
 	github.com/sirupsen/logrus v1.7.0
 	github.com/spf13/viper v1.7.1
 	github.com/urfave/cli v1.22.4

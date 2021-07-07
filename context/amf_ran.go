@@ -3,12 +3,14 @@ package context
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
+	"github.com/free5gc/amf/metrics"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -16,6 +18,8 @@ const (
 	RanPresentGNbId   = 1
 	RanPresentNgeNbId = 2
 	RanPresentN3IwfId = 3
+	RanConnected = "Connected"
+	RanDisconnected = "Disconnected"
 )
 
 type AmfRan struct {
@@ -46,6 +50,7 @@ func NewSupportedTAI() (tai SupportedTAI) {
 }
 
 func (ran *AmfRan) Remove() {
+	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
 	AMF_Self().DeleteAmfRan(ran.Conn)
@@ -106,5 +111,12 @@ func (ran *AmfRan) RanID() string {
 		return fmt.Sprintf("<PlmnID: %+v, NgeNbID: %s>", *ran.RanId.PlmnId, ran.RanId.NgeNbId)
 	default:
 		return ""
+	}
+}
+
+func (ran *AmfRan) SetRanStats(state string) {
+	for _,tai := range ran.SupportedTAList {
+		u, _ := strconv.ParseUint(tai.Tai.Tac, 10, 64)
+		metrics.SetGnbSessProfileStats(ran.Name, ran.Conn.RemoteAddr().String(), state, u);
 	}
 }
