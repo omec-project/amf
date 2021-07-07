@@ -3,7 +3,6 @@ package context
 import (
 	"fmt"
 	"net"
-	"strconv"
 
 	"github.com/sirupsen/logrus"
 
