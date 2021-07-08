@@ -17,6 +17,7 @@ import (
 )
 
 var AmfConfig Config
+var RocUpdateConfigChannel chan bool
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
@@ -34,6 +35,7 @@ func InitConfigFactory(f string) error {
 			AmfConfig.Configuration.PlmnSupportList = nil
 			fmt.Printf("Reading Amf related configuration from ROC \n")
 			configChannel := gClient.ConfigWatcher()
+			RocUpdateConfigChannel = make(chan bool)
 			go AmfConfig.updateConfig(configChannel)
 		}
 	}

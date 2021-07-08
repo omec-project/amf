@@ -306,7 +306,7 @@ func (amf *AMF) Start() {
 	}
 	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
 	// Register to NRF
-	var profile models.NfProfile
+	/*var profile models.NfProfile
 	if profileTmp, err := consumer.BuildNFInstance(self); err != nil {
 		initLog.Error("Build AMF Profile Error")
 	} else {
@@ -317,7 +317,8 @@ func (amf *AMF) Start() {
 		initLog.Warnf("Send Register NF Instance failed: %+v", err)
 	} else {
 		self.NfId = nfId
-	}
+	}*/
+	go amf.SendNFProfileUpdateToNrf()
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
@@ -426,4 +427,36 @@ func (amf *AMF) Terminate() {
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
 	logger.InitLog.Infof("AMF terminated")
+}
+
+func (amf *AMF) SendNFProfileUpdateToNrf() {
+	for {
+	select {
+	case rocUpdateConfig, ok := <-factory.RocUpdateConfigChannel:
+		if rocUpdateConfig && ok {
+			self := context.AMF_Self()
+			util.InitAmfContext(self)
+
+			// Register to NRF with Updated Profile
+			var profile models.NfProfile
+			if profileTmp, err := consumer.BuildNFInstance(self); err != nil {
+				logger.CfgLog.Error("Build AMF Profile Error")
+			} else {
+				profile = profileTmp
+			}
+
+			if _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
+				logger.CfgLog.Warnf("Send Register NF Instance with updated profile failed: %+v", err)
+			} else {
+				self.NfId = nfId
+				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
+			}
+			factory.RocUpdateConfigChannel <- false
+		} else {
+			logger.CfgLog.Infof("Reading Roc Config Channel")
+		}
+	case <-time.After(2*time.Second):
+		logger.CfgLog.Infof("Reading Roc Config Channel")
+	}
+	}
 }

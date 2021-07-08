@@ -172,7 +172,7 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 			MinConfigAvailable = true
 			for i := 0; i < len(rsp.NetworkSlice); i++ {
 				var plmn *PlmnSupportItem
-				var tai *models.Tai
+				var tai []models.Tai
 				var guami *models.Guami
 				var snssai *models.Snssai
 				ns := rsp.NetworkSlice[i]
@@ -190,8 +190,6 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 					if site.Plmn != nil {
 						plmn = new(PlmnSupportItem)
 						guami = new(models.Guami)
-						tai = new(models.Tai)
-						tai.PlmnId = new(models.PlmnId)
 						guami.PlmnId = new(models.PlmnId)
 						guami.PlmnId.Mnc = site.Plmn.Mnc
 						guami.PlmnId.Mcc = site.Plmn.Mcc
@@ -201,14 +199,17 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 						plmn.PlmnId.Mcc = site.Plmn.Mcc
 						//AmfConfig.Configuration.PlmnSupportList =
 						//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
-						tai.PlmnId.Mnc = site.Plmn.Mnc
-						tai.PlmnId.Mcc = site.Plmn.Mcc
 						if ns.Nssai != nil {
 							plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
 						}
 						if site.Gnb != nil {
 							for _, gnb := range site.Gnb {
-								tai.Tac = strconv.Itoa(int(gnb.Tac))
+								var t models.Tai
+								t.PlmnId = new(models.PlmnId)
+								t.PlmnId.Mnc = site.Plmn.Mnc
+								t.PlmnId.Mcc = site.Plmn.Mcc
+								t.Tac = strconv.Itoa(int(gnb.Tac))
+								tai = append(tai, t)
 							}
 						}
 
@@ -233,17 +234,20 @@ func (c *Config) updateConfig(commChannel chan *protos.NetworkSliceResponse) boo
 						AmfConfig.Configuration.PlmnSupportList =
 							append(AmfConfig.Configuration.PlmnSupportList, *plmn)
 						logger.GrpcLog.Infoln("SupportedPlmnLIst received from Roc: ", *plmn)
-						AmfConfig.Configuration.SupportTAIList =
-							append(AmfConfig.Configuration.SupportTAIList, *tai)
-						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", *tai)
+						AmfConfig.Configuration.SupportTAIList = tai
+						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
 						guami.AmfId = "cafe00"
 						AmfConfig.Configuration.ServedGumaiList =
 							append(AmfConfig.Configuration.ServedGumaiList, *guami)
 						logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)
+					} else if tai != nil {
+						logger.GrpcLog.Infoln("Gnb Update for existing Plmn")
+						AmfConfig.Configuration.SupportTAIList = tai
+						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
 					}
-
 				}
-			}
+			} // end of network slice for loop
+			RocUpdateConfigChannel <- true
 		}
 	}
 	return true
