@@ -13,11 +13,9 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/free5gc/amf/logger"
-	gClient "github.com/omec-project/config5g/proto/client"
 )
 
 var AmfConfig Config
-var RocUpdateConfigChannel chan bool
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
@@ -28,15 +26,6 @@ func InitConfigFactory(f string) error {
 
 		if yamlErr := yaml.Unmarshal(content, &AmfConfig); yamlErr != nil {
 			return yamlErr
-		}
-		if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
-			AmfConfig.Configuration.ServedGumaiList = nil
-			AmfConfig.Configuration.SupportTAIList = nil
-			AmfConfig.Configuration.PlmnSupportList = nil
-			fmt.Printf("Reading Amf related configuration from ROC \n")
-			configChannel := gClient.ConfigWatcher()
-			RocUpdateConfigChannel = make(chan bool)
-			go AmfConfig.updateConfig(configChannel)
 		}
 	}
 

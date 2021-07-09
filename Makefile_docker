@@ -37,7 +37,7 @@ docker-build:
 			. \
 			|| exit 1; \
 	done
-	sudo rm -rf vendor
+	rm -rf vendor
 
 docker-push:
 	for target in $(DOCKER_TARGETS); do \
