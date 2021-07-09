@@ -12,7 +12,7 @@ NF = $(GO_NF)
 GO_NF = amf
 
 NF_GO_FILES = $(shell find $(GO_SRC_PATH)/$(%) -name "*.go" ! -name "*_test.go")
-NF_GO_FILES_WITH_TEST = $(shell find $(GO_SRC_PATH)/$(%) -name "*.go")
+NF_GO_FILES_ALL = $(shell find $(GO_SRC_PATH)/$(%) -name "*.go")
 
 VERSION = $(shell git describe --tags)
 BUILD_TIME = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -41,7 +41,7 @@ $(GO_BIN_PATH)/%: %.go $(NF_GO_FILES)
 
 vpath %.go $(addprefix $(GO_SRC_PATH)/, $(GO_NF))
 
-test: $(NF_GO_FILES_WITH_TEST) 
+test: $(NF_GO_FILES_ALL) 
 	@echo "Start building $(@F)...."
 	cd $(GO_SRC_PATH)/ && \
 	CGO_ENABLED=0 go test -ldflags "$(LDFLAGS)" -o $(ROOT_PATH)/$@ 

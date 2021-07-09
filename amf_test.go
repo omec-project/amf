@@ -1,11 +1,22 @@
+// SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+
+/*
+ * AMF Unit Testcases
+ *
+ */
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
-	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/free5gc/amf/factory"
+	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 )
 
 //var AMF = &service.AMF{}
@@ -35,13 +46,66 @@ func GetNetworkSliceConfig() *protos.NetworkSliceResponse {
 }
 
 func TestInitialConfig(t *testing.T) {
-		var Rsp chan *protos.NetworkSliceResponse
-		Rsp = make(chan *protos.NetworkSliceResponse)
-		go func() {
-			Rsp <- GetNetworkSliceConfig()
-		}()
-		go func() {
-			AMF.UpdateConfig(Rsp)
-		}()
-		fmt.Printf("test passed") // to indicate test failed
+	factory.AmfConfig.Configuration.PlmnSupportList = nil
+	factory.AmfConfig.Configuration.ServedGumaiList = nil
+	factory.AmfConfig.Configuration.SupportTAIList = nil
+	var Rsp chan *protos.NetworkSliceResponse
+	Rsp = make(chan *protos.NetworkSliceResponse)
+	go func() {
+		Rsp <- GetNetworkSliceConfig()
+	}()
+	go func() {
+		AMF.UpdateConfig(Rsp)
+	}()
+
+	time.Sleep(2 * time.Second)
+	if factory.AmfConfig.Configuration.PlmnSupportList != nil &&
+		factory.AmfConfig.Configuration.ServedGumaiList != nil &&
+		factory.AmfConfig.Configuration.SupportTAIList != nil {
+		fmt.Printf("test passed")
+	} else {
+		t.Errorf("test failed")
+	}
+}
+
+// data in JSON format which
+// is to be decoded
+var Data = []byte(`{
+	"NetworkSlice": [
+		{
+		 "Name": "siteOne",
+		 "Nssai": {"Sst": "010203", "Sd": "1"},
+		 "Site": {
+			"SiteName": "siteOne",
+			"Gnb": [
+				{"Name": "gnb1", "Tac": 1}, 
+				{"Name": "gnb2", "Tac": 2}
+			],
+			"Plmn": {"mcc": "208", "mnc": "93"}
+		  }
+		}
+		]}`)
+
+func TestUpdateConfig(t *testing.T) {
+	var nrp protos.NetworkSliceResponse
+	err := json.Unmarshal(Data, &nrp)
+	if err != nil {
+		panic(err)
+	}
+	var Rsp chan *protos.NetworkSliceResponse
+	Rsp = make(chan *protos.NetworkSliceResponse)
+	go func() {
+		Rsp <- &nrp
+	}()
+	go func() {
+		AMF.UpdateConfig(Rsp)
+	}()
+
+	time.Sleep(2 * time.Second)
+	if factory.AmfConfig.Configuration.SupportTAIList != nil &&
+		len(factory.AmfConfig.Configuration.SupportTAIList) == 2 {
+		fmt.Printf("test passed")
+	} else {
+		t.Errorf("test failed")
+	}
 }

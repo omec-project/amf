@@ -6,9 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
-	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
@@ -40,12 +40,13 @@ import (
 	"github.com/free5gc/path_util"
 	pathUtilLogger "github.com/free5gc/path_util/logger"
 	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
-	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	gClient "github.com/omec-project/config5g/proto/client"
+	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
+	"github.com/spf13/viper"
 )
 
 type AMF struct{}
+
 var RocUpdateConfigChannel chan bool
 
 type (
@@ -72,7 +73,7 @@ var initLog *logrus.Entry
 
 func init() {
 	initLog = logger.InitLog
-    RocUpdateConfigChannel = make(chan bool)
+	RocUpdateConfigChannel = make(chan bool)
 }
 
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
@@ -108,17 +109,17 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		return err
 	}
 
-    if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
-            factory.AmfConfig.Configuration.ServedGumaiList = nil
-            factory.AmfConfig.Configuration.SupportTAIList = nil
-            factory.AmfConfig.Configuration.PlmnSupportList = nil
-            initLog.Infoln("Reading Amf related configuration from ROC \n")
-            configChannel := gClient.ConfigWatcher()
-            go amf.UpdateConfig(configChannel)
-    } else {
+	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
+		factory.AmfConfig.Configuration.ServedGumaiList = nil
+		factory.AmfConfig.Configuration.SupportTAIList = nil
+		factory.AmfConfig.Configuration.PlmnSupportList = nil
+		initLog.Infoln("Reading Amf related configuration from ROC")
+		configChannel := gClient.ConfigWatcher()
+		go amf.UpdateConfig(configChannel)
+	} else {
 		go func() {
-			initLog.Infoln("Reading Amf Configuration from Helm")
-			//sending true to the channel for sending NFRegistration to NRF 
+			logger.GrpcLog.Infoln("Reading Amf Configuration from Helm")
+			//sending true to the channel for sending NFRegistration to NRF
 			RocUpdateConfigChannel <- true
 		}()
 	}
@@ -314,7 +315,7 @@ func (amf *AMF) Start() {
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
 	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
-	
+
 	go amf.SendNFProfileUpdateToNrf()
 
 	signalChannel := make(chan os.Signal, 1)
@@ -428,85 +429,84 @@ func (amf *AMF) Terminate() {
 
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
-			fmt.Println("Received updateConfig in the amf app : ", rsp)
-			for i := 0; i < len(rsp.NetworkSlice); i++ {
-				var plmn *factory.PlmnSupportItem
-				var tai []models.Tai
-				var guami *models.Guami
-				var snssai *models.Snssai
-				ns := rsp.NetworkSlice[i]
-				logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
-				if ns.Nssai != nil {
-					snssai = new(models.Snssai)
-					val, _ := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
-					snssai.Sst = int32(val)
-					snssai.Sd = ns.Nssai.Sd
-				}
-				if ns.Site != nil {
-					logger.GrpcLog.Infoln("Network Slice has site name present ")
-					site := ns.Site
-					logger.GrpcLog.Infoln("Site name ", site.SiteName)
-					if site.Plmn != nil {
-						plmn = new(factory.PlmnSupportItem)
-						guami = new(models.Guami)
-						guami.PlmnId = new(models.PlmnId)
-						guami.PlmnId.Mnc = site.Plmn.Mnc
-						guami.PlmnId.Mcc = site.Plmn.Mcc
+		fmt.Println("Received updateConfig in the amf app : ", rsp)
+		for i := 0; i < len(rsp.NetworkSlice); i++ {
+			var plmn *factory.PlmnSupportItem
+			var tai []models.Tai
+			var guami *models.Guami
+			var snssai *models.Snssai
+			ns := rsp.NetworkSlice[i]
+			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
+			if ns.Nssai != nil {
+				snssai = new(models.Snssai)
+				val, _ := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
+				snssai.Sst = int32(val)
+				snssai.Sd = ns.Nssai.Sd
+			}
+			if ns.Site != nil {
+				site := ns.Site
+				logger.GrpcLog.Infoln("Network Slice has site name: ", site.SiteName)
+				if site.Plmn != nil {
+					plmn = new(factory.PlmnSupportItem)
+					guami = new(models.Guami)
+					guami.PlmnId = new(models.PlmnId)
+					guami.PlmnId.Mnc = site.Plmn.Mnc
+					guami.PlmnId.Mcc = site.Plmn.Mcc
 
-						logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
-						plmn.PlmnId.Mnc = site.Plmn.Mnc
-						plmn.PlmnId.Mcc = site.Plmn.Mcc
-						//AmfConfig.Configuration.PlmnSupportList =
-						//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
-						if ns.Nssai != nil {
-							plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
-						}
-						if site.Gnb != nil {
-							for _, gnb := range site.Gnb {
-								var t models.Tai
-								t.PlmnId = new(models.PlmnId)
-								t.PlmnId.Mnc = site.Plmn.Mnc
-								t.PlmnId.Mcc = site.Plmn.Mcc
-								t.Tac = strconv.Itoa(int(gnb.Tac))
-								tai = append(tai, t)
-							}
-						}
-
-					} else {
-						logger.GrpcLog.Infoln("Plmn not present in the message ")
+					logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
+					plmn.PlmnId.Mnc = site.Plmn.Mnc
+					plmn.PlmnId.Mcc = site.Plmn.Mcc
+					//AmfConfig.Configuration.PlmnSupportList =
+					//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
+					if ns.Nssai != nil {
+						plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
 					}
-
-				}
-
-				//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
-				if ns.Site != nil && ns.Site.Plmn != nil {
-					site := ns.Site
-					var plmnfound bool
-					for _, plmnExist := range factory.AmfConfig.Configuration.PlmnSupportList {
-						if plmnExist.PlmnId.Mnc == site.Plmn.Mnc &&
-							plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
-							plmnfound = true
-							break
+					if site.Gnb != nil {
+						for _, gnb := range site.Gnb {
+							var t models.Tai
+							t.PlmnId = new(models.PlmnId)
+							t.PlmnId.Mnc = site.Plmn.Mnc
+							t.PlmnId.Mcc = site.Plmn.Mcc
+							t.Tac = strconv.Itoa(int(gnb.Tac))
+							tai = append(tai, t)
 						}
 					}
-					if !plmnfound {
-						factory.AmfConfig.Configuration.PlmnSupportList =
-							append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
-						logger.GrpcLog.Infoln("SupportedPlmnLIst received from Roc: ", *plmn)
-						factory.AmfConfig.Configuration.SupportTAIList = tai
-						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
-						guami.AmfId = "cafe00"
-						factory.AmfConfig.Configuration.ServedGumaiList =
-							append(factory.AmfConfig.Configuration.ServedGumaiList, *guami)
-						logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)
-					} else if tai != nil {
-						logger.GrpcLog.Infoln("Gnb Update for existing Plmn")
-						factory.AmfConfig.Configuration.SupportTAIList = tai
-						logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
+
+				} else {
+					logger.GrpcLog.Infoln("Plmn not present in the message ")
+				}
+
+			}
+
+			//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
+			if ns.Site != nil && ns.Site.Plmn != nil {
+				site := ns.Site
+				var plmnfound bool
+				for _, plmnExist := range factory.AmfConfig.Configuration.PlmnSupportList {
+					if plmnExist.PlmnId.Mnc == site.Plmn.Mnc &&
+						plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
+						plmnfound = true
+						break
 					}
 				}
-			} // end of network slice for loop
-			RocUpdateConfigChannel <- true
+				if !plmnfound {
+					factory.AmfConfig.Configuration.PlmnSupportList =
+						append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
+					logger.GrpcLog.Infoln("SupportedPlmnLIst received from Roc: ", *plmn)
+					factory.AmfConfig.Configuration.SupportTAIList = tai
+					logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
+					guami.AmfId = "cafe00"
+					factory.AmfConfig.Configuration.ServedGumaiList =
+						append(factory.AmfConfig.Configuration.ServedGumaiList, *guami)
+					logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)
+				} else if tai != nil { //same plmn received but Tacs in gnb updated
+					logger.GrpcLog.Infoln("Gnb Update for existing Plmn")
+					factory.AmfConfig.Configuration.SupportTAIList = tai
+					logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
+				}
+			}
+		} // end of network slice for loop
+		RocUpdateConfigChannel <- true
 	}
 	return true
 }

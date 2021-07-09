@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+#
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+
 info:
   version: 1.0.0
   description: AMF initial local configuration
@@ -48,8 +53,8 @@ configuration:
       - NEA0
       # - NEA2
   networkName:  # the name of this core network
-    full: free5GC
-    short: free
+    full: Aether
+    short: Aether
   networkFeatureSupport5GS: # 5gs Network Feature Support IE, refer to TS 24.501
     enable: true # append this IE in Registration accept or not
     imsVoPS: 0 # IMS voice over PS session indicator (uinteger, range: 0~1)
