@@ -116,9 +116,11 @@ func (amf *AMF) Initialize(c *cli.Context) error {
             configChannel := gClient.ConfigWatcher()
             go amf.updateConfig(configChannel)
     } else {
-		initLog.Infoln("Reading Amf Configuration from Helm")
-		//sending true to the channel for sending NFRegistration to NRF 
-		RocUpdateConfigChannel <- true
+		go func() {
+			initLog.Infoln("Reading Amf Configuration from Helm")
+			//sending true to the channel for sending NFRegistration to NRF 
+			RocUpdateConfigChannel <- true
+		}()
 	}
 
 	return nil
