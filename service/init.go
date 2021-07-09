@@ -114,7 +114,7 @@ func (amf *AMF) Initialize(c *cli.Context) error {
             factory.AmfConfig.Configuration.PlmnSupportList = nil
             initLog.Infoln("Reading Amf related configuration from ROC \n")
             configChannel := gClient.ConfigWatcher()
-            go amf.updateConfig(configChannel)
+            go amf.UpdateConfig(configChannel)
     } else {
 		go func() {
 			initLog.Infoln("Reading Amf Configuration from Helm")
@@ -426,7 +426,7 @@ func (amf *AMF) Terminate() {
 	logger.InitLog.Infof("AMF terminated")
 }
 
-func (amf *AMF) updateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
+func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
 			fmt.Println("Received updateConfig in the amf app : ", rsp)
 			for i := 0; i < len(rsp.NetworkSlice); i++ {
