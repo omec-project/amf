@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 	"strconv"
 
 	"github.com/gin-contrib/cors"
@@ -113,10 +112,14 @@ func (amf *AMF) Initialize(c *cli.Context) error {
             factory.AmfConfig.Configuration.ServedGumaiList = nil
             factory.AmfConfig.Configuration.SupportTAIList = nil
             factory.AmfConfig.Configuration.PlmnSupportList = nil
-            fmt.Printf("Reading Amf related configuration from ROC \n")
+            initLog.Infoln("Reading Amf related configuration from ROC \n")
             configChannel := gClient.ConfigWatcher()
             go amf.updateConfig(configChannel)
-    }
+    } else {
+		initLog.Infoln("Reading Amf Configuration from Helm")
+		//sending true to the channel for sending NFRegistration to NRF 
+		RocUpdateConfigChannel <- true
+	}
 
 	return nil
 }
