@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+
 package service
 
 import (
@@ -429,13 +434,12 @@ func (amf *AMF) Terminate() {
 
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
-		fmt.Println("Received updateConfig in the amf app : ", rsp)
-		for i := 0; i < len(rsp.NetworkSlice); i++ {
+		logger.GrpcLog.Infof("Received updateConfig in the amf app : ", rsp)
+		for _, ns := range rsp.NetworkSlice {
 			var plmn *factory.PlmnSupportItem
 			var tai []models.Tai
 			var guami *models.Guami
 			var snssai *models.Snssai
-			ns := rsp.NetworkSlice[i]
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
 			if ns.Nssai != nil {
 				snssai = new(models.Snssai)
@@ -492,17 +496,14 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				if !plmnfound {
 					factory.AmfConfig.Configuration.PlmnSupportList =
 						append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
-					logger.GrpcLog.Infoln("SupportedPlmnLIst received from Roc: ", *plmn)
 					factory.AmfConfig.Configuration.SupportTAIList = tai
-					logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
 					guami.AmfId = "cafe00"
 					factory.AmfConfig.Configuration.ServedGumaiList =
 						append(factory.AmfConfig.Configuration.ServedGumaiList, *guami)
-					logger.GrpcLog.Infoln("SupportGuamiLIst received from Roc: ", *guami)
+						logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportTAILIst: %v SupportGuamiLIst: %v received fromRoc\n", *plmn, tai, *guami)
 				} else if tai != nil { //same plmn received but Tacs in gnb updated
-					logger.GrpcLog.Infoln("Gnb Update for existing Plmn")
 					factory.AmfConfig.Configuration.SupportTAIList = tai
-					logger.GrpcLog.Infoln("SupportTAILIst received from Roc: ", tai)
+					logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
 				}
 			}
 		} // end of network slice for loop
