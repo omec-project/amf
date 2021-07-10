@@ -58,7 +58,7 @@ func init() {
 	}
 }
 
-//InitMetrics initialises SMF stats
+//InitMetrics initialises AMF stats
 func InitMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(":9089", nil)
@@ -69,8 +69,7 @@ func IncrementNgapMsgStats(amfID, msgType, direction, result, reason string) {
 	amfStats.ngapMsg.WithLabelValues(amfID, msgType, direction, result, reason).Inc()
 }
 
-//SetSessProfileStats maintains Session profile info
+//SetGnbSessProfileStats maintains Session profile info
 func SetGnbSessProfileStats(id, ip, state, tac string, count uint64) {
 	amfStats.gnbSessionProfile.WithLabelValues(id, ip, state, tac).Set(float64(count))
 }
-

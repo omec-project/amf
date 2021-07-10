@@ -12,35 +12,35 @@ import (
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/metrics"
+	"github.com/free5gc/amf/msgtypes/ngapmsgtypes"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/amf/metrics"
-	"github.com/free5gc/amf/msgtypes/ngapmsgtypes"
 )
 
 func IncrementNGAPMsgCount(pdu ngapType.NGAPPDU) {
 	if pdu.InitiatingMessage != nil {
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
-									  ngapmsgtypes.NgapMsg[pdu.InitiatingMessage.ProcedureCode.Value],
-									  "out",
-									  "",
-									  "")
-									  
+			ngapmsgtypes.NgapMsg[pdu.InitiatingMessage.ProcedureCode.Value],
+			"out",
+			"",
+			"")
+
 	} else if pdu.SuccessfulOutcome != nil {
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
-									  ngapmsgtypes.NgapMsg[pdu.SuccessfulOutcome.ProcedureCode.Value],
-									  "out",
-									  "",
-									  "")
+			ngapmsgtypes.NgapMsg[pdu.SuccessfulOutcome.ProcedureCode.Value],
+			"out",
+			"",
+			"")
 	} else if pdu.UnsuccessfulOutcome != nil {
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
-									  ngapmsgtypes.NgapMsg[pdu.UnsuccessfulOutcome.ProcedureCode.Value],
-									  "out",
-									  "",
-									  "")
+			ngapmsgtypes.NgapMsg[pdu.UnsuccessfulOutcome.ProcedureCode.Value],
+			"out",
+			"",
+			"")
 	}
 }
 

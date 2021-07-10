@@ -14,16 +14,16 @@ import (
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
-	"github.com/omec-project/amf/metrics"
 	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/metrics"
 )
 
 const (
 	RanPresentGNbId   = 1
 	RanPresentNgeNbId = 2
 	RanPresentN3IwfId = 3
-	RanConnected = "Connected"
-	RanDisconnected = "Disconnected"
+	RanConnected      = "Connected"
+	RanDisconnected   = "Disconnected"
 )
 
 type AmfRan struct {
@@ -121,7 +121,7 @@ func (ran *AmfRan) RanID() string {
 }
 
 func (ran *AmfRan) SetRanStats(state string) {
-	for _,tai := range ran.SupportedTAList {
+	for _, tai := range ran.SupportedTAList {
 		if state == RanConnected {
 			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 1)
 		} else {
