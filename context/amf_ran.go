@@ -9,7 +9,7 @@ import (
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/amf/metrics"
+	"github.com/omec-project/amf/metrics"
 	"github.com/free5gc/openapi/models"
 )
 
