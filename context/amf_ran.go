@@ -123,7 +123,7 @@ func (ran *AmfRan) RanID() string {
 func (ran *AmfRan) SetRanStats(state string) {
 	for _,tai := range ran.SupportedTAList {
 		if state == RanConnected {
-			metrics.SetGnbSessProfileStats(ran.Name, ran.Conn.RemoteAddr().String(), state, tai.Tai.Tac, 1)
+			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 1)
 		} else {
 			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 0)
 		}
