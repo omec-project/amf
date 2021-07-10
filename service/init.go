@@ -26,6 +26,7 @@ import (
 	"github.com/free5gc/amf/httpcallback"
 	"github.com/free5gc/amf/location"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/metrics"
 	"github.com/free5gc/amf/mt"
 	"github.com/free5gc/amf/ngap"
 	ngap_message "github.com/free5gc/amf/ngap/message"
@@ -42,9 +43,9 @@ import (
 	openApiLogger "github.com/free5gc/openapi/logger"
 	"github.com/free5gc/openapi/models"
 	"github.com/free5gc/path_util"
-	"github.com/spf13/viper"
-	"github.com/fsnotify/fsnotify"
 	pathUtilLogger "github.com/free5gc/path_util/logger"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 type AMF struct{}
@@ -293,6 +294,8 @@ func (amf *AMF) Start() {
 			location.AddService(router)
 		}
 	}
+
+	go metrics.InitMetrics()
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)

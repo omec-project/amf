@@ -12,12 +12,37 @@ import (
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/metrics"
+	"github.com/free5gc/amf/msgtypes/ngapmsgtypes"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
 )
+
+func IncrementNGAPMsgCount(pdu ngapType.NGAPPDU) {
+	if pdu.InitiatingMessage != nil {
+		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
+			ngapmsgtypes.NgapMsg[pdu.InitiatingMessage.ProcedureCode.Value],
+			"out",
+			"",
+			"")
+
+	} else if pdu.SuccessfulOutcome != nil {
+		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
+			ngapmsgtypes.NgapMsg[pdu.SuccessfulOutcome.ProcedureCode.Value],
+			"out",
+			"",
+			"")
+	} else if pdu.UnsuccessfulOutcome != nil {
+		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
+			ngapmsgtypes.NgapMsg[pdu.UnsuccessfulOutcome.ProcedureCode.Value],
+			"out",
+			"",
+			"")
+	}
+}
 
 func BuildPDUSessionResourceReleaseCommand(ue *context.RanUe, nasPdu []byte,
 	pduSessionResourceReleasedList ngapType.PDUSessionResourceToReleaseListRelCmd) ([]byte, error) {
@@ -79,6 +104,7 @@ func BuildPDUSessionResourceReleaseCommand(ue *context.RanUe, nasPdu []byte,
 	ie.Value.PDUSessionResourceToReleaseListRelCmd = &pduSessionResourceReleasedList
 	PDUSessionResourceReleaseCommandIEs.List = append(PDUSessionResourceReleaseCommandIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -161,6 +187,7 @@ func BuildNGSetupResponse() ([]byte, error) {
 
 	nGSetupResponseIEs.List = append(nGSetupResponseIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -187,6 +214,7 @@ func BuildNGSetupFailure(cause ngapType.Cause) ([]byte, error) {
 
 	nGSetupFailureIEs.List = append(nGSetupFailureIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -239,6 +267,7 @@ func BuildNGReset(
 
 	nGResetIEs.List = append(nGResetIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -310,6 +339,7 @@ func BuildNGResetAcknowledge(partOfNGInterface *ngapType.UEAssociatedLogicalNGCo
 		nGResetAcknowledgeIEs.List = append(nGResetAcknowledgeIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -398,6 +428,7 @@ func BuildDownlinkNasTransport(ue *context.RanUe, nasPdu []byte,
 	// UE Aggregate Maximum Bit Rate (optional)
 	// Allowed NSSAI (optional)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -475,6 +506,7 @@ func BuildUEContextReleaseCommand(
 
 	ueContextReleaseCommandIEs.List = append(ueContextReleaseCommandIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -550,6 +582,7 @@ func BuildErrorIndication(amfUeNgapId, ranUeNgapId *int64, cause *ngapType.Cause
 		errorIndicationIEs.List = append(errorIndicationIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -594,6 +627,7 @@ func BuildUERadioCapabilityCheckRequest(ue *context.RanUe) ([]byte, error) {
 	uERadioCapabilityCheckRequestIEs.List = append(uERadioCapabilityCheckRequestIEs.List, ie)
 
 	// TODO:UE Radio Capability(optional)
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -649,6 +683,7 @@ func BuildHandoverCancelAcknowledge(
 		handoverCancelAcknowledgeIEs.List = append(handoverCancelAcknowledgeIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -731,6 +766,7 @@ func BuildPDUSessionResourceSetupRequest(ue *context.RanUe, nasPdu []byte,
 	ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateDL.Value = ueAmbrDL
 	pDUSessionResourceSetupRequestIEs.List = append(pDUSessionResourceSetupRequestIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -807,6 +843,7 @@ func BuildPDUSessionResourceModifyConfirm(
 		pDUSessionResourceModifyConfirmIEs.List = append(pDUSessionResourceModifyConfirmIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -863,6 +900,7 @@ func BuildPDUSessionResourceModifyRequest(ue *context.RanUe,
 	ie.Value.PDUSessionResourceModifyListModReq = &pduSessionResourceModifyRequestList
 	pDUSessionResourceModifyRequestIEs.List = append(pDUSessionResourceModifyRequestIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -1226,6 +1264,7 @@ func BuildInitialContextSetupRequest(
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -1376,6 +1415,7 @@ func BuildUEContextModificationRequest(
 		uEContextModificationRequestIEs.List = append(uEContextModificationRequestIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -1489,6 +1529,7 @@ func BuildHandoverCommand(
 		handoverCommandIEs.List = append(handoverCommandIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -1560,6 +1601,7 @@ func BuildHandoverPreparationFailure(sourceUe *context.RanUe, cause ngapType.Cau
 		handoverPreparationFailureIEs.List = append(handoverPreparationFailureIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -1777,6 +1819,7 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	// Mobility Restriction List(optional)
 	// Location Reporting Request Type(optional)
 	// RRC Inactive Transition Report Reques(optional)
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -1959,6 +2002,7 @@ func BuildPathSwitchRequestAcknowledge(
 		pathSwitchRequestAckIEs.List = append(pathSwitchRequestAckIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2080,6 +2124,7 @@ func BuildDownlinkRanStatusTransfer(ue *context.RanUe,
 
 	downlinkRanStatusTransferIEs.List = append(downlinkRanStatusTransferIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2261,6 +2306,7 @@ func BuildPaging(
 		pagingIEs.List = append(pagingIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2357,6 +2403,7 @@ func BuildRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNg
 		rerouteNasRequestIEs.List = append(rerouteNasRequestIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2389,6 +2436,7 @@ func BuildRanConfigurationUpdateAcknowledge(
 		rANConfigurationUpdateAcknowledgeIEs.List = append(rANConfigurationUpdateAcknowledgeIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2444,6 +2492,7 @@ func BuildRanConfigurationUpdateFailure(
 		rANConfigurationUpdateFailureIEs.List = append(rANConfigurationUpdateFailureIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2482,6 +2531,7 @@ func BuildAMFStatusIndication(unavailableGUAMIList ngapType.UnavailableGUAMIList
 
 	aMFStatusIndicationIEs.List = append(aMFStatusIndicationIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2540,6 +2590,7 @@ func BuildOverloadStart(
 		overloadStartIEs.List = append(overloadStartIEs.List, ie)
 	}
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2555,6 +2606,7 @@ func BuildOverloadStop() ([]byte, error) {
 	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentOverloadStop
 	initiatingMessage.Value.OverloadStop = new(ngapType.OverloadStop)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2587,6 +2639,7 @@ func BuildDownlinkRanConfigurationTransfer(
 
 		downlinkRANConfigurationTransferIEs.List = append(downlinkRANConfigurationTransferIEs.List, ie)
 	}
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2637,6 +2690,7 @@ func BuildDownlinkNonUEAssociatedNRPPATransport(
 	ie.Value.NRPPaPDU = &nRPPaPDU
 
 	downlinkNonUEAssociatedNRPPaTransportIEs.List = append(downlinkNonUEAssociatedNRPPaTransportIEs.List, ie)
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2724,6 +2778,7 @@ func BuildDeactivateTrace(amfUe *context.AmfUe, anType models.AccessType) ([]byt
 		ie.Value.NGRANTraceID.Value = append(traceReference, trsrNgap...)
 		deactivateTraceIEs.List = append(deactivateTraceIEs.List, ie)
 	}
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2815,6 +2870,7 @@ func BuildLocationReportingControl(
 
 	locationReportingControlIEs.List = append(locationReportingControlIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -2858,6 +2914,7 @@ func BuildUETNLABindingReleaseRequest(ue *context.RanUe) ([]byte, error) {
 
 	uETNLABindingReleaseRequestIEs.List = append(uETNLABindingReleaseRequestIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -3026,6 +3083,7 @@ func BuildAMFConfigurationUpdate(tNLassociationUsage ngapType.TNLAssociationUsag
 	aMFTNLAssociationToUpdateList.List = append(aMFTNLAssociationToUpdateList.List, aMFTNLAssociationToUpdateItem)
 	aMFConfigurationUpdateIEs.List = append(aMFConfigurationUpdateIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
 
@@ -3097,5 +3155,6 @@ func BuildDownlinkUEAssociatedNRPPaTransport(ue *context.RanUe, nRPPaPDU ngapTyp
 
 	downlinkUEAssociatedNRPPaTransportIEs.List = append(downlinkUEAssociatedNRPPaTransportIEs.List, ie)
 
+	IncrementNGAPMsgCount(pdu)
 	return ngap.Encoder(pdu)
 }
