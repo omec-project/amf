@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 
@@ -45,10 +46,14 @@ import (
 	"github.com/free5gc/path_util"
 	pathUtilLogger "github.com/free5gc/path_util/logger"
 	"github.com/fsnotify/fsnotify"
+	gClient "github.com/omec-project/config5g/proto/client"
+	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/spf13/viper"
 )
 
 type AMF struct{}
+
+var RocUpdateConfigChannel chan bool
 
 type (
 	// Config information.
@@ -74,6 +79,7 @@ var initLog *logrus.Entry
 
 func init() {
 	initLog = logger.InitLog
+	RocUpdateConfigChannel = make(chan bool)
 }
 
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
@@ -112,6 +118,21 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	  }
 	} else if os.IsNotExist(err) {
 	  fmt.Println("amfcfg does not exists in /free5gc/config")
+	}
+
+	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
+		factory.AmfConfig.Configuration.ServedGumaiList = nil
+		factory.AmfConfig.Configuration.SupportTAIList = nil
+		factory.AmfConfig.Configuration.PlmnSupportList = nil
+		initLog.Infoln("Reading Amf related configuration from ROC")
+		configChannel := gClient.ConfigWatcher()
+		go amf.UpdateConfig(configChannel)
+	} else {
+		go func() {
+			logger.GrpcLog.Infoln("Reading Amf Configuration from Helm")
+			//sending true to the channel for sending NFRegistration to NRF
+			RocUpdateConfigChannel <- true
+		}()
 	}
 
 	return nil
@@ -308,19 +329,7 @@ func (amf *AMF) Start() {
 	}
 	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
 
-	// Register to NRF
-	var profile models.NfProfile
-	if profileTmp, err := consumer.BuildNFInstance(self); err != nil {
-		initLog.Error("Build AMF Profile Error")
-	} else {
-		profile = profileTmp
-	}
-
-	if _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
-		initLog.Warnf("Send Register NF Instance failed: %+v", err)
-	} else {
-		self.NfId = nfId
-	}
+	go amf.SendNFProfileUpdateToNrf()
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
@@ -429,4 +438,108 @@ func (amf *AMF) Terminate() {
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
 	logger.InitLog.Infof("AMF terminated")
+}
+
+func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
+	for rsp := range commChannel {
+		logger.GrpcLog.Infof("Received updateConfig in the amf app : ", rsp)
+		for _, ns := range rsp.NetworkSlice {
+			var plmn *factory.PlmnSupportItem
+			var tai []models.Tai
+			var guami *models.Guami
+			var snssai *models.Snssai
+			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
+			if ns.Nssai != nil {
+				snssai = new(models.Snssai)
+				val, _ := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
+				snssai.Sst = int32(val)
+				snssai.Sd = ns.Nssai.Sd
+			}
+			if ns.Site != nil {
+				site := ns.Site
+				logger.GrpcLog.Infoln("Network Slice has site name: ", site.SiteName)
+				if site.Plmn != nil {
+					plmn = new(factory.PlmnSupportItem)
+					guami = new(models.Guami)
+					guami.PlmnId = new(models.PlmnId)
+					guami.PlmnId.Mnc = site.Plmn.Mnc
+					guami.PlmnId.Mcc = site.Plmn.Mcc
+
+					logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
+					plmn.PlmnId.Mnc = site.Plmn.Mnc
+					plmn.PlmnId.Mcc = site.Plmn.Mcc
+					//AmfConfig.Configuration.PlmnSupportList =
+					//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
+					if ns.Nssai != nil {
+						plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
+					}
+					if site.Gnb != nil {
+						for _, gnb := range site.Gnb {
+							var t models.Tai
+							t.PlmnId = new(models.PlmnId)
+							t.PlmnId.Mnc = site.Plmn.Mnc
+							t.PlmnId.Mcc = site.Plmn.Mcc
+							t.Tac = strconv.Itoa(int(gnb.Tac))
+							tai = append(tai, t)
+						}
+					}
+
+				} else {
+					logger.GrpcLog.Infoln("Plmn not present in the message ")
+				}
+
+			}
+
+			//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
+			if ns.Site != nil && ns.Site.Plmn != nil {
+				site := ns.Site
+				var plmnfound bool
+				for _, plmnExist := range factory.AmfConfig.Configuration.PlmnSupportList {
+					if plmnExist.PlmnId.Mnc == site.Plmn.Mnc &&
+						plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
+						plmnfound = true
+						break
+					}
+				}
+				if !plmnfound {
+					factory.AmfConfig.Configuration.PlmnSupportList =
+						append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
+					factory.AmfConfig.Configuration.SupportTAIList = tai
+					guami.AmfId = "cafe00"
+					factory.AmfConfig.Configuration.ServedGumaiList =
+						append(factory.AmfConfig.Configuration.ServedGumaiList, *guami)
+						logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportTAILIst: %v SupportGuamiLIst: %v received fromRoc\n", *plmn, tai, *guami)
+				} else if tai != nil { //same plmn received but Tacs in gnb updated
+					factory.AmfConfig.Configuration.SupportTAIList = tai
+					logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
+				}
+			}
+		} // end of network slice for loop
+		RocUpdateConfigChannel <- true
+	}
+	return true
+}
+
+func (amf *AMF) SendNFProfileUpdateToNrf() {
+	self := context.AMF_Self()
+	for rocUpdateConfig := range RocUpdateConfigChannel {
+		if rocUpdateConfig {
+			util.InitAmfContext(self)
+
+			// Register to NRF with Updated Profile
+			var profile models.NfProfile
+			if profileTmp, err := consumer.BuildNFInstance(self); err != nil {
+				logger.CfgLog.Error("Build AMF Profile Error")
+			} else {
+				profile = profileTmp
+			}
+
+			if _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
+				logger.CfgLog.Warnf("Send Register NF Instance with updated profile failed: %+v", err)
+			} else {
+				self.NfId = nfId
+				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
+			}
+		}
+	}
 }

@@ -11,6 +11,10 @@ import (
 
 var NgapMsg map[int64]string
 
+func init() {
+	BuildProcedureCodeToMsgMap()
+}
+
 func BuildProcedureCodeToMsgMap() {
 	NgapMsg = make(map[int64]string, 255)
 	NgapMsg[ngapType.ProcedureCodeAMFConfigurationUpdate] = "AMFConfigurationUpdate"

@@ -11,7 +11,7 @@
 package metrics
 
 import (
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -41,6 +41,8 @@ func initAmfStats() *AmfStats {
 }
 
 func (ps *AmfStats) register() error {
+	prometheus.Unregister(ps.ngapMsg) 
+
 	if err := prometheus.Register(ps.ngapMsg); err != nil {
 		return err
 	}
@@ -54,7 +56,7 @@ func init() {
 	amfStats = initAmfStats()
 
 	if err := amfStats.register(); err != nil {
-		log.Panicln("AMF Stats register failed")
+		fmt.Println("AMF Stats register failed", err)
 	}
 }
 

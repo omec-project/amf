@@ -68,7 +68,6 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Allocate AMF UE NGAP ID error: %+v", err)
 	}
-	ran.GnbIp = ran.Conn.RemoteAddr().String()
 	ranUe.AmfUeNgapId = amfUeNgapID
 	ranUe.RanUeNgapId = ranUeNgapID
 	ranUe.Ran = ran
