@@ -27,6 +27,7 @@ import (
 	"github.com/free5gc/amf/httpcallback"
 	"github.com/free5gc/amf/location"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/metrics"
 	"github.com/free5gc/amf/mt"
 	"github.com/free5gc/amf/ngap"
 	ngap_message "github.com/free5gc/amf/ngap/message"
@@ -106,12 +107,17 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	if err := factory.CheckConfigVersion(); err != nil {
 		return err
 	}
-	viper.SetConfigName("amfcfg.conf")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath("/free5gc/config")
-	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil {             // Handle errors reading the config file
+
+	if _, err := os.Stat("/free5gc/config/amfcfg.conf"); err == nil {
+	  viper.SetConfigName("amfcfg.conf")
+	  viper.SetConfigType("yaml")
+	  viper.AddConfigPath("/free5gc/config")
+	  err := viper.ReadInConfig() // Find and read the config file
+	  if err != nil { // Handle errors reading the config file
 		return err
+	  }
+	} else if os.IsNotExist(err) {
+	  fmt.Println("amfcfg does not exists in /free5gc/config")
 	}
 
 	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
@@ -136,7 +142,7 @@ func (amf *AMF) WatchConfig() {
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		fmt.Println("Config file changed:", e.Name)
-		if err := factory.UpdateAmfConfig("/free5gc/config/amfcfg.conf"); err != nil {
+		if err := factory.UpdateAmfConfig(e.Name); err != nil {
 			fmt.Println("error in loading updated configuration")
 		} else {
 			self := context.AMF_Self()
@@ -309,6 +315,8 @@ func (amf *AMF) Start() {
 			location.AddService(router)
 		}
 	}
+
+	go metrics.InitMetrics()
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)

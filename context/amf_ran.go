@@ -15,12 +15,15 @@ import (
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/metrics"
 )
 
 const (
 	RanPresentGNbId   = 1
 	RanPresentNgeNbId = 2
 	RanPresentN3IwfId = 3
+	RanConnected      = "Connected"
+	RanDisconnected   = "Disconnected"
 )
 
 type AmfRan struct {
@@ -28,6 +31,7 @@ type AmfRan struct {
 	RanId      *models.GlobalRanNodeId
 	Name       string
 	AnType     models.AccessType
+	GnbIp      string
 	/* socket Connect*/
 	Conn net.Conn
 	/* Supported TA List */
@@ -51,6 +55,7 @@ func NewSupportedTAI() (tai SupportedTAI) {
 }
 
 func (ran *AmfRan) Remove() {
+	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
 	AMF_Self().DeleteAmfRan(ran.Conn)
@@ -111,5 +116,15 @@ func (ran *AmfRan) RanID() string {
 		return fmt.Sprintf("<PlmnID: %+v, NgeNbID: %s>", *ran.RanId.PlmnId, ran.RanId.NgeNbId)
 	default:
 		return ""
+	}
+}
+
+func (ran *AmfRan) SetRanStats(state string) {
+	for _, tai := range ran.SupportedTAList {
+		if state == RanConnected {
+			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 1)
+		} else {
+			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 0)
+		}
 	}
 }

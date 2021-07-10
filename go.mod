@@ -2,6 +2,8 @@ module github.com/free5gc/amf
 
 go 1.14
 
+replace github.com/omec-project/amf => ../amf
+
 require (
 	git.cs.nctu.edu.tw/calee/sctp v1.1.0
 	github.com/antihax/optional v1.0.0
@@ -28,6 +30,8 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/config5g v1.0.0
 	github.com/sirupsen/logrus v1.8.1
+	github.com/omec-project/amf v0.0.0-00010101000000-000000000000
+	github.com/prometheus/client_golang v0.9.3
 	github.com/spf13/viper v1.7.1
 	github.com/urfave/cli v1.22.4
 	golang.org/x/sys v0.0.0-20201214210602-f9fddec55a1e // indirect

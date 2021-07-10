@@ -95,6 +95,7 @@ func SendNGSetupResponse(ran *context.AmfRan) {
 		ran.Log.Errorf("Build NGSetupResponse failed : %s", err.Error())
 		return
 	}
+	ran.SetRanStats(context.RanConnected)
 	SendToRan(ran, pkt)
 }
 
