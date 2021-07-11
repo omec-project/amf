@@ -1,3 +1,8 @@
+// SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+
 package message
 
 import (
@@ -426,7 +431,7 @@ func BuildDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrat
 	return m.PlainNasEncode()
 }
 
-func BuildDeregistrationAccept(ue *context.AmfUe) ([]byte, error) {
+func BuildDeregistrationAccept() ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
@@ -438,14 +443,7 @@ func BuildDeregistrationAccept(ue *context.AmfUe) ([]byte, error) {
 	deregistrationAccept.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
 
 	m.GmmMessage.DeregistrationAcceptUEOriginatingDeregistration = deregistrationAccept
-
-	if ue != nil && ue.SecurityContextAvailable {
-		m.SecurityHeader = nas.SecurityHeader{
-			ProtocolDiscriminator: nasMessage.Epd5GSMobilityManagementMessage,
-			SecurityHeaderType:    nas.SecurityHeaderTypeIntegrityProtectedAndCiphered,
-		}
-		return nas_security.Encode(ue, m)
-	}
+	
 	return m.PlainNasEncode()
 }
 
