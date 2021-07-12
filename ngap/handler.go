@@ -876,6 +876,23 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
+	// 38413 10.4, logical error case2, checking InitialUE is recevived before NgSetup Message
+	if ran.RanId == nil {
+		procedureCode := ngapType.ProcedureCodeInitialUEMessage
+		triggeringMessage := ngapType.TriggeringMessagePresentInitiatingMessage
+		procedureCriticality := ngapType.CriticalityPresentIgnore
+		criticalityDiagnostics := buildCriticalityDiagnostics(&procedureCode, &triggeringMessage, &procedureCriticality,
+			nil)
+	    cause := ngapType.Cause{
+             Present: ngapType.CausePresentProtocol,
+             Protocol: &ngapType.CauseProtocol{
+                 Value: ngapType.CauseProtocolPresentMessageNotCompatibleWithReceiverState,
+             },
+		}
+		ngap_message.SendErrorIndication(ran, nil, nil, &cause, &criticalityDiagnostics)
+		return
+	}
+
 	ran.Log.Info("Handle Initial UE Message")
 
 	for _, ie := range initialUEMessage.ProtocolIEs.List {
