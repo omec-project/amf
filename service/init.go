@@ -442,7 +442,7 @@ func (amf *AMF) Terminate() {
 
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
-		logger.GrpcLog.Infof("Received updateConfig in the amf app : ", rsp)
+		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
 		for _, ns := range rsp.NetworkSlice {
 			var plmn *factory.PlmnSupportItem
 			var tai []models.Tai
