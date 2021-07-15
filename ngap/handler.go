@@ -552,18 +552,18 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 				}
 			}
 		} else {
-				ranUe.Log.Info("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
-				amfUe.SmContextList.Range(func(key, value interface{}) bool {
-					smContext := value.(*context.SmContext)
-					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause)
-					if err != nil {
-						ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
-					} else if response == nil {
-						ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
-					}
-					return true
-				})
-			}
+			ranUe.Log.Info("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
+			amfUe.SmContextList.Range(func(key, value interface{}) bool {
+				smContext := value.(*context.SmContext)
+				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause)
+				if err != nil {
+					ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
+				} else if response == nil {
+					ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
+				}
+				return true
+			})
+		}
 	}
 
 	// Remove UE N2 Connection
@@ -883,11 +883,11 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		procedureCriticality := ngapType.CriticalityPresentIgnore
 		criticalityDiagnostics := buildCriticalityDiagnostics(&procedureCode, &triggeringMessage, &procedureCriticality,
 			nil)
-	    cause := ngapType.Cause{
-             Present: ngapType.CausePresentProtocol,
-             Protocol: &ngapType.CauseProtocol{
-                 Value: ngapType.CauseProtocolPresentMessageNotCompatibleWithReceiverState,
-             },
+		cause := ngapType.Cause{
+			Present: ngapType.CausePresentProtocol,
+			Protocol: &ngapType.CauseProtocol{
+				Value: ngapType.CauseProtocolPresentMessageNotCompatibleWithReceiverState,
+			},
 		}
 		ngap_message.SendErrorIndication(ran, nil, nil, &cause, &criticalityDiagnostics)
 		return
@@ -1128,17 +1128,24 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 					continue
 				}
-				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
+				response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
 					models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer)
 				if err != nil {
 					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: %+v", err)
 				}
 				// RAN initiated QoS Flow Mobility in subclause 5.2.2.3.7
-				// if response != nil && response.BinaryDataN2SmInformation != nil {
-				// TODO: n2SmInfo send to RAN
-				// } else if response == nil {
-				// TODO: error handling
-				// }
+				if response != nil && response.BinaryDataN2SmInformation != nil {
+					// TODO: n2SmInfo send to RAN
+				} else if response == nil {
+					// TODO: error handling
+					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: received error response from SMF")
+					if errResponse != nil {
+						responseData := errResponse.JsonData
+						n1Msg := errResponse.BinaryDataN1SmMessage
+						n2Info := errResponse.BinaryDataN2SmInformation
+						BuildAndSendN1N2Msg(ranUe, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
+					}
+				}
 			}
 		}
 
@@ -1170,6 +1177,29 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 	if criticalityDiagnostics != nil {
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
+}
+
+func BuildAndSendN1N2Msg(ranUe *context.RanUe, n1Msg, n2Info []byte, N2SmInfoType models.N2SmInfoType, pduSessId int32) {
+	amfUe := ranUe.AmfUe
+	if n2Info != nil {
+		switch N2SmInfoType {
+		case models.N2SmInfoType_PDU_RES_REL_CMD:
+			ranUe.Log.Debugln("AMF Transfer NGAP PDU Session Resource Rel Co from SMF")
+			var nasPdu []byte
+			if n1Msg != nil {
+				pduSessionId := uint8(pduSessId)
+				var err error
+				nasPdu, err = gmm_message.BuildDLNASTransport(
+					amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
+					if err != nil {
+						ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
+					}
+				}
+				list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
+				ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduSessId, n2Info)
+				ngap_message.SendPDUSessionResourceReleaseCommand(ranUe, nasPdu, list)
+			}
+		}
 }
 
 func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -1459,24 +1489,7 @@ func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPP
 				responseData := response.JsonData
 				n2Info := response.BinaryDataN1SmMessage
 				n1Msg := response.BinaryDataN2SmInformation
-				if n2Info != nil {
-					switch responseData.N2SmInfoType {
-					case models.N2SmInfoType_PDU_RES_REL_CMD:
-						ranUe.Log.Debugln("AMF Transfer NGAP PDU Session Resource Rel Co from SMF")
-						var nasPdu []byte
-						if n1Msg != nil {
-							pduSessionId := uint8(pduSessionID)
-							nasPdu, err = gmm_message.BuildDLNASTransport(
-								amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
-							if err != nil {
-								ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
-							}
-						}
-						list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
-						ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduSessionID, n2Info)
-						ngap_message.SendPDUSessionResourceReleaseCommand(ranUe, nasPdu, list)
-					}
-				}
+				BuildAndSendN1N2Msg(ranUe, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
 			} else if errResponse != nil {
 				errJSON := errResponse.JsonData
 				n1Msg := errResponse.BinaryDataN2SmInformation
@@ -1725,17 +1738,24 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 				return
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
-			_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
+			response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
 				models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: %+v", err)
 			}
 			// RAN initiated QoS Flow Mobility in subclause 5.2.2.3.7
-			// if response != nil && response.BinaryDataN2SmInformation != nil {
-			// TODO: n2SmInfo send to RAN
-			// } else if response == nil {
-			// TODO: error handling
-			// }
+			if response != nil && response.BinaryDataN2SmInformation != nil {
+				// TODO: n2SmInfo send to RAN
+			} else if response == nil {
+				// error handling
+				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: received error response from SMF")
+				if errResponse != nil {
+					responseData := errResponse.JsonData
+					n1Msg := errResponse.BinaryDataN1SmMessage
+					n2Info := errResponse.BinaryDataN2SmInformation
+					BuildAndSendN1N2Msg(ranUe, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
+				}
+			}
 		}
 	}
 
@@ -2468,7 +2488,7 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	}
 
 	if uESecurityCapabilities != nil {
-		amfUe.UESecurityCapability.SetEA1_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x80) >> 7 )
+		amfUe.UESecurityCapability.SetEA1_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x80) >> 7)
 		amfUe.UESecurityCapability.SetEA2_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x40) >> 6)
 		amfUe.UESecurityCapability.SetEA3_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x20) >> 5)
 		amfUe.UESecurityCapability.SetIA1_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x80) >> 7)
