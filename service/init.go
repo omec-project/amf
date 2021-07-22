@@ -109,15 +109,15 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	}
 
 	if _, err := os.Stat("/free5gc/config/amfcfg.conf"); err == nil {
-	  viper.SetConfigName("amfcfg.conf")
-	  viper.SetConfigType("yaml")
-	  viper.AddConfigPath("/free5gc/config")
-	  err := viper.ReadInConfig() // Find and read the config file
-	  if err != nil { // Handle errors reading the config file
-		return err
-	  }
+		viper.SetConfigName("amfcfg.conf")
+		viper.SetConfigType("yaml")
+		viper.AddConfigPath("/free5gc/config")
+		err := viper.ReadInConfig() // Find and read the config file
+		if err != nil {             // Handle errors reading the config file
+			return err
+		}
 	} else if os.IsNotExist(err) {
-	  fmt.Println("amfcfg does not exists in /free5gc/config")
+		fmt.Println("amfcfg does not exists in /free5gc/config")
 	}
 
 	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
@@ -443,10 +443,9 @@ func (amf *AMF) Terminate() {
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : ", rsp)
+		var tai []models.Tai
+		var plmnList []*factory.PlmnSupportItem
 		for _, ns := range rsp.NetworkSlice {
-			var plmn *factory.PlmnSupportItem
-			var tai []models.Tai
-			var guami *models.Guami
 			var snssai *models.Snssai
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
 			if ns.Nssai != nil {
@@ -459,17 +458,13 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				site := ns.Site
 				logger.GrpcLog.Infoln("Network Slice has site name: ", site.SiteName)
 				if site.Plmn != nil {
-					plmn = new(factory.PlmnSupportItem)
-					guami = new(models.Guami)
-					guami.PlmnId = new(models.PlmnId)
-					guami.PlmnId.Mnc = site.Plmn.Mnc
-					guami.PlmnId.Mcc = site.Plmn.Mcc
+					plmn := new(factory.PlmnSupportItem)
 
 					logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
 					plmn.PlmnId.Mnc = site.Plmn.Mnc
 					plmn.PlmnId.Mcc = site.Plmn.Mcc
-					//AmfConfig.Configuration.PlmnSupportList =
-					//		append(AmfConfig.Configuration.PlmnSupportList, plmn)
+					plmnList = append(plmnList, plmn)
+
 					if ns.Nssai != nil {
 						plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
 					}
@@ -489,33 +484,27 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				}
 
 			}
-
-			//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
-			if ns.Site != nil && ns.Site.Plmn != nil {
-				site := ns.Site
-				var plmnfound bool
-				for _, plmnExist := range factory.AmfConfig.Configuration.PlmnSupportList {
-					if plmnExist.PlmnId.Mnc == site.Plmn.Mnc &&
-						plmnExist.PlmnId.Mcc == site.Plmn.Mcc {
-						plmnfound = true
-						break
-					}
-				}
-				if !plmnfound {
-					factory.AmfConfig.Configuration.PlmnSupportList =
-						append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
-					factory.AmfConfig.Configuration.SupportTAIList = tai
-					guami.AmfId = "cafe00"
-					factory.AmfConfig.Configuration.ServedGumaiList =
-						append(factory.AmfConfig.Configuration.ServedGumaiList, *guami)
-						logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportTAILIst: %v SupportGuamiLIst: %v received fromRoc\n", *plmn, tai, *guami)
-				} else if tai != nil { //same plmn received but Tacs in gnb updated
-					factory.AmfConfig.Configuration.SupportTAIList = tai
-					logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
-				}
-			}
 		} // end of network slice for loop
-		RocUpdateConfigChannel <- true
+
+		//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
+		factory.AmfConfig.Configuration.ServedGumaiList = nil
+		factory.AmfConfig.Configuration.PlmnSupportList = nil
+		for _, plmn := range plmnList {
+			factory.AmfConfig.Configuration.PlmnSupportList =
+				append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
+			var guami = models.Guami{PlmnId: &plmn.PlmnId,
+				AmfId: "cafe00",
+			}
+			factory.AmfConfig.Configuration.ServedGumaiList =
+				append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
+			logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
+		}
+		//same plmn received but Tacs in gnb updated
+		factory.AmfConfig.Configuration.SupportTAIList = tai
+		logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
+		if factory.AmfConfig.Configuration.ServedGumaiList != nil {
+			RocUpdateConfigChannel <- true
+		}
 	}
 	return true
 }
