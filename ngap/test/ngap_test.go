@@ -27,33 +27,53 @@ func init() {
 
 // TestHandleNGSetupRequest validates package ngap's handling for NGSetupRequest
 func TestHandleNGSetupRequest(t *testing.T) {
-	conn := &testConn{}
-
 	// test cases
 	testTable := []struct {
-		input []byte
-		want  byte
+		gnbName, tac string
+		gnbId        []byte
+		bitLength    uint64
+		want, testId byte
 	}{
+		// expecting SuccessfulOutcome
 		{
-			input: testNGSetupReq,
-			want:  ngapPDUSuccessfulOutcome,
+			testId:    1,
+			gnbName:   "GNB2",
+			tac:       "\x00\x00\x01",
+			gnbId:     []byte{0x00, 0x00, 0x08},
+			bitLength: 22,
+			want:      ngapPDUSuccessfulOutcome,
 		},
+		// expecting UnsuccessfulOutcome due to unsupported TA
 		{
-			input: testNGSetupReqErr,
-			want:  ngapPDUUnSuccessfulOutcome,
+			testId:    2,
+			gnbName:   "GNB2",
+			tac:       "\x00\x00\x04",
+			gnbId:     []byte{0x00, 0x00, 0x08},
+			bitLength: 22,
+			want:      ngapPDUUnSuccessfulOutcome,
 		},
 	}
 
+	conn := &testConn{}
 	for _, test := range testTable {
-		ngap.Dispatch(conn, test.input)
+		testNGSetupReq, err := GetNGSetupRequest(test.gnbId, test.bitLength, test.gnbName, test.tac)
 
+		if err != nil {
+			t.Log("Failed to to create NGSetupRequest")
+			return
+		}
+		ngap.Dispatch(conn, testNGSetupReq)
+
+		// conn.data holds the NGAP response message
 		if len(conn.data) == 0 {
 			t.Error("Unexpected message drop")
 			return
 		}
 
+		// The first byte of the NGAPPDU indicates the type of NGAP Message
 		if conn.data[0] != test.want {
-			t.Error("Want:", messageTypeMap[test.want], ", Got:", messageTypeMap[conn.data[0]])
+			t.Error("Test case", test.testId, "failed.  Want:",
+				messageTypeMap[test.want], ",  Got:", messageTypeMap[conn.data[0]])
 		}
 	}
 }
