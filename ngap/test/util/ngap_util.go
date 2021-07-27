@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
 
-package ngap_test
+package util
 
 import (
 	"net"
@@ -16,44 +16,44 @@ import (
 
 // ASN.1 Basic-PER encoded values
 const (
-	ngapPDUIncomingMessage     byte = 0x00
-	ngapPDUSuccessfulOutcome   byte = 0x20
-	ngapPDUUnSuccessfulOutcome byte = 0x40
+	NgapPDUIncomingMessage     byte = 0x00
+	NgapPDUSuccessfulOutcome   byte = 0x20
+	NgapPDUUnSuccessfulOutcome byte = 0x40
 )
 
-var messageTypeMap = map[byte]string{
-	ngapPDUIncomingMessage:     "IncomingMessage",
-	ngapPDUSuccessfulOutcome:   "SuccessfulOutcome",
-	ngapPDUUnSuccessfulOutcome: "UnsuccessfulOutcome",
+var MessageTypeMap = map[byte]string{
+	NgapPDUIncomingMessage:     "IncomingMessage",
+	NgapPDUSuccessfulOutcome:   "SuccessfulOutcome",
+	NgapPDUUnSuccessfulOutcome: "UnsuccessfulOutcome",
 }
 
 // Mock Connection struct. Implements the net.Conn interface
-type testConn struct {
-	data []byte
+type TestConn struct {
+	Data []byte
 }
 
-type testConnAddr struct {
+type TestConnAddr struct {
 }
 
-func (tca testConnAddr) Network() (a string) { return }
-func (tca testConnAddr) String() (a string)  { return }
+func (tca TestConnAddr) Network() (a string) { return }
+func (tca TestConnAddr) String() (a string)  { return }
 
 // Write method of the mocked testConn struct will be invoked as a part of the
 // unit test framework
-func (tc *testConn) Write(b []byte) (n int, err error) {
-	tc.data = b
+func (tc *TestConn) Write(b []byte) (n int, err error) {
+	tc.Data = b
 	return
 }
 
-func (tc *testConn) Close() (e error) { return }
+func (tc *TestConn) Close() (e error) { return }
 
-func (tc *testConn) Read(b []byte) (n int, err error) { return }
+func (tc *TestConn) Read(b []byte) (n int, err error) { return }
 
-func (tc *testConn) LocalAddr() net.Addr                    { return testConnAddr{} }
-func (tc *testConn) RemoteAddr() net.Addr                   { return testConnAddr{} }
-func (tc *testConn) SetDeadline(t time.Time) (e error)      { return }
-func (tc *testConn) SetReadDeadline(t time.Time) (e error)  { return }
-func (tc *testConn) SetWriteDeadline(t time.Time) (e error) { return }
+func (tc *TestConn) LocalAddr() net.Addr                    { return TestConnAddr{} }
+func (tc *TestConn) RemoteAddr() net.Addr                   { return TestConnAddr{} }
+func (tc *TestConn) SetDeadline(t time.Time) (e error)      { return }
+func (tc *TestConn) SetReadDeadline(t time.Time) (e error)  { return }
+func (tc *TestConn) SetWriteDeadline(t time.Time) (e error) { return }
 
 // GetNGSetupRequest returns an encoded NGSetupRequest based on the input parameters
 func GetNGSetupRequest(gnbId []byte, bitlength uint64, name, tac string) ([]byte, error) {

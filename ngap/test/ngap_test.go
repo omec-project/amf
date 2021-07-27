@@ -9,6 +9,8 @@ import (
 	"log"
 	"testing"
 
+	ngaputil "github.com/free5gc/amf/ngap/test/util"
+
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/factory"
 	"github.com/free5gc/amf/ngap"
@@ -41,7 +43,7 @@ func TestHandleNGSetupRequest(t *testing.T) {
 			tac:       "\x00\x00\x01",
 			gnbId:     []byte{0x00, 0x00, 0x08},
 			bitLength: 22,
-			want:      ngapPDUSuccessfulOutcome,
+			want:      ngaputil.NgapPDUSuccessfulOutcome,
 		},
 		// expecting UnsuccessfulOutcome due to unsupported TA
 		{
@@ -50,13 +52,13 @@ func TestHandleNGSetupRequest(t *testing.T) {
 			tac:       "\x00\x00\x04",
 			gnbId:     []byte{0x00, 0x00, 0x08},
 			bitLength: 22,
-			want:      ngapPDUUnSuccessfulOutcome,
+			want:      ngaputil.NgapPDUUnSuccessfulOutcome,
 		},
 	}
 
-	conn := &testConn{}
+	conn := &ngaputil.TestConn{}
 	for _, test := range testTable {
-		testNGSetupReq, err := GetNGSetupRequest(test.gnbId, test.bitLength, test.gnbName, test.tac)
+		testNGSetupReq, err := ngaputil.GetNGSetupRequest(test.gnbId, test.bitLength, test.gnbName, test.tac)
 
 		if err != nil {
 			t.Log("Failed to to create NGSetupRequest")
@@ -65,15 +67,15 @@ func TestHandleNGSetupRequest(t *testing.T) {
 		ngap.Dispatch(conn, testNGSetupReq)
 
 		// conn.data holds the NGAP response message
-		if len(conn.data) == 0 {
+		if len(conn.Data) == 0 {
 			t.Error("Unexpected message drop")
 			return
 		}
 
 		// The first byte of the NGAPPDU indicates the type of NGAP Message
-		if conn.data[0] != test.want {
+		if conn.Data[0] != test.want {
 			t.Error("Test case", test.testId, "failed.  Want:",
-				messageTypeMap[test.want], ",  Got:", messageTypeMap[conn.data[0]])
+				ngaputil.MessageTypeMap[test.want], ",  Got:", ngaputil.MessageTypeMap[conn.Data[0]])
 		}
 	}
 }
