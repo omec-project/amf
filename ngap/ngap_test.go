@@ -9,7 +9,7 @@ import (
 	"log"
 	"testing"
 
-	ngaputil "github.com/free5gc/amf/ngap/test/util"
+	ngaputil "github.com/free5gc/amf/ngap/util"
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/factory"
@@ -19,7 +19,7 @@ import (
 
 func init() {
 	// Initializing AMF Context from config.
-	testAmfConfig := "../../amfTest/amfcfg.yaml"
+	testAmfConfig := "../amfTest/amfcfg.yaml"
 	if err := factory.InitConfigFactory(testAmfConfig); err != nil {
 		log.Fatal("Failed to initialzie Factory Config")
 	}
