@@ -92,6 +92,12 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Tracef("PagingDRX[%d]", pagingDRX.Value)
 	}
 
+	// Clearing any existing contents of ran.SupportedTAList
+	if len(ran.SupportedTAList) != 0 {
+		ran.SupportedTAList = nil
+		ran.SupportedTAList = context.NewSupportedTAIList()
+	}
+
 	for i := 0; i < len(supportedTAList.List); i++ {
 		supportedTAItem := supportedTAList.List[i]
 		tac := hex.EncodeToString(supportedTAItem.TAC.Value)
@@ -1191,15 +1197,15 @@ func BuildAndSendN1N2Msg(ranUe *context.RanUe, n1Msg, n2Info []byte, N2SmInfoTyp
 				var err error
 				nasPdu, err = gmm_message.BuildDLNASTransport(
 					amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
-					if err != nil {
-						ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
-					}
+				if err != nil {
+					ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
 				}
-				list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
-				ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduSessId, n2Info)
-				ngap_message.SendPDUSessionResourceReleaseCommand(ranUe, nasPdu, list)
 			}
+			list := ngapType.PDUSessionResourceToReleaseListRelCmd{}
+			ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduSessId, n2Info)
+			ngap_message.SendPDUSessionResourceReleaseCommand(ranUe, nasPdu, list)
 		}
+	}
 }
 
 func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
