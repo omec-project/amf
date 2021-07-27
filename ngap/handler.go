@@ -94,7 +94,6 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 
 	// Clearing any existing contents of ran.SupportedTAList
 	if len(ran.SupportedTAList) != 0 {
-		ran.SupportedTAList = nil
 		ran.SupportedTAList = context.NewSupportedTAIList()
 	}
 
