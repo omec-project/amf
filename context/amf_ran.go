@@ -54,6 +54,10 @@ func NewSupportedTAI() (tai SupportedTAI) {
 	return
 }
 
+func NewSupportedTAIList() []SupportedTAI {
+	return make([]SupportedTAI, 0, MaxNumOfTAI*MaxNumOfBroadcastPLMNs)
+}
+
 func (ran *AmfRan) Remove() {
 	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
