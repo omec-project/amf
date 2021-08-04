@@ -8,6 +8,7 @@ package consumer
 import (
 	"context"
 	"regexp"
+	"time"
 
 	amf_context "github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/logger"
@@ -40,7 +41,10 @@ func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*mo
 		policyAssociationRequest.Rfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
 	}
 
-	res, httpResp, localErr := client.DefaultApi.PoliciesPost(context.Background(), policyAssociationRequest)
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
+	res, httpResp, localErr := client.DefaultApi.PoliciesPost(ctx, policyAssociationRequest)
 	if localErr == nil {
 		locationHeader := httpResp.Header.Get("Location")
 		logger.ConsumerLog.Debugf("location header: %+v", locationHeader)
@@ -83,8 +87,11 @@ func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAss
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
 	res, httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdUpdatePost(
-		context.Background(), ue.PolicyAssociationId, updateRequest)
+		ctx, ue.PolicyAssociationId, updateRequest)
 	if localErr == nil {
 		if res.ServAreaRes != nil {
 			ue.AmPolicyAssociation.ServAreaRes = res.ServAreaRes
@@ -120,8 +127,10 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.Proble
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
 
-	httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdDelete(context.Background(), ue.PolicyAssociationId)
+	httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdDelete(ctx, ue.PolicyAssociationId)
 	if localErr == nil {
 		ue.RemoveAmPolicyAssociation()
 	} else if httpResp != nil {

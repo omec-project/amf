@@ -8,6 +8,7 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/antihax/optional"
 
@@ -44,7 +45,9 @@ func NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []model
 			SliceInfoRequestForRegistration: optional.NewInterface(string(e)),
 		}
 	}
-	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(context.Background(),
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
 		models.NfType_AMF, amfSelf.NfId, &paramOpt)
 	if localErr == nil {
 		ue.NetworkSliceInfo = &res
@@ -85,7 +88,9 @@ func NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai models.Snssai) (
 	paramOpt := Nnssf_NSSelection.NSSelectionGetParamOpts{
 		SliceInfoRequestForPduSession: optional.NewInterface(string(e)),
 	}
-	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(context.Background(),
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
 		models.NfType_AMF, amfSelf.NfId, &paramOpt)
 	if localErr == nil {
 		return &res, nil, nil
