@@ -128,9 +128,22 @@ func SendCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.Sm
 	configuration := Nsmf_PDUSession.NewConfiguration()
 	configuration.SetBasePath(smContext.SmfUri())
 	client := Nsmf_PDUSession.NewAPIClient(configuration)
+	http := configuration.HTTPClient()
+	http.Timeout = 30 * time.Second
+
+	ctx, _ := context.WithTimeout(context.Background(), 30 * time.Second)
+
+	go func () {
+   		 select {
+    			case <-time.After(35 * time.Second):
+        			fmt.Println("overslept")
+  			case <-ctx.Done():
+			        fmt.Println(ctx.Err()) // prints "context deadline exceeded"
+		}
+	}()
 
 	postSmContextReponse, httpResponse, err :=
-		client.SMContextsCollectionApi.PostSmContexts(context.Background(), postSmContextsRequest)
+		client.SMContextsCollectionApi.PostSmContexts(ctx, postSmContextsRequest)
 
 	if err == nil {
 		response = &postSmContextReponse
@@ -406,6 +419,20 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 	configuration := Nsmf_PDUSession.NewConfiguration()
 	configuration.SetBasePath(smContext.SmfUri())
 	client := Nsmf_PDUSession.NewAPIClient(configuration)
+        
+	http := configuration.HTTPClient()
+        http.Timeout = 30 * time.Second
+
+        ctx, _ := context.WithTimeout(context.Background(), 30 * time.Second)
+
+        go func () {
+                 select {
+                        case <-time.After(35 * time.Second):
+                                fmt.Println("overslept")
+                        case <-ctx.Done():
+                                fmt.Println(ctx.Err()) // prints "context deadline exceeded"
+                }
+        }()
 
 	var updateSmContextRequest models.UpdateSmContextRequest
 	updateSmContextRequest.JsonData = &updateData
@@ -450,6 +477,19 @@ func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	releaseSmContextRequest := models.ReleaseSmContextRequest{
 		JsonData: &releaseData,
 	}
+        http := configuration.HTTPClient()
+        http.Timeout = 30 * time.Second
+
+        ctx, _ := context.WithTimeout(context.Background(), 30 * time.Second)
+
+        go func () {
+                 select {
+                        case <-time.After(35 * time.Second):
+                                fmt.Println("overslept")
+                        case <-ctx.Done():
+                                fmt.Println(ctx.Err()) // prints "context deadline exceeded"
+                }
+        }()
 
 	response, err1 := client.IndividualSMContextApi.ReleaseSmContext(
 		context.Background(), smContext.SmContextRef(), releaseSmContextRequest)
