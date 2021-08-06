@@ -7,6 +7,7 @@ package consumer
 
 import (
 	"context"
+	"time"
 
 	"github.com/antihax/optional"
 
@@ -27,7 +28,10 @@ func PutUpuAck(ue *amf_context.AmfUe, upuMacIue string) error {
 	upuOpt := Nudm_SubscriberDataManagement.PutUpuAckParamOpts{
 		AcknowledgeInfo: optional.NewInterface(ackInfo),
 	}
-	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateApi.PutUpuAck(context.Background(), ue.Supi, &upuOpt)
+
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateApi.PutUpuAck(ctx, ue.Supi, &upuOpt)
 	return err
 }
 
@@ -40,8 +44,11 @@ func SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails,
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
 	data, httpResp, localErr := client.AccessAndMobilitySubscriptionDataRetrievalApi.GetAmData(
-		context.Background(), ue.Supi, &getAmDataParamOpt)
+		ctx, ue.Supi, &getAmDataParamOpt)
 	if localErr == nil {
 		ue.AccessAndMobilitySubscriptionData = &data
 		ue.Gpsi = data.Gpsis[0] // TODO: select GPSI
@@ -66,8 +73,10 @@ func SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails *models.ProblemD
 	paramOpt := Nudm_SubscriberDataManagement.GetSmfSelectDataParamOpts{
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
 	data, httpResp, localErr :=
-		client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(context.Background(), ue.Supi, &paramOpt)
+		client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		ue.SmfSelectionData = &data
 	} else if httpResp != nil {
@@ -88,9 +97,11 @@ func SDMGetUeContextInSmfData(ue *amf_context.AmfUe) (problemDetails *models.Pro
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
 
 	data, httpResp, localErr :=
-		client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(context.Background(), ue.Supi, nil)
+		client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(ctx, ue.Supi, nil)
 	if localErr == nil {
 		ue.UeContextInSmfData = &data
 	} else if httpResp != nil {
@@ -117,8 +128,10 @@ func SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails,
 		NfInstanceId: amfSelf.NfId,
 		PlmnId:       &ue.PlmnId,
 	}
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
 
-	_, httpResp, localErr := client.SubscriptionCreationApi.Subscribe(context.Background(), ue.Supi, sdmSubscription)
+	_, httpResp, localErr := client.SubscriptionCreationApi.Subscribe(ctx, ue.Supi, sdmSubscription)
 	if localErr == nil {
 		return
 	} else if httpResp != nil {
@@ -142,8 +155,10 @@ func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe) (problemDetails
 	paramOpt := Nudm_SubscriberDataManagement.GetNssaiParamOpts{
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
 	nssai, httpResp, localErr :=
-		client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(context.Background(), ue.Supi, &paramOpt)
+		client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		for _, defaultSnssai := range nssai.DefaultSingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{
