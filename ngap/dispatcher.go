@@ -41,6 +41,28 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
+	ranUe := FetchRanUeContext(ran, pdu)
+
+	if ranUe != nil {
+		ranUe.NgapMsg <- pdu
+	}
+}
+
+func StartRanUeTransaction(ranUe *context.RanUe) {
+	for {
+		select {
+		case msg := <-ranUe.NgapMsg:
+			DispatchNgapMsg(ranUe.Ran, msg)
+			//              case event := <-amfUe.EventChannel:
+			//case <-event.quit:
+			//	return
+		}
+	}
+
+}
+
+func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU) {
+
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
@@ -175,7 +197,7 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 		logger.NgapLog.Warnf("RAN context has been removed[addr: %+v]", conn.RemoteAddr())
 		return
 	}
-	
+
 	//Removing Stale Connections in AmfRanPool
 	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
 		amfRan := value.(*context.AmfRan)
