@@ -41,6 +41,32 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
+	ranUe := FetchRanUeContext(ran, pdu)
+
+	/* uecontext is found, submit the message to transaction queue*/
+	if ranUe != nil && ranUe.AmfUe != nil {
+		if ranUe.AmfUe.Transaction == nil {
+			ran.Log.Errorf("AmfUe Transaction is not exist")
+			return
+		}
+		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
+		ranUe.AmfUe.Transaction.UpdateNgapHandler(NgapMsgHandler)
+		ngapMsg := context.NgapMsg{
+			Ran:     ran,
+			NgapMsg: pdu,
+		}
+		ranUe.AmfUe.Transaction.SubmitMessage(ngapMsg)
+	} else {
+		go DispatchNgapMsg(ran, pdu)
+	}
+}
+
+func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
+	DispatchNgapMsg(msg.Ran, msg.NgapMsg)
+}
+
+func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU) {
+
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
@@ -175,7 +201,7 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 		logger.NgapLog.Warnf("RAN context has been removed[addr: %+v]", conn.RemoteAddr())
 		return
 	}
-	
+
 	//Removing Stale Connections in AmfRanPool
 	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
 		amfRan := value.(*context.AmfRan)

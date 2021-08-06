@@ -21,38 +21,80 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
+func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+	switch msg.(type) {
+	case models.N1N2MessageTransferRequest:
+		return N1N2MessageTransferProcedure(s1, s2, msg.(models.N1N2MessageTransferRequest))
+	}
+
+	return nil, "", nil, nil
+}
+
 // TS23502 4.2.3.3, 4.2.4.3, 4.3.2.2, 4.3.2.3, 4.3.3.2, 4.3.7
 func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapper.Response {
+	var ue *context.AmfUe
+	var ok bool
+	var problemDetails *models.ProblemDetails
 	logger.ProducerLog.Infof("Handle N1N2 Message Transfer Request")
 
 	n1n2MessageTransferRequest := request.Body.(models.N1N2MessageTransferRequest)
 	ueContextID := request.Params["ueContextId"]
 	reqUri := request.Params["reqUri"]
 
-	n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr := N1N2MessageTransferProcedure(
-		ueContextID, reqUri, n1n2MessageTransferRequest)
+	amfSelf := context.AMF_Self()
 
-	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-	} else if transferErr != nil {
-		return http_wrapper.NewResponse(int(transferErr.Error.Status), nil, transferErr)
-	} else if n1n2MessageTransferRspData != nil {
-		switch n1n2MessageTransferRspData.Cause {
-		case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
-			fallthrough
-		case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
-			return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
-		case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
-			headers := http.Header{
-				"Location": {locationHeader},
-			}
-			return http_wrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
+	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); ok {
+		sbiMsg := context.SbiMsg{
+			UeContextId: ueContextID,
+			ReqUri:      reqUri,
+			Msg:         n1n2MessageTransferRequest,
+			Result:      make(chan context.SbiResponseMsg, 10),
 		}
-	}
+		var n1n2MessageTransferRspData *models.N1N2MessageTransferRspData
+		var transferErr *models.N1N2MessageTransferError
+		ue.Transaction.UpdateSbiHandler(ProducerHandler)
+		ue.Transaction.SubmitMessage(sbiMsg)
+		msg := <-sbiMsg.Result
+		if msg.RespData != nil {
+			n1n2MessageTransferRspData = msg.RespData.(*models.N1N2MessageTransferRspData)
+		}
+		locationHeader := msg.LocationHeader
+		if msg.ProbDetails != nil {
+			problemDetails = msg.ProbDetails.(*models.ProblemDetails)
+		}
+		if msg.TransferErr != nil {
+			transferErr = msg.TransferErr.(*models.N1N2MessageTransferError)
+		}
+		//		n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr := N1N2MessageTransferProcedure(
+		//			ueContextID, reqUri, n1n2MessageTransferRequest)
 
-	problemDetails = &models.ProblemDetails{
-		Status: http.StatusForbidden,
-		Cause:  "UNSPECIFIED",
+		if problemDetails != nil {
+			return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		} else if transferErr != nil {
+			return http_wrapper.NewResponse(int(transferErr.Error.Status), nil, transferErr)
+		} else if n1n2MessageTransferRspData != nil {
+			switch n1n2MessageTransferRspData.Cause {
+			case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
+				fallthrough
+			case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
+				return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
+			case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
+				headers := http.Header{
+					"Location": {locationHeader},
+				}
+				return http_wrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
+			}
+		}
+
+		problemDetails = &models.ProblemDetails{
+			Status: http.StatusForbidden,
+			Cause:  "UNSPECIFIED",
+		}
+	} else {
+		problemDetails = &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+		}
 	}
 	return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
