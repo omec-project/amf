@@ -14,15 +14,49 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
+func LocationInfoHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+	switch msg.(type) {
+	case models.RequestLocInfo:
+		r1, r2 := ProvideLocationInfoProcedure(msg.(models.RequestLocInfo), s1)
+		return r1, "", r2, nil
+	}
+
+	return nil, "", nil, nil
+}
+
 func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapper.Response {
+	var ue *context.AmfUe
+	var ok bool
 	logger.ProducerLog.Info("Handle Provide Location Info Request")
 
 	requestLocInfo := request.Body.(models.RequestLocInfo)
 	ueContextID := request.Params["ueContextId"]
 
-	provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
-	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	amfSelf := context.AMF_Self()
+	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+		}
+		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	}
+
+	sbiMsg := context.SbiMsg{
+		UeContextId: ueContextID,
+		ReqUri:      "",
+		Msg:         requestLocInfo,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	var provideLocInfo *models.ProvideLocInfo
+	ue.Transaction.UpdateSbiHandler(LocationInfoHandler)
+	ue.Transaction.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+	if msg.RespData != nil {
+		provideLocInfo = msg.RespData.(*models.ProvideLocInfo)
+	}
+	//provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusOK, nil, provideLocInfo)
 	}

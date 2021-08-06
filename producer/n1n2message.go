@@ -22,9 +22,16 @@ import (
 )
 
 func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+	if msg == nil {
+		r1, r2 := N1N2MessageTransferStatusProcedure(s1, s2)
+		return r1, "", r2, nil
+	}
 	switch msg.(type) {
 	case models.N1N2MessageTransferRequest:
 		return N1N2MessageTransferProcedure(s1, s2, msg.(models.N1N2MessageTransferRequest))
+	case models.UeN1N2InfoSubscriptionCreateData:
+		r1, r2 := N1N2MessageSubscribeProcedure(s1, msg.(models.UeN1N2InfoSubscriptionCreateData))
+		return r1, "", r2, nil
 	}
 
 	return nil, "", nil, nil
@@ -43,58 +50,58 @@ func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapp
 
 	amfSelf := context.AMF_Self()
 
-	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); ok {
-		sbiMsg := context.SbiMsg{
-			UeContextId: ueContextID,
-			ReqUri:      reqUri,
-			Msg:         n1n2MessageTransferRequest,
-			Result:      make(chan context.SbiResponseMsg, 10),
-		}
-		var n1n2MessageTransferRspData *models.N1N2MessageTransferRspData
-		var transferErr *models.N1N2MessageTransferError
-		ue.Transaction.UpdateSbiHandler(ProducerHandler)
-		ue.Transaction.SubmitMessage(sbiMsg)
-		msg := <-sbiMsg.Result
-		if msg.RespData != nil {
-			n1n2MessageTransferRspData = msg.RespData.(*models.N1N2MessageTransferRspData)
-		}
-		locationHeader := msg.LocationHeader
-		if msg.ProbDetails != nil {
-			problemDetails = msg.ProbDetails.(*models.ProblemDetails)
-		}
-		if msg.TransferErr != nil {
-			transferErr = msg.TransferErr.(*models.N1N2MessageTransferError)
-		}
-		//		n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr := N1N2MessageTransferProcedure(
-		//			ueContextID, reqUri, n1n2MessageTransferRequest)
-
-		if problemDetails != nil {
-			return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
-		} else if transferErr != nil {
-			return http_wrapper.NewResponse(int(transferErr.Error.Status), nil, transferErr)
-		} else if n1n2MessageTransferRspData != nil {
-			switch n1n2MessageTransferRspData.Cause {
-			case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
-				fallthrough
-			case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
-				return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
-			case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
-				headers := http.Header{
-					"Location": {locationHeader},
-				}
-				return http_wrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
-			}
-		}
-
-		problemDetails = &models.ProblemDetails{
-			Status: http.StatusForbidden,
-			Cause:  "UNSPECIFIED",
-		}
-	} else {
+	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
 		problemDetails = &models.ProblemDetails{
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
+		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	}
+	sbiMsg := context.SbiMsg{
+		UeContextId: ueContextID,
+		ReqUri:      reqUri,
+		Msg:         n1n2MessageTransferRequest,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	var n1n2MessageTransferRspData *models.N1N2MessageTransferRspData
+	var transferErr *models.N1N2MessageTransferError
+	ue.Transaction.UpdateSbiHandler(ProducerHandler)
+	ue.Transaction.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+	if msg.RespData != nil {
+		n1n2MessageTransferRspData = msg.RespData.(*models.N1N2MessageTransferRspData)
+	}
+	locationHeader := msg.LocationHeader
+	if msg.ProblemDetails != nil {
+		problemDetails = msg.ProblemDetails.(*models.ProblemDetails)
+	}
+	if msg.TransferErr != nil {
+		transferErr = msg.TransferErr.(*models.N1N2MessageTransferError)
+	}
+	//		n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr := N1N2MessageTransferProcedure(
+	//			ueContextID, reqUri, n1n2MessageTransferRequest)
+
+	if problemDetails != nil {
+		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	} else if transferErr != nil {
+		return http_wrapper.NewResponse(int(transferErr.Error.Status), nil, transferErr)
+	} else if n1n2MessageTransferRspData != nil {
+		switch n1n2MessageTransferRspData.Cause {
+		case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
+			fallthrough
+		case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
+			return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
+		case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
+			headers := http.Header{
+				"Location": {locationHeader},
+			}
+			return http_wrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
+		}
+	}
+
+	problemDetails = &models.ProblemDetails{
+		Status: http.StatusForbidden,
+		Cause:  "UNSPECIFIED",
 	}
 	return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
@@ -415,11 +422,36 @@ func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http
 	ueContextID := request.Params["ueContextId"]
 	reqUri := request.Params["reqUri"]
 
-	status, problemDetails := N1N2MessageTransferStatusProcedure(ueContextID, reqUri)
-	if problemDetails != nil {
+	amfSelf := context.AMF_Self()
+
+	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
+	if !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+		}
 		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	}
+	sbiMsg := context.SbiMsg{
+		UeContextId: ueContextID,
+		ReqUri:      reqUri,
+		Msg:         nil,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	ue.Transaction.UpdateSbiHandler(ProducerHandler)
+	ue.Transaction.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+
+	var n1n2MessageRspData *models.N1N2MessageTransferCause
+	if msg.RespData != nil {
+		n1n2MessageRspData = msg.RespData.(*models.N1N2MessageTransferCause)
+	}
+
+	//status, problemDetails := N1N2MessageTransferStatusProcedure(ueContextID, reqUri)
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, status)
+		return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageRspData)
 	}
 }
 
@@ -454,12 +486,35 @@ func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrap
 	ueN1N2InfoSubscriptionCreateData := request.Body.(models.UeN1N2InfoSubscriptionCreateData)
 	ueContextID := request.Params["ueContextId"]
 
-	ueN1N2InfoSubscriptionCreatedData, problemDetails := N1N2MessageSubscribeProcedure(ueContextID,
-		ueN1N2InfoSubscriptionCreateData)
-	if problemDetails != nil {
+	amfSelf := context.AMF_Self()
+
+	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
+	if !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+		}
 		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	}
+	sbiMsg := context.SbiMsg{
+		UeContextId: ueContextID,
+		ReqUri:      "",
+		Msg:         ueN1N2InfoSubscriptionCreateData,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	ue.Transaction.UpdateSbiHandler(ProducerHandler)
+	ue.Transaction.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+
+	var n1n2MessageRspData *models.UeN1N2InfoSubscriptionCreateData
+	if msg.RespData != nil {
+		n1n2MessageRspData = msg.RespData.(*models.UeN1N2InfoSubscriptionCreateData)
+	}
+	//ueN1N2InfoSubscriptionCreatedData, problemDetails := N1N2MessageSubscribeProcedure(ueContextID, ueN1N2InfoSubscriptionCreateData)
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusCreated, nil, ueN1N2InfoSubscriptionCreatedData)
+		return http_wrapper.NewResponse(http.StatusCreated, nil, n1n2MessageRspData)
 	}
 }
 

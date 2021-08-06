@@ -45,7 +45,7 @@ func (tx *Transaction) Start() {
 				res := SbiResponseMsg{
 					RespData:       p_1,
 					LocationHeader: p_2,
-					ProbDetails:    p_3,
+					ProblemDetails: p_3,
 					TransferErr:    p_4,
 				}
 				msg.(SbiMsg).Result <- res

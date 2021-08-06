@@ -233,7 +233,7 @@ type NgapMsg struct {
 type SbiResponseMsg struct {
 	RespData       interface{}
 	LocationHeader string
-	ProbDetails    interface{}
+	ProblemDetails interface{}
 	TransferErr    interface{}
 }
 
