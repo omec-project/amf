@@ -33,7 +33,6 @@ const (
 	OnGoingProcedurePaging       OnGoingProcedure = "Paging"
 	OnGoingProcedureN2Handover   OnGoingProcedure = "N2Handover"
 	OnGoingProcedureRegistration OnGoingProcedure = "Registration"
-	OnGoingProcedureAbort        OnGoingProcedure = "Abort"
 )
 
 const (
@@ -187,19 +186,12 @@ type AmfUe struct {
 	T3512Value                      int // default 54 min
 	Non3gppDeregistrationTimerValue int // default 54 min
 
-	TransientInfo chan AmfUeTransientInfo
-	EventChannel  chan OnGoing
 	// logger
 	NASLog      *logrus.Entry
 	GmmLog      *logrus.Entry
 	ProducerLog *logrus.Entry
 }
 
-type AmfUeTransientInfo struct {
-	AnType        models.AccessType
-	NasPdu        []byte
-	ProcedureCode int64
-}
 type AmfUeEventSubscription struct {
 	Timestamp         time.Time
 	AnyUe             bool
@@ -266,7 +258,6 @@ func (ue *AmfUe) init() {
 	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
 	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
-	ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
 }
 
 func (ue *AmfUe) ServingAMF() *AMFContext {
@@ -768,7 +759,4 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	} else {
 		return nil, false
 	}
-}
-
-func (ue *AmfUe) NewTransaction() {
 }

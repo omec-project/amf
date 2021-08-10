@@ -70,8 +70,6 @@ type RanUe struct {
 	/* send initial context setup request or not*/
 	SentInitialContextSetupRequest bool
 
-	NgapMsg chan *ngapType.NGAPPDU
-
 	/* logger */
 	Log *logrus.Entry
 }

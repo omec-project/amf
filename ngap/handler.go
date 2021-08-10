@@ -23,69 +23,6 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
-func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.RanUe {
-	var rANUENGAPID *ngapType.RANUENGAPID
-
-	if ran == nil {
-		logger.NgapLog.Error("ran is nil")
-		return nil
-	}
-	if message == nil {
-		ran.Log.Error("NGAP Message is nil")
-		return nil
-	}
-	switch message.Present {
-	case ngapType.NGAPPDUPresentInitiatingMessage:
-		initiatingMessage := message.InitiatingMessage
-		switch initiatingMessage.ProcedureCode.Value {
-		case ngapType.ProcedureCodeNGSetup:
-		case ngapType.ProcedureCodeInitialUEMessage:
-			ngapMsg := initiatingMessage.Value.InitialUEMessage
-			if ngapMsg == nil {
-				ran.Log.Error("InitialUEMessage is nil")
-				return nil
-			}
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				switch ie.Id.Value {
-				case ngapType.ProtocolIEIDRANUENGAPID:
-					rANUENGAPID = ie.Value.RANUENGAPID
-					ran.Log.Trace("Decode IE RanUeNgapID")
-					if rANUENGAPID == nil {
-						ran.Log.Error("RanUeNgapID is nil")
-						return nil
-					}
-				}
-
-				//case ngapType.ProcedureCodeUEContextReleaseRequest:
-			}
-
-		case ngapType.ProcedureCodeUplinkNASTransport:
-			ngapMsg := initiatingMessage.Value.UplinkNASTransport
-			if ngapMsg == nil {
-				ran.Log.Error("UplinkNasTransport is nil")
-				return nil
-			}
-			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
-				ie := ngapMsg.ProtocolIEs.List[i]
-				switch ie.Id.Value {
-				case ngapType.ProtocolIEIDRANUENGAPID:
-					rANUENGAPID = ie.Value.RANUENGAPID
-					ran.Log.Trace("Decode IE RanUeNgapID")
-					if rANUENGAPID == nil {
-						ran.Log.Error("RanUeNgapID is nil")
-						return nil
-					}
-				}
-
-				//case ngapType.ProcedureCodeUEContextReleaseRequest:
-			}
-		}
-	}
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-	return ranUe
-}
-
 func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	var globalRANNodeID *ngapType.GlobalRANNodeID
 	var rANNodeName *ngapType.RANNodeName

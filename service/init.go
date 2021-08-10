@@ -486,24 +486,28 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 			}
 		} // end of network slice for loop
 
-		//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
-		factory.AmfConfig.Configuration.ServedGumaiList = nil
-		factory.AmfConfig.Configuration.PlmnSupportList = nil
-		for _, plmn := range plmnList {
-			factory.AmfConfig.Configuration.PlmnSupportList =
-				append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
-			var guami = models.Guami{PlmnId: &plmn.PlmnId,
-				AmfId: "cafe00",
+		if len(plmnList) > 0 {
+			//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
+			factory.AmfConfig.Configuration.ServedGumaiList = nil
+			factory.AmfConfig.Configuration.PlmnSupportList = nil
+			for _, plmn := range plmnList {
+				factory.AmfConfig.Configuration.PlmnSupportList =
+					append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
+				var guami = models.Guami{PlmnId: &plmn.PlmnId,
+					AmfId: "cafe00",
+				}
+				factory.AmfConfig.Configuration.ServedGumaiList =
+					append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
+				logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
 			}
-			factory.AmfConfig.Configuration.ServedGumaiList =
-				append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
-			logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
-		}
-		//same plmn received but Tacs in gnb updated
-		factory.AmfConfig.Configuration.SupportTAIList = tai
-		logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
-		if factory.AmfConfig.Configuration.ServedGumaiList != nil {
-			RocUpdateConfigChannel <- true
+			//same plmn received but Tacs in gnb updated
+			factory.AmfConfig.Configuration.SupportTAIList = tai
+			logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
+			if factory.AmfConfig.Configuration.ServedGumaiList != nil {
+				RocUpdateConfigChannel <- true
+			}
+		} else {
+			logger.GrpcLog.Errorf("Config update received from RoC with slice length 0/ plmn length is 0")
 		}
 	}
 	return true
