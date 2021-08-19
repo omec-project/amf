@@ -518,6 +518,7 @@ func BuildRegistrationAccept(
 		registrationAccept.AllowedNSSAI.SetSNSSAIValue(buf)
 	}
 
+/*
 	if ue.NetworkSliceInfo != nil {
 		if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) != 0 || len(ue.NetworkSliceInfo.RejectedNssaiInTa) != 0 {
 			rejectedNssaiNas := nasConvert.RejectedNssaiToNas(
@@ -526,6 +527,7 @@ func BuildRegistrationAccept(
 			registrationAccept.RejectedNSSAI.SetIei(nasMessage.RegistrationAcceptRejectedNSSAIType)
 		}
 	}
+*/
 
 	if includeConfiguredNssaiCheck(ue) {
 		registrationAccept.ConfiguredNSSAI = nasType.NewConfiguredNSSAI(nasMessage.RegistrationAcceptConfiguredNSSAIType)

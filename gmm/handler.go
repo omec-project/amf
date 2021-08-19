@@ -451,6 +451,7 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 			ue.GmmLog.Debugf("Serving AMF has changed")
 			ue.ServingAmfChanged = true
 		}
+		ue.ServingAmfChanged = false
 	case nasMessage.MobileIdentity5GSTypeImei:
 		imei := nasConvert.PeiToString(mobileIdentity5GSContents)
 		ue.Pei = imei
