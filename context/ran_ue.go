@@ -70,6 +70,9 @@ type RanUe struct {
 	/* send initial context setup request or not*/
 	SentInitialContextSetupRequest bool
 
+	/*Received Initial context setup response or not */
+	RecvdInitialContextSetupResponse bool
+
 	/* logger */
 	Log *logrus.Entry
 }
