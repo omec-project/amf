@@ -435,7 +435,7 @@ func BuildDeregistrationAccept() ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
-	
+
 	deregistrationAccept := nasMessage.NewDeregistrationAcceptUEOriginatingDeregistration(0)
 	deregistrationAccept.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
 	deregistrationAccept.SpareHalfOctetAndSecurityHeaderType.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
@@ -443,7 +443,7 @@ func BuildDeregistrationAccept() ([]byte, error) {
 	deregistrationAccept.SetMessageType(nas.MsgTypeDeregistrationAcceptUEOriginatingDeregistration)
 
 	m.GmmMessage.DeregistrationAcceptUEOriginatingDeregistration = deregistrationAccept
-	
+
 	return m.PlainNasEncode()
 }
 
@@ -517,26 +517,27 @@ func BuildRegistrationAccept(
 		registrationAccept.AllowedNSSAI.SetLen(uint8(len(buf)))
 		registrationAccept.AllowedNSSAI.SetSNSSAIValue(buf)
 	}
-
-	if ue.NetworkSliceInfo != nil {
-		if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) != 0 || len(ue.NetworkSliceInfo.RejectedNssaiInTa) != 0 {
-			rejectedNssaiNas := nasConvert.RejectedNssaiToNas(
-				ue.NetworkSliceInfo.RejectedNssaiInPlmn, ue.NetworkSliceInfo.RejectedNssaiInTa)
-			registrationAccept.RejectedNSSAI = &rejectedNssaiNas
-			registrationAccept.RejectedNSSAI.SetIei(nasMessage.RegistrationAcceptRejectedNSSAIType)
+    /* TODO: DT-Trial: Commented below code because UE is not allowing rejected Nssais */
+	/*
+		if ue.NetworkSliceInfo != nil {
+			if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) != 0 || len(ue.NetworkSliceInfo.RejectedNssaiInTa) != 0 {
+				rejectedNssaiNas := nasConvert.RejectedNssaiToNas(
+					ue.NetworkSliceInfo.RejectedNssaiInPlmn, ue.NetworkSliceInfo.RejectedNssaiInTa)
+				registrationAccept.RejectedNSSAI = &rejectedNssaiNas
+				registrationAccept.RejectedNSSAI.SetIei(nasMessage.RegistrationAcceptRejectedNSSAIType)
+			}
 		}
-	}
 
-	if includeConfiguredNssaiCheck(ue) {
-		registrationAccept.ConfiguredNSSAI = nasType.NewConfiguredNSSAI(nasMessage.RegistrationAcceptConfiguredNSSAIType)
-		var buf []uint8
-		for _, snssai := range ue.ConfiguredNssai {
-			buf = append(buf, nasConvert.SnssaiToNas(*snssai.ConfiguredSnssai)...)
+		if includeConfiguredNssaiCheck(ue) {
+			registrationAccept.ConfiguredNSSAI = nasType.NewConfiguredNSSAI(nasMessage.RegistrationAcceptConfiguredNSSAIType)
+			var buf []uint8
+			for _, snssai := range ue.ConfiguredNssai {
+				buf = append(buf, nasConvert.SnssaiToNas(*snssai.ConfiguredSnssai)...)
+			}
+			registrationAccept.ConfiguredNSSAI.SetLen(uint8(len(buf)))
+			registrationAccept.ConfiguredNSSAI.SetSNSSAIValue(buf)
 		}
-		registrationAccept.ConfiguredNSSAI.SetLen(uint8(len(buf)))
-		registrationAccept.ConfiguredNSSAI.SetSNSSAIValue(buf)
-	}
-
+	*/
 	// 5gs network feature support
 	if factory.AmfConfig.Configuration.Get5gsNwFeatSuppEnable() {
 		registrationAccept.NetworkFeatureSupport5GS =

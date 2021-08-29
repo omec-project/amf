@@ -448,8 +448,8 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		if reflect.DeepEqual(guamiFromUeGuti, servedGuami) {
 			ue.ServingAmfChanged = false
 		} else {
-			ue.GmmLog.Debugf("Serving AMF has changed")
-			ue.ServingAmfChanged = true
+			ue.GmmLog.Debugf("Serving AMF has changed but 5G-Core is not supporting for now")
+			ue.ServingAmfChanged = false
 		}
 	case nasMessage.MobileIdentity5GSTypeImei:
 		imei := nasConvert.PeiToString(mobileIdentity5GSContents)
@@ -2208,7 +2208,7 @@ func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
 	}
 
 	// if Deregistration type is not switch-off, send Deregistration Accept
-	if deregistrationRequest.GetSwitchOff() == 0 && ue.RanUe[anType] != nil{
+	if deregistrationRequest.GetSwitchOff() == 0 && ue.RanUe[anType] != nil {
 		gmm_message.SendDeregistrationAccept(ue.RanUe[anType])
 	}
 

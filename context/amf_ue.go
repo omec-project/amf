@@ -536,6 +536,7 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.RegistrationAcceptForNon3GPPAccess = nil
 	if ue.RanUe != nil && ue.RanUe[accessType] != nil {
 		ue.RanUe[accessType].UeContextRequest = false
+		ue.RanUe[accessType].RecvdInitialContextSetupResponse = false
 	}
 	ue.RetransmissionOfInitialNASMsg = false
 	ue.onGoing[accessType].Procedure = OnGoingProcedureNothing
