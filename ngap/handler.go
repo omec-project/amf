@@ -170,6 +170,21 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 		case ngapType.ProcedureCodeLocationReportingFailureIndication:
 		case ngapType.ProcedureCodeErrorIndication:
 		case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
+			ngapMsg := initiatingMessage.Value.UERadioCapabilityInfoIndication
+			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
+				ie := ngapMsg.ProtocolIEs.List[i]
+				switch ie.Id.Value {
+				case ngapType.ProtocolIEIDRANUENGAPID:
+					rANUENGAPID = ie.Value.RANUENGAPID
+					ran.Log.Trace("Decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						ran.Log.Error("RANUENGAPID is nil")
+						return nil
+					}
+				}
+			}
+			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+
 		case ngapType.ProcedureCodeHandoverNotification:
 			ngapMsg := initiatingMessage.Value.HandoverNotify
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
@@ -368,16 +383,16 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
-				case ngapType.ProtocolIEIDRANUENGAPID:
-					rANUENGAPID = ie.Value.RANUENGAPID
-					ran.Log.Trace("Decode IE RanUeNgapID")
-					if rANUENGAPID == nil {
-						ran.Log.Error("RANUENGAPID is nil")
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
+					ran.Log.Trace("Decode IE AmfUeNgapID")
+					if aMFUENGAPID == nil {
+						ran.Log.Error("AMFUENGAPID is nil")
 						return nil
 					}
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
 
 		}
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:

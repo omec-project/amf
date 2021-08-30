@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/nas"
@@ -17,6 +18,8 @@ import (
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 )
+
+var mutex sync.Mutex
 
 func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 	if ue == nil {
@@ -123,17 +126,17 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
-			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not 
+			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not
 			   present in UE. Hence, AMF either 1) clear existing existing context or 2) delete current ue context and create
 			   new context. AMF took 2nd option, below code added for 2nd option
 			*/
 			context.AMF_Self().AmfUeDeleteBySuci(suci)
 			ue = nil
 		}
-			if ue != nil {
-				ue.NASLog.Infof("UE Context derived from Mobile Identity")
-				return ue
-			}
+		if ue != nil {
+			ue.NASLog.Infof("UE Context derived from Mobile Identity")
+			return ue
+		}
 	}
 
 	return nil
@@ -227,10 +230,12 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 		ue.ULCount.SetSQN(sequenceNumber)
 
 		ue.NASLog.Debugf("Calculate NAS MAC (algorithm: %+v, ULCount: 0x%0x)", ue.IntegrityAlg, ue.ULCount.Get())
-		ue.NASLog.Tracef("NAS integrity key0x: %0x", ue.KnasInt)
+		ue.NASLog.Debugf("NAS integrity key0x: %0x", ue.KnasInt)
+		mutex.Lock()
 		mac32, err := security.NASMacCalculate(ue.IntegrityAlg, ue.KnasInt, ue.ULCount.Get(), security.Bearer3GPP,
 			security.DirectionUplink, payload)
 		if err != nil {
+			mutex.Unlock()
 			return nil, fmt.Errorf("MAC calcuate error: %+v", err)
 		}
 
@@ -241,6 +246,7 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			ue.NASLog.Tracef("cmac value: 0x%08x", mac32)
 			ue.MacFailed = false
 		}
+		mutex.Unlock()
 
 		if ciphered {
 			ue.NASLog.Debugf("Decrypt NAS message (algorithm: %+v, ULCount: 0x%0x)", ue.CipheringAlg, ue.ULCount.Get())
@@ -251,16 +257,16 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 				return nil, fmt.Errorf("Encrypt error: %+v", err)
 			}
 		}
-		
+
 		// remove sequece Number
 		payload = payload[1:]
 		err = msg.PlainNasDecode(&payload)
-	
+
 		/*
-		integrity check failed, as per spec 24501 section 4.4.4.3 AMF shouldnt process or forward to SMF
-		except below message types
+			integrity check failed, as per spec 24501 section 4.4.4.3 AMF shouldnt process or forward to SMF
+			except below message types
 		*/
-		if err == nil && ue.MacFailed { 
+		if err == nil && ue.MacFailed {
 			switch msg.GmmHeader.GetMessageType() {
 			case nas.MsgTypeRegistrationRequest:
 				return msg, nil
