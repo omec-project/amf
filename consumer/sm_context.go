@@ -129,8 +129,11 @@ func SendCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.Sm
 	configuration.SetBasePath(smContext.SmfUri())
 	client := Nsmf_PDUSession.NewAPIClient(configuration)
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
 	postSmContextReponse, httpResponse, err :=
-		client.SMContextsCollectionApi.PostSmContexts(context.Background(), postSmContextsRequest)
+		client.SMContextsCollectionApi.PostSmContexts(ctx, postSmContextsRequest)
 
 	if err == nil {
 		response = &postSmContextReponse
@@ -407,13 +410,16 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 	configuration.SetBasePath(smContext.SmfUri())
 	client := Nsmf_PDUSession.NewAPIClient(configuration)
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
 	var updateSmContextRequest models.UpdateSmContextRequest
 	updateSmContextRequest.JsonData = &updateData
 	updateSmContextRequest.BinaryDataN1SmMessage = n1Msg
 	updateSmContextRequest.BinaryDataN2SmInformation = n2Info
 
 	updateSmContextReponse, httpResponse, err :=
-		client.IndividualSMContextApi.UpdateSmContext(context.Background(), smContext.SmContextRef(),
+		client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
 			updateSmContextRequest)
 
 	if err == nil {
@@ -451,8 +457,11 @@ func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 		JsonData: &releaseData,
 	}
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+
 	response, err1 := client.IndividualSMContextApi.ReleaseSmContext(
-		context.Background(), smContext.SmContextRef(), releaseSmContextRequest)
+		ctx, smContext.SmContextRef(), releaseSmContextRequest)
 
 	if err1 == nil {
 		ue.SmContextList.Delete(smContext.PduSessionID())

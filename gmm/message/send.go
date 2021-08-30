@@ -279,8 +279,12 @@ func SendRegistrationAccept(
 				ue.GmmLog.Warnf("[NAS] UE Context released, abort retransmission of Registration Accept")
 				ue.T3550 = nil
 			} else {
-				ue.GmmLog.Warnf("T3550 expires, retransmit Registration Accept (retry: %d)", expireTimes)
-				ngap_message.SendDownlinkNasTransport(ue.RanUe[anType], nasMsg, nil)
+				if ue.RanUe[anType].UeContextRequest && !ue.RanUe[anType].RecvdInitialContextSetupResponse {
+					ngap_message.SendInitialContextSetupRequest(ue, anType, nasMsg, pduSessionResourceSetupList, nil, nil, nil)
+				} else {
+					ue.GmmLog.Warnf("T3550 expires, retransmit Registration Accept (retry: %d)", expireTimes)
+					ngap_message.SendDownlinkNasTransport(ue.RanUe[anType], nasMsg, nil)
+				}
 			}
 		}, func() {
 			ue.GmmLog.Warnf("T3550 Expires %d times, abort retransmission of Registration Accept", cfg.MaxRetryTimes)

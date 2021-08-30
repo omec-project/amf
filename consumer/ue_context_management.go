@@ -7,6 +7,7 @@ package consumer
 
 import (
 	"context"
+	"time"
 
 	amf_context "github.com/free5gc/amf/context"
 	"github.com/free5gc/openapi"
@@ -32,8 +33,10 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			// TODO: not support Homogenous Support of IMS Voice over PS Sessions this stage
 			ImsVoPs: models.ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
 		}
+		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+		defer cancel()
 
-		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessApi.Registration(context.Background(),
+		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessApi.Registration(ctx,
 			ue.Supi, registrationData)
 		if localErr == nil {
 			return nil, nil
@@ -52,9 +55,11 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			Guami:         &amfSelf.ServedGuamiList[0],
 			RatType:       ue.RatType,
 		}
+		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+		defer cancel()
 
 		_, httpResp, localErr :=
-			client.AMFRegistrationForNon3GPPAccessApi.Register(context.Background(), ue.Supi, registrationData)
+			client.AMFRegistrationForNon3GPPAccessApi.Register(ctx, ue.Supi, registrationData)
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {

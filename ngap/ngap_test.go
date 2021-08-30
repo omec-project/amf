@@ -7,6 +7,7 @@ package ngap_test
 
 import (
 	"log"
+	"time"
 	"testing"
 
 	ngaputil "github.com/free5gc/amf/ngap/util"
@@ -65,7 +66,7 @@ func TestHandleNGSetupRequest(t *testing.T) {
 			return
 		}
 		ngap.Dispatch(conn, testNGSetupReq)
-
+		time.Sleep( 2 * time.Second)
 		// conn.data holds the NGAP response message
 		if len(conn.Data) == 0 {
 			t.Error("Unexpected message drop")
