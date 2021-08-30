@@ -2215,6 +2215,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 	if criticalityDiagnostics != nil {
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
+	ranUe.RecvdInitialContextSetupResponse = true
 }
 
 func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {

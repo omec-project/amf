@@ -1181,7 +1181,7 @@ func BuildInitialContextSetupRequest(
 	// last 4 digits of the SNR masked by setting the corresponding bits to 1.
 	// The first to fourth bits correspond to the first digit of the IMEISV,
 	// the fifth to eighth bits correspond to the second digit of the IMEISV, and so on
-	if amfUe.Pei != "" && strings.HasPrefix(amfUe.Pei, "imeisv") {
+	/*if amfUe.Pei != "" && strings.HasPrefix(amfUe.Pei, "imeisv") {
 		ie = ngapType.InitialContextSetupRequestIEs{}
 		ie.Id.Value = ngapType.ProtocolIEIDMaskedIMEISV
 		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
@@ -1203,7 +1203,7 @@ func BuildInitialContextSetupRequest(
 			Bytes:     maskedImeisv,
 		}
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
-	}
+	}*/
 
 	// NAS-PDU (optional)
 	if nasPdu != nil {
