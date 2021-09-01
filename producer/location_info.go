@@ -48,8 +48,8 @@ func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapp
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var provideLocInfo *models.ProvideLocInfo
-	ue.Transaction.UpdateSbiHandler(LocationInfoHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(LocationInfoHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
 		provideLocInfo = msg.RespData.(*models.ProvideLocInfo)

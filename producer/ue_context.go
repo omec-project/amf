@@ -63,8 +63,8 @@ func HandleCreateUEContextRequest(request *http_wrapper.Request) *http_wrapper.R
 	}
 	var createUeContextRspData *models.CreateUeContextResponse
 	var ueContextCreateErr *models.UeContextCreateError
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
 		createUeContextRspData = msg.RespData.(*models.CreateUeContextResponse)
@@ -200,8 +200,8 @@ func HandleReleaseUEContextRequest(request *http_wrapper.Request) *http_wrapper.
 		Msg:         ueContextRelease,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
 	//problemDetails := ReleaseUEContextProcedure(ueContextID, ueContextRelease)
@@ -272,8 +272,8 @@ func HandleUEContextTransferRequest(request *http_wrapper.Request) *http_wrapper
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var ueContextTransferResponse *models.UeContextTransferResponse
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
 		ueContextTransferResponse = msg.RespData.(*models.UeContextTransferResponse)
@@ -517,8 +517,8 @@ func HandleAssignEbiDataRequest(request *http_wrapper.Request) *http_wrapper.Res
 	}
 	var assignEbiRspData *models.AssignedEbiData
 	var assignEbiErr *models.AssignEbiError
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
 		assignEbiRspData = msg.RespData.(*models.AssignedEbiData)
@@ -584,8 +584,8 @@ func HandleRegistrationStatusUpdateRequest(request *http_wrapper.Request) *http_
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var ueRegStatusUpdateRspData *models.UeRegStatusUpdateRspData
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
 		ueRegStatusUpdateRspData = msg.RespData.(*models.UeRegStatusUpdateRspData)

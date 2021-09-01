@@ -517,6 +517,7 @@ func BuildRegistrationAccept(
 		registrationAccept.AllowedNSSAI.SetLen(uint8(len(buf)))
 		registrationAccept.AllowedNSSAI.SetSNSSAIValue(buf)
 	}
+    /* TODO: DT-Trial: Commented below code because UE is not allowing rejected Nssais */
 	/*
 		if ue.NetworkSliceInfo != nil {
 			if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) != 0 || len(ue.NetworkSliceInfo.RejectedNssaiInTa) != 0 {

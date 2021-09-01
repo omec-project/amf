@@ -9,17 +9,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
-	"sync"
 
 	"github.com/free5gc/amf/context"
+	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasConvert"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 )
-
-var mutex sync.Mutex
 
 func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 	if ue == nil {
@@ -91,6 +89,19 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 	}
 }
 
+func StmsiToGuti(buf [7]byte) (guti string) {
+	amfSelf := context.AMF_Self()
+	servedGuami := amfSelf.ServedGuamiList[0]
+
+	tmpReginID := servedGuami.AmfId[:2]
+	amfID := hex.EncodeToString(buf[1:3])
+	tmsi5G := hex.EncodeToString(buf[3:])
+
+	guti = servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc + tmpReginID + amfID + tmsi5G
+
+	return
+}
+
 /*
 fetch Guti if present incase of integrity protected Nas Message
 */
@@ -101,29 +112,30 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 
 	msg := new(nas.Message)
 	msg.SecurityHeaderType = nas.GetSecurityHeaderType(payload) & 0x0f
-	fmt.Println("securityHeaderType is ", msg.SecurityHeaderType)
+	logger.CommLog.Debugf("securityHeaderType is %v", msg.SecurityHeaderType)
 	switch msg.SecurityHeaderType {
 	case nas.SecurityHeaderTypeIntegrityProtected:
-		fmt.Println("Security header type: Integrity Protected")
+		logger.CommLog.Infof("Security header type: Integrity Protected")
 		p := payload[7:]
 		if err := msg.PlainNasDecode(&p); err != nil {
 			return nil
 		}
 	case nas.SecurityHeaderTypePlainNas:
-		fmt.Println("Security header type: PlainNas Message")
+		logger.CommLog.Infof("Security header type: PlainNas Message")
 		if err := msg.PlainNasDecode(&payload); err != nil {
 			return nil
 		}
 	default:
-		fmt.Println("Security header type is not plain or integrity protected")
+		logger.CommLog.Infof("Security header type is not plain or integrity protected")
 		return nil
 	}
 	var ue *context.AmfUe = nil
+	var guti string
 	if msg.GmmHeader.GetMessageType() == nas.MsgTypeRegistrationRequest {
 		mobileIdentity5GSContents := msg.RegistrationRequest.MobileIdentity5GS.GetMobileIdentity5GSContents()
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
-			_, guti := nasConvert.GutiToString(mobileIdentity5GSContents)
-			ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
+			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
+			logger.CommLog.Debugf("Guti received in Registraion Request Message: %v", guti)
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
 			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not
@@ -131,11 +143,27 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			   new context. AMF took 2nd option, below code added for 2nd option
 			*/
 			context.AMF_Self().AmfUeDeleteBySuci(suci)
-			ue = nil
 		}
+	} else if msg.GmmHeader.GetMessageType() == nas.MsgTypeServiceRequest {
+		mobileIdentity5GSContents := msg.ServiceRequest.TMSI5GS.Octet
+		if nasMessage.MobileIdentity5GSType5gSTmsi == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
+			guti = StmsiToGuti(mobileIdentity5GSContents)
+			logger.CommLog.Debugf("Guti derived from Service Request Message: %v", guti)
+		}
+	} else if msg.GmmHeader.GetMessageType() == nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration {
+		mobileIdentity5GSContents := msg.DeregistrationRequestUEOriginatingDeregistration.MobileIdentity5GS.GetMobileIdentity5GSContents()
+		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
+			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
+			logger.CommLog.Debugf("Guti received in Deregistraion Request Message: %v", guti)
+		}
+	}
+	if guti != "" {
+		ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
 		if ue != nil {
-			ue.NASLog.Infof("UE Context derived from Mobile Identity")
+			ue.NASLog.Infof("UE Context derived from Guti: %v", guti)
 			return ue
+		} else {
+			ue.NASLog.Warnf("UE Context not fround from Guti: %v", guti)
 		}
 	}
 
@@ -231,11 +259,9 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 
 		ue.NASLog.Debugf("Calculate NAS MAC (algorithm: %+v, ULCount: 0x%0x)", ue.IntegrityAlg, ue.ULCount.Get())
 		ue.NASLog.Debugf("NAS integrity key0x: %0x", ue.KnasInt)
-		mutex.Lock()
 		mac32, err := security.NASMacCalculate(ue.IntegrityAlg, ue.KnasInt, ue.ULCount.Get(), security.Bearer3GPP,
 			security.DirectionUplink, payload)
 		if err != nil {
-			mutex.Unlock()
 			return nil, fmt.Errorf("MAC calcuate error: %+v", err)
 		}
 
@@ -246,7 +272,6 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			ue.NASLog.Tracef("cmac value: 0x%08x", mac32)
 			ue.MacFailed = false
 		}
-		mutex.Unlock()
 
 		if ciphered {
 			ue.NASLog.Debugf("Decrypt NAS message (algorithm: %+v, ULCount: 0x%0x)", ue.CipheringAlg, ue.ULCount.Get())

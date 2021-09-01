@@ -31,6 +31,8 @@ func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 	case models.SmContextStatusNotification:
 		var pduSessionID int
 		if pduSessionIDTmp, err := strconv.Atoi(s2); err != nil {
+			logger.ProducerLog.Warnf("PDU Session ID atoi failed: %+v", err)
+		} else {
 			pduSessionID = pduSessionIDTmp
 		}
 		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg.(models.SmContextStatusNotification))
@@ -53,9 +55,6 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 
 	guti := request.Params["guti"]
 	pduSessionIDString := request.Params["pduSessionId"]
-	if _, err := strconv.Atoi(pduSessionIDString); err != nil {
-		logger.ProducerLog.Warnf("PDU Session ID atoi failed: %+v", err)
-	}
 
 	amfSelf := context.AMF_Self()
 	ue, ok = amfSelf.AmfUeFindByGuti(guti)
@@ -75,8 +74,8 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 		Msg:         smContextStatusNotification,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.Transaction.UpdateSbiHandler(SmContextHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	//problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
 	if msg.ProblemDetails != nil {
@@ -223,8 +222,8 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *htt
 		Msg:         policyUpdate,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.Transaction.UpdateSbiHandler(SmContextHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	//problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
 
@@ -324,8 +323,8 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *
 		Msg:         terminationNotification,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.Transaction.UpdateSbiHandler(SmContextHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
 	//problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)

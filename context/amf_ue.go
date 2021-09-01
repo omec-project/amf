@@ -190,7 +190,7 @@ type AmfUe struct {
 	Non3gppDeregistrationTimerValue int // default 54 min
 
 	//EventChannel  chan OnGoing
-	Transaction *Transaction
+	EventChannel *EventChannel
 	// logger
 	NASLog      *logrus.Entry
 	GmmLog      *logrus.Entry
@@ -339,8 +339,8 @@ func (ue *AmfUe) Remove() {
 	if len(ue.Supi) > 0 {
 		AMF_Self().UePool.Delete(ue.Supi)
 	}
-	if ue.Transaction != nil {
-		ue.Transaction.Event <- "quit"
+	if ue.EventChannel != nil {
+		ue.EventChannel.Event <- "quit"
 	}
 }
 
@@ -819,9 +819,9 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	}
 }
 
-func (ue *AmfUe) NewTransaction() (tx *Transaction) {
-	ue.TxLog.Infof("New Transaction created")
-	tx = &Transaction{
+func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
+	ue.TxLog.Infof("New EventChannel created")
+	tx = &EventChannel{
 		Message: make(chan interface{}, 10),
 		Event:   make(chan string, 10),
 		AmfUe:   ue,

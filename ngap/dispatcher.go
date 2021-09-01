@@ -45,17 +45,17 @@ func Dispatch(conn net.Conn, msg []byte) {
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		if ranUe.AmfUe.Transaction == nil {
-			ran.Log.Errorf("AmfUe Transaction is not exist")
+		if ranUe.AmfUe.EventChannel == nil {
+			ran.Log.Errorf("AmfUe EventChannel is not exist")
 			return
 		}
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
-		ranUe.AmfUe.Transaction.UpdateNgapHandler(NgapMsgHandler)
+		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:     ran,
 			NgapMsg: pdu,
 		}
-		ranUe.AmfUe.Transaction.SubmitMessage(ngapMsg)
+		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
 		go DispatchNgapMsg(ran, pdu)
 	}

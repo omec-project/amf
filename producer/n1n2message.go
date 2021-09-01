@@ -65,8 +65,8 @@ func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapp
 	}
 	var n1n2MessageTransferRspData *models.N1N2MessageTransferRspData
 	var transferErr *models.N1N2MessageTransferError
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
 		n1n2MessageTransferRspData = msg.RespData.(*models.N1N2MessageTransferRspData)
@@ -438,8 +438,8 @@ func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http
 		Msg:         nil,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
 	var n1n2MessageRspData *models.N1N2MessageTransferCause
@@ -502,8 +502,8 @@ func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrap
 		Msg:         ueN1N2InfoSubscriptionCreateData,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.Transaction.UpdateSbiHandler(ProducerHandler)
-	ue.Transaction.SubmitMessage(sbiMsg)
+	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
 	var n1n2MessageRspData *models.UeN1N2InfoSubscriptionCreateData
