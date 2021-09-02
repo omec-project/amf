@@ -26,22 +26,60 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
+func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+	switch msg.(type) {
+	case models.SmContextStatusNotification:
+		var pduSessionID int
+		if pduSessionIDTmp, err := strconv.Atoi(s2); err != nil {
+			logger.ProducerLog.Warnf("PDU Session ID atoi failed: %+v", err)
+		} else {
+			pduSessionID = pduSessionIDTmp
+		}
+		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg.(models.SmContextStatusNotification))
+		return nil, "", r1, nil
+	case models.PolicyUpdate:
+		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg.(models.PolicyUpdate))
+		return nil, "", r1, nil
+	case models.TerminationNotification:
+		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg.(models.TerminationNotification))
+		return nil, "", r1, nil
+	}
+
+	return nil, "", nil, nil
+}
+
 func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Response {
+	var ue *context.AmfUe
+	var ok bool
 	logger.ProducerLog.Infoln("[AMF] Handle SmContext Status Notify")
 
 	guti := request.Params["guti"]
 	pduSessionIDString := request.Params["pduSessionId"]
-	var pduSessionID int
-	if pduSessionIDTmp, err := strconv.Atoi(pduSessionIDString); err != nil {
-		logger.ProducerLog.Warnf("PDU Session ID atoi failed: %+v", err)
-	} else {
-		pduSessionID = pduSessionIDTmp
-	}
-	smContextStatusNotification := request.Body.(models.SmContextStatusNotification)
 
-	problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
-	if problemDetails != nil {
+	amfSelf := context.AMF_Self()
+	ue, ok = amfSelf.AmfUeFindByGuti(guti)
+	if !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+			Detail: fmt.Sprintf("Guti[%s] Not Found", guti),
+		}
 		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	}
+
+	smContextStatusNotification := request.Body.(models.SmContextStatusNotification)
+	sbiMsg := context.SbiMsg{
+		UeContextId: guti,
+		ReqUri:      pduSessionIDString,
+		Msg:         smContextStatusNotification,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+	//problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -161,15 +199,36 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 }
 
 func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *http_wrapper.Response {
+	var ue *context.AmfUe
+	var ok bool
 	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Policy update notification]")
 
 	polAssoID := request.Params["polAssoId"]
 	policyUpdate := request.Body.(models.PolicyUpdate)
 
-	problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
-
-	if problemDetails != nil {
+	amfSelf := context.AMF_Self()
+	ue, ok = amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
+	if !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
+		}
 		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	}
+	sbiMsg := context.SbiMsg{
+		UeContextId: polAssoID,
+		ReqUri:      "",
+		Msg:         policyUpdate,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+	//problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
+
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -242,14 +301,35 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 
 // TS 29.507 4.2.4.3
 func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *http_wrapper.Response {
+	var ue *context.AmfUe
 	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Request for termination of the policy association]")
 
 	polAssoID := request.Params["polAssoId"]
 	terminationNotification := request.Body.(models.TerminationNotification)
 
-	problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
-	if problemDetails != nil {
+	amfSelf := context.AMF_Self()
+	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
+	if !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
+		}
 		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	}
+	sbiMsg := context.SbiMsg{
+		UeContextId: polAssoID,
+		ReqUri:      "",
+		Msg:         terminationNotification,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+
+	//problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}

@@ -14,17 +14,51 @@ import (
 	"github.com/free5gc/openapi/models"
 )
 
+func MtHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+	switch msg.(type) {
+	case string:
+		r1, r2 := ProvideDomainSelectionInfoProcedure(s1, s2, msg.(string))
+		return r1, "", r2, nil
+	}
+
+	return nil, "", nil, nil
+}
+
 func HandleProvideDomainSelectionInfoRequest(request *http_wrapper.Request) *http_wrapper.Response {
+	var ue *context.AmfUe
+	var ok bool
 	logger.MtLog.Info("Handle Provide Domain Selection Info Request")
 
 	ueContextID := request.Params["ueContextId"]
 	infoClassQuery := request.Query.Get("info-class")
 	supportedFeaturesQuery := request.Query.Get("supported-features")
 
-	ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
-		infoClassQuery, supportedFeaturesQuery)
-	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	amfSelf := context.AMF_Self()
+
+	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNotFound,
+			Cause:  "CONTEXT_NOT_FOUND",
+		}
+		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	}
+	sbiMsg := context.SbiMsg{
+		UeContextId: ueContextID,
+		ReqUri:      infoClassQuery,
+		Msg:         supportedFeaturesQuery,
+		Result:      make(chan context.SbiResponseMsg, 10),
+	}
+	var ueContextInfo *models.UeContextInfo
+	ue.EventChannel.UpdateSbiHandler(MtHandler)
+	ue.EventChannel.SubmitMessage(sbiMsg)
+	msg := <-sbiMsg.Result
+	if msg.RespData != nil {
+		ueContextInfo = msg.RespData.(*models.UeContextInfo)
+	}
+	//ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
+	//	infoClassQuery, supportedFeaturesQuery)
+	if msg.ProblemDetails != nil {
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusOK, nil, ueContextInfo)
 	}

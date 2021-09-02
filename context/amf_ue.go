@@ -23,6 +23,7 @@ import (
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
 	"github.com/free5gc/nas/security"
+	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -33,6 +34,7 @@ const (
 	OnGoingProcedurePaging       OnGoingProcedure = "Paging"
 	OnGoingProcedureN2Handover   OnGoingProcedure = "N2Handover"
 	OnGoingProcedureRegistration OnGoingProcedure = "Registration"
+	OnGoingProcedureAbort        OnGoingProcedure = "Abort"
 )
 
 const (
@@ -56,6 +58,7 @@ const (
 )
 
 type AmfUe struct {
+	Mutex sync.Mutex
 	/* the AMF which serving this AmfUe now */
 	servingAMF *AMFContext // never nil
 
@@ -186,10 +189,60 @@ type AmfUe struct {
 	T3512Value                      int // default 54 min
 	Non3gppDeregistrationTimerValue int // default 54 min
 
+	//EventChannel  chan OnGoing
+	EventChannel *EventChannel
 	// logger
 	NASLog      *logrus.Entry
 	GmmLog      *logrus.Entry
+	TxLog       *logrus.Entry
 	ProducerLog *logrus.Entry
+}
+
+type InterfaceType uint8
+
+const (
+	NgapMessage InterfaceType = iota
+	SbiMessage
+	NasMessage
+)
+
+type InterfaceMsg interface {
+}
+
+/*type InterfaceMsg struct {
+	AnType        models.AccessType
+	NasMsg        []byte
+	ProcedureCode int64
+	NgapMsg       *ngapType.NGAPPDU
+	Ran           *AmfRan
+	//MsgType is Nas or Sbi interface msg
+	IntfType InterfaceType
+}*/
+
+type NasMsg struct {
+	AnType        models.AccessType
+	NasMsg        []byte
+	ProcedureCode int64
+}
+
+type NgapMsg struct {
+	NgapMsg *ngapType.NGAPPDU
+	Ran     *AmfRan
+}
+
+type SbiResponseMsg struct {
+	RespData       interface{}
+	LocationHeader string
+	ProblemDetails interface{}
+	TransferErr    interface{}
+}
+
+type SbiMsg struct {
+	Msg         interface{}
+	UeContextId string
+	ReqUri      string
+
+	Result chan SbiResponseMsg
 }
 
 type AmfUeEventSubscription struct {
@@ -258,6 +311,7 @@ func (ue *AmfUe) init() {
 	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
 	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
+	//ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
 }
 
 func (ue *AmfUe) ServingAMF() *AMFContext {
@@ -284,6 +338,9 @@ func (ue *AmfUe) Remove() {
 	tmsiGenerator.FreeID(int64(ue.Tmsi))
 	if len(ue.Supi) > 0 {
 		AMF_Self().UePool.Delete(ue.Supi)
+	}
+	if ue.EventChannel != nil {
+		ue.EventChannel.Event <- "quit"
 	}
 }
 
@@ -760,4 +817,15 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	} else {
 		return nil, false
 	}
+}
+
+func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
+	ue.TxLog.Infof("New EventChannel created")
+	tx = &EventChannel{
+		Message: make(chan interface{}, 10),
+		Event:   make(chan string, 10),
+		AmfUe:   ue,
+	}
+	//tx.Message <- msg
+	return tx
 }

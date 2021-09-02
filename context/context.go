@@ -26,6 +26,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
+	mutex                            sync.Mutex
 )
 
 func init() {
@@ -197,6 +198,8 @@ func (context *AMFContext) AddAmfUeToUePool(ue *AmfUe, supi string) {
 }
 
 func (context *AMFContext) NewAmfUe(supi string) *AmfUe {
+	mutex.Lock()
+	defer mutex.Unlock()
 	ue := AmfUe{}
 	ue.init()
 
@@ -260,6 +263,8 @@ func (context *AMFContext) AmfUeDeleteBySuci(suci string) (ue *AmfUe, ok bool) {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.Suci == suci); ok {
 			context.UePool.Delete(candidate.Supi)
+			candidate.TxLog.Infof("uecontext removed based on suci")
+			candidate.Remove()
 			return false
 		}
 		return true

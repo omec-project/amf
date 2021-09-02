@@ -138,6 +138,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case fsm.EntryEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
 		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
+		amfUe.TxLog = amfUe.TxLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Authentication]")
 		fallthrough
 	case AuthRestartEvent:
@@ -221,6 +222,7 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		accessType := args[ArgAccessType].(models.AccessType)
 		// set log information
 		amfUe.NASLog = amfUe.NASLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
+		amfUe.TxLog = amfUe.NASLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
 		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
 		amfUe.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
 
@@ -412,9 +414,9 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 	case DeregistrationAcceptEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
-		if accessType == models.AccessType__3_GPP_ACCESS{
+		if accessType == models.AccessType__3_GPP_ACCESS {
 			amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-            amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+			amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
 		}
 		logger.GmmLog.Debugln(event)
 	case fsm.ExitEvent:

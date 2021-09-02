@@ -44,11 +44,11 @@ func NewSmContext(pduSessionID int32) *SmContext {
 	return c
 }
 
-func (c*SmContext) IsPduSessionActive() bool {
+func (c *SmContext) IsPduSessionActive() bool {
 	return !c.pduSessionInactive
 }
 
-func (c*SmContext) SetPduSessionInActive(s bool) {
+func (c *SmContext) SetPduSessionInActive(s bool) {
 	c.pduSessionInactive = s
 }
 
