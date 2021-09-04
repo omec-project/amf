@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"reflect"
+	"sync"
 
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/logger"
@@ -18,6 +19,8 @@ import (
 	"github.com/free5gc/nas/security"
 	"github.com/free5gc/openapi/models"
 )
+
+var mutex sync.Mutex
 
 func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 	if ue == nil {
@@ -69,7 +72,9 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 		payload = append([]byte{ue.DLCount.SQN()}, payload[:]...)
 
 		ue.NASLog.Debugf("Calculate NAS MAC (algorithm: %+v, DLCount: 0x%0x)", ue.IntegrityAlg, ue.DLCount.Get())
-		ue.NASLog.Tracef("NAS integrity key: %0x", ue.KnasInt)
+		ue.NASLog.Debugf("NAS integrity key: %0x", ue.KnasInt)
+		mutex.Lock()
+		defer mutex.Unlock()
 		mac32, err := security.NASMacCalculate(ue.IntegrityAlg, ue.KnasInt, ue.DLCount.Get(), security.Bearer3GPP,
 			security.DirectionDownlink, payload)
 		if err != nil {
@@ -259,6 +264,8 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 
 		ue.NASLog.Debugf("Calculate NAS MAC (algorithm: %+v, ULCount: 0x%0x)", ue.IntegrityAlg, ue.ULCount.Get())
 		ue.NASLog.Debugf("NAS integrity key0x: %0x", ue.KnasInt)
+		mutex.Lock()
+		defer mutex.Unlock()
 		mac32, err := security.NASMacCalculate(ue.IntegrityAlg, ue.KnasInt, ue.ULCount.Get(), security.Bearer3GPP,
 			security.DirectionUplink, payload)
 		if err != nil {
