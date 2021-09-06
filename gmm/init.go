@@ -21,6 +21,7 @@ const (
 	SecurityModeSuccessEvent  fsm.EventType = "SecurityMode Success"
 	SecurityModeFailEvent     fsm.EventType = "SecurityMode Fail"
 	SecuritySkipEvent         fsm.EventType = "Security Skip"
+	SecurityModeAbortEvent    fsm.EventType = "SecurityMode Abort"
 	ContextSetupSuccessEvent  fsm.EventType = "ContextSetup Success"
 	ContextSetupFailEvent     fsm.EventType = "ContextSetup Fail"
 	InitDeregistrationEvent   fsm.EventType = "Initialize Deregistration"
@@ -53,6 +54,7 @@ var transitions = fsm.Transitions{
 	{Event: SecurityModeSuccessEvent, From: context.SecurityMode, To: context.ContextSetup},
 	{Event: SecuritySkipEvent, From: context.SecurityMode, To: context.ContextSetup},
 	{Event: SecurityModeFailEvent, From: context.SecurityMode, To: context.Deregistered},
+	{Event: SecurityModeAbortEvent, From: context.SecurityMode, To: context.Deregistered},
 	{Event: ContextSetupSuccessEvent, From: context.ContextSetup, To: context.Registered},
 	{Event: ContextSetupFailEvent, From: context.ContextSetup, To: context.Deregistered},
 	{Event: InitDeregistrationEvent, From: context.Registered, To: context.DeregistrationInitiated},
