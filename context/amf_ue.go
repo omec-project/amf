@@ -584,6 +584,7 @@ func (ue *AmfUe) SelectSecurityAlg(intOrder, encOrder []uint8) {
 	}
 }
 
+//this is clearing the transient data of registration request, this is called entrypoint of Deregistration and Registration state
 func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.RegistrationRequest = nil
 	ue.RegistrationType5GS = 0
@@ -597,6 +598,19 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	}
 	ue.RetransmissionOfInitialNASMsg = false
 	ue.onGoing[accessType].Procedure = OnGoingProcedureNothing
+}
+
+//this method called when we are reusing the same uecontext during the registration procedure
+func (ue *AmfUe) ClearRegistrationData() {
+	//Allowed Nssai should be cleared first as it is a new Registration
+	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
+
+	//Clearing SMContextList locally
+	ue.SmContextList.Range(func(key, _ interface{}) bool {
+		ue.SmContextList.Delete(key)
+		return true
+	})
+
 }
 
 func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoing) {
