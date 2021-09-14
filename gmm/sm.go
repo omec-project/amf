@@ -276,6 +276,26 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			if err != nil {
 				logger.GmmLog.Errorln(err)
 			}
+		case nas.MsgTypeRegistrationRequest:
+			//Sending AbortEvent to ongoing procedure
+			err := GmmFSM.SendEvent(state, SecurityModeAbortEvent, fsm.ArgsType{
+				ArgAmfUe:      amfUe,
+				ArgAccessType: accessType,
+			})
+			if err != nil {
+				logger.GmmLog.Errorln(err)
+			}
+
+			err = GmmFSM.SendEvent(state, GmmMessageEvent, fsm.ArgsType{
+				ArgAmfUe:         amfUe,
+				ArgAccessType:    accessType,
+				ArgNASMessage:    gmmMessage,
+				ArgProcedureCode: procedureCode,
+			})
+			if err != nil {
+				logger.GmmLog.Errorln(err)
+			}
+
 		case nas.MsgTypeStatus5GMM:
 			if err := HandleStatus5GMM(amfUe, accessType, gmmMessage.Status5GMM); err != nil {
 				logger.GmmLog.Errorln(err)
@@ -284,6 +304,13 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			amfUe.GmmLog.Errorf("state mismatch: receieve gmm message[message type 0x%0x] at %s state",
 				gmmMessage.GetMessageType(), state.Current())
 		}
+	case SecurityModeAbortEvent:
+		logger.GmmLog.Debugln(event)
+		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		// stopping security mode command timer
+		amfUe.SecurityContextAvailable = false
+		amfUe.T3560.Stop()
+		amfUe.T3560 = nil
 	case SecurityModeSuccessEvent:
 		logger.GmmLog.Debugln(event)
 	case SecurityModeFailEvent:
