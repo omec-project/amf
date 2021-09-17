@@ -121,6 +121,18 @@ func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
 	ue.Guti = plmnID + servedGuami.AmfId + tmsiStr
 }
 
+func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
+	servedGuami := context.ServedGuamiList[0]
+
+	tmsiGenerator.FreeID(int64(ue.Tmsi))
+
+	ue.Tmsi = context.TmsiAllocate()
+
+	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
+	tmsiStr := fmt.Sprintf("%08x", ue.Tmsi)
+	ue.Guti = plmnID + servedGuami.AmfId + tmsiStr
+}
+
 func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.AccessType) {
 	// clear the previous registration area if need
 	if len(ue.RegistrationArea[anType]) > 0 {
