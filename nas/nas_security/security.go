@@ -172,7 +172,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			ue.NASLog.Infof("UE Context derived from Guti: %v", guti)
 			return ue
 		} else {
-			ue.NASLog.Warnf("UE Context not fround from Guti: %v", guti)
+			logger.CommLog.Warnf("UE Context not fround from Guti: %v", guti)
 		}
 	}
 

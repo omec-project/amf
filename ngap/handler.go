@@ -149,9 +149,19 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 						ran.Log.Error("AMFUENGAPID is nil")
 						return nil
 					}
+				case ngapType.ProtocolIEIDRANUENGAPID:
+					rANUENGAPID = ie.Value.RANUENGAPID
+					ran.Log.Trace("Decode IE RanUeNgapID")
+					if rANUENGAPID == nil {
+						ran.Log.Error("RANUENGAPID is nil")
+						return nil
+					}
 				}
 			}
 			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			if ranUe == nil {
+				ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			}
 		case ngapType.ProcedureCodeNASNonDeliveryIndication:
 			ngapMsg := initiatingMessage.Value.NASNonDeliveryIndication
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
@@ -970,7 +980,9 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 	// for each pduSessionID invoke Nsmf_PDUSession_UpdateSMContext Request
 	var cause context.CauseAll
 	if tmp, exist := amfUe.ReleaseCause[ran.AnType]; exist {
-		cause = *tmp
+		if tmp != nil {
+			cause = *tmp
+		}
 	}
 	if amfUe.State[ran.AnType].Is(context.Registered) {
 		ranUe.Log.Info("Rel Ue Context in GMM-Registered")
@@ -1019,6 +1031,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
+
 		//Valid Security is not exist for this UE then only delete AMfUe Context
 		if !amfUe.SecurityContextAvailable {
 			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
@@ -2311,6 +2324,12 @@ func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGA
 		return
 	}
 
+	if amfUe.T3550 != nil {
+		amfUe.T3550.Stop()
+		amfUe.T3550 = nil
+		amfUe.State[ran.AnType].Set(context.Deregistered)
+		amfUe.ClearRegistrationRequestData(ran.AnType)
+	}
 	if pDUSessionResourceFailedToSetupList != nil {
 		ranUe.Log.Trace("Send PDUSessionResourceSetupUnsuccessfulTransfer to SMF")
 
@@ -2392,6 +2411,9 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 	}
 
 	ranUe := context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+	if ranUe == nil {
+		ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	}
 	if ranUe == nil {
 		ran.Log.Errorf("No RanUe Context[AmfUeNgapID: %d]", aMFUENGAPID.Value)
 		cause = &ngapType.Cause{

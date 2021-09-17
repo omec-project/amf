@@ -109,6 +109,14 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 			}
 		}
 
+		if smContextExist && requestType != nil {
+			/* AMF releases context locally as this is duplicate pdu session */
+			if requestType.GetRequestTypeValue() == nasMessage.ULNASTransportRequestTypeInitialRequest {
+				ue.SmContextList.Delete(pduSessionID)
+				smContextExist = false
+			}
+		}
+
 		// AMF has a PDU session routing context for the PDU session ID and the UE
 		if smContextExist {
 			// case i) Request type IE is either not included
@@ -540,6 +548,8 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	ue.GmmLog.Infoln("Handle InitialRegistration")
 
 	amfSelf := context.AMF_Self()
+
+	ue.ClearRegistrationData()
 
 	// update Kgnb/Kn3iwf
 	ue.UpdateSecurityContext(anType)
