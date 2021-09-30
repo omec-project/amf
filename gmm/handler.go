@@ -372,6 +372,13 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		return fmt.Errorf("RanUe is nil")
 	}
 
+	// MacFailed is set if plain Registration Request message received with GUTI/SUCI or
+	// integrity protected Registration Reguest message received but mac verification Failed
+	if ue.MacFailed == true {
+		amfSelf.ReAllocateGutiToUe(ue)
+		ue.SecurityContextAvailable = false
+	}
+
 	ue.SetOnGoing(anType, &context.OnGoing{
 		Procedure: context.OnGoingProcedureRegistration,
 	})
