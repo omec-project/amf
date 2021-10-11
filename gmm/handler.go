@@ -2181,6 +2181,12 @@ func HandleSecurityModeReject(ue *context.AmfUe, anType models.AccessType,
 	cause := securityModeReject.Cause5GMM.GetCauseValue()
 	ue.GmmLog.Warnf("Reject Cause: %s", nasMessage.Cause5GMMToString(cause))
 	ue.GmmLog.Error("UE reject the security mode command, abort the ongoing procedure")
+
+	ue.SecurityContextAvailable = false
+
+	ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType], context.UeContextReleaseUeContext,
+		ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+
 	return nil
 }
 
