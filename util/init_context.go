@@ -61,9 +61,13 @@ func InitAmfContext(context *context.AMFContext) {
 	context.InitNFService(serviceNameList, config.Info.Version)
 	context.ServedGuamiList = configuration.ServedGumaiList
 	context.SupportTaiLists = configuration.SupportTAIList
-	for i := range context.SupportTaiLists {
-		context.SupportTaiLists[i].Tac = TACConfigToModels(context.SupportTaiLists[i].Tac)
-	}
+	// Tac value not converting into 3bytes hex string.
+	// keeping tac integer value in string format received from configuration
+	/*for i := range context.SupportTaiLists {
+		if str := TACConfigToModels(context.SupportTaiLists[i].Tac); str != "" {
+			context.SupportTaiLists[i].Tac = str
+		}
+	}*/
 	context.PlmnSupportList = configuration.PlmnSupportList
 	context.SupportDnnLists = configuration.SupportDnnList
 	if configuration.NrfUri != "" {

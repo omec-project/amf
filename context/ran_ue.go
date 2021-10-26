@@ -8,6 +8,7 @@ package context
 import (
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/mohae/deepcopy"
@@ -235,9 +236,11 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Location.N3gaLocation.PortNumber = ngapConvert.PortNumberToInt(port)
 		// N3GPP TAI is operator-specific
 		// TODO: define N3GPP TAI
+		tmp, _ := strconv.ParseUint(amfSelf.SupportTaiLists[0].Tac, 10, 32)
+		tac := fmt.Sprintf("%06x", tmp)
 		ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
 			PlmnId: amfSelf.SupportTaiLists[0].PlmnId,
-			Tac:    amfSelf.SupportTaiLists[0].Tac,
+			Tac:    tac,
 		}
 		ranUe.Tai = deepcopy.Copy(*ranUe.Location.N3gaLocation.N3gppTai).(models.Tai)
 
