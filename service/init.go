@@ -142,7 +142,7 @@ func (amf *AMF) WatchConfig() {
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
 		fmt.Println("Config file changed:", e.Name)
-		if err := factory.UpdateAmfConfig(e.Name); err != nil {
+		if err := factory.UpdateAmfConfig("/free5gc/config/amfcfg.conf"); err != nil {
 			fmt.Println("error in loading updated configuration")
 		} else {
 			self := context.AMF_Self()

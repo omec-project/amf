@@ -6,8 +6,6 @@
 package nas
 
 import (
-	"fmt"
-
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/logger"
 	"github.com/free5gc/amf/nas/nas_security"
@@ -36,11 +34,6 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		defer ue.AmfUe.Mutex.Unlock()
 
 		ue.AmfUe.AttachRanUe(ue)
-
-		// set log information
-		ue.AmfUe.NASLog = logger.NasLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.AmfUeNgapId))
-		ue.AmfUe.GmmLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.AmfUeNgapId))
-		ue.AmfUe.TxLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.AmfUeNgapId))
 
 		if ue.AmfUe.EventChannel == nil {
 			ue.AmfUe.EventChannel = ue.AmfUe.NewEventChannel()
