@@ -5,8 +5,6 @@
 
 package context
 
-import "github.com/free5gc/openapi/models"
-
 type EventChannel struct {
 	Message     chan interface{}
 	Event       chan string
@@ -41,7 +39,7 @@ func (tx *EventChannel) Start() {
 			case NgapMsg:
 				tx.NgapHandler(tx.AmfUe, msg.(NgapMsg))
 			case SbiMsg:
-				p_1, p_2, p_3, p_4 := tx.SbiHandler(msg.(SbiMsg).UeContextId, msg.(SbiMsg).ReqUri, msg.(SbiMsg).Msg.(models.N1N2MessageTransferRequest))
+				p_1, p_2, p_3, p_4 := tx.SbiHandler(msg.(SbiMsg).UeContextId, msg.(SbiMsg).ReqUri, msg.(SbiMsg).Msg)
 				res := SbiResponseMsg{
 					RespData:       p_1,
 					LocationHeader: p_2,

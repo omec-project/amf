@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"reflect"
 	"regexp"
 	"sync"
@@ -349,8 +350,19 @@ func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
 }
 
 func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
+	/* detach any RanUe associated to it */
+	oldRanUe := ue.RanUe[ranUe.Ran.AnType]
+	if oldRanUe != nil {
+		oldRanUe.Log.Infof("Detached UeContext from OldRanUe")
+		ue.RanUe[ranUe.Ran.AnType].AmfUe = nil
+	}
 	ue.RanUe[ranUe.Ran.AnType] = ranUe
 	ranUe.AmfUe = ue
+
+	// set log information
+	ue.NASLog = logger.NasLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
+	ue.GmmLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
+	ue.TxLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 }
 
 func (ue *AmfUe) GetAnType() models.AccessType {

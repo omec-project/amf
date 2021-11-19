@@ -249,7 +249,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
-				case ngapType.ProtocolIEIDAMFUENGAPID:
+				case ngapType.ProtocolIEIDSourceAMFUENGAPID:
 					aMFUENGAPID = ie.Value.SourceAMFUENGAPID
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
