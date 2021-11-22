@@ -60,6 +60,7 @@ func TACConfigToModels(intString string) (hexString string) {
 	tmp, err := strconv.ParseUint(intString, 10, 32)
 	if err != nil {
 		logger.UtilLog.Errorf("ParseUint error: %+v", err)
+		return
 	}
 	hexString = fmt.Sprintf("%06x", tmp)
 	return

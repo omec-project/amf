@@ -510,9 +510,9 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 }
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
-	self := context.AMF_Self()
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
+			self := context.AMF_Self()
 			util.InitAmfContext(self)
 
 			// Register to NRF with Updated Profile

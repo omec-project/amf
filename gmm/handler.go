@@ -495,7 +495,12 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 	ue.Tai = ue.RanUe[anType].Tai
 
 	// Check TAI
-	if !context.InTaiList(ue.Tai, amfSelf.SupportTaiLists) {
+	taiList := make([]models.Tai, len(amfSelf.SupportTaiLists))
+	copy(taiList, amfSelf.SupportTaiLists)
+	for i := range taiList {
+		taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
+	}
+	if !context.InTaiList(ue.Tai, taiList) {
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMTrackingAreaNotAllowed, "")
 		return fmt.Errorf("Registration Reject[Tracking area not allowed]")
 	}
