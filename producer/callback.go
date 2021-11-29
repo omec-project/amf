@@ -79,7 +79,7 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 	msg := <-sbiMsg.Result
 	//problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -228,7 +228,7 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *htt
 	//problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
 
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -329,7 +329,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *
 
 	//problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
