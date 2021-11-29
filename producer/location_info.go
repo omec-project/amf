@@ -56,7 +56,7 @@ func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapp
 	}
 	//provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return http_wrapper.NewResponse(http.StatusOK, nil, provideLocInfo)
 	}
