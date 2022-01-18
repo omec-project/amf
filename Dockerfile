@@ -35,9 +35,9 @@ RUN apk update
 RUN apk add -U vim strace net-tools curl netcat-openbsd bind-tools
 
 # Set working dir
-WORKDIR /free5gc
+WORKDIR /sdcore
 RUN mkdir -p amf/
 
 # Copy executable and default certs
 COPY --from=builder /go/src/amf/bin/* ./amf
-WORKDIR /free5gc/amf
+WORKDIR /sdcore/amf
