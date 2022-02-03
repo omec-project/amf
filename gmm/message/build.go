@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 //
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+//
 
 package message
 
@@ -517,7 +517,7 @@ func BuildRegistrationAccept(
 		registrationAccept.AllowedNSSAI.SetLen(uint8(len(buf)))
 		registrationAccept.AllowedNSSAI.SetSNSSAIValue(buf)
 	}
-    /* TODO: DT-Trial: Commented below code because UE is not allowing rejected Nssais */
+	/* TODO: DT-Trial: Commented below code because UE is not allowing rejected Nssais */
 	/*
 		if ue.NetworkSliceInfo != nil {
 			if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) != 0 || len(ue.NetworkSliceInfo.RejectedNssaiInTa) != 0 {
