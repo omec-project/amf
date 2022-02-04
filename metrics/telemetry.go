@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+// Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+//
 
 /*
  * AMF Statistics exposing to promethus
@@ -41,7 +42,7 @@ func initAmfStats() *AmfStats {
 }
 
 func (ps *AmfStats) register() error {
-	prometheus.Unregister(ps.ngapMsg) 
+	prometheus.Unregister(ps.ngapMsg)
 
 	if err := prometheus.Register(ps.ngapMsg); err != nil {
 		return err

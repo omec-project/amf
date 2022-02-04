@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+// Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-License-Identifier: LicenseRef-ONF-Member-Only-1.0
+//
 
 /*
  * AMF Configuration Factory
@@ -64,7 +65,7 @@ func UpdateAmfConfig(f string) error {
 		}
 
 		/* we will not update below 3 configs if its controlled by ROC */
-		/* TODO: document this as dynamic configmap updates for below 3 configs we dont support if its controlled by ROC*/ 
+		/* TODO: document this as dynamic configmap updates for below 3 configs we dont support if its controlled by ROC*/
 		if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
 			if reflect.DeepEqual(AmfConfig.Configuration.ServedGumaiList, amfConfig.Configuration.ServedGumaiList) == false {
 				logger.CfgLog.Infoln("updated ServedGumaiList ", amfConfig.Configuration.ServedGumaiList)
