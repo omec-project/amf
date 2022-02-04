@@ -1,4 +1,4 @@
-# Copyright 2019-present Open Networking Foundation
+# SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 #
 # SPDX-License-Identifier: Apache-2.0
 #

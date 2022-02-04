@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+// Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -604,7 +605,7 @@ func BuildRegistrationAccept(
 		registrationAccept.ServiceAreaList.SetPartialServiceAreaList(partialServiceAreaList)
 	}
 
-	// Radysis: commented this timer because UESIM is not supporting
+	// Temporary: commented this timer because UESIM is not supporting
 	/*if anType == models.AccessType__3_GPP_ACCESS && ue.T3512Value != 0 {
 		registrationAccept.T3512Value = nasType.NewT3512Value(nasMessage.RegistrationAcceptT3512ValueType)
 		registrationAccept.T3512Value.SetLen(1)
@@ -620,7 +621,7 @@ func BuildRegistrationAccept(
 		registrationAccept.Non3GppDeregistrationTimerValue.SetGPRSTimer2Value(timerValue)
 	}
 
-	// Radysis: commented this timer because UESIM is not supporting
+	// Temporary: commented this timer because UESIM is not supporting
 	/*if ue.T3502Value != 0 {
 		registrationAccept.T3502Value = nasType.NewT3502Value(nasMessage.RegistrationAcceptT3502ValueType)
 		registrationAccept.T3502Value.SetLen(1)
