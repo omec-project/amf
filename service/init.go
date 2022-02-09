@@ -10,6 +10,8 @@ package service
 import (
 	"bufio"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof" //Using package only for invoking initialization.
 	"os"
 	"os/exec"
 	"os/signal"
@@ -136,6 +138,11 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 			RocUpdateConfigChannel <- true
 		}()
 	}
+
+	//Initiating a server for profiling
+	go func() {
+		http.ListenAndServe(":5001", nil)
+	}()
 
 	return nil
 }
