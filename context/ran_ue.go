@@ -31,6 +31,7 @@ const (
 	UeContextN2NormalRelease RelAction = iota
 	UeContextReleaseHandover
 	UeContextReleaseUeContext
+	UeContextNwInitiatedDeregister
 )
 
 type RanUe struct {

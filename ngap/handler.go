@@ -1058,6 +1058,9 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		}
 		amfUe.AttachRanUe(targetRanUe)
 		// Todo: remove indirect tunnel
+	case context.UeContextNwInitiatedDeregister:
+		ran.Log.Infof("Deleting UE context due to network initiated deregistration", amfUe.Supi)
+		amfUe.Remove()
 	default:
 		ran.Log.Errorf("Invalid Release Action[%d]", ranUe.ReleaseAction)
 	}

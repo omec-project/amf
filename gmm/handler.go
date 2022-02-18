@@ -1530,6 +1530,58 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 	return false, nil
 }
 
+func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe,
+	accessType models.AccessType) (err error) {
+
+	anType := util.AnTypeToNas(accessType)
+	if ue.CmConnect(accessType) {
+		//setting reregistration required flag to true
+		gmm_message.SendDeregistrationRequest(ue.RanUe[accessType], anType, true, 0)
+	}
+	// TODO: Need to implement Nudm_SDM_Unsubscribe
+
+	ue.SmContextList.Range(func(key, value interface{}) bool {
+		smContext := value.(*context.SmContext)
+
+		if smContext.AccessType() == accessType {
+			problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
+			if problemDetail != nil {
+				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
+			} else if err != nil {
+				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
+			}
+		}
+		return true
+	})
+
+	if ue.AmPolicyAssociation != nil {
+		terminateAmPolicyAssocaition := true
+		switch accessType {
+		case models.AccessType__3_GPP_ACCESS:
+			terminateAmPolicyAssocaition = ue.State[models.AccessType_NON_3_GPP_ACCESS].Is(context.Deregistered)
+		case models.AccessType_NON_3_GPP_ACCESS:
+			terminateAmPolicyAssocaition = ue.State[models.AccessType__3_GPP_ACCESS].Is(context.Deregistered)
+		}
+
+		if terminateAmPolicyAssocaition {
+			problemDetails, err := consumer.AMPolicyControlDelete(ue)
+			if problemDetails != nil {
+				err = fmt.Errorf("AM Policy Control Delete Failed Problem[%+v]", problemDetails)
+				ue.GmmLog.Errorln(err)
+			} else if err != nil {
+				err = fmt.Errorf("AM Policy Control Delete Error[%v]", err.Error())
+				ue.GmmLog.Errorln(err)
+			}
+		}
+	}
+
+	if ue.CmIdle(accessType) {
+		// Deleting UE context
+		ue.Remove()
+	}
+	return err
+}
+
 // TS 24501 5.6.1
 func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	serviceRequest *nasMessage.ServiceRequest) error {
@@ -2301,26 +2353,30 @@ func HandleDeregistrationAccept(ue *context.AmfUe, anType models.AccessType,
 	case nasMessage.AccessType3GPP:
 		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType__3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextNwInitiatedDeregister, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 	case nasMessage.AccessTypeNon3GPP:
 		if ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType_NON_3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextNwInitiatedDeregister, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 	case nasMessage.AccessTypeBoth:
 		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType__3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextNwInitiatedDeregister, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 		if ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType_NON_3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextNwInitiatedDeregister, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 	}
 
 	ue.DeregistrationTargetAccessType = 0
-	return nil
+
+	return GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
+		ArgAmfUe:      ue,
+		ArgAccessType: anType,
+	})
 }
 
 func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *nasMessage.Status5GMM) error {

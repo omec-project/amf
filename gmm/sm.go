@@ -12,6 +12,7 @@ import (
 	"github.com/free5gc/amf/context"
 	gmm_message "github.com/free5gc/amf/gmm/message"
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/amf/util"
 	"github.com/free5gc/fsm"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
@@ -126,6 +127,10 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		logger.GmmLog.Debugln(event)
 	case InitDeregistrationEvent:
 		logger.GmmLog.Debugln(event)
+	case NwInitiatedDeregistrationEvent:
+		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
+		NetworkInitiatedDeregistrationProcedure(amfUe, accessType)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 	default:
@@ -418,11 +423,15 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 	case fsm.EntryEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		gmmMessage := args[ArgNASMessage].(*nas.GmmMessage)
-		accessType := args[ArgAccessType].(models.AccessType)
-		amfUe.GmmLog.Debugln("EntryEvent at GMM State[DeregisteredInitiated]")
-		if err := HandleDeregistrationRequest(amfUe, accessType,
-			gmmMessage.DeregistrationRequestUEOriginatingDeregistration); err != nil {
-			logger.GmmLog.Errorln(err)
+		if gmmMessage != nil {
+			amfUe.GmmLog.Debugln("EntryEvent at GMM State[DeregisteredInitiated] - UE triggered Deregisration")
+			accessType := args[ArgAccessType].(models.AccessType)
+			if err := HandleDeregistrationRequest(amfUe, accessType,
+				gmmMessage.DeregistrationRequestUEOriginatingDeregistration); err != nil {
+				logger.GmmLog.Errorln(err)
+			}
+		} else {
+			amfUe.GmmLog.Debugln("EntryEvent at GMM State[DeregisteredInitiated] - Network triggered Deregisration")
 		}
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -442,14 +451,26 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 	case DeregistrationAcceptEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
-		if accessType == models.AccessType__3_GPP_ACCESS {
-			amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-			amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
-		}
+		SetDeregisteredState(amfUe, util.AnTypeToNas(accessType))
 		logger.GmmLog.Debugln(event)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 	default:
 		logger.GmmLog.Errorf("Unknown event [%+v]", event)
+	}
+}
+
+func SetDeregisteredState(amfUe *context.AmfUe, anType uint8) {
+	if anType == nasMessage.AccessType3GPP {
+		amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
+		amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+	} else if anType == nasMessage.AccessTypeNon3GPP {
+		amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
+		amfUe.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Deregistered)
+	} else {
+		amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
+		amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+		amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
+		amfUe.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Deregistered)
 	}
 }

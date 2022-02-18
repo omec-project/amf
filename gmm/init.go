@@ -13,20 +13,21 @@ import (
 )
 
 const (
-	GmmMessageEvent           fsm.EventType = "Gmm Message"
-	StartAuthEvent            fsm.EventType = "Start Authentication"
-	AuthSuccessEvent          fsm.EventType = "Authentication Success"
-	AuthRestartEvent          fsm.EventType = "Authentication Restart"
-	AuthFailEvent             fsm.EventType = "Authentication Fail"
-	AuthErrorEvent            fsm.EventType = "Authentication Error"
-	SecurityModeSuccessEvent  fsm.EventType = "SecurityMode Success"
-	SecurityModeFailEvent     fsm.EventType = "SecurityMode Fail"
-	SecuritySkipEvent         fsm.EventType = "Security Skip"
-	SecurityModeAbortEvent    fsm.EventType = "SecurityMode Abort"
-	ContextSetupSuccessEvent  fsm.EventType = "ContextSetup Success"
-	ContextSetupFailEvent     fsm.EventType = "ContextSetup Fail"
-	InitDeregistrationEvent   fsm.EventType = "Initialize Deregistration"
-	DeregistrationAcceptEvent fsm.EventType = "Deregistration Accept"
+	GmmMessageEvent                fsm.EventType = "Gmm Message"
+	StartAuthEvent                 fsm.EventType = "Start Authentication"
+	AuthSuccessEvent               fsm.EventType = "Authentication Success"
+	AuthRestartEvent               fsm.EventType = "Authentication Restart"
+	AuthFailEvent                  fsm.EventType = "Authentication Fail"
+	AuthErrorEvent                 fsm.EventType = "Authentication Error"
+	SecurityModeSuccessEvent       fsm.EventType = "SecurityMode Success"
+	SecurityModeFailEvent          fsm.EventType = "SecurityMode Fail"
+	SecuritySkipEvent              fsm.EventType = "Security Skip"
+	SecurityModeAbortEvent         fsm.EventType = "SecurityMode Abort"
+	ContextSetupSuccessEvent       fsm.EventType = "ContextSetup Success"
+	ContextSetupFailEvent          fsm.EventType = "ContextSetup Fail"
+	InitDeregistrationEvent        fsm.EventType = "Initialize Deregistration"
+	NwInitiatedDeregistrationEvent fsm.EventType = "Network Initiated Deregistration Event"
+	DeregistrationAcceptEvent      fsm.EventType = "Deregistration Accept"
 )
 
 const (
@@ -59,6 +60,7 @@ var transitions = fsm.Transitions{
 	{Event: ContextSetupSuccessEvent, From: context.ContextSetup, To: context.Registered},
 	{Event: ContextSetupFailEvent, From: context.ContextSetup, To: context.Deregistered},
 	{Event: InitDeregistrationEvent, From: context.Registered, To: context.DeregistrationInitiated},
+	{Event: NwInitiatedDeregistrationEvent, From: context.Registered, To: context.DeregistrationInitiated},
 	{Event: DeregistrationAcceptEvent, From: context.DeregistrationInitiated, To: context.Deregistered},
 }
 
