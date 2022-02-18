@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/free5gc/amf/logger"
+	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/openapi/models"
 )
 
@@ -41,6 +42,7 @@ func SeperateAmfId(amfid string) (regionId, setId, ptrId string, err error) {
 	regionId = amfid[:2]
 	byteArray, err1 := hex.DecodeString(amfid[2:])
 	if err1 != nil {
+
 		err = err1
 		return
 	}
@@ -65,4 +67,14 @@ func TACConfigToModels(intString string) (hexString string) {
 	}
 	hexString = fmt.Sprintf("%06x", tmp)
 	return
+}
+
+func AnTypeToNas(anType models.AccessType) uint8 {
+	if anType == models.AccessType__3_GPP_ACCESS {
+		return nasMessage.AccessType3GPP
+	} else if anType == models.AccessType_NON_3_GPP_ACCESS {
+		return nasMessage.AccessTypeNon3GPP
+	}
+
+	return nasMessage.AccessTypeBoth
 }
