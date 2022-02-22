@@ -7,12 +7,13 @@
 package context
 
 type EventChannel struct {
-	Message     chan interface{}
-	Event       chan string
-	AmfUe       *AmfUe
-	NasHandler  func(*AmfUe, NasMsg)
-	NgapHandler func(*AmfUe, NgapMsg)
-	SbiHandler  func(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{})
+	Message       chan interface{}
+	Event         chan string
+	AmfUe         *AmfUe
+	NasHandler    func(*AmfUe, NasMsg)
+	NgapHandler   func(*AmfUe, NgapMsg)
+	SbiHandler    func(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{})
+	ConfigHandler func(s1, s2, s3 string, msg interface{})
 }
 
 func (tx *EventChannel) UpdateNgapHandler(handler func(*AmfUe, NgapMsg)) {
@@ -30,6 +31,10 @@ func (tx *EventChannel) UpdateSbiHandler(handler func(s1, s2 string, msg interfa
 	tx.SbiHandler = handler
 }
 
+func (tx *EventChannel) UpdateConfigHandler(handler func(s1, s2, s3 string, msg interface{})) {
+	tx.AmfUe.TxLog.Infof("updated confighandler")
+	tx.ConfigHandler = handler
+}
 func (tx *EventChannel) Start() {
 	for {
 		select {
@@ -48,7 +53,8 @@ func (tx *EventChannel) Start() {
 					TransferErr:    p_4,
 				}
 				msg.(SbiMsg).Result <- res
-
+			case ConfigMsg:
+				tx.ConfigHandler(msg.(ConfigMsg).Supi, msg.(ConfigMsg).Sst, msg.(ConfigMsg).Sd, msg.(ConfigMsg).Msg)
 			}
 		case event := <-tx.Event:
 			if event == "quit" {

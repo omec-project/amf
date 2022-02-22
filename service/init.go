@@ -26,6 +26,7 @@ import (
 	"github.com/free5gc/amf/context"
 	"github.com/free5gc/amf/eventexposure"
 	"github.com/free5gc/amf/factory"
+	"github.com/free5gc/amf/gmm"
 	"github.com/free5gc/amf/httpcallback"
 	"github.com/free5gc/amf/location"
 	"github.com/free5gc/amf/logger"
@@ -38,6 +39,7 @@ import (
 	"github.com/free5gc/amf/producer/callback"
 	"github.com/free5gc/amf/util"
 	aperLogger "github.com/free5gc/aper/logger"
+	"github.com/free5gc/fsm"
 	fsmLogger "github.com/free5gc/fsm/logger"
 	"github.com/free5gc/http2_util"
 	"github.com/free5gc/logger_util"
@@ -456,6 +458,9 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				snssai.Sst = int32(val)
 				snssai.Sd = ns.Nssai.Sd
 			}
+
+			HandleImsiDeleteFromNetworkSlice(ns)
+
 			if ns.Site != nil {
 				site := ns.Site
 				logger.GrpcLog.Infoln("Network Slice has site name: ", site.SiteName)
@@ -532,5 +537,59 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
 			}
 		}
+	}
+}
+
+func UeConfigHandler(supi, sst, sd string, msg interface{}) {
+	amfSelf := context.AMF_Self()
+	ue, _ := amfSelf.AmfUeFindBySupi(supi)
+	if ue != nil && ue.State[models.AccessType__3_GPP_ACCESS].Is(context.Registered) {
+		var nwInitieadDetach bool
+		// Triggers for NwInitiatedDeRegistration
+		// - Only 1 Active SmContext is exist and its slice information matched
+		// - No SmContexts Exists
+		ns := msg.(*protos.NetworkSlice)
+		if len(ue.AllowedNssai[models.AccessType__3_GPP_ACCESS]) == 1 {
+			for _, nssai := range ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] {
+				sst, _ := strconv.Atoi(ns.Nssai.Sst)
+				if nssai.AllowedSnssai.Sst == int32(sst) && nssai.AllowedSnssai.Sd == ns.Nssai.Sd {
+					nwInitieadDetach = true
+				}
+			}
+		}
+		// TODO:more than one slice, trigger UEConfigurationUpdate Procedure
+		if nwInitieadDetach {
+			gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
+				gmm.ArgAmfUe:      ue,
+				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
+			})
+		}
+	} else {
+		logger.CfgLog.Warnf("Ue is not in Registered State")
+		// TODO post Abort event to FSM, handling of Abort event in all States
+	}
+}
+func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
+	var ue *context.AmfUe
+	var ok bool
+	logger.CfgLog.Infoln("[AMF] Handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
+
+	for _, supi := range slice.DeletedImsis {
+		amfSelf := context.AMF_Self()
+		ue, ok = amfSelf.AmfUeFindBySupi(supi)
+		if !ok {
+			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
+			continue
+		}
+		//publish the event to ue channel
+		configMsg := context.ConfigMsg{
+			Supi: supi,
+			Msg:  slice,
+			Sst:  slice.Nssai.Sst,
+			Sd:   slice.Nssai.Sd,
+		}
+
+		ue.EventChannel.UpdateConfigHandler(UeConfigHandler)
+		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }
