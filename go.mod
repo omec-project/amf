@@ -14,7 +14,6 @@ require (
 	github.com/free5gc/http2_util v1.0.0
 	github.com/free5gc/http_wrapper v1.0.0
 	github.com/free5gc/idgenerator v1.0.0
-	github.com/free5gc/logger_conf v1.0.0 // indirect
 	github.com/free5gc/logger_util v1.0.0
 	github.com/free5gc/nas v1.0.0
 	github.com/free5gc/ngap v1.0.1
@@ -25,15 +24,13 @@ require (
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.6.3
 	github.com/google/uuid v1.1.2
-	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/amf v0.0.0-00010101000000-000000000000
-	github.com/omec-project/config5g v1.0.2
+	github.com/omec-project/config5g v1.0.4
 	github.com/prometheus/client_golang v0.9.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.7.1
 	github.com/urfave/cli v1.22.4
-	golang.org/x/sys v0.0.0-20201214210602-f9fddec55a1e // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )

@@ -59,6 +59,9 @@ type Configuration struct {
 	T3550                           TimerValue                `yaml:"t3550"`
 	T3560                           TimerValue                `yaml:"t3560"`
 	T3565                           TimerValue                `yaml:"t3565"`
+
+	//Maintain TaiList per slice
+	SliceTaiList map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

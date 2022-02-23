@@ -444,6 +444,79 @@ func (amf *AMF) Terminate() {
 	logger.InitLog.Infof("AMF terminated")
 }
 
+func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []models.Tai, opType protos.OpType) {
+	var plmnFound bool
+	for plmnindex, p := range factory.AmfConfig.Configuration.PlmnSupportList {
+		if p.PlmnId == plmn.PlmnId {
+			plmnFound = true
+			var found bool
+			nssai_r := plmn.SNssaiList[0]
+			for i, nssai := range p.SNssaiList {
+				if nssai_r == nssai {
+					found = true
+					if opType == protos.OpType_SLICE_DELETE {
+						factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList =
+							append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList[:i], p.SNssaiList[i+1:]...)
+						if len(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList) == 0 {
+							factory.AmfConfig.Configuration.PlmnSupportList =
+								append(factory.AmfConfig.Configuration.PlmnSupportList[:plmnindex],
+									factory.AmfConfig.Configuration.PlmnSupportList[plmnindex+1:]...)
+
+							factory.AmfConfig.Configuration.ServedGumaiList =
+								append(factory.AmfConfig.Configuration.ServedGumaiList[:plmnindex],
+									factory.AmfConfig.Configuration.ServedGumaiList[plmnindex+1:]...)
+						}
+					}
+					break
+				}
+			}
+
+			if !found && opType != protos.OpType_SLICE_DELETE {
+				logger.GrpcLog.Infof("plmn found but slice not found in AMF Configuration")
+				factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList =
+					append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList, nssai_r)
+			}
+			break
+		}
+	}
+
+	var guami = models.Guami{PlmnId: &plmn.PlmnId, AmfId: "cafe00"}
+	if !plmnFound && opType != protos.OpType_SLICE_DELETE {
+		factory.AmfConfig.Configuration.PlmnSupportList =
+			append(factory.AmfConfig.Configuration.PlmnSupportList, plmn)
+		factory.AmfConfig.Configuration.ServedGumaiList =
+			append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
+	}
+	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
+	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v in AMF\n", factory.AmfConfig.Configuration.PlmnSupportList,
+		factory.AmfConfig.Configuration.ServedGumaiList)
+	//same plmn received but Tacs in gnb updated
+	nssai_r := plmn.SNssaiList[0]
+	slice := strconv.FormatInt(int64(nssai_r.Sst), 10) + nssai_r.Sd
+	delete(factory.AmfConfig.Configuration.SliceTaiList, slice)
+	if opType != protos.OpType_SLICE_DELETE {
+		//maintaining slice level tai List
+		if factory.AmfConfig.Configuration.SliceTaiList == nil {
+			factory.AmfConfig.Configuration.SliceTaiList = make(map[string][]models.Tai)
+		}
+		factory.AmfConfig.Configuration.SliceTaiList[slice] = taiList
+	}
+
+	amf.UpdateSupportedTaiList()
+	logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", taiList)
+	logger.GrpcLog.Infoln("SupportTAILIst in AMF", factory.AmfConfig.Configuration.SupportTAIList)
+}
+
+func (amf *AMF) UpdateSupportedTaiList() {
+	factory.AmfConfig.Configuration.SupportTAIList = nil
+	for _, slice := range factory.AmfConfig.Configuration.SliceTaiList {
+		for _, tai := range slice {
+			logger.GrpcLog.Infoln("Tai list present in Slice", tai, factory.AmfConfig.Configuration.SupportTAIList)
+			factory.AmfConfig.Configuration.SupportTAIList =
+				append(factory.AmfConfig.Configuration.SupportTAIList, tai)
+		}
+	}
+}
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
@@ -458,8 +531,14 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				snssai.Sst = int32(val)
 				snssai.Sd = ns.Nssai.Sd
 			}
-
-			HandleImsiDeleteFromNetworkSlice(ns)
+			//inform connected UEs with update slices
+			if len(ns.DeletedImsis) > 0 {
+				HandleImsiDeleteFromNetworkSlice(ns)
+			}
+			//TODO Inform connected UEs with update Slice
+			/*if len(ns.AddUpdatedImsis) > 0 {
+				HandleImsiAddInNetworkSlice(ns)
+			}*/
 
 			if ns.Site != nil {
 				site := ns.Site
@@ -486,6 +565,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 						}
 					}
 
+					amf.UpdateAmfConfiguration(*plmn, tai, ns.OperationType)
 				} else {
 					logger.GrpcLog.Infoln("Plmn not present in the message ")
 				}
@@ -494,22 +574,11 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		} // end of network slice for loop
 
 		//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
-		factory.AmfConfig.Configuration.ServedGumaiList = nil
-		factory.AmfConfig.Configuration.PlmnSupportList = nil
-		for _, plmn := range plmnList {
-			factory.AmfConfig.Configuration.PlmnSupportList =
-				append(factory.AmfConfig.Configuration.PlmnSupportList, *plmn)
-			var guami = models.Guami{PlmnId: &plmn.PlmnId,
-				AmfId: "cafe00",
-			}
-			factory.AmfConfig.Configuration.ServedGumaiList =
-				append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
-			logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
-		}
-		//same plmn received but Tacs in gnb updated
-		factory.AmfConfig.Configuration.SupportTAIList = tai
-		logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", tai)
-		if factory.AmfConfig.Configuration.ServedGumaiList != nil {
+		//factory.AmfConfig.Configuration.ServedGumaiList = nil
+		//factory.AmfConfig.Configuration.PlmnSupportList = nil
+		self := context.AMF_Self()
+		util.InitAmfContext(self)
+		if len(factory.AmfConfig.Configuration.ServedGumaiList) > 0 {
 			RocUpdateConfigChannel <- true
 		}
 	}
@@ -540,43 +609,61 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 	}
 }
 
-func UeConfigHandler(supi, sst, sd string, msg interface{}) {
+func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi(supi)
-	if ue != nil && ue.State[models.AccessType__3_GPP_ACCESS].Is(context.Registered) {
-		var nwInitieadDetach bool
-		// Triggers for NwInitiatedDeRegistration
-		// - Only 1 Active SmContext is exist and its slice information matched
-		// - No SmContexts Exists
-		ns := msg.(*protos.NetworkSlice)
-		if len(ue.AllowedNssai[models.AccessType__3_GPP_ACCESS]) == 1 {
-			for _, nssai := range ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] {
-				sst, _ := strconv.Atoi(ns.Nssai.Sst)
-				if nssai.AllowedSnssai.Sst == int32(sst) && nssai.AllowedSnssai.Sd == ns.Nssai.Sd {
-					nwInitieadDetach = true
-				}
-			}
-		}
-		// TODO:more than one slice, trigger UEConfigurationUpdate Procedure
-		if nwInitieadDetach {
+	ue, _ := amfSelf.AmfUeFindBySupi("imsi-" + supi)
+
+	// Triggers for NwInitiatedDeRegistration
+	// - Only 1 Allowed Nssai is exist and its slice information matched
+	ns := msg.(*protos.NetworkSlice)
+	if len(ue.AllowedNssai[models.AccessType__3_GPP_ACCESS]) == 1 {
+		st, _ := strconv.Atoi(ns.Nssai.Sst)
+		if ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sst == int32(st) &&
+			ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sd == ns.Nssai.Sd {
 			gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			})
+		} else {
+			logger.CfgLog.Infof("Deleted slice not matched with slice info in UEContext")
 		}
 	} else {
-		logger.CfgLog.Warnf("Ue is not in Registered State")
-		// TODO post Abort event to FSM, handling of Abort event in all States
+		var Nssai models.Snssai
+		st, _ := strconv.Atoi(ns.Nssai.Sst)
+		Nssai.Sst = int32(st)
+		Nssai.Sd = ns.Nssai.Sd
+		gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoDeleteEvent, fsm.ArgsType{
+			gmm.ArgAmfUe:      ue,
+			gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
+			gmm.ArgNssai:      Nssai,
+		})
 	}
 }
+
+func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
+	amfSelf := context.AMF_Self()
+	ue, _ := amfSelf.AmfUeFindBySupi("imsi-" + supi)
+
+	ns := msg.(*protos.NetworkSlice)
+	var Nssai models.Snssai
+	st, _ := strconv.Atoi(ns.Nssai.Sst)
+	Nssai.Sst = int32(st)
+	Nssai.Sd = ns.Nssai.Sd
+	gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoAddEvent, fsm.ArgsType{
+		gmm.ArgAmfUe:      ue,
+		gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
+		gmm.ArgNssai:      Nssai,
+	})
+}
+
 func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 	var ue *context.AmfUe
 	var ok bool
-	logger.CfgLog.Infoln("[AMF] Handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
+	logger.CfgLog.Infof("[AMF] Handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
 
 	for _, supi := range slice.DeletedImsis {
 		amfSelf := context.AMF_Self()
-		ue, ok = amfSelf.AmfUeFindBySupi(supi)
+		ue, ok = amfSelf.AmfUeFindBySupi("imsi-" + supi)
 		if !ok {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue
@@ -589,7 +676,32 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 			Sd:   slice.Nssai.Sd,
 		}
 
-		ue.EventChannel.UpdateConfigHandler(UeConfigHandler)
+		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
+		ue.EventChannel.SubmitMessage(configMsg)
+	}
+}
+
+func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
+	var ue *context.AmfUe
+	var ok bool
+	logger.CfgLog.Infof("[AMF] Handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
+
+	for _, supi := range slice.AddUpdatedImsis {
+		amfSelf := context.AMF_Self()
+		ue, ok = amfSelf.AmfUeFindBySupi("imsi-" + supi)
+		if !ok {
+			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
+			continue
+		}
+		//publish the event to ue channel
+		configMsg := context.ConfigMsg{
+			Supi: supi,
+			Msg:  slice,
+			Sst:  slice.Nssai.Sst,
+			Sd:   slice.Nssai.Sd,
+		}
+
+		ue.EventChannel.UpdateConfigHandler(UeConfigSliceAddHandler)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }

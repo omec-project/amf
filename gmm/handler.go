@@ -20,6 +20,7 @@ import (
 	"github.com/antihax/optional"
 	"github.com/mitchellh/mapstructure"
 	"github.com/mohae/deepcopy"
+	"github.com/omec-project/amf/logger"
 
 	"github.com/free5gc/amf/consumer"
 	"github.com/free5gc/amf/context"
@@ -579,6 +580,12 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	if ue.RegistrationRequest.Capability5GMM != nil {
 		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
 	}
+
+	if len(ue.AllowedNssai[anType]) == 0 {
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		return fmt.Errorf("Allowed Nssai List is nil")
+	}
+
 	//TODO: this is commented because Radysis USIM is not sending this IE
 	/*else {
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
@@ -1530,6 +1537,128 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 	return false, nil
 }
 
+func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType models.AccessType) (err error) {
+
+	anType := util.AnTypeToNas(accessType)
+	if ue.CmConnect(accessType) && ue.State[accessType].Is(context.Registered) {
+		//setting reregistration required flag to true
+		gmm_message.SendDeregistrationRequest(ue.RanUe[accessType], anType, true, 0)
+	} else {
+		SetDeregisteredState(ue, anType)
+	}
+	// TODO: Need to implement Nudm_SDM_Unsubscribe
+
+	ue.SmContextList.Range(func(key, value interface{}) bool {
+		smContext := value.(*context.SmContext)
+
+		if smContext.AccessType() == accessType {
+			ue.GmmLog.Infof("Sending SmContext [slice: %v, dnn: %v] Release Request to SMF", smContext.Snssai(), smContext.Dnn())
+			problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
+			if problemDetail != nil {
+				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
+			} else if err != nil {
+				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
+			}
+		}
+		return true
+	})
+
+	if ue.AmPolicyAssociation != nil {
+		terminateAmPolicyAssocaition := true
+		switch accessType {
+		case models.AccessType__3_GPP_ACCESS:
+			terminateAmPolicyAssocaition = ue.State[models.AccessType_NON_3_GPP_ACCESS].Is(context.Deregistered)
+		case models.AccessType_NON_3_GPP_ACCESS:
+			terminateAmPolicyAssocaition = ue.State[models.AccessType__3_GPP_ACCESS].Is(context.Deregistered)
+		}
+
+		if terminateAmPolicyAssocaition {
+			ue.GmmLog.Infof("Sending AmPolicyControlDelete to AMF")
+			problemDetails, err := consumer.AMPolicyControlDelete(ue)
+			if problemDetails != nil {
+				err = fmt.Errorf("AM Policy Control Delete Failed Problem[%+v]", problemDetails)
+				// Should error be logged here ?
+				ue.GmmLog.Errorln(err)
+			} else if err != nil {
+				err = fmt.Errorf("AM Policy Control Delete Error[%v]", err.Error())
+				ue.GmmLog.Errorln(err)
+			}
+		}
+	}
+	//if ue is not connected mode, removing UE Context
+	if !ue.State[accessType].Is(context.Registered) {
+		if ue.CmConnect(accessType) {
+			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType__3_GPP_ACCESS],
+				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+		} else {
+			ue.GmmLog.Infof("Removing UE Context")
+			ue.Remove()
+		}
+	}
+	return err
+}
+
+//TODO: to be implemented
+func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
+
+	//TODO send configuration update to update allowed nssai list with re-registration required to UE
+	//     so that pdu session sync up happen in registration procedure when UE triggers this procedure
+	//gmm_message.SendConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS, nil)
+
+	//we are doing local cleanup for now, below code will be deprecated when we support
+	// Configuration Update
+	ue.SmContextList.Range(func(key, value interface{}) bool {
+		smContext := value.(*context.SmContext)
+		if smContext.Snssai().Sst == int32(nssai.Sst) && smContext.Snssai().Sd == nssai.Sd {
+			logger.GmmLog.Infof("Deleted Slice [sst: %v, sd: %v]matched with smcontext, sending Release SMContext Request to SMF",
+				smContext.Snssai().Sst, smContext.Snssai().Sd)
+			//send smcontext release request
+			problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
+			if problemDetail != nil {
+				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
+			} else if err != nil {
+				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
+			}
+
+		}
+		return true
+	})
+
+	var allowedList []models.AllowedSnssai
+	//update Allowed Nssai List
+	for _, slice := range ue.AllowedNssai[accessType] {
+		if slice.AllowedSnssai.Sst != nssai.Sst && slice.AllowedSnssai.Sd != nssai.Sd {
+			allowedList = append(allowedList, slice)
+		}
+	}
+	ue.AllowedNssai[accessType] = allowedList
+
+	return err
+}
+
+//TODO: to be implemented
+func HandleUeSliceInfoAdd(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
+
+	//TODO send configuration update to update allowed nssai list with re-registration required to UE
+	//     so that pdu session sync up happen in registration procedure when UE triggers this procedure
+	//gmm_message.SendConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS, nil)
+
+	var allowedList []models.AllowedSnssai
+	//update Allowed Nssai List
+	for _, slice := range ue.AllowedNssai[accessType] {
+		if slice.AllowedSnssai.Sst != nssai.Sst && slice.AllowedSnssai.Sd != nssai.Sd {
+			allowedList = append(allowedList, slice)
+		}
+	}
+	var allowedNssai models.AllowedSnssai
+	allowedNssai.AllowedSnssai = &nssai
+	allowedList = append(allowedList, allowedNssai)
+
+	ue.AllowedNssai[accessType] = allowedList
+
+	return err
+}
+
 // TS 24501 5.6.1
 func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	serviceRequest *nasMessage.ServiceRequest) error {
@@ -2301,26 +2430,30 @@ func HandleDeregistrationAccept(ue *context.AmfUe, anType models.AccessType,
 	case nasMessage.AccessType3GPP:
 		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType__3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 	case nasMessage.AccessTypeNon3GPP:
 		if ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType_NON_3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 	case nasMessage.AccessTypeBoth:
 		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType__3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 		if ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType_NON_3_GPP_ACCESS],
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 	}
 
 	ue.DeregistrationTargetAccessType = 0
-	return nil
+
+	return GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
+		ArgAmfUe:      ue,
+		ArgAccessType: anType,
+	})
 }
 
 func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *nasMessage.Status5GMM) error {
