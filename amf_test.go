@@ -74,7 +74,7 @@ var Data = []byte(`{
 	"NetworkSlice": [
 		{
 		 "Name": "siteOne",
-		 "Nssai": {"Sst": "010203", "Sd": "1"},
+		 "Nssai": {"Sst": "1", "Sd": "010203"},
 		 "Site": {
 			"SiteName": "siteOne",
 			"Gnb": [

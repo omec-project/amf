@@ -13,20 +13,23 @@ import (
 )
 
 const (
-	GmmMessageEvent           fsm.EventType = "Gmm Message"
-	StartAuthEvent            fsm.EventType = "Start Authentication"
-	AuthSuccessEvent          fsm.EventType = "Authentication Success"
-	AuthRestartEvent          fsm.EventType = "Authentication Restart"
-	AuthFailEvent             fsm.EventType = "Authentication Fail"
-	AuthErrorEvent            fsm.EventType = "Authentication Error"
-	SecurityModeSuccessEvent  fsm.EventType = "SecurityMode Success"
-	SecurityModeFailEvent     fsm.EventType = "SecurityMode Fail"
-	SecuritySkipEvent         fsm.EventType = "Security Skip"
-	SecurityModeAbortEvent    fsm.EventType = "SecurityMode Abort"
-	ContextSetupSuccessEvent  fsm.EventType = "ContextSetup Success"
-	ContextSetupFailEvent     fsm.EventType = "ContextSetup Fail"
-	InitDeregistrationEvent   fsm.EventType = "Initialize Deregistration"
-	DeregistrationAcceptEvent fsm.EventType = "Deregistration Accept"
+	GmmMessageEvent                fsm.EventType = "Gmm Message"
+	StartAuthEvent                 fsm.EventType = "Start Authentication"
+	AuthSuccessEvent               fsm.EventType = "Authentication Success"
+	AuthRestartEvent               fsm.EventType = "Authentication Restart"
+	AuthFailEvent                  fsm.EventType = "Authentication Fail"
+	AuthErrorEvent                 fsm.EventType = "Authentication Error"
+	SecurityModeSuccessEvent       fsm.EventType = "SecurityMode Success"
+	SecurityModeFailEvent          fsm.EventType = "SecurityMode Fail"
+	SecuritySkipEvent              fsm.EventType = "Security Skip"
+	SecurityModeAbortEvent         fsm.EventType = "SecurityMode Abort"
+	ContextSetupSuccessEvent       fsm.EventType = "ContextSetup Success"
+	ContextSetupFailEvent          fsm.EventType = "ContextSetup Fail"
+	InitDeregistrationEvent        fsm.EventType = "Initialize Deregistration"
+	NwInitiatedDeregistrationEvent fsm.EventType = "Network Initiated Deregistration Event"
+	SliceInfoDeleteEvent           fsm.EventType = "Slice Info Delete Event"
+	SliceInfoAddEvent              fsm.EventType = "Slice Info Add Event"
+	DeregistrationAcceptEvent      fsm.EventType = "Deregistration Accept"
 )
 
 const (
@@ -38,6 +41,7 @@ const (
 	ArgEAPMessage          string = "EAP Message"
 	Arg3GPPDeregistered    string = "3GPP Deregistered"
 	ArgNon3GPPDeregistered string = "Non3GPP Deregistered"
+	ArgNssai               string = "Nssai"
 )
 
 var transitions = fsm.Transitions{
@@ -46,6 +50,7 @@ var transitions = fsm.Transitions{
 	{Event: GmmMessageEvent, From: context.SecurityMode, To: context.SecurityMode},
 	{Event: GmmMessageEvent, From: context.ContextSetup, To: context.ContextSetup},
 	{Event: GmmMessageEvent, From: context.Registered, To: context.Registered},
+	{Event: GmmMessageEvent, From: context.DeregistrationInitiated, To: context.DeregistrationInitiated},
 	{Event: StartAuthEvent, From: context.Deregistered, To: context.Authentication},
 	{Event: StartAuthEvent, From: context.Registered, To: context.Authentication},
 	{Event: AuthRestartEvent, From: context.Authentication, To: context.Authentication},
@@ -59,6 +64,7 @@ var transitions = fsm.Transitions{
 	{Event: ContextSetupSuccessEvent, From: context.ContextSetup, To: context.Registered},
 	{Event: ContextSetupFailEvent, From: context.ContextSetup, To: context.Deregistered},
 	{Event: InitDeregistrationEvent, From: context.Registered, To: context.DeregistrationInitiated},
+	{Event: NwInitiatedDeregistrationEvent, From: context.Registered, To: context.DeregistrationInitiated},
 	{Event: DeregistrationAcceptEvent, From: context.DeregistrationInitiated, To: context.Deregistered},
 }
 
