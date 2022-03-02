@@ -576,8 +576,6 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
 		//factory.AmfConfig.Configuration.ServedGumaiList = nil
 		//factory.AmfConfig.Configuration.PlmnSupportList = nil
-		self := context.AMF_Self()
-		util.InitAmfContext(self)
 		if len(factory.AmfConfig.Configuration.ServedGumaiList) > 0 {
 			RocUpdateConfigChannel <- true
 		}
