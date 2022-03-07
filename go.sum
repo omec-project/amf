@@ -283,8 +283,8 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32 h1:W6apQkHrMkS0Muv8G/TipAy/FJl/rCYT0+EuS8+Z0z4=
 github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32/go.mod h1:9wM+0iRr9ahx58uYLpLIr5fm8diHn0JbqRycJi6w0Ms=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
-github.com/omec-project/config5g v1.0.6 h1:MDMYjz2zwMmmdNUuLLM/UsnT/1DJaRBobYwDTnKJYYI=
-github.com/omec-project/config5g v1.0.6/go.mod h1:Cn6IaxX/z7tHYhL7315C4iVVr8IVX81J+cKuHYanKiI=
+github.com/omec-project/config5g v1.0.7 h1:qgSRHKiLaNkeIABSxAQJPb6KOk0HCUjHfCDXiBEqMbA=
+github.com/omec-project/config5g v1.0.7/go.mod h1:Cn6IaxX/z7tHYhL7315C4iVVr8IVX81J+cKuHYanKiI=
 github.com/pascaldekloe/goe v0.0.0-20180627143212-57f6aae5913c/go.mod h1:lzWF7FIEvWOWxwDKqyGYQf6ZUaNfKdP144TG7ZOy1lc=
 github.com/pelletier/go-toml v1.2.0 h1:T5zMGML61Wp+FlcbWjRDT7yAxhJNAiPPLOFECq181zc=
 github.com/pelletier/go-toml v1.2.0/go.mod h1:5z9KED0ma1S8pY6P1sdut58dfprrGBbd/94hg7ilaic=
