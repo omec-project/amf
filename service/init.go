@@ -129,7 +129,8 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		factory.AmfConfig.Configuration.SupportTAIList = nil
 		factory.AmfConfig.Configuration.PlmnSupportList = nil
 		initLog.Infoln("Reading Amf related configuration from ROC")
-		configChannel := gClient.ConfigWatcher()
+		client := gClient.ConnectToConfigServer("webui:9876")
+		configChannel := client.PublishOnConfigChange(true)
 		go amf.UpdateConfig(configChannel)
 	} else {
 		go func() {
@@ -592,7 +593,8 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 			// Register to NRF with Updated Profile
 			var profile models.NfProfile
 			if profileTmp, err := consumer.BuildNFInstance(self); err != nil {
-				logger.CfgLog.Error("Build AMF Profile Error")
+				logger.CfgLog.Errorf("Build AMF Profile Error: %v", err)
+				continue
 			} else {
 				profile = profileTmp
 			}
