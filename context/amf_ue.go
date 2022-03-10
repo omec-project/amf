@@ -623,6 +623,7 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 //this method called when we are reusing the same uecontext during the registration procedure
 func (ue *AmfUe) ClearRegistrationData() {
 	//Allowed Nssai should be cleared first as it is a new Registration
+	ue.SubscribedNssai = nil
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
 
 	//Clearing SMContextList locally

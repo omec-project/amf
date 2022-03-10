@@ -208,6 +208,9 @@ func SendSecurityModeCommand(ue *context.RanUe, eapSuccess bool, eapMessage stri
 func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrationRequired bool, cause5GMM uint8) {
 	ue.AmfUe.GmmLog.Info("Send Deregistration Request")
 
+	//setting accesstype
+	ue.AmfUe.DeregistrationTargetAccessType = accessType
+
 	nasMsg, err := BuildDeregistrationRequest(ue, accessType, reRegistrationRequired, cause5GMM)
 	if err != nil {
 		ue.AmfUe.GmmLog.Error(err.Error())

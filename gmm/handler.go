@@ -667,8 +667,12 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	problemDetails, err := consumer.AMPolicyControlCreate(ue, anType)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		return fmt.Errorf("AMPolicy Control Create failed at PCF")
 	} else if err != nil {
 		ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
+		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		return err
 	}
 
 	// Service Area Restriction are applicable only to 3GPP access
