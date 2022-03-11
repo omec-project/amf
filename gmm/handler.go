@@ -583,6 +583,9 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 
 	if len(ue.AllowedNssai[anType]) == 0 {
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType], context.UeContextN2NormalRelease,
+			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		ue.Remove()
 		return fmt.Errorf("Allowed Nssai List is nil")
 	}
 
