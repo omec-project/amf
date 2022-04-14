@@ -12,6 +12,8 @@ import (
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap/ngapType"
 	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	"os"
 )
 
 func SendToRan(ran *context.AmfRan, packet []byte) {
@@ -32,23 +34,31 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		return
 	}
 
-	if ran.Conn == nil {
-		ran.Log.Error("Ran conn is nil")
-		return
-	}
-
-	if ran.Conn.RemoteAddr() == nil {
-		ran.Log.Error("Ran addr is nil")
-		return
-	}
-
-	ran.Log.Debugf("Send NGAP message To Ran")
-
-	if n, err := ran.Conn.Write(packet); err != nil {
-		ran.Log.Errorf("Send error: %+v", err)
-		return
+	if context.AMF_Self().EnableSctpLb {
+		msg := &sdcoreAmfServer.Message{VerboseMsg: "Message from AMF"}
+		msg.Msg = packet
+		msg.Msgtype = sdcoreAmfServer.MsgType_AMF_MSG
+		msg.AmfId = os.Getenv("HOSTNAME")
+		ran.Amf2RanMsgChan <- msg
 	} else {
-		ran.Log.Debugf("Write %d bytes", n)
+		if ran.Conn == nil {
+			ran.Log.Error("Ran conn is nil")
+			return
+		}
+
+		if ran.Conn.RemoteAddr() == nil {
+			ran.Log.Error("Ran addr is nil")
+			return
+		}
+
+		ran.Log.Debugf("Send NGAP message To Ran")
+
+		if n, err := ran.Conn.Write(packet); err != nil {
+			ran.Log.Errorf("Send error: %+v", err)
+			return
+		} else {
+			ran.Log.Debugf("Write %d bytes", n)
+		}
 	}
 }
 

@@ -1,0 +1,25 @@
+syntax = "proto3";
+package sdcoreAmfServer;
+option go_package = "./sdcoreAmfServer";
+
+enum msgType {
+    UNKNOWN   = 0;
+    INIT_MSG  = 1;
+    GNB_MSG   = 2;
+    AMF_MSG   = 3;
+    GNB_DISC  = 4;
+    GNB_CONN  = 5;
+}
+
+message Message {
+    string SctplbId     = 1;
+    string AmfId        = 2;
+    msgType Msgtype     = 3;
+    string GnbId        = 4;
+    string VerboseMsg   = 5;
+    bytes Msg           = 6;
+}
+
+service NgapService {
+  rpc HandleMessage(stream Message) returns (stream Message) {}
+}
