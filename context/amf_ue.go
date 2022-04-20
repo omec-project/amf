@@ -101,7 +101,7 @@ type AmfUe struct {
 	UdmId                             string
 	NudmUECMUri                       string
 	NudmSDMUri                        string
-	ContextValid                      bool
+	SubscriptionDataValid             bool
 	Reachability                      models.UeReachability
 	SubscribedData                    models.SubscribedData
 	SmfSelectionData                  *models.SmfSelectionSubscriptionData
@@ -625,7 +625,7 @@ func (ue *AmfUe) ClearRegistrationData() {
 	//Allowed Nssai should be cleared first as it is a new Registration
 	ue.SubscribedNssai = nil
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
-
+	ue.SubscriptionDataValid = false
 	//Clearing SMContextList locally
 	ue.SmContextList.Range(func(key, _ interface{}) bool {
 		ue.SmContextList.Delete(key)
