@@ -15,8 +15,8 @@ import (
 
 	"git.cs.nctu.edu.tw/calee/sctp"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/ngap"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/ngap"
 )
 
 type NGAPHandler struct {

@@ -21,34 +21,33 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/free5gc/amf/communication"
-	"github.com/free5gc/amf/consumer"
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/eventexposure"
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/gmm"
-	"github.com/free5gc/amf/httpcallback"
-	"github.com/free5gc/amf/location"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/metrics"
-	"github.com/free5gc/amf/mt"
-	"github.com/free5gc/amf/ngap"
-	ngap_message "github.com/free5gc/amf/ngap/message"
-	ngap_service "github.com/free5gc/amf/ngap/service"
-	"github.com/free5gc/amf/oam"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/amf/util"
-	aperLogger "github.com/free5gc/aper/logger"
-	"github.com/free5gc/fsm"
-	fsmLogger "github.com/free5gc/fsm/logger"
-	"github.com/free5gc/http2_util"
-	"github.com/free5gc/logger_util"
-	nasLogger "github.com/free5gc/nas/logger"
-	ngapLogger "github.com/free5gc/ngap/logger"
-	openApiLogger "github.com/free5gc/openapi/logger"
-	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/path_util"
-	pathUtilLogger "github.com/free5gc/path_util/logger"
+	"github.com/omec-project/amf/communication"
+	"github.com/omec-project/amf/consumer"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/eventexposure"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/gmm"
+	"github.com/omec-project/amf/httpcallback"
+	"github.com/omec-project/amf/location"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
+	"github.com/omec-project/amf/mt"
+	"github.com/omec-project/amf/ngap"
+	ngap_message "github.com/omec-project/amf/ngap/message"
+	ngap_service "github.com/omec-project/amf/ngap/service"
+	"github.com/omec-project/amf/oam"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/util"
+	aperLogger "github.com/omec-project/aper/logger"
+	"github.com/omec-project/fsm"
+	fsmLogger "github.com/omec-project/fsm/logger"
+	"github.com/omec-project/http2_util"
+	"github.com/omec-project/logger_util"
+	nasLogger "github.com/omec-project/nas/logger"
+	ngapLogger "github.com/omec-project/ngap/logger"
+	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/path_util"
+	pathUtilLogger "github.com/omec-project/path_util/logger"
 	"github.com/fsnotify/fsnotify"
 	gClient "github.com/omec-project/config5g/proto/client"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
@@ -260,21 +259,6 @@ func (amf *AMF) setLogLevel() {
 		pathUtilLogger.SetReportCaller(factory.AmfConfig.Logger.PathUtil.ReportCaller)
 	}
 
-	if factory.AmfConfig.Logger.OpenApi != nil {
-		if factory.AmfConfig.Logger.OpenApi.DebugLevel != "" {
-			if level, err := logrus.ParseLevel(factory.AmfConfig.Logger.OpenApi.DebugLevel); err != nil {
-				openApiLogger.OpenApiLog.Warnf("OpenAPI Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.OpenApi.DebugLevel)
-				openApiLogger.SetLogLevel(logrus.InfoLevel)
-			} else {
-				openApiLogger.SetLogLevel(level)
-			}
-		} else {
-			openApiLogger.OpenApiLog.Warnln("OpenAPI Log level not set. Default set to [info] level")
-			openApiLogger.SetLogLevel(logrus.InfoLevel)
-		}
-		openApiLogger.SetReportCaller(factory.AmfConfig.Logger.OpenApi.ReportCaller)
-	}
 }
 
 func (amf *AMF) FilterCli(c *cli.Context) (args []string) {

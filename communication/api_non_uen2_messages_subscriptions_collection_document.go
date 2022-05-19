@@ -19,7 +19,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/amf/logger"
+	"github.com/omec-project/amf/logger"
 )
 
 // NonUeN2InfoSubscribe - Namf_Communication Non UE N2 Info Subscribe service Operation

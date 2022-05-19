@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"reflect"
 
-	"github.com/free5gc/amf/logger"
+	"github.com/omec-project/amf/logger"
 )
 
 func MarshToJsonString(v interface{}) (result []string) {

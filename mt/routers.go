@@ -20,8 +20,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/logger_util"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/logger_util"
 )
 
 // Route is the information for every URI.

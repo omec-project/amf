@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/openapi/models"
 )
 
 func HandleCreateAMFEventSubscription(request *http_wrapper.Request) *http_wrapper.Response {

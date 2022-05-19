@@ -22,22 +22,22 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
 
-	"github.com/free5gc/amf/consumer"
-	"github.com/free5gc/amf/context"
-	gmm_message "github.com/free5gc/amf/gmm/message"
-	ngap_message "github.com/free5gc/amf/ngap/message"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/amf/util"
-	"github.com/free5gc/fsm"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasConvert"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/nasType"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/Nnrf_NFDiscovery"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/consumer"
+	"github.com/omec-project/amf/context"
+	gmm_message "github.com/omec-project/amf/gmm/message"
+	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/util"
+	"github.com/omec-project/fsm"
+	"github.com/omec-project/nas"
+	"github.com/omec-project/nas/nasConvert"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/nasType"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/ngap/ngapConvert"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
+	"github.com/omec-project/openapi/models"
 )
 
 func HandleULNASTransport(ue *context.AmfUe, anType models.AccessType,
@@ -1482,7 +1482,7 @@ func HandleConfigurationUpdateComplete(ue *context.AmfUe,
 
 	// TODO: Stop timer T3555 in TS 24.501 Figure 5.4.4.1.1 in handler
 	// TODO: Send acknowledgment by Nudm_SMD_Info_Service to UDM in handler
-	//		import "github.com/free5gc/openapi/Nudm_SubscriberDataManagement" client.Info
+	//		import "github.com/omec-project/openapi/Nudm_SubscriberDataManagement" client.Info
 
 	return nil
 }
