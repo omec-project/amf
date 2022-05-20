@@ -20,7 +20,7 @@ require (
 	github.com/omec-project/http_wrapper v1.0.102-dev
 	github.com/omec-project/idgenerator v1.0.100-dev
 	github.com/omec-project/logger_util v1.0.100-dev
-	github.com/omec-project/nas v1.0.106-dev
+	github.com/omec-project/nas v1.0.107-dev
 	github.com/omec-project/ngap v1.0.101-dev
 	github.com/omec-project/openapi v1.2.99
 	github.com/omec-project/path_util v1.0.100-dev
