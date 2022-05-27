@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -33,16 +34,16 @@ type AmfRan struct {
 	AnType     models.AccessType
 	GnbIp      string
 	/* socket Connect*/
-	Conn net.Conn
+	Conn net.Conn `json:"-"`
 	/* Supported TA List */
 	SupportedTAList []SupportedTAI
 
 	/* RAN UE List */
-	RanUeList []*RanUe // RanUeNgapId as key
+	RanUeList []*RanUe `json:"-"` // RanUeNgapId as key
 
 	/* logger */
-	Log            *logrus.Entry
-	Amf2RanMsgChan chan *sdcoreAmfServer.Message
+	Amf2RanMsgChan chan *sdcoreAmfServer.Message `json:"-"`
+	Log            *logrus.Entry                 `json:"-"`
 }
 
 type SupportedTAI struct {
@@ -101,7 +102,7 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 			return ranUe
 		}
 	}
-	return nil
+	return DbFetchRanUeByRanUeNgapID(ranUeNgapID)
 }
 
 func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {

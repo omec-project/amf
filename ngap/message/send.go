@@ -6,7 +6,6 @@
 package message
 
 import (
-    "os"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer/callback"
@@ -14,6 +13,7 @@ import (
 	"github.com/omec-project/aper"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"os"
 )
 
 func SendToRan(ran *context.AmfRan, packet []byte) {
@@ -60,6 +60,7 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 			ran.Log.Debugf("Write %d bytes", n)
 		}
 	}
+
 }
 
 func SendToRanUe(ue *context.RanUe, packet []byte) {

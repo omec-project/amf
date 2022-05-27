@@ -3,7 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//+build debug
+//go:build debug
+// +build debug
 
 package util
 

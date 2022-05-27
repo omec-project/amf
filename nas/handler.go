@@ -10,6 +10,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
+	"github.com/omec-project/openapi/models"
 )
 
 func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
@@ -34,6 +35,11 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		ue.AmfUe.Mutex.Lock()
 		defer ue.AmfUe.Mutex.Unlock()
 
+		ue.Log.Info("Antype from new RanUe : ", ue.Ran.AnType)
+		if (ue.AmfUe.RanUe != nil) && (ue.AmfUe.RanUe[models.AccessType__3_GPP_ACCESS] != nil) {
+			ue.Log.Info("Antype from stored RanUe : ", ue.AmfUe.RanUe[models.AccessType__3_GPP_ACCESS].Ran.AnType)
+			ue.Ran.AnType = ue.AmfUe.RanUe[models.AccessType__3_GPP_ACCESS].Ran.AnType
+		}
 		ue.AmfUe.AttachRanUe(ue)
 
 		if ue.AmfUe.EventChannel == nil {

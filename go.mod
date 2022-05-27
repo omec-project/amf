@@ -9,10 +9,12 @@ require (
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-gonic/gin v1.7.0
+	github.com/golang/snappy v0.0.2 // indirect
 	github.com/google/uuid v1.1.2
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
+	github.com/omec-project/MongoDBLibrary v1.1.2
 	github.com/omec-project/UeauCommon v1.1.0
 	github.com/omec-project/aper v1.1.0
 	github.com/omec-project/config5g v1.1.0
@@ -30,6 +32,8 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli v1.22.4
+	go.mongodb.org/mongo-driver v1.7.3
+	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/grpc v1.39.0
 	google.golang.org/protobuf v1.27.1

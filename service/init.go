@@ -1,5 +1,5 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
-// Copyright (c) 2021 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -265,7 +265,6 @@ func (amf *AMF) setLogLevel() {
 		}
 		pathUtilLogger.SetReportCaller(factory.AmfConfig.Logger.PathUtil.ReportCaller)
 	}
-
 }
 
 func (amf *AMF) FilterCli(c *cli.Context) (args []string) {
@@ -296,6 +295,8 @@ func (amf *AMF) Start() {
 		AllowAllOrigins:  true,
 		MaxAge:           86400,
 	}))
+
+	context.SetupAmfCollection()
 
 	httpcallback.AddService(router)
 	oam.AddService(router)

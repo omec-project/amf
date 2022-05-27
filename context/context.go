@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -7,6 +8,7 @@
 package context
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
@@ -77,12 +79,13 @@ type AMFContext struct {
 	T3512Value                      int      // unit is second
 	Non3gppDeregistrationTimerValue int      // unit is second
 	// read-only fields
-	T3513Cfg     factory.TimerValue
-	T3522Cfg     factory.TimerValue
-	T3550Cfg     factory.TimerValue
-	T3560Cfg     factory.TimerValue
-	T3565Cfg     factory.TimerValue
-	EnableSctpLb bool
+	T3513Cfg      factory.TimerValue
+	T3522Cfg      factory.TimerValue
+	T3550Cfg      factory.TimerValue
+	T3560Cfg      factory.TimerValue
+	T3565Cfg      factory.TimerValue
+	EnableSctpLb  bool
+	EnableDbStore bool
 }
 
 type AMFContextEventSubscription struct {
@@ -389,15 +392,26 @@ func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
 	return false
 }
 
+func mapToByte(data map[string]interface{}) (ret []byte) {
+	ret, _ = json.Marshal(data)
+	return
+}
+
 func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
-		candidate := value.(*AmfUe)
-		if ok = (candidate.Guti == guti); ok {
-			ue = candidate
-			return false
-		}
-		return true
-	})
+	if context.EnableDbStore {
+		logger.ContextLog.Infof("db fetch by guti")
+		return DbFetchUeByGuti(guti)
+	} else {
+		logger.ContextLog.Infof("fetch locally")
+		context.UePool.Range(func(key, value interface{}) bool {
+			candidate := value.(*AmfUe)
+			if ok = (candidate.Guti == guti); ok {
+				ue = candidate
+				return false
+			}
+			return true
+		})
+	}
 	return
 }
 
@@ -414,10 +428,14 @@ func (context *AMFContext) AmfUeFindByPolicyAssociationID(polAssoId string) (ue 
 }
 
 func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
-	if value, ok := context.RanUePool.Load(amfUeNgapID); ok {
-		return value.(*RanUe)
+	if context.EnableDbStore {
+		return DbFetchRanUeByAmfUeNgapID(amfUeNgapID)
 	} else {
-		return nil
+		if value, ok := context.RanUePool.Load(amfUeNgapID); ok {
+			return value.(*RanUe)
+		} else {
+			return nil
+		}
 	}
 }
 
