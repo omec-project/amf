@@ -9,9 +9,9 @@ import (
 	"context"
 	"fmt"
 
-	amf_context "github.com/free5gc/amf/context"
-	"github.com/free5gc/openapi/Namf_Communication"
-	"github.com/free5gc/openapi/models"
+	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/openapi/Namf_Communication"
+	"github.com/omec-project/openapi/models"
 )
 
 func SendN2InfoNotifyN2Handover(ue *amf_context.AmfUe, releaseList []int32) error {

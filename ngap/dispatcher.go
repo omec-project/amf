@@ -13,13 +13,13 @@ import (
 	"git.cs.nctu.edu.tw/calee/sctp"
 
 	"fmt"
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/metrics"
-	"github.com/free5gc/amf/msgtypes/ngapmsgtypes"
-	"github.com/free5gc/ngap"
-	"github.com/free5gc/ngap/ngapType"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
+	"github.com/omec-project/amf/msgtypes/ngapmsgtypes"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	"github.com/omec-project/ngap"
+	"github.com/omec-project/ngap/ngapType"
 )
 
 func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfServer.Message) {

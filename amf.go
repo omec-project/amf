@@ -13,9 +13,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/service"
-	"github.com/free5gc/version"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/service"
 )
 
 var AMF = &service.AMF{}
@@ -30,7 +29,6 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "amf"
 	appLog.Infoln(app.Name)
-	appLog.Infoln("AMF version: ", version.GetVersion())
 	app.Usage = "-free5gccfg common configuration file -amfcfg amf configuration file"
 	app.Action = action
 	app.Flags = AMF.GetCliCmd()

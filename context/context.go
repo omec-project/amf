@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/idgenerator"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/idgenerator"
+	"github.com/omec-project/openapi/models"
 )
 
 var (

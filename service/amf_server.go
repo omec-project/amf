@@ -1,13 +1,18 @@
+// SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
 package service
 
 import (
 	"fmt"
-	"github.com/free5gc/amf/ngap"
+	"github.com/omec-project/amf/ngap"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
-	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 )
 
 type Server struct {
@@ -47,10 +52,10 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 					log.Println("Error in sending response")
 				}
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_DISC {
-					log.Println("GNB disconnected")
+				log.Println("GNB disconnected")
 				ngap.HandleSCTPNotificationLb(req.GnbId)
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
-					log.Println("New GNB Connected ")
+				log.Println("New GNB Connected ")
 			} else {
 				ngap.DispatchLb(req.GnbId, req.Msg, Amf2RanMsgChan)
 			}

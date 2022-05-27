@@ -9,11 +9,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/gmm"
-	"github.com/free5gc/fsm"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/gmm"
+	"github.com/omec-project/fsm"
+	"github.com/omec-project/nas"
+	"github.com/omec-project/openapi/models"
 )
 
 func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message) error {
