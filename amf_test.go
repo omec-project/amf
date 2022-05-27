@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/free5gc/amf/factory"
+	"github.com/omec-project/amf/factory"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 )
 

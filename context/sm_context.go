@@ -9,8 +9,8 @@ package context
 import (
 	"sync"
 
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/openapi/models"
 )
 
 type SmContext struct {

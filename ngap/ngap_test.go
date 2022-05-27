@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	ngaputil "github.com/free5gc/amf/ngap/util"
+	ngaputil "github.com/omec-project/amf/ngap/util"
 
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/ngap"
-	"github.com/free5gc/amf/util"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/ngap"
+	"github.com/omec-project/amf/util"
 )
 
 func init() {

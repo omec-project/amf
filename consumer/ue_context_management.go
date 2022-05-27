@@ -10,10 +10,10 @@ import (
 	"context"
 	"time"
 
-	amf_context "github.com/free5gc/amf/context"
-	"github.com/free5gc/openapi"
-	"github.com/free5gc/openapi/Nudm_UEContextManagement"
-	"github.com/free5gc/openapi/models"
+	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/openapi"
+	"github.com/omec-project/openapi/Nudm_UEContextManagement"
+	"github.com/omec-project/openapi/models"
 )
 
 func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initialRegistrationInd bool) (
