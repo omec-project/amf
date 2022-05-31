@@ -1294,7 +1294,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 					UserLocation:     &ue.Location,
 					RrcEstCause:      ue.RanUe[anType].RRCEstablishmentCause,
 					UeContextRequest: ue.RanUe[anType].UeContextRequest,
-					AnN2IPv4Addr:     ue.RanUe[anType].Ran.Conn.RemoteAddr().String(),
+					AnN2IPv4Addr:     ue.RanUe[anType].Ran.GnbIp,
 					AllowedNssai: &models.AllowedNssai{
 						AllowedSnssaiList: ue.AllowedNssai[anType],
 						AccessType:        anType,

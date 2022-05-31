@@ -316,9 +316,13 @@ func (amf *AMF) Start() {
 		HandleMessage:      ngap.Dispatch,
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
-	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
+	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	go amf.SendNFProfileUpdateToNrf()
+
+	if self.EnableSctpLb {
+		go StartGrpcServer(self.SctpGrpcPort)
+	}
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
