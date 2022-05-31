@@ -16,11 +16,13 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/omec-project/amf/communication"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
@@ -39,6 +41,8 @@ import (
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/util"
 	aperLogger "github.com/omec-project/aper/logger"
+	gClient "github.com/omec-project/config5g/proto/client"
+	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/omec-project/fsm"
 	fsmLogger "github.com/omec-project/fsm/logger"
 	"github.com/omec-project/http2_util"
@@ -48,9 +52,6 @@ import (
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/path_util"
 	pathUtilLogger "github.com/omec-project/path_util/logger"
-	"github.com/fsnotify/fsnotify"
-	gClient "github.com/omec-project/config5g/proto/client"
-	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	"github.com/spf13/viper"
 )
 
@@ -61,7 +62,8 @@ var RocUpdateConfigChannel chan bool
 type (
 	// Config information.
 	Config struct {
-		amfcfg string
+		amfcfg         string
+		heartBeatTimer string
 	}
 )
 
@@ -79,6 +81,11 @@ var amfCLi = []cli.Flag{
 }
 
 var initLog *logrus.Entry
+
+var (
+	KeepAliveTimer      *time.Timer
+	KeepAliveTimerMutex sync.Mutex
+)
 
 func init() {
 	initLog = logger.InitLog
@@ -429,6 +436,79 @@ func (amf *AMF) Terminate() {
 	logger.InitLog.Infof("AMF terminated")
 }
 
+func (amf *AMF) StartKeepAliveTimer(nfProfile models.NfProfile) {
+	KeepAliveTimerMutex.Lock()
+	defer KeepAliveTimerMutex.Unlock()
+	amf.StopKeepAliveTimer()
+	if nfProfile.HeartBeatTimer == 0 {
+		nfProfile.HeartBeatTimer = 60
+	}
+	logger.InitLog.Infof("Started KeepAlive Timer: %v sec", nfProfile.HeartBeatTimer)
+	//AfterFunc starts timer and waits for KeepAliveTimer to elapse and then calls amf.UpdateNF function
+	KeepAliveTimer = time.AfterFunc(time.Duration(nfProfile.HeartBeatTimer)*time.Second, amf.UpdateNF)
+}
+
+func (amf *AMF) StopKeepAliveTimer() {
+	if KeepAliveTimer != nil {
+		logger.InitLog.Infof("Stopped KeepAlive Timer.")
+		KeepAliveTimer.Stop()
+		KeepAliveTimer = nil
+	}
+}
+
+func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
+	self := context.AMF_Self()
+	profile, err := consumer.BuildNFInstance(self)
+	if err != nil {
+		initLog.Error("Build AMF Profile Error: %v", err)
+		return profile, err
+	}
+	initLog.Infof("Pcf Profile Registering to NRF: %v", profile)
+	//Indefinite attempt to register until success
+	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile)
+	return profile, err
+}
+
+//UpdateNF is the callback function, this is called when keepalivetimer elapsed
+func (amf *AMF) UpdateNF() {
+	KeepAliveTimerMutex.Lock()
+	defer KeepAliveTimerMutex.Unlock()
+	if KeepAliveTimer == nil {
+		initLog.Warnf("KeepAlive timer has been stopped.")
+		return
+	}
+	//setting default value 30 sec
+	var heartBeatTimer int32 = 60
+	pitem := models.PatchItem{
+		Op:    "replace",
+		Path:  "/nfStatus",
+		Value: "REGISTERED",
+	}
+	var patchItem []models.PatchItem
+	patchItem = append(patchItem, pitem)
+	nfProfile, problemDetails, err := consumer.SendUpdateNFInstance(patchItem)
+	if problemDetails != nil {
+		initLog.Errorf("AMF update to NRF ProblemDetails[%v]", problemDetails)
+		//5xx response from NRF, 404 Not Found, 400 Bad Request
+		if (problemDetails.Status/100) == 5 ||
+			problemDetails.Status == 404 || problemDetails.Status == 400 {
+			//register with NRF full profile
+			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+		}
+	} else if err != nil {
+		initLog.Errorf("AMF update to NRF Error[%s]", err.Error())
+		nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+	}
+
+	if nfProfile.HeartBeatTimer != 0 {
+		// use hearbeattimer value with received timer value from NRF
+		heartBeatTimer = nfProfile.HeartBeatTimer
+	}
+	logger.InitLog.Debugf("Restarted KeepAlive Timer: %v sec", heartBeatTimer)
+	//restart timer with received HeartBeatTimer value
+	KeepAliveTimer = time.AfterFunc(time.Duration(heartBeatTimer)*time.Second, amf.UpdateNF)
+}
+
 func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []models.Tai, opType protos.OpType) {
 	var plmnFound bool
 	for plmnindex, p := range factory.AmfConfig.Configuration.PlmnSupportList {
@@ -583,9 +663,11 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 				profile = profileTmp
 			}
 
-			if _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
+			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
 				logger.CfgLog.Warnf("Send Register NF Instance with updated profile failed: %+v", err)
 			} else {
+				//stop keepAliveTimer if its running and start the timer
+				amf.StartKeepAliveTimer(prof)
 				self.NfId = nfId
 				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
 			}

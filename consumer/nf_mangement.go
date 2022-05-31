@@ -75,8 +75,8 @@ func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile,
 	return profile, err
 }
 
-func SendRegisterNFInstance(nrfUri, nfInstanceId string, profile models.NfProfile) (
-	resouceNrfUri string, retrieveNfInstanceId string, err error) {
+var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.NfProfile) (
+	prof models.NfProfile, resouceNrfUri string, retrieveNfInstanceId string, err error) {
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
 	configuration.SetBasePath(nrfUri)
@@ -84,7 +84,7 @@ func SendRegisterNFInstance(nrfUri, nfInstanceId string, profile models.NfProfil
 
 	var res *http.Response
 	for {
-		_, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(context.TODO(), nfInstanceId, profile)
+		prof, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(context.TODO(), nfInstanceId, profile)
 		if err != nil || res == nil {
 			// TODO : add log
 			fmt.Println(fmt.Errorf("AMF register to NRF Error[%s]", err.Error()))
@@ -111,7 +111,7 @@ func SendRegisterNFInstance(nrfUri, nfInstanceId string, profile models.NfProfil
 			fmt.Println(fmt.Errorf("NRF return wrong status code %d", status))
 		}
 	}
-	return resouceNrfUri, retrieveNfInstanceId, err
+	return prof, resouceNrfUri, retrieveNfInstanceId, err
 }
 
 func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err error) {
@@ -135,6 +135,36 @@ func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err erro
 			}
 		}()
 		if res.Status != err.Error() {
+			return
+		}
+		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
+		problemDetails = &problem
+	} else {
+		err = openapi.ReportError("server no response")
+	}
+	return
+}
+
+var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
+	logger.ConsumerLog.Debugf("Send Update NFInstance")
+
+	amfSelf := amf_context.AMF_Self()
+	configuration := Nnrf_NFManagement.NewConfiguration()
+	configuration.SetBasePath(amfSelf.NrfUri)
+	client := Nnrf_NFManagement.NewAPIClient(configuration)
+
+	var res *http.Response
+	nfProfile, res, err = client.NFInstanceIDDocumentApi.UpdateNFInstance(context.Background(), amfSelf.NfId, patchItem)
+	if err == nil {
+		return
+	} else if res != nil {
+		defer func() {
+			if resCloseErr := res.Body.Close(); resCloseErr != nil {
+				logger.ConsumerLog.Errorf("UpdateNFInstance response cannot close: %+v", resCloseErr)
+			}
+		}()
+		if res.Status != err.Error() {
+			logger.ConsumerLog.Errorf("UpdateNFInstance received error response: %v", res.Status)
 			return
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
