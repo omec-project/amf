@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
 	"github.com/omec-project/http_wrapper"
 
@@ -36,7 +37,8 @@ func HTTPPurgeUEContext(c *gin.Context) {
 				c.JSON(http.StatusOK, nil)
 			}
 		} else {
-			c.JSON(http.StatusOK, nil)
+			logger.ProducerLog.Errorln("No Ue found by the provided supi")
+			c.JSON(http.StatusNotFound, nil)
 		}
 	}
 }
