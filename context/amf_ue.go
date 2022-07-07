@@ -18,15 +18,15 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/free5gc/UeauCommon"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/fsm"
-	"github.com/free5gc/idgenerator"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/nasType"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/UeauCommon"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/fsm"
+	"github.com/omec-project/idgenerator"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/nasType"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
 )
 
 type OnGoingProcedure string

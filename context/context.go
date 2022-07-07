@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/idgenerator"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/idgenerator"
+	"github.com/omec-project/openapi/models"
 )
 
 var (
@@ -62,6 +62,8 @@ type AMFContext struct {
 	UriScheme                       models.UriScheme
 	BindingIPv4                     string
 	SBIPort                         int
+	NgapPort                        int
+	SctpGrpcPort                    int
 	RegisterIPv4                    string
 	HttpIPv6Address                 string
 	TNLWeightFactor                 int64
@@ -75,11 +77,12 @@ type AMFContext struct {
 	T3512Value                      int      // unit is second
 	Non3gppDeregistrationTimerValue int      // unit is second
 	// read-only fields
-	T3513Cfg factory.TimerValue
-	T3522Cfg factory.TimerValue
-	T3550Cfg factory.TimerValue
-	T3560Cfg factory.TimerValue
-	T3565Cfg factory.TimerValue
+	T3513Cfg     factory.TimerValue
+	T3522Cfg     factory.TimerValue
+	T3550Cfg     factory.TimerValue
+	T3560Cfg     factory.TimerValue
+	T3565Cfg     factory.TimerValue
+	EnableSctpLb bool
 }
 
 type AMFContextEventSubscription struct {
@@ -310,6 +313,22 @@ func (context *AMFContext) AmfRanFindByConn(conn net.Conn) (*AmfRan, bool) {
 	return nil, false
 }
 
+func (context *AMFContext) NewAmfRanAddr(remoteAddr string) *AmfRan {
+	ran := AmfRan{}
+	ran.SupportedTAList = NewSupportedTAIList()
+	ran.GnbIp = remoteAddr
+	ran.Log = logger.NgapLog.WithField(logger.FieldRanAddr, remoteAddr)
+	context.AmfRanPool.Store(remoteAddr, &ran)
+	return &ran
+}
+
+func (context *AMFContext) AmfRanFindByAddr(remoteAddr string) (*AmfRan, bool) {
+	if value, ok := context.AmfRanPool.Load(remoteAddr); ok {
+		return value.(*AmfRan), ok
+	}
+	return nil, false
+}
+
 // use ranNodeID to find RAN context, return *AmfRan and ok bit
 func (context *AMFContext) AmfRanFindByRanID(ranNodeID models.GlobalRanNodeId) (*AmfRan, bool) {
 	var ran *AmfRan
@@ -343,6 +362,10 @@ func (context *AMFContext) AmfRanFindByRanID(ranNodeID models.GlobalRanNodeId) (
 
 func (context *AMFContext) DeleteAmfRan(conn net.Conn) {
 	context.AmfRanPool.Delete(conn)
+}
+
+func (context *AMFContext) DeleteAmfRanAddr(remoteAddr string) {
+	context.AmfRanPool.Delete(remoteAddr)
 }
 
 func (context *AMFContext) InSupportDnnList(targetDnn string) bool {

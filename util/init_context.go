@@ -11,11 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/openapi/models"
 )
 
 func InitAmfContext(context *context.AMFContext) {
@@ -31,6 +31,8 @@ func InitAmfContext(context *context.AMFContext) {
 	} else {
 		context.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
+	context.NgapPort = configuration.NgapPort
+	context.SctpGrpcPort = configuration.SctpGrpcPort
 	sbi := configuration.Sbi
 	if sbi.Scheme != "" {
 		context.UriScheme = models.UriScheme(sbi.Scheme)
@@ -91,6 +93,7 @@ func InitAmfContext(context *context.AMFContext) {
 	context.T3550Cfg = configuration.T3550
 	context.T3560Cfg = configuration.T3560
 	context.T3565Cfg = configuration.T3565
+	context.EnableSctpLb = configuration.EnableSctpLb
 }
 
 func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {

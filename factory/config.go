@@ -12,8 +12,8 @@ package factory
 import (
 	"time"
 
-	"github.com/free5gc/logger_util"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/logger_util"
+	"github.com/omec-project/openapi/models"
 )
 
 const (
@@ -41,6 +41,8 @@ const (
 type Configuration struct {
 	AmfName                         string                    `yaml:"amfName,omitempty"`
 	NgapIpList                      []string                  `yaml:"ngapIpList,omitempty"`
+	NgapPort                        int                       `yaml:"ngappPort,omitempty"`
+	SctpGrpcPort                    int                       `yaml:"sctpGrpcPort,omitempty"`
 	Sbi                             *Sbi                      `yaml:"sbi,omitempty"`
 	NetworkFeatureSupport5GS        *NetworkFeatureSupport5GS `yaml:"networkFeatureSupport5GS,omitempty"`
 	ServiceNameList                 []string                  `yaml:"serviceNameList,omitempty"`
@@ -62,6 +64,7 @@ type Configuration struct {
 
 	//Maintain TaiList per slice
 	SliceTaiList map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
+	EnableSctpLb bool                    `yaml:"enableSctpLb"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

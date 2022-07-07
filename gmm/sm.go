@@ -9,15 +9,15 @@ package gmm
 import (
 	"fmt"
 
-	"github.com/free5gc/amf/context"
-	gmm_message "github.com/free5gc/amf/gmm/message"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/util"
-	"github.com/free5gc/fsm"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	gmm_message "github.com/omec-project/amf/gmm/message"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/util"
+	"github.com/omec-project/fsm"
+	"github.com/omec-project/nas"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/openapi/models"
 )
 
 func DeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {

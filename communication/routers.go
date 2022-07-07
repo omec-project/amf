@@ -21,8 +21,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/logger_util"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/logger_util"
 )
 
 var HttpLog *logrus.Entry

@@ -8,15 +8,14 @@ package context
 
 import (
 	"fmt"
-	"net"
-
-	"github.com/sirupsen/logrus"
-
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	"github.com/omec-project/ngap/ngapConvert"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
+	"github.com/sirupsen/logrus"
+	"net"
 )
 
 const (
@@ -42,7 +41,8 @@ type AmfRan struct {
 	RanUeList []*RanUe // RanUeNgapId as key
 
 	/* logger */
-	Log *logrus.Entry
+	Log            *logrus.Entry
+	Amf2RanMsgChan chan *sdcoreAmfServer.Message
 }
 
 type SupportedTAI struct {
@@ -63,7 +63,11 @@ func (ran *AmfRan) Remove() {
 	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
-	AMF_Self().DeleteAmfRan(ran.Conn)
+	if AMF_Self().EnableSctpLb {
+		AMF_Self().DeleteAmfRanAddr(ran.GnbIp)
+	} else {
+		AMF_Self().DeleteAmfRan(ran.Conn)
+	}
 }
 
 func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
@@ -77,7 +81,6 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	ranUe.RanUeNgapId = ranUeNgapID
 	ranUe.Ran = ran
 	ranUe.Log = ran.Log.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
-
 	ran.RanUeList = append(ran.RanUeList, &ranUe)
 	self.RanUePool.Store(ranUe.AmfUeNgapId, &ranUe)
 	return &ranUe, nil
@@ -92,6 +95,7 @@ func (ran *AmfRan) RemoveAllUeInRan() {
 }
 
 func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
+	// TODO - need fix..Make this map so search is fast
 	for _, ranUe := range ran.RanUeList {
 		if ranUe.RanUeNgapId == ranUeNgapID {
 			return ranUe

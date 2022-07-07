@@ -6,26 +6,7 @@
 #
 
 PROJECT_NAME             := sdcore
-DOCKER_VERSION                  ?= $(shell cat ./VERSION)
-
-## Docker related
-DOCKER_REGISTRY          ?=
-DOCKER_REPOSITORY        ?=
-DOCKER_TAG               ?= ${DOCKER_VERSION}
-DOCKER_IMAGENAME         := ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}${PROJECT_NAME}:${DOCKER_TAG}
-DOCKER_BUILDKIT          ?= 1
-DOCKER_BUILD_ARGS        ?=
-
-## Docker labels. Only set ref and commit date if committed
-DOCKER_LABEL_VCS_URL     ?= $(shell git remote get-url $(shell git remote))
-DOCKER_LABEL_VCS_REF     ?= $(shell git diff-index --quiet HEAD -- && git rev-parse HEAD || echo "unknown")
-DOCKER_LABEL_COMMIT_DATE ?= $(shell git diff-index --quiet HEAD -- && git show -s --format=%cd --date=iso-strict HEAD || echo "unknown" )
-DOCKER_LABEL_BUILD_DATE  ?= $(shell date -u "+%Y-%m-%dT%H:%M:%SZ")
-
-DOCKER_TARGETS           ?= builder amf
-
-PROJECT_NAME             := sdcore
-DOCKER_VERSION                  ?= $(shell cat ./VERSION)
+DOCKER_VERSION           ?= $(shell cat ./VERSION)
 
 ## Docker related
 DOCKER_REGISTRY          ?=
@@ -58,10 +39,6 @@ VERSION = $(shell git describe --tags)
 BUILD_TIME = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 COMMIT_HASH = $(shell git submodule status | grep $(GO_SRC_PATH)/$(@F) | awk '{print $$(1)}' | cut -c1-8)
 COMMIT_TIME = $(shell cd $(GO_SRC_PATH) && git log --pretty="%ai" -1 | awk '{time=$$(1)"T"$$(2)"Z"; print time}')
-LDFLAGS = -X github.com/free5gc/version.VERSION=$(VERSION) \
-          -X github.com/free5gc/version.BUILD_TIME=$(BUILD_TIME) \
-          -X github.com/free5gc/version.COMMIT_HASH=$(COMMIT_HASH) \
-          -X github.com/free5gc/version.COMMIT_TIME=$(COMMIT_TIME)
 
 .PHONY: $(NF) clean docker-build docker-push
 
@@ -77,14 +54,14 @@ $(GO_BIN_PATH)/%: %.go $(NF_GO_FILES)
 # $(@F): The file-within-directory part of the file name of the target.
 	@echo "Start building $(@F)...."
 	cd $(GO_SRC_PATH)/ && \
-	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(ROOT_PATH)/$@ $(@F).go
+	CGO_ENABLED=0 go build -o $(ROOT_PATH)/$@ $(@F).go
 
 vpath %.go $(addprefix $(GO_SRC_PATH)/, $(GO_NF))
 
 test: $(NF_GO_FILES_ALL) 
 	@echo "Start building $(@F)...."
 	cd $(GO_SRC_PATH)/ && \
-	CGO_ENABLED=0 go test -ldflags "$(LDFLAGS)" -o $(ROOT_PATH)/$@ 
+	CGO_ENABLED=0 go test -o $(ROOT_PATH)/$@
 
 clean:
 	rm -rf $(addprefix $(GO_BIN_PATH)/, $(GO_NF))

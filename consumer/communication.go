@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"time"
 
-	amf_context "github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/openapi"
-	"github.com/free5gc/openapi/Namf_Communication"
-	"github.com/free5gc/openapi/models"
+	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/openapi"
+	"github.com/omec-project/openapi/Namf_Communication"
+	"github.com/omec-project/openapi/models"
 )
 
 func BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanId models.NgRanTargetId,

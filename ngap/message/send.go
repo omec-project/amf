@@ -6,12 +6,14 @@
 package message
 
 import (
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/aper"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/models"
+    "os"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	"github.com/omec-project/aper"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
 )
 
 func SendToRan(ran *context.AmfRan, packet []byte) {
@@ -32,23 +34,31 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		return
 	}
 
-	if ran.Conn == nil {
-		ran.Log.Error("Ran conn is nil")
-		return
-	}
-
-	if ran.Conn.RemoteAddr() == nil {
-		ran.Log.Error("Ran addr is nil")
-		return
-	}
-
-	ran.Log.Debugf("Send NGAP message To Ran")
-
-	if n, err := ran.Conn.Write(packet); err != nil {
-		ran.Log.Errorf("Send error: %+v", err)
-		return
+	if context.AMF_Self().EnableSctpLb {
+		msg := &sdcoreAmfServer.Message{VerboseMsg: "Message from AMF"}
+		msg.Msg = packet
+		msg.Msgtype = sdcoreAmfServer.MsgType_AMF_MSG
+		msg.AmfId = os.Getenv("HOSTNAME")
+		ran.Amf2RanMsgChan <- msg
 	} else {
-		ran.Log.Debugf("Write %d bytes", n)
+		if ran.Conn == nil {
+			ran.Log.Error("Ran conn is nil")
+			return
+		}
+
+		if ran.Conn.RemoteAddr() == nil {
+			ran.Log.Error("Ran addr is nil")
+			return
+		}
+
+		ran.Log.Debugf("Send NGAP message To Ran")
+
+		if n, err := ran.Conn.Write(packet); err != nil {
+			ran.Log.Errorf("Send error: %+v", err)
+			return
+		} else {
+			ran.Log.Debugf("Write %d bytes", n)
+		}
 	}
 }
 
