@@ -48,10 +48,10 @@ func HandleOAMPurgeUEContextRequest(supi, reqUri string, msg interface{}) (inter
 		ueFsmState := ue.State[models.AccessType__3_GPP_ACCESS].Current()
 		switch ueFsmState {
 		case context.Deregistered:
-			logger.ProducerLog.Infof("Removing the UE : ", fmt.Sprintf(ue.Supi))
+			logger.ProducerLog.Info("Removing the UE : ", fmt.Sprintf(ue.Supi))
 			ue.Remove()
 		case context.Registered:
-			logger.ProducerLog.Infof("Deregistration triggered for the UE : ", ue.Supi)
+			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.Supi)
 			gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
