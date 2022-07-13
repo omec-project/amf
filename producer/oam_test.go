@@ -7,6 +7,7 @@ import (
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/fsm"
 	"github.com/omec-project/openapi/models"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -35,6 +36,9 @@ func TestHandleOAMPurgeUEContextRequest_UEDeregistered(t *testing.T) {
 	if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
 		t.Errorf("test failed")
 	}
+
+	assert.Equal(t, uint32(0), gmm.MockDeregisteredInitiatedCallCount)
+	assert.Equal(t, uint32(0), gmm.MockRegisteredCallCount)
 }
 
 func TestHandleOAMPurgeUEContextRequest_UERegistered(t *testing.T) {
@@ -47,4 +51,7 @@ func TestHandleOAMPurgeUEContextRequest_UERegistered(t *testing.T) {
 	if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
 		t.Errorf("test failed")
 	}
+
+	assert.Equal(t, uint32(2), gmm.MockRegisteredCallCount)
+	assert.Equal(t, uint32(1), gmm.MockDeregisteredInitiatedCallCount)
 }

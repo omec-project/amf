@@ -6,11 +6,18 @@ import (
 	"github.com/omec-project/fsm"
 )
 
+var MockRegisteredCallCount uint32 = 0
+var MockDeregisteredInitiatedCallCount uint32 = 0
+var MockContextSetupCallCount uint32 = 0
+var MockDeRegisteredCallCount uint32 = 0
+var MockSecurityModeCallCount uint32 = 0
+var MockAuthenticationCallCount uint32 = 0
+
 var mockCallbacks = fsm.Callbacks{
-	context.Deregistered:            DeRegistered,
-	context.Authentication:          Authentication,
-	context.SecurityMode:            SecurityMode,
-	context.ContextSetup:            ContextSetup,
+	context.Deregistered:            MockDeRegistered,
+	context.Authentication:          MockAuthentication,
+	context.SecurityMode:            MockSecurityMode,
+	context.ContextSetup:            MockContextSetup,
 	context.Registered:              MockRegistered,
 	context.DeregistrationInitiated: MockDeregisteredInitiated,
 }
@@ -23,12 +30,36 @@ func Mockinit() {
 	}
 }
 
+func MockDeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+	logger.GmmLog.Info("MockDeRegistered")
+	MockDeRegisteredCallCount++
+}
+
+func MockAuthentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+	logger.GmmLog.Info("MockAuthentication")
+	MockAuthenticationCallCount++
+}
+
+func MockSecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+	logger.GmmLog.Info("MockSecurityMode")
+	MockSecurityModeCallCount++
+}
+
+func MockContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+	logger.GmmLog.Info("MockContextSetup")
+	MockContextSetupCallCount++
+}
+
 func MockRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+	logger.GmmLog.Info(event)
 	logger.GmmLog.Info("MockRegistered")
+	MockRegisteredCallCount++
 }
 
 func MockDeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	logger.GmmLog.Info("MockDeregisteredInitiated")
+	MockDeregisteredInitiatedCallCount++
+
 	amfUe := args[ArgAmfUe].(*context.AmfUe)
 	amfUe.Remove()
 }
