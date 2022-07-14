@@ -146,7 +146,8 @@ func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.Acc
 	// allocate a new tai list as a registration area to ue
 	// TODO: algorithm to choose TAI list
 
-	taiList := context.SupportTaiLists
+	taiList := make([]models.Tai, len(context.SupportTaiLists))
+	copy(taiList, context.SupportTaiLists)
 	for i := range taiList {
 		tmp, _ := strconv.ParseUint(taiList[i].Tac, 10, 32)
 		taiList[i].Tac = fmt.Sprintf("%06x", tmp)
