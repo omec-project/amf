@@ -297,8 +297,8 @@ github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRW
 github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32 h1:W6apQkHrMkS0Muv8G/TipAy/FJl/rCYT0+EuS8+Z0z4=
 github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32/go.mod h1:9wM+0iRr9ahx58uYLpLIr5fm8diHn0JbqRycJi6w0Ms=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
-github.com/omec-project/MongoDBLibrary v1.1.2 h1:WZnqo8bM1e6k3L/S5pmoOTCmD1GbunCfxkKXjh2AWKM=
-github.com/omec-project/MongoDBLibrary v1.1.2/go.mod h1:bchS8sexPvTzgcA+fGzGeMyQk2Ji2xyAYgXDg6wOg1I=
+github.com/omec-project/MongoDBLibrary v1.1.3 h1:3/2Luxl4YBe9cP2cRNtPruroBGonmiQbnCviYby1fo4=
+github.com/omec-project/MongoDBLibrary v1.1.3/go.mod h1:bchS8sexPvTzgcA+fGzGeMyQk2Ji2xyAYgXDg6wOg1I=
 github.com/omec-project/UeauCommon v1.1.0 h1:ynW22r/Xx/z6saviuzUeNjYlqdJfiMNtNwlv6Ot76Wk=
 github.com/omec-project/UeauCommon v1.1.0/go.mod h1:brKbJNGvDPgHcubWt6G45hVuxZ2Crdp/1tKXWw6zTCY=
 github.com/omec-project/aper v1.1.0 h1:4FkTkDNGBWnTtEgCDuEitFjww1CJWVQhGqMs91triuU=

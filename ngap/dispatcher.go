@@ -54,13 +54,7 @@ func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfSer
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		if ranUe.AmfUe.EventChannel == nil {
-			ran.Log.Errorf("AmfUe EventChannel is not exist")
-			ran.Log.Errorf("Creating new AmfUe EventChannel")
-			ranUe.AmfUe.EventChannel = ranUe.AmfUe.NewEventChannel()
-			ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
-			go ranUe.AmfUe.EventChannel.Start()
-		}
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
@@ -68,7 +62,6 @@ func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfSer
 			NgapMsg: pdu,
 		}
 
-		ranUe.AmfUe.TxLog.Infof("ranID stored : ", ranUe.Ran.RanID())
 		globalRANNodeID := ranUe.Ran.RanId
 		ranUe.Ran = ran
 		ranUe.Ran.RanId = globalRANNodeID
@@ -105,13 +98,7 @@ func Dispatch(conn net.Conn, msg []byte) {
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		if ranUe.AmfUe.EventChannel == nil {
-			ran.Log.Errorf("AmfUe EventChannel is not exist")
-			ran.Log.Errorf("Creating new AmfUe EventChannel")
-			ranUe.AmfUe.EventChannel = ranUe.AmfUe.NewEventChannel()
-			ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
-			go ranUe.AmfUe.EventChannel.Start()
-		}
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{

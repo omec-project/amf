@@ -41,10 +41,10 @@ func (tx *EventChannel) Start() {
 		case msg := <-tx.Message:
 			switch msg.(type) {
 			case NasMsg:
-				if tx.NasHandler == nil {
+				/*if tx.NasHandler == nil {
 					tx.AmfUe.TxLog.Infof("Nas handler null. skip msg")
 					continue
-				}
+				}*/
 				tx.NasHandler(tx.AmfUe, msg.(NasMsg))
 			case NgapMsg:
 				tx.NgapHandler(tx.AmfUe, msg.(NgapMsg))

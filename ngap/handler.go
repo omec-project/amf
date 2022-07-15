@@ -29,7 +29,6 @@ import (
 func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.RanUe {
 	amfSelf := context.AMF_Self()
 
-	logger.NgapLog.Info("FetchRanUeContext")
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var fiveGSTMSI *ngapType.FiveGSTMSI
@@ -77,10 +76,8 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 			if ranUe == nil {
 				var err error
-				ran.Log.Errorf("ran ue nil from ranngapid")
 
 				if fiveGSTMSI != nil {
-					ran.Log.Errorf("5tmsi not nil")
 					servedGuami := amfSelf.ServedGuamiList[0]
 
 					// <5G-S-TMSI> := <AMF Set ID><AMF Pointer><5G-TMSI>
@@ -105,11 +102,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 						}
 						ranUe.Log.Warnf("Known UE [GUTI: %s]", guti)
 						amfUe.AttachRanUe(ranUe)
-					} else {
-						ran.Log.Errorf("find by guti failed")
 					}
-				} else {
-					ran.Log.Errorf("5tmsi nil")
 				}
 			}
 
@@ -1045,6 +1038,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
+		context.StoreContextInDB(amfUe)
 	case context.UeContextReleaseUeContext:
 		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
 		err := ranUe.Remove()
@@ -1057,6 +1051,8 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
 			amfUe.Remove()
 			context.DeleteContextFromDB(amfUe)
+		} else {
+			context.StoreContextInDB(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
 		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
@@ -1357,12 +1353,12 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
-	// When enableDbStore is enabled, if AMF restarts, the AmfRan
+	// When enableDBStore is enabled, if AMF restarts, the AmfRan
 	// will not have RANID information because NG setup is not
 	// done. It will be populated from the RAN structure stored in DB
 
 	// 38413 10.4, logical error case2, checking InitialUE is recevived before NgSetup Message
-	if !(amfSelf.EnableSctpLb && amfSelf.EnableDbStore) {
+	if !amfSelf.EnableSctpLb {
 		if ran.RanId == nil {
 			procedureCode := ngapType.ProcedureCodeInitialUEMessage
 			triggeringMessage := ngapType.TriggeringMessagePresentInitiatingMessage
@@ -1662,7 +1658,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 			}
 		}
 
-		//store context in DB. Registration procedure is complete.
+		//store context in DB. PDU Establishment is complete.
 		context.StoreContextInDB(amfUe)
 	}
 

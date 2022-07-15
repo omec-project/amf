@@ -64,152 +64,152 @@ const (
 
 type AmfUe struct {
 	//Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
-	Mutex sync.Mutex `json:"-" yaml:"mutex" bson:"-"`
+	Mutex sync.Mutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
-	servingAMF *AMFContext `json:"servingAMF,omitempty" yaml:"servingAMF" bson:"servingAMF,omitempty"` // never nil
+	servingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
 
 	/* Gmm State */
-	State map[models.AccessType]*fsm.State `json:"-" yaml:"state" bson:"-"`
+	State map[models.AccessType]*fsm.State `json:"-"`
 	/* Registration procedure related context */
-	RegistrationType5GS                uint8                           `json:"registrationType5GS,omitempty" yaml:"registrationType5GS" bson:"registrationType5GS,omitempty"`
-	IdentityTypeUsedForRegistration    uint8                           `json:"identityTypeUsedForRegistration,omitempty" yaml:"identityTypeUsedForRegistration" bson:"identityTypeUsedForRegistration,omitempty"`
-	RegistrationRequest                *nasMessage.RegistrationRequest `json:"registrationRequest,omitempty" yaml:"registrationRequest" bson:"registrationRequest,omitempty"`
-	ServingAmfChanged                  bool                            `json:"servingAmfChanged,omitempty" yaml:"servingAmfChanged" bson:"servingAmfChanged,omitempty"`
-	DeregistrationTargetAccessType     uint8                           `json:"deregistrationTargetAccessType,omitempty" yaml:"deregistrationTargetAccessType" bson:"deregistrationTargetAccessType,omitempty"` // only used when deregistration procedure is initialized by the network
-	RegistrationAcceptForNon3GPPAccess []byte                          `json:"registrationAcceptForNon3GPPAccess,omitempty" yaml:"registrationAcceptForNon3GPPAccess" bson:"registrationAcceptForNon3GPPAccess,omitempty"`
-	RetransmissionOfInitialNASMsg      bool                            `json:"retransmissionOfInitialNASMsg,omitempty" yaml:"retransmissionOfInitialNASMsg" bson:"retransmissionOfInitialNASMsg,omitempty"`
+	RegistrationType5GS                uint8                           `json:"registrationType5GS,omitempty"`
+	IdentityTypeUsedForRegistration    uint8                           `json:"identityTypeUsedForRegistration,omitempty"`
+	RegistrationRequest                *nasMessage.RegistrationRequest `json:"registrationRequest,omitempty"`
+	ServingAmfChanged                  bool                            `json:"servingAmfChanged,omitempty"`
+	DeregistrationTargetAccessType     uint8                           `json:"deregistrationTargetAccessType,omitempty"` // only used when deregistration procedure is initialized by the network
+	RegistrationAcceptForNon3GPPAccess []byte                          `json:"registrationAcceptForNon3GPPAccess,omitempty"`
+	RetransmissionOfInitialNASMsg      bool                            `json:"retransmissionOfInitialNASMsg,omitempty"`
 	/* Used for AMF relocation */
-	TargetAmfProfile *models.NfProfile `json:"targetAmfProfile,omitempty" yaml:"targetAmfProfile" bson:"targetAmfProfile,omitempty"`
-	TargetAmfUri     string            `json:"targetAmfUri,omitempty" yaml:"targetAmfUri" bson:"targetAmfUri,omitempty"`
+	TargetAmfProfile *models.NfProfile `json:"targetAmfProfile,omitempty"`
+	TargetAmfUri     string            `json:"targetAmfUri,omitempty"`
 	/* Ue Identity*/
-	PlmnId              models.PlmnId `json:"plmnId,omitempty" yaml:"plmnId" bson:"plmnId,omitempty"`
-	Suci                string        `json:"suci,omitempty" yaml:"suci" bson:"suci,omitempty"`
-	Supi                string        `json:"supi,omitempty" yaml:"supi" bson:"supi,omitempty"`
-	UnauthenticatedSupi bool          `json:"unauthenticatedSupi,omitempty" yaml:"unauthenticatedSupi" bson:"unauthenticatedSupi,omitempty"`
-	Gpsi                string        `json:"gpsi,omitempty" yaml:"gpsi" bson:"gpsi,omitempty"`
-	Pei                 string        `json:"pei,omitempty" yaml:"pei" bson:"pei,omitempty"`
-	Tmsi                int32         `json:"tmsi,omitempty" yaml:"tmsi" bson:"tmsi,omitempty"` // 5G-Tmsi
-	Guti                string        `json:"guti,omitempty" yaml:"guti" bson:"guti,omitempty"`
-	GroupID             string        `json:"groupID,omitempty" yaml:"groupID" bson:"groupID,omitempty"`
-	EBI                 int32         `json:"ebi,omitempty" yaml:"ebi" bson:"ebi,omitempty"`
+	PlmnId              models.PlmnId `json:"plmnId,omitempty"`
+	Suci                string        `json:"suci,omitempty"`
+	Supi                string        `json:"supi,omitempty"`
+	UnauthenticatedSupi bool          `json:"unauthenticatedSupi,omitempty"`
+	Gpsi                string        `json:"gpsi,omitempty"`
+	Pei                 string        `json:"pei,omitempty"`
+	Tmsi                int32         `json:"tmsi,omitempty"` // 5G-Tmsi
+	Guti                string        `json:"guti,omitempty"`
+	GroupID             string        `json:"groupID,omitempty"`
+	EBI                 int32         `json:"ebi,omitempty"`
 	/* Ue Identity*/
-	EventSubscriptionsInfo map[string]*AmfUeEventSubscription `json:"eventSubscriptionInfo,omitempty" yaml:"eventSubscriptionInfo" bson:"eventSubscriptionInfo,omitempty"`
+	EventSubscriptionsInfo map[string]*AmfUeEventSubscription `json:"eventSubscriptionInfo,omitempty"`
 	/* User Location*/
-	RatType                  models.RatType      `json:"ratType,omitempty" yaml:"ratType" bson:"ratType,omitempty"`
-	Location                 models.UserLocation `json:"location,omitempty" yaml:"location" bson:"location,omitempty"`
-	Tai                      models.Tai          `json:"tai,omitempty" yaml:"tai" bson:"tai,omitempty"`
-	LocationChanged          bool                `json:"locationChanged,omitempty" yaml:"locationChanged" bson:"locationChanged,omitempty"`
-	LastVisitedRegisteredTai models.Tai          `json:"lastVisitedRegisteredTai,omitempty" yaml:"lastVisitedRegisteredTai" bson:"lastVisitedRegisteredTai,omitempty"`
-	TimeZone                 string              `json:"timezone,omitempty" yaml:"timezone" bson:"timezone,omitempty"`
+	RatType                  models.RatType      `json:"ratType,omitempty"`
+	Location                 models.UserLocation `json:"location,omitempty"`
+	Tai                      models.Tai          `json:"tai,omitempty"`
+	LocationChanged          bool                `json:"locationChanged,omitempty"`
+	LastVisitedRegisteredTai models.Tai          `json:"lastVisitedRegisteredTai,omitempty"`
+	TimeZone                 string              `json:"timezone,omitempty"`
 	/* context about udm */
-	UdmId                             string                                    `json:"udmId,omitempty" yaml:"udmId" bson:"udmId,omitempty"`
-	NudmUECMUri                       string                                    `json:"nudmUECMUri,omitempty" yaml:"nudmUECMUri" bson:"nudmUECMUri,omitempty"`
-	NudmSDMUri                        string                                    `json:"nudmSDMUri,omitempty" yaml:"nudmSDMUri" bson:"nudmSDMUri,omitempty"`
-	ContextValid                      bool                                      `json:"contextValid,omitempty" yaml:"contextValid" bson:"contextValid,omitempty"`
-	Reachability                      models.UeReachability                     `json:"reachability,omitempty" yaml:"reachability" bson:"reachability,omitempty"`
-	SubscribedData                    models.SubscribedData                     `json:"subscribedData,omitempty" yaml:"subscribedData" bson:"subscribedData,omitempty"`
-	SmfSelectionData                  *models.SmfSelectionSubscriptionData      `json:"smfSelectionData,omitempty" yaml:"smfSelectionData" bson:"smfSelectionData,omitempty"`
-	UeContextInSmfData                *models.UeContextInSmfData                `json:"ueContextInSmfData,omitempty" yaml:"ueContextInSmfData" bson:"ueContextInSmfData,omitempty"`
-	TraceData                         *models.TraceData                         `json:"traceData,omitempty" yaml:"traceData" bson:"traceData,omitempty"`
-	UdmGroupId                        string                                    `json:"udmGroupId,omitempty" yaml:"udmGroupId" bson:"udmGroupId,omitempty"`
-	SubscribedNssai                   []models.SubscribedSnssai                 `json:"subscribeNssai,omitempty" yaml:"subscribeNssai" bson:"subscribeNssai,omitempty"`
-	AccessAndMobilitySubscriptionData *models.AccessAndMobilitySubscriptionData `json:"accessAndMobilitySubscriptionData,omitempty" yaml:"accessAndMobilitySubscriptionData" bson:"accessAndMobilitySubscriptionData,omitempty"`
+	UdmId                             string                                    `json:"udmId,omitempty"`
+	NudmUECMUri                       string                                    `json:"nudmUECMUri,omitempty"`
+	NudmSDMUri                        string                                    `json:"nudmSDMUri,omitempty"`
+	SubscriptionDataValid             bool                                      `json:"subscriptionDataValid,omitempty"`
+	Reachability                      models.UeReachability                     `json:"reachability,omitempty"`
+	SubscribedData                    models.SubscribedData                     `json:"subscribedData,omitempty"`
+	SmfSelectionData                  *models.SmfSelectionSubscriptionData      `json:"smfSelectionData,omitempty"`
+	UeContextInSmfData                *models.UeContextInSmfData                `json:"ueContextInSmfData,omitempty"`
+	TraceData                         *models.TraceData                         `json:"traceData,omitempty"`
+	UdmGroupId                        string                                    `json:"udmGroupId,omitempty"`
+	SubscribedNssai                   []models.SubscribedSnssai                 `json:"subscribeNssai,omitempty"`
+	AccessAndMobilitySubscriptionData *models.AccessAndMobilitySubscriptionData `json:"accessAndMobilitySubscriptionData,omitempty"`
 	/* contex abut ausf */
-	AusfGroupId                       string                      `json:"ausfGroupId,omitempty" yaml:"ausfGroupId" bson:"ausfGroupId,omitempty"`
-	AusfId                            string                      `json:"ausfId,omitempty" yaml:"ausfId" bson:"ausfId,omitempty"`
-	AusfUri                           string                      `json:"ausfUri,omitempty" yaml:"ausfUri" bson:"ausfUri,omitempty"`
-	RoutingIndicator                  string                      `json:"routingIndicator,omitempty" yaml:"routingIndicator" bson:"routingIndicator,omitempty"`
-	AuthenticationCtx                 *models.UeAuthenticationCtx `json:"authenticationCtx,omitempty" yaml:"authenticationCtx" bson:"authenticationCtx,omitempty"`
-	AuthFailureCauseSynchFailureTimes int                         `json:"authFailureCauseSynchFailureTimes,omitempty" yaml:"authFailureCauseSynchFailureTimes" bson:"authFailureCauseSynchFailureTimes,omitempty"`
-	ABBA                              []uint8                     `json:"abba,omitempty" yaml:"abba" bson:"abba,omitempty"`
-	Kseaf                             string                      `json:"kseaf,omitempty" yaml:"kseaf" bson:"kseaf,omitempty"`
-	Kamf                              string                      `json:"kamf,omitempty" yaml:"kamf" bson:"kamf,omitempty"`
+	AusfGroupId                       string                      `json:"ausfGroupId,omitempty"`
+	AusfId                            string                      `json:"ausfId,omitempty"`
+	AusfUri                           string                      `json:"ausfUri,omitempty"`
+	RoutingIndicator                  string                      `json:"routingIndicator,omitempty"`
+	AuthenticationCtx                 *models.UeAuthenticationCtx `json:"authenticationCtx,omitempty"`
+	AuthFailureCauseSynchFailureTimes int                         `json:"authFailureCauseSynchFailureTimes,omitempty"`
+	ABBA                              []uint8                     `json:"abba,omitempty"`
+	Kseaf                             string                      `json:"kseaf,omitempty"`
+	Kamf                              string                      `json:"kamf,omitempty"`
 	/* context about PCF */
-	PcfId                        string                    `json:"pcfId,omitempty" yaml:"pcfId" bson:"pcfId,omitempty"`
-	PcfUri                       string                    `json:"pcfUri,omitempty" yaml:"pcfUri" bson:"pcfUri,omitempty"`
-	PolicyAssociationId          string                    `json:"policyAssociationId,omitempty" yaml:"policyAssociationId" bson:"policyAssociationId,omitempty"`
-	AmPolicyUri                  string                    `json:"amPolicyUri,omitempty" yaml:"amPolicyUri" bson:"amPolicyUri,omitempty"`
-	AmPolicyAssociation          *models.PolicyAssociation `json:"amPolicyAssociation,omitempty" yaml:"amPolicyAssociation" bson:"amPolicyAssociation,omitempty"`
-	RequestTriggerLocationChange bool                      `json:"requestTriggerLocationChange,omitempty" yaml:"requestTriggerLocationChange" bson:"requestTriggerLocationChange,omitempty"` // true if AmPolicyAssociation.Trigger contains RequestTrigger_LOC_CH
-	ConfigurationUpdateMessage   []byte                    `json:"configurationUpdateMessage,omitempty" yaml:"configurationUpdateMessage" bson:"configurationUpdateMessage,omitempty"`
+	PcfId                        string                    `json:"pcfId,omitempty"`
+	PcfUri                       string                    `json:"pcfUri,omitempty"`
+	PolicyAssociationId          string                    `json:"policyAssociationId,omitempty"`
+	AmPolicyUri                  string                    `json:"amPolicyUri,omitempty"`
+	AmPolicyAssociation          *models.PolicyAssociation `json:"amPolicyAssociation,omitempty"`
+	RequestTriggerLocationChange bool                      `json:"requestTriggerLocationChange,omitempty"` // true if AmPolicyAssociation.Trigger contains RequestTrigger_LOC_CH
+	ConfigurationUpdateMessage   []byte                    `json:"configurationUpdateMessage,omitempty"`
 	/* UeContextForHandover*/
-	HandoverNotifyUri string `json:"handoverNotifyUri,omitempty" yaml:"handoverNotifyUri" bson:"handoverNotifyUri,omitempty"`
+	HandoverNotifyUri string `json:"handoverNotifyUri,omitempty"`
 	/* N1N2Message */
-	N1N2MessageIDGenerator          *idgenerator.IDGenerator `json:"n1n2MessageIDGenerator,omitempty" yaml:"n1n2MessageIDGenerator" bson:"n1n2MessageIDGenerator,omitempty"`
-	N1N2Message                     *N1N2Message             `json:"-" yaml:"n1n2Message" bson:"-"`
-	N1N2MessageSubscribeIDGenerator *idgenerator.IDGenerator `json:"n1n2MessageSubscribeIDGenerator,omitempty" yaml:"n1n2MessageSubscribeIDGenerator" bson:"n1n2MessageSubscribeIDGenerator,omitempty"`
+	N1N2MessageIDGenerator          *idgenerator.IDGenerator `json:"n1n2MessageIDGenerator,omitempty"`
+	N1N2Message                     *N1N2Message             `json:"-"`
+	N1N2MessageSubscribeIDGenerator *idgenerator.IDGenerator `json:"n1n2MessageSubscribeIDGenerator,omitempty"`
 	// map[int64]models.UeN1N2InfoSubscriptionCreateData; use n1n2MessageSubscriptionID as key
-	N1N2MessageSubscription sync.Map `json:"n1n2MessageSubscription,omitempty" yaml:"n1n2MessageSubscription" bson:"n1n2MessageSubscription,omitempty"`
+	N1N2MessageSubscription sync.Map `json:"n1n2MessageSubscription,omitempty"`
 	/* Pdu Sesseion context */
-	SmContextList sync.Map `json:"-" yaml:"smContextList" bson:"-"` // map[int32]*SmContext, pdu session id as key
+	SmContextList sync.Map `json:"-"` // map[int32]*SmContext, pdu session id as key
 	/* Related Context*/
 	//RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty" yaml:"ranUe" bson:"ranUe,omitempty"`
-	RanUe map[models.AccessType]*RanUe `json:"ranUe, omitEmpty" yaml:"ranUe" bson:"ranUe, omitEmpty"`
+	RanUe map[models.AccessType]*RanUe `json:"ranUe, omitEmpty"`
 	/* other */
-	onGoing                       map[models.AccessType]*OnGoing        `json:"onGoing,omitempty" yaml:"onGoing" bson:"onGoing,omitempty"`
-	UeRadioCapability             string                                `json:"ueRadioCapability,omitempty" yaml:"ueRadioCapability" bson:"ueRadioCapability,omitempty"` // OCTET string
-	Capability5GMM                nasType.Capability5GMM                `json:"capability5GMM,omitempty" yaml:"capability5GMM" bson:"capability5GMM,omitempty"`
-	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication `json:"configurationUpdateIndication,omitempty" yaml:"configurationUpdateIndication" bson:"configurationUpdateIndication,omitempty"`
+	onGoing                       map[models.AccessType]*OnGoing        `json:"onGoing,omitempty"`
+	UeRadioCapability             string                                `json:"ueRadioCapability,omitempty"` // OCTET string
+	Capability5GMM                nasType.Capability5GMM                `json:"capability5GMM,omitempty"`
+	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication `json:"configurationUpdateIndication,omitempty"`
 	/* context related to Paging */
-	UeRadioCapabilityForPaging                 *UERadioCapabilityForPaging                 `json:"ueRadioCapabilityForPaging,omitempty" yaml:"ueRadioCapabilityForPaging" bson:"ueRadioCapabilityForPaging,omitempty"`
-	InfoOnRecommendedCellsAndRanNodesForPaging *InfoOnRecommendedCellsAndRanNodesForPaging `json:"infoOnRecommendedCellsAndRanNodesForPaging,omitempty" yaml:"infoOnRecommendedCellsAndRanNodesForPaging" bson:"infoOnRecommendedCellsAndRanNodesForPaging,omitempty"`
-	UESpecificDRX                              uint8                                       `json:"ueSpecificDRX,omitempty" yaml:"ueSpecificDRX" bson:"ueSpecificDRX,omitempty"`
+	UeRadioCapabilityForPaging                 *UERadioCapabilityForPaging                 `json:"ueRadioCapabilityForPaging,omitempty"`
+	InfoOnRecommendedCellsAndRanNodesForPaging *InfoOnRecommendedCellsAndRanNodesForPaging `json:"infoOnRecommendedCellsAndRanNodesForPaging,omitempty"`
+	UESpecificDRX                              uint8                                       `json:"ueSpecificDRX,omitempty"`
 	/* Security Context */
-	SecurityContextAvailable bool                         `json:"securityContextAvailable,omitempty" yaml:"securityContextAvailable" bson:"securityContextAvailable,omitempty"`
-	UESecurityCapability     nasType.UESecurityCapability `json:"ueSecurityCapability,omitempty" yaml:"ueSecurityCapability" bson:"ueSecurityCapability,omitempty"` // for security command
-	NgKsi                    models.NgKsi                 `json:"ngKsi,omitempty" yaml:"ngKsi" bson:"ngKsi,omitempty"`
-	MacFailed                bool                         `json:"macFailed,omitempty" yaml:"macFailed" bson:"macFailed,omitempty"` // set to true if the integrity check of current NAS message is failed
-	KnasInt                  [16]uint8                    `json:"knasInt,omitempty" yaml:"knasInt" bson:"knasInt,omitempty"`       // 16 byte
-	KnasEnc                  [16]uint8                    `json:"knasEnc,omitempty" yaml:"knasEnc" bson:"knasEnc,omitempty"`       // 16 byte
-	Kgnb                     []uint8                      `json:"kgnb,omitempty" yaml:"kgnb" bson:"kgnb,omitempty"`                // 32 byte
-	Kn3iwf                   []uint8                      `json:"kn3iwf,omitempty" yaml:"kn3iwf" bson:"kn3iwf,omitempty"`          // 32 byte
-	NH                       []uint8                      `json:"nh,omitempty" yaml:"nh" bson:"nh,omitempty"`                      // 32 byte
-	NCC                      uint8                        `json:"ncc,omitempty" yaml:"ncc" bson:"ncc,omitempty"`                   // 0..7
+	SecurityContextAvailable bool                         `json:"securityContextAvailable,omitempty"`
+	UESecurityCapability     nasType.UESecurityCapability `json:"ueSecurityCapability,omitempty"` // for security command
+	NgKsi                    models.NgKsi                 `json:"ngKsi,omitempty"`
+	MacFailed                bool                         `json:"macFailed,omitempty"` // set to true if the integrity check of current NAS message is failed
+	KnasInt                  [16]uint8                    `json:"knasInt,omitempty"`   // 16 byte
+	KnasEnc                  [16]uint8                    `json:"knasEnc,omitempty"`   // 16 byte
+	Kgnb                     []uint8                      `json:"kgnb,omitempty"`      // 32 byte
+	Kn3iwf                   []uint8                      `json:"kn3iwf,omitempty"`    // 32 byte
+	NH                       []uint8                      `json:"nh,omitempty"`        // 32 byte
+	NCC                      uint8                        `json:"ncc,omitempty"`       // 0..7
 	//ULCount                  security.Count               `json:"ulCount,omitempty" yaml:"ulCount" bson:"ulCount,omitempty"`
 	//DLCount                  security.Count               `json:"dlCount,omitempty" yaml:"dlCount" bson:"dlCount,omitempty"`
-	ULCount      security.Count `json:"-" yaml:"ulCount" bson:"-"`
-	DLCount      security.Count `json:"-" yaml:"dlCount" bson:"-"`
-	CipheringAlg uint8          `json:"cipheringAlg,omitempty" yaml:"cipheringAlg" bson:"cipheringAlg,omitempty"`
-	IntegrityAlg uint8          `json:"integrityAlg,omitempty" yaml:"integrityAlg" bson:"integrityAlg,omitempty"`
+	ULCount      security.Count `json:"-"`
+	DLCount      security.Count `json:"-"`
+	CipheringAlg uint8          `json:"cipheringAlg,omitempty"`
+	IntegrityAlg uint8          `json:"integrityAlg,omitempty"`
 	/* Registration Area */
-	RegistrationArea map[models.AccessType][]models.Tai `json:"registrationArea,omitempty" yaml:"registrationArea" bson:"registrationArea,omitempty"`
-	LadnInfo         []LADN                             `json:"ladnInfo,omitempty" yaml:"ladnInfo" bson:"ladnInfo,omitempty"`
+	RegistrationArea map[models.AccessType][]models.Tai `json:"registrationArea,omitempty"`
+	LadnInfo         []LADN                             `json:"ladnInfo,omitempty"`
 	/* Network Slicing related context and Nssf */
-	NssfId                            string                                       `json:"nssfId,omitempty" yaml:"nssfId" bson:"nssfId,omitempty"`
-	NssfUri                           string                                       `json:"nssfUri,omitempty" yaml:"nssfUri" bson:"nssfUri,omitempty"`
-	NetworkSliceInfo                  *models.AuthorizedNetworkSliceInfo           `json:"networkSliceInfo,omitempty" yaml:"networkSliceInfo" bson:"networkSliceInfo,omitempty"`
-	AllowedNssai                      map[models.AccessType][]models.AllowedSnssai `json:"allowedNssai,omitempty" yaml:"allowedNssai" bson:"allowedNssai,omitempty"`
-	ConfiguredNssai                   []models.ConfiguredSnssai                    `json:"configuredNssai,omitempty" yaml:"configuredNssai" bson:"configuredNssai,omitempty"`
-	NetworkSlicingSubscriptionChanged bool                                         `json:"networkSlicingSubscriptionChanged,omitempty" yaml:"networkSlicingSubscriptionChanged" bson:"networkSlicingSubscriptionChanged,omitempty"`
+	NssfId                            string                                       `json:"nssfId,omitempty"`
+	NssfUri                           string                                       `json:"nssfUri,omitempty"`
+	NetworkSliceInfo                  *models.AuthorizedNetworkSliceInfo           `json:"networkSliceInfo,omitempty"`
+	AllowedNssai                      map[models.AccessType][]models.AllowedSnssai `json:"allowedNssai,omitempty"`
+	ConfiguredNssai                   []models.ConfiguredSnssai                    `json:"configuredNssai,omitempty"`
+	NetworkSlicingSubscriptionChanged bool                                         `json:"networkSlicingSubscriptionChanged,omitempty"`
 	/* T3513(Paging) */
-	T3513 *Timer `json:"t3513Value,omitempty" yaml:"t3513Value" bson:"t3513Value,omitempty"` // for paging
+	T3513 *Timer `json:"t3513Value,omitempty"` // for paging
 	/* T3565(Notification) */
-	T3565 *Timer `json:"t3565Value,omitempty" yaml:"t3565Value" bson:"t3565Value,omitempty"` // for NAS Notification
+	T3565 *Timer `json:"t3565Value,omitempty"` // for NAS Notification
 	/* T3560 (for authentication request/security mode command retransmission) */
-	T3560 *Timer `json:"t3560Value,omitempty" yaml:"t3560Value" bson:"t3560Value,omitempty"`
+	T3560 *Timer `json:"t3560Value,omitempty"`
 	/* T3550 (for registration accept retransmission) */
-	T3550 *Timer `json:"t3550Value,omitempty" yaml:"t3550Value" bson:"t3550Value,omitempty"`
+	T3550 *Timer `json:"t3550Value,omitempty"`
 	/* T3522 (for deregistration request) */
-	T3522 *Timer `json:"t3522Value,omitempty" yaml:"t3522Value" bson:"t3522Value,omitempty"`
+	T3522 *Timer `json:"t3522Value,omitempty"`
 	/* Ue Context Release Cause */
-	ReleaseCause map[models.AccessType]*CauseAll `json:"releaseCause,omitempty" yaml:"releaseCause" bson:"releaseCause,omitempty"`
+	ReleaseCause map[models.AccessType]*CauseAll `json:"releaseCause,omitempty"`
 	/* T3502 (Assigned by AMF, and used by UE to initialize registration procedure) */
-	T3502Value                      int `json:"t3502Value,omitempty" yaml:"t3502Value" bson:"t3502Value,omitempty"`                                                                // Second
-	T3512Value                      int `json:"t3512Value,omitempty" yaml:"t3512Value" bson:"t3512Value,omitempty"`                                                                // default 54 min
-	Non3gppDeregistrationTimerValue int `json:"non3gppDeregistrationTimerValue,omitempty" yaml:"non3gppDeregistrationTimerValue" bson:"non3gppDeregistrationTimerValue,omitempty"` // default 54 min
+	T3502Value                      int `json:"t3502Value,omitempty"`                      // Second
+	T3512Value                      int `json:"t3512Value,omitempty"`                      // default 54 min
+	Non3gppDeregistrationTimerValue int `json:"non3gppDeregistrationTimerValue,omitempty"` // default 54 min
 
 	//EventChannel  chan OnGoing
 	//EventChannel *EventChannel `json:"eventChannel,omitempty" yaml:"eventChannel" bson:"eventChannel,omitempty"`
-	EventChannel *EventChannel `json:"-" yaml:"eventChannel" bson:"-"`
+	EventChannel *EventChannel `json:"-"`
 	// logger
 	//NASLog      *logrus.Entry `json:"nasLog,omitempty" yaml:"nasLog" bson:"nasLog,omitempty"`
 	//GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
 	//TxLog       *logrus.Entry `json:"txLog,omitempty" yaml:"txLog" bson:"txLog,omitempty"`
 	//ProducerLog *logrus.Entry `json:"producerLog,omitempty" yaml:"producerLog" bson:"producerLog,omitempty"`
-	NASLog      *logrus.Entry `json:"-" yaml:"nasLog" bson:"-"`
-	GmmLog      *logrus.Entry `json:"-" yaml:"gmmLog" bson:"-"`
-	TxLog       *logrus.Entry `json:"-" yaml:"txLog" bson:"-"`
-	ProducerLog *logrus.Entry `json:"-" yaml:"producerLog" bson:"-"`
+	NASLog      *logrus.Entry `json:"-"`
+	GmmLog      *logrus.Entry `json:"-"`
+	TxLog       *logrus.Entry `json:"-"`
+	ProducerLog *logrus.Entry `json:"-"`
 }
 
 func (ue *AmfUe) MarshalJSON() ([]byte, error) {
@@ -217,10 +217,15 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	stateVal := make(map[models.AccessType]string)
 	smCtxListVal := make(map[string]SmContext)
 	var ranUeNgapIDVal, amfUeNgapIDVal int64
-	if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-		ranUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
-		amfUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
+	var gnbIp string
+	if ue.RanUe != nil && ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
+		gnbIp = ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbIp
+		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
+			ranUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
+			amfUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
+		}
 	}
+
 	for access, state := range ue.State {
 		stateVal[access] = string(state.Current())
 	}
@@ -263,49 +268,43 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 		return true
 	})
 
+	customAmfUe := CustomFieldsAmfUe{
+		State:         stateVal,
+		SmCtxList:     smCtxListVal,
+		ULCount:       ue.ULCount.Get(),
+		DLCount:       ue.DLCount.Get(),
+		RanUeNgapId:   ranUeNgapIDVal,
+		AmfUeNgapId:   amfUeNgapIDVal,
+		N1N2Message:   n1n2MsgVal,
+		RanRemoteAddr: gnbIp,
+	}
+
 	return json.Marshal(&struct {
-		State       map[models.AccessType]string `json:"state"`
-		SmCtxList   map[string]SmContext         `json:"smCtxList"`
-		N1N2Message N1N2Message                  `json:"n1n2Msg"`
-		ULCount     uint32                       `json:"ulCount"`
-		DLCount     uint32                       `json:"dlCount"`
-		RanUeNgapId int64                        `json:"ranUeNgapId"`
-		AmfUeNgapId int64                        `json:"amfUeNgapId"`
+		CustomAmfUe CustomFieldsAmfUe `json:"customFieldsAmfUe"`
 		*Alias
 	}{
-		State:       stateVal,
-		SmCtxList:   smCtxListVal,
-		ULCount:     ue.ULCount.Get(),
-		DLCount:     ue.DLCount.Get(),
-		RanUeNgapId: ranUeNgapIDVal,
-		AmfUeNgapId: amfUeNgapIDVal,
-		N1N2Message: n1n2MsgVal,
+		CustomAmfUe: customAmfUe,
 		Alias:       (*Alias)(ue),
 	})
 }
 
 func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	type Alias AmfUe
-	aux := &struct {
-		State       map[models.AccessType]string `json:"state"`
-		SmCtxList   map[string]SmContext         `json:"smCtxList"`
-		N1N2Message N1N2Message                  `json:"n1n2Msg"`
-		ULCount     uint32                       `json:"ulCount"`
-		DLCount     uint32                       `json:"dlCount"`
-		RanUeNgapId int64                        `json:"ranUeNgapId"`
-		AmfUeNgapId int64                        `json:"amfUeNgapId"`
+	auxCustom := &struct {
+		CustomAmfUe CustomFieldsAmfUe `json:"customFieldsAmfUe"`
 		*Alias
 	}{
 		Alias: (*Alias)(ue),
 	}
-	if err := json.Unmarshal(data, &aux); err != nil {
+	if err := json.Unmarshal(data, &auxCustom); err != nil {
+		logger.ContextLog.Errorf("AMFUe Unmarshal failed : ", err)
 		return err
 	}
 
+	aux := auxCustom.CustomAmfUe
 	for index, states := range aux.State {
 		ue.State[index].Set(fsm.StateType(states))
 		if ue.RanUe[index] == nil {
-			logger.ContextLog.Infof("ranUE nil for index : ", index)
 			ue.RanUe[index] = &RanUe{}
 		}
 		ue.RanUe[index].Log = logger.NgapLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
@@ -976,6 +975,19 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	} else {
 		return nil, false
 	}
+}
+
+func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg)) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+	if ue.EventChannel == nil {
+		ue.TxLog.Errorf("Creating new AmfUe EventChannel")
+		ue.EventChannel = ue.NewEventChannel()
+		ue.EventChannel.UpdateNgapHandler(handler)
+		go ue.EventChannel.Start()
+	}
+
+	return
 }
 
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
