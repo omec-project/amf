@@ -42,9 +42,9 @@ func init() {
 	AMF_Self().PlmnSupportList = make([]factory.PlmnSupportItem, 0, MaxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
 	AMF_Self().NetworkName.Full = "free5GC"
-	tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
+	//tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 	amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
-	amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, MaxValueOfAmfUeNgapId)
+	//amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, MaxValueOfAmfUeNgapId)
 }
 
 type AMFContext struct {
@@ -107,16 +107,24 @@ func NewPlmnSupportItem() (item factory.PlmnSupportItem) {
 }
 
 func (context *AMFContext) TmsiAllocate() int32 {
-	tmsi, err := tmsiGenerator.Allocate()
+	val, err := AllocateUniqueID(&tmsiGenerator, "tmsi")
 	if err != nil {
 		logger.ContextLog.Errorf("Allocate TMSI error: %+v", err)
 		return -1
 	}
-	return int32(tmsi)
+	logger.ContextLog.Infof("Allocate TMSI : ", val)
+	return int32(val)
 }
 
 func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
-	return amfUeNGAPIDGenerator.Allocate()
+	val, err := AllocateUniqueID(&amfUeNGAPIDGenerator, "amfUeNgapID")
+	if err != nil {
+		logger.ContextLog.Errorf("Allocate NgapID error: %+v", err)
+		return -1, err
+	}
+
+	logger.ContextLog.Infof("Allocate AmfUeNgapID : ", val)
+	return val, nil
 }
 
 func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
@@ -397,20 +405,33 @@ func mapToByte(data map[string]interface{}) (ret []byte) {
 	return
 }
 
+func (context *AMFContext) AmfUeFindByGutiLocal(guti string) (ue *AmfUe, ok bool) {
+	context.UePool.Range(func(key, value interface{}) bool {
+		candidate := value.(*AmfUe)
+		if ok = (candidate.Guti == guti); ok {
+			ue = candidate
+			return false
+		}
+		return true
+	})
+
+	return
+}
+
 func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
-	if context.EnableDbStore {
-		logger.ContextLog.Infof("db fetch by guti")
-		return DbFetchUeByGuti(guti)
+	ue, ok = context.AmfUeFindByGutiLocal(guti)
+	if ok {
+		logger.ContextLog.Infof("Guti found locally : ", guti)
+	} else if context.EnableDbStore {
+		ue, ok = DbFetchUeByGuti(guti)
+		if ue != nil && ok {
+			logger.ContextLog.Infof("Ue with Guti found in DB : ", guti)
+			context.UePool.Store(ue.Supi, ue)
+		} else {
+			logger.ContextLog.Infof("Ue with Guti not found locally and in DB: ", guti)
+		}
 	} else {
-		logger.ContextLog.Infof("fetch locally")
-		context.UePool.Range(func(key, value interface{}) bool {
-			candidate := value.(*AmfUe)
-			if ok = (candidate.Guti == guti); ok {
-				ue = candidate
-				return false
-			}
-			return true
-		})
+		logger.ContextLog.Infof("Ue with Guti not found : ", guti)
 	}
 	return
 }
@@ -427,16 +448,30 @@ func (context *AMFContext) AmfUeFindByPolicyAssociationID(polAssoId string) (ue 
 	return
 }
 
-func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
-	if context.EnableDbStore {
-		return DbFetchRanUeByAmfUeNgapID(amfUeNgapID)
+func (context *AMFContext) RanUeFindByAmfUeNgapIDLocal(amfUeNgapID int64) *RanUe {
+	if value, ok := context.RanUePool.Load(amfUeNgapID); ok {
+		return value.(*RanUe)
 	} else {
-		if value, ok := context.RanUePool.Load(amfUeNgapID); ok {
-			return value.(*RanUe)
-		} else {
-			return nil
+		return nil
+	}
+}
+
+func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
+	ranUe := context.RanUeFindByAmfUeNgapIDLocal(amfUeNgapID)
+	if ranUe != nil {
+		return ranUe
+	} else {
+		if context.EnableDbStore {
+			ranUe = DbFetchRanUeByAmfUeNgapID(amfUeNgapID)
+			if ranUe != nil {
+				context.RanUePool.Store(ranUe.AmfUeNgapId, &ranUe)
+				return ranUe
+			}
 		}
 	}
+
+	logger.ContextLog.Errorf("ranUe not found with AmfUeNgapID")
+	return nil
 }
 
 func (context *AMFContext) GetIPv4Uri() string {

@@ -38,8 +38,15 @@ const (
 	AMF_DEFAULT_NRFURI   = "https://127.0.0.10:8000"
 )
 
+type Mongodb struct {
+	Name string `yaml:"name"`
+	Url  string `yaml:"url"`
+}
+
 type Configuration struct {
 	AmfName                         string                    `yaml:"amfName,omitempty"`
+	AmfDBName                       string                    `yaml:"amfDBName,omitempty"`
+	Mongodb                         *Mongodb                  `yaml:"mongodb,omitempty"`
 	NgapIpList                      []string                  `yaml:"ngapIpList,omitempty"`
 	NgapPort                        int                       `yaml:"ngappPort,omitempty"`
 	SctpGrpcPort                    int                       `yaml:"sctpGrpcPort,omitempty"`
@@ -65,7 +72,7 @@ type Configuration struct {
 	//Maintain TaiList per slice
 	SliceTaiList  map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
 	EnableSctpLb  bool                    `yaml:"enableSctpLb"`
-	EnableDbStore bool                    `yaml:"enableDbStore"`
+	EnableDbStore bool                    `yaml:"enableDBStore"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

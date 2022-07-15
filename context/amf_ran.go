@@ -76,6 +76,7 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	self := AMF_Self()
 	amfUeNgapID, err := self.AllocateAmfUeNgapID()
 	if err != nil {
+		ran.Log.Errorf("Alloc Amf ue ngap id failed", err)
 		return nil, fmt.Errorf("Allocate AMF UE NGAP ID error: %+v", err)
 	}
 	ranUe.AmfUeNgapId = amfUeNgapID
@@ -95,14 +96,34 @@ func (ran *AmfRan) RemoveAllUeInRan() {
 	}
 }
 
-func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
+func (ran *AmfRan) RanUeFindByRanUeNgapIDLocal(ranUeNgapID int64) *RanUe {
 	// TODO - need fix..Make this map so search is fast
 	for _, ranUe := range ran.RanUeList {
 		if ranUe.RanUeNgapId == ranUeNgapID {
 			return ranUe
 		}
 	}
-	return DbFetchRanUeByRanUeNgapID(ranUeNgapID)
+
+	return nil
+}
+
+func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
+	ranUe := ran.RanUeFindByRanUeNgapIDLocal(ranUeNgapID)
+
+	if ranUe != nil {
+		return ranUe
+	}
+
+	if AMF_Self().EnableDbStore {
+		ranUe := DbFetchRanUeByRanUeNgapID(ranUeNgapID, ran)
+		if ranUe != nil {
+			ranUe.Ran = ran
+			ran.RanUeList = append(ran.RanUeList, ranUe)
+			return ranUe
+		}
+	}
+
+	return nil
 }
 
 func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {

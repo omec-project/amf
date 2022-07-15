@@ -14,7 +14,7 @@ require (
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/MongoDBLibrary v1.1.2
+	github.com/omec-project/MongoDBLibrary v1.1.3
 	github.com/omec-project/UeauCommon v1.1.0
 	github.com/omec-project/aper v1.1.0
 	github.com/omec-project/config5g v1.1.0
