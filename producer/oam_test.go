@@ -1,6 +1,13 @@
+// SPDX-FileCopyrightText: 2022 Open Networking Foundation <info@opennetworking.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+//
+
 package producer
 
 import (
+	"testing"
+
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/gmm"
@@ -8,7 +15,6 @@ import (
 	"github.com/omec-project/fsm"
 	"github.com/omec-project/openapi/models"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 type TestCases struct {
