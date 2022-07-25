@@ -6,11 +6,14 @@
 package producer
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/fsm"
 	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
 )
@@ -38,6 +41,25 @@ type UEContext struct {
 }
 
 type UEContexts []UEContext
+
+func HandleOAMPurgeUEContextRequest(supi, reqUri string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+	amfSelf := context.AMF_Self()
+	if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
+		ueFsmState := ue.State[models.AccessType__3_GPP_ACCESS].Current()
+		switch ueFsmState {
+		case context.Deregistered:
+			logger.ProducerLog.Info("Removing the UE : ", fmt.Sprintf(ue.Supi))
+			ue.Remove()
+		case context.Registered:
+			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.Supi)
+			gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
+				gmm.ArgAmfUe:      ue,
+				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
+			})
+		}
+	}
+	return nil, "", nil, nil
+}
 
 func HandleOAMRegisteredUEContext(request *http_wrapper.Request) *http_wrapper.Response {
 	logger.ProducerLog.Infof("[OAM] Handle Registered UE Context")
