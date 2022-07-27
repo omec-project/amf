@@ -12,13 +12,62 @@ import (
 
 	"git.cs.nctu.edu.tw/calee/sctp"
 
+	"fmt"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/msgtypes/ngapmsgtypes"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/ngap"
 	"github.com/omec-project/ngap/ngapType"
 )
+
+func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfServer.Message) {
+	fmt.Printf("DispatchLb %v %T", remoteAddr, Amf2RanMsgChan)
+	var ran *context.AmfRan
+	amfSelf := context.AMF_Self()
+
+	ran, ok := amfSelf.AmfRanFindByAddr(remoteAddr)
+	if !ok {
+		logger.NgapLog.Infof("Create a new NG connection for: %s", remoteAddr)
+		ran = amfSelf.NewAmfRanAddr(remoteAddr)
+		ran.Amf2RanMsgChan = Amf2RanMsgChan
+		fmt.Println("DispatchLb, Create new Amf RAN ", remoteAddr)
+	}
+
+	if len(msg) == 0 {
+		fmt.Println("DispatchLb, Messgae of size 0 -  ", remoteAddr)
+		ran.Log.Infof("RAN close the connection.")
+		ran.Remove()
+		return
+	}
+
+	pdu, err := ngap.Decoder(msg)
+	if err != nil {
+		ran.Log.Errorf("NGAP decode error : %+v", err)
+		fmt.Println("DispatchLb, decode Messgae error ", remoteAddr)
+		return
+	}
+
+	ranUe := FetchRanUeContext(ran, pdu)
+
+	/* uecontext is found, submit the message to transaction queue*/
+	if ranUe != nil && ranUe.AmfUe != nil {
+		if ranUe.AmfUe.EventChannel == nil {
+			ran.Log.Errorf("AmfUe EventChannel is not exist")
+			return
+		}
+		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
+		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
+		ngapMsg := context.NgapMsg{
+			Ran:     ran,
+			NgapMsg: pdu,
+		}
+		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
+	} else {
+		go DispatchNgapMsg(ran, pdu)
+	}
+}
 
 func Dispatch(conn net.Conn, msg []byte) {
 	var ran *context.AmfRan
@@ -236,4 +285,30 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 	default:
 		ran.Log.Warnf("Non handled notification type: 0x%x", notification.Type())
 	}
+}
+
+func HandleSCTPNotificationLb(remoteAddr string) {
+
+	logger.NgapLog.Infof("Handle SCTP Notification[addr: %+v]", remoteAddr)
+
+	amfSelf := context.AMF_Self()
+	ran, ok := amfSelf.AmfRanFindByAddr(remoteAddr)
+	if !ok {
+		logger.NgapLog.Warnf("RAN context has been removed[addr: %+v]", remoteAddr)
+		return
+	}
+
+	//Removing Stale Connections in AmfRanPool
+	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
+		amfRan := value.(*context.AmfRan)
+
+		if amfRan.GnbIp == remoteAddr {
+			amfRan.Remove()
+			ran.Log.Infof("removed stale entry in AmfRan pool")
+		}
+		return true
+	})
+
+	ran.Log.Infof("SCTP state is SCTP_SHUTDOWN_COMP, close the connection")
+	ran.Remove()
 }

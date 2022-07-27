@@ -6,26 +6,7 @@
 #
 
 PROJECT_NAME             := sdcore
-DOCKER_VERSION                  ?= $(shell cat ./VERSION)
-
-## Docker related
-DOCKER_REGISTRY          ?=
-DOCKER_REPOSITORY        ?=
-DOCKER_TAG               ?= ${DOCKER_VERSION}
-DOCKER_IMAGENAME         := ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}${PROJECT_NAME}:${DOCKER_TAG}
-DOCKER_BUILDKIT          ?= 1
-DOCKER_BUILD_ARGS        ?=
-
-## Docker labels. Only set ref and commit date if committed
-DOCKER_LABEL_VCS_URL     ?= $(shell git remote get-url $(shell git remote))
-DOCKER_LABEL_VCS_REF     ?= $(shell git diff-index --quiet HEAD -- && git rev-parse HEAD || echo "unknown")
-DOCKER_LABEL_COMMIT_DATE ?= $(shell git diff-index --quiet HEAD -- && git show -s --format=%cd --date=iso-strict HEAD || echo "unknown" )
-DOCKER_LABEL_BUILD_DATE  ?= $(shell date -u "+%Y-%m-%dT%H:%M:%SZ")
-
-DOCKER_TARGETS           ?= builder amf
-
-PROJECT_NAME             := sdcore
-DOCKER_VERSION                  ?= $(shell cat ./VERSION)
+DOCKER_VERSION           ?= $(shell cat ./VERSION)
 
 ## Docker related
 DOCKER_REGISTRY          ?=
