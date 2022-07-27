@@ -634,7 +634,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	// N5g-eir_EquipmentIdentityCheck_Get service operation
 
 	if ue.ServingAmfChanged || ue.State[models.AccessType_NON_3_GPP_ACCESS].Is(context.Registered) ||
-		!ue.ContextValid {
+		!ue.SubscriptionDataValid {
 		if err := communicateWithUDM(ue, anType); err != nil {
 			return err
 		}
@@ -786,7 +786,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 	// N5g-eir_EquipmentIdentityCheck_Get service operation
 
 	if ue.ServingAmfChanged || ue.State[models.AccessType_NON_3_GPP_ACCESS].Is(context.Registered) ||
-		!ue.ContextValid {
+		!ue.SubscriptionDataValid {
 		if err := communicateWithUDM(ue, anType); err != nil {
 			return err
 		}
@@ -1156,7 +1156,7 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType) error {
 		ue.GmmLog.Errorf("SDM Subscribe Error[%+v]", err)
 		return fmt.Errorf("SDM Subscribe Error[%+v]", err)
 	}
-	ue.ContextValid = true
+	ue.SubscriptionDataValid = true
 	return nil
 }
 
@@ -1294,7 +1294,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 					UserLocation:     &ue.Location,
 					RrcEstCause:      ue.RanUe[anType].RRCEstablishmentCause,
 					UeContextRequest: ue.RanUe[anType].UeContextRequest,
-					AnN2IPv4Addr:     ue.RanUe[anType].Ran.Conn.RemoteAddr().String(),
+					AnN2IPv4Addr:     ue.RanUe[anType].Ran.GnbIp,
 					AllowedNssai: &models.AllowedNssai{
 						AllowedSnssaiList: ue.AllowedNssai[anType],
 						AccessType:        anType,

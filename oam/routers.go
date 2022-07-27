@@ -7,6 +7,7 @@ package oam
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -54,6 +55,8 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 		switch route.Method {
 		case "GET":
 			group.GET(route.Pattern, route.HandlerFunc)
+		case "DELETE":
+			group.DELETE(route.Pattern, route.HandlerFunc)
 		}
 	}
 	return group
@@ -83,5 +86,12 @@ var routes = Routes{
 		"GET",
 		"/registered-ue-context/:supi",
 		HTTPRegisteredUEContext,
+	},
+
+	{
+		"Purge UE Context",
+		strings.ToUpper("Delete"),
+		"/purge-ue-context/:supi",
+		HTTPPurgeUEContext,
 	},
 }
