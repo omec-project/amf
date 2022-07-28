@@ -10,6 +10,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
+	"github.com/omec-project/openapi/models"
 )
 
 func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
@@ -34,6 +35,14 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		ue.AmfUe.Mutex.Lock()
 		defer ue.AmfUe.Mutex.Unlock()
 
+		ue.Log.Info("Antype from new RanUe : ", ue.Ran.AnType)
+		// AnType is set in SetRanId function. This is called
+		// when we handle NGSetup. In case of sctplb enabled,
+		// we dont call this function when AMF restarts. So we
+		// need to set the AnType from stored Information.
+		if amfSelf.EnableSctpLb {
+			ue.Ran.AnType = models.AccessType__3_GPP_ACCESS
+		}
 		ue.AmfUe.AttachRanUe(ue)
 
 		if ue.AmfUe.EventChannel == nil {

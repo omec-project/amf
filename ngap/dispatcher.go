@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -53,18 +54,20 @@ func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfSer
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		if ranUe.AmfUe.EventChannel == nil {
-			ran.Log.Errorf("AmfUe EventChannel is not exist")
-			return
-		}
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:     ran,
 			NgapMsg: pdu,
 		}
+
+		globalRANNodeID := ranUe.Ran.RanId
+		ranUe.Ran = ran
+		ranUe.Ran.RanId = globalRANNodeID
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
+		fmt.Println("ranUe nil :  ", ran.RanID())
 		go DispatchNgapMsg(ran, pdu)
 	}
 }
@@ -95,16 +98,15 @@ func Dispatch(conn net.Conn, msg []byte) {
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		if ranUe.AmfUe.EventChannel == nil {
-			ran.Log.Errorf("AmfUe EventChannel is not exist")
-			return
-		}
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:     ran,
 			NgapMsg: pdu,
 		}
+
+		ranUe.Ran.Conn = conn
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
 		go DispatchNgapMsg(ran, pdu)
