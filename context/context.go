@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -7,6 +8,7 @@
 package context
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net"
@@ -40,9 +42,9 @@ func init() {
 	AMF_Self().PlmnSupportList = make([]factory.PlmnSupportItem, 0, MaxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
 	AMF_Self().NetworkName.Full = "free5GC"
-	tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
+	//tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 	amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
-	amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, MaxValueOfAmfUeNgapId)
+	//amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, MaxValueOfAmfUeNgapId)
 }
 
 type AMFContext struct {
@@ -77,12 +79,13 @@ type AMFContext struct {
 	T3512Value                      int      // unit is second
 	Non3gppDeregistrationTimerValue int      // unit is second
 	// read-only fields
-	T3513Cfg     factory.TimerValue
-	T3522Cfg     factory.TimerValue
-	T3550Cfg     factory.TimerValue
-	T3560Cfg     factory.TimerValue
-	T3565Cfg     factory.TimerValue
-	EnableSctpLb bool
+	T3513Cfg      factory.TimerValue
+	T3522Cfg      factory.TimerValue
+	T3550Cfg      factory.TimerValue
+	T3560Cfg      factory.TimerValue
+	T3565Cfg      factory.TimerValue
+	EnableSctpLb  bool
+	EnableDbStore bool
 }
 
 type AMFContextEventSubscription struct {
@@ -104,16 +107,24 @@ func NewPlmnSupportItem() (item factory.PlmnSupportItem) {
 }
 
 func (context *AMFContext) TmsiAllocate() int32 {
-	tmsi, err := tmsiGenerator.Allocate()
+	val, err := AllocateUniqueID(&tmsiGenerator, "tmsi")
 	if err != nil {
 		logger.ContextLog.Errorf("Allocate TMSI error: %+v", err)
 		return -1
 	}
-	return int32(tmsi)
+	logger.ContextLog.Infof("Allocate TMSI : ", val)
+	return int32(val)
 }
 
 func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
-	return amfUeNGAPIDGenerator.Allocate()
+	val, err := AllocateUniqueID(&amfUeNGAPIDGenerator, "amfUeNgapID")
+	if err != nil {
+		logger.ContextLog.Errorf("Allocate NgapID error: %+v", err)
+		return -1, err
+	}
+
+	logger.ContextLog.Infof("Allocate AmfUeNgapID : ", val)
+	return val, nil
 }
 
 func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
@@ -389,7 +400,12 @@ func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
 	return false
 }
 
-func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
+func mapToByte(data map[string]interface{}) (ret []byte) {
+	ret, _ = json.Marshal(data)
+	return
+}
+
+func (context *AMFContext) AmfUeFindByGutiLocal(guti string) (ue *AmfUe, ok bool) {
 	context.UePool.Range(func(key, value interface{}) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.Guti == guti); ok {
@@ -398,6 +414,25 @@ func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
 		}
 		return true
 	})
+
+	return
+}
+
+func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
+	ue, ok = context.AmfUeFindByGutiLocal(guti)
+	if ok {
+		logger.ContextLog.Infof("Guti found locally : ", guti)
+	} else if context.EnableDbStore {
+		ue, ok = DbFetchUeByGuti(guti)
+		if ue != nil && ok {
+			logger.ContextLog.Infof("Ue with Guti found in DB : ", guti)
+			context.UePool.Store(ue.Supi, ue)
+		} else {
+			logger.ContextLog.Infof("Ue with Guti not found locally and in DB: ", guti)
+		}
+	} else {
+		logger.ContextLog.Infof("Ue with Guti not found : ", guti)
+	}
 	return
 }
 
@@ -413,12 +448,30 @@ func (context *AMFContext) AmfUeFindByPolicyAssociationID(polAssoId string) (ue 
 	return
 }
 
-func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
+func (context *AMFContext) RanUeFindByAmfUeNgapIDLocal(amfUeNgapID int64) *RanUe {
 	if value, ok := context.RanUePool.Load(amfUeNgapID); ok {
 		return value.(*RanUe)
 	} else {
 		return nil
 	}
+}
+
+func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
+	ranUe := context.RanUeFindByAmfUeNgapIDLocal(amfUeNgapID)
+	if ranUe != nil {
+		return ranUe
+	} else {
+		if context.EnableDbStore {
+			ranUe = DbFetchRanUeByAmfUeNgapID(amfUeNgapID)
+			if ranUe != nil {
+				context.RanUePool.Store(ranUe.AmfUeNgapId, &ranUe)
+				return ranUe
+			}
+		}
+	}
+
+	logger.ContextLog.Errorf("ranUe not found with AmfUeNgapID")
+	return nil
 }
 
 func (context *AMFContext) GetIPv4Uri() string {

@@ -94,6 +94,7 @@ func InitAmfContext(context *context.AMFContext) {
 	context.T3560Cfg = configuration.T3560
 	context.T3565Cfg = configuration.T3565
 	context.EnableSctpLb = configuration.EnableSctpLb
+	context.EnableDbStore = configuration.EnableDbStore
 }
 
 func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {

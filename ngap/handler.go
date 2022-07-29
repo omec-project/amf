@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -674,6 +675,8 @@ func HandleUplinkNasTransport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
 	}
+
+	ranUe.Ran = ran
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
 		err := ranUe.Remove()
@@ -926,6 +929,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 
+	ranUe.Ran = ran
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
 		ran.Log.Infof("Release UE Context : RanUe[AmfUeNgapId: %d]", ranUe.AmfUeNgapId)
@@ -1034,6 +1038,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
+		context.StoreContextInDB(amfUe)
 	case context.UeContextReleaseUeContext:
 		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
 		err := ranUe.Remove()
@@ -1045,6 +1050,9 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if !amfUe.SecurityContextAvailable {
 			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
 			amfUe.Remove()
+			context.DeleteContextFromDB(amfUe)
+		} else {
+			context.StoreContextInDB(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
 		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
@@ -1054,11 +1062,13 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		}
 
 		amfUe.Remove()
+		context.DeleteContextFromDB(amfUe)
 	case context.UeContextReleaseHandover:
 		ran.Log.Infof("Release UE[%s] Context : Release for Handover", amfUe.Supi)
 		// TODO: it's a workaround, need to fix it.
 		targetRanUe := context.AMF_Self().RanUeFindByAmfUeNgapID(ranUe.TargetUe.AmfUeNgapId)
 
+		targetRanUe.Ran = ran
 		context.DetachSourceUeTargetUe(ranUe)
 		err := ranUe.Remove()
 		if err != nil {
@@ -1343,21 +1353,27 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
+	// When enableDBStore is enabled, if AMF restarts, the AmfRan
+	// will not have RANID information because NG setup is not
+	// done. It will be populated from the RAN structure stored in DB
+
 	// 38413 10.4, logical error case2, checking InitialUE is recevived before NgSetup Message
-	if ran.RanId == nil {
-		procedureCode := ngapType.ProcedureCodeInitialUEMessage
-		triggeringMessage := ngapType.TriggeringMessagePresentInitiatingMessage
-		procedureCriticality := ngapType.CriticalityPresentIgnore
-		criticalityDiagnostics := buildCriticalityDiagnostics(&procedureCode, &triggeringMessage, &procedureCriticality,
-			nil)
-		cause := ngapType.Cause{
-			Present: ngapType.CausePresentProtocol,
-			Protocol: &ngapType.CauseProtocol{
-				Value: ngapType.CauseProtocolPresentMessageNotCompatibleWithReceiverState,
-			},
+	if !amfSelf.EnableSctpLb {
+		if ran.RanId == nil {
+			procedureCode := ngapType.ProcedureCodeInitialUEMessage
+			triggeringMessage := ngapType.TriggeringMessagePresentInitiatingMessage
+			procedureCriticality := ngapType.CriticalityPresentIgnore
+			criticalityDiagnostics := buildCriticalityDiagnostics(&procedureCode, &triggeringMessage, &procedureCriticality,
+				nil)
+			cause := ngapType.Cause{
+				Present: ngapType.CausePresentProtocol,
+				Protocol: &ngapType.CauseProtocol{
+					Value: ngapType.CauseProtocolPresentMessageNotCompatibleWithReceiverState,
+				},
+			}
+			ngap_message.SendErrorIndication(ran, nil, nil, &cause, &criticalityDiagnostics)
+			return
 		}
-		ngap_message.SendErrorIndication(ran, nil, nil, &cause, &criticalityDiagnostics)
-		return
 	}
 
 	ran.Log.Info("Handle Initial UE Message")
@@ -1471,6 +1487,7 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			}
 		}
 	} else {
+		ranUe.Ran = ran
 		ranUe.AmfUe.AttachRanUe(ranUe)
 	}
 
@@ -1577,6 +1594,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 	}
 
 	if ranUe != nil {
+		ranUe.Ran = ran
 		ranUe.Log.Tracef("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 		amfUe := ranUe.AmfUe
 		if amfUe == nil {
@@ -1639,6 +1657,9 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 				// }
 			}
 		}
+
+		//store context in DB. PDU Establishment is complete.
+		context.StoreContextInDB(amfUe)
 	}
 
 	if criticalityDiagnostics != nil {
@@ -1739,6 +1760,7 @@ func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapTy
 	}
 
 	if ranUe != nil {
+		ranUe.Ran = ran
 		ranUe.Log.Tracef("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 		amfUe := ranUe.AmfUe
 		if amfUe == nil {
@@ -1871,6 +1893,7 @@ func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPP
 		return
 	}
 
+	ranUe.Ran = ran
 	ranUe.Log.Tracef("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
@@ -2260,6 +2283,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 	ranUe.RecvdInitialContextSetupResponse = true
+	context.StoreContextInDB(amfUe)
 }
 
 func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -2443,6 +2467,7 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 		return
 	}
 
+	ranUe.Ran = ran
 	ran.Log.Tracef("RanUeNgapID[%d] AmfUeNgapID[%d]", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
 
 	causeGroup := ngapType.CausePresentRadioNetwork
@@ -2584,6 +2609,7 @@ func HandleUEContextModificationResponse(ran *context.AmfRan, message *ngapType.
 	}
 
 	if ranUe != nil {
+		ranUe.Ran = ran
 		ranUe.Log.Tracef("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
 		if rRCState != nil {
@@ -2675,6 +2701,7 @@ func HandleUEContextModificationFailure(ran *context.AmfRan, message *ngapType.N
 	}
 
 	if ranUe != nil {
+		ranUe.Ran = ran
 		ran.Log.Tracef("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 	}
 
@@ -2946,6 +2973,7 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
+	ranUe.Ran = ran
 	ran.Log.Tracef("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
 	amfUe := ranUe.AmfUe
@@ -3145,6 +3173,8 @@ func HandleHandoverRequestAcknowledge(ran *context.AmfRan, message *ngapType.NGA
 	if rANUENGAPID != nil {
 		targetUe.RanUeNgapId = rANUENGAPID.Value
 	}
+
+	targetUe.Ran = ran
 	ran.Log.Debugf("Target Ue RanUeNgapID[%d] AmfUeNgapID[%d]", targetUe.RanUeNgapId, targetUe.AmfUeNgapId)
 
 	amfUe := targetUe.AmfUe
@@ -3294,6 +3324,7 @@ func HandleHandoverFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
+	targetUe.Ran = ran
 	sourceUe := targetUe.SourceUe
 	if sourceUe == nil {
 		// TODO: handle N2 Handover between AMF
@@ -4515,6 +4546,7 @@ func HandleCellTrafficTrace(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		}
 	}
 
+	ranUe.Ran = ran
 	ran.Log.Debugf("UE: AmfUeNgapID[%d], RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
 	ranUe.Trsr = hex.EncodeToString(nGRANTraceID.Value[6:])
