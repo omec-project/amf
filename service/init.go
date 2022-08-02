@@ -10,6 +10,7 @@ package service
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -333,7 +334,7 @@ func (amf *AMF) Start() {
 	}
 
 	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
+	signal.Notify(signalChannel, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV, syscall.SIGCHLD)
 	go func() {
 		<-signalChannel
 		amf.Terminate()
@@ -361,6 +362,14 @@ func (amf *AMF) Start() {
 	if err != nil {
 		initLog.Fatalf("HTTP server setup failed: %+v", err)
 	}
+
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("panic occurred:", err)
+			amf.Terminate()
+			os.Exit(0)
+		}
+	}()
 }
 
 func (amf *AMF) Exec(c *cli.Context) error {
@@ -478,6 +487,13 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 func (amf *AMF) UpdateNF() {
 	KeepAliveTimerMutex.Lock()
 	defer KeepAliveTimerMutex.Unlock()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("panic occurred:", err)
+			amf.Terminate()
+			os.Exit(0)
+		}
+	}()
 	if KeepAliveTimer == nil {
 		initLog.Warnf("KeepAlive timer has been stopped.")
 		return

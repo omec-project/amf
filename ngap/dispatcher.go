@@ -14,6 +14,7 @@ import (
 	"git.cs.nctu.edu.tw/calee/sctp"
 
 	"fmt"
+
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -62,12 +63,8 @@ func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfSer
 			NgapMsg: pdu,
 		}
 
-		globalRANNodeID := ranUe.Ran.RanId
-		ranUe.Ran = ran
-		ranUe.Ran.RanId = globalRANNodeID
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		fmt.Println("ranUe nil :  ", ran.RanID())
 		go DispatchNgapMsg(ran, pdu)
 	}
 }

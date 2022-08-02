@@ -123,7 +123,7 @@ func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
 		return -1, err
 	}
 
-	logger.ContextLog.Infof("Allocate AmfUeNgapID : ", val)
+	logger.ContextLog.Infoln("Allocated AmfUeNgapID : ", val)
 	return val, nil
 }
 

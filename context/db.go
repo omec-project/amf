@@ -8,12 +8,13 @@ package context
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"sync"
+
 	"github.com/omec-project/MongoDBLibrary"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/idgenerator"
 	"go.mongodb.org/mongo-driver/bson"
-	"os"
-	"sync"
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
@@ -170,7 +171,7 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Errorf("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
+		logger.ContextLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
 		return nil
 	}
 
