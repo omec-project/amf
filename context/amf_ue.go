@@ -13,6 +13,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/omec-project/UeauCommon"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/fsm"
 	"github.com/omec-project/idgenerator"
 	"github.com/omec-project/nas/nasMessage"
@@ -198,6 +200,9 @@ type AmfUe struct {
 	T3512Value                      int `json:"t3512Value,omitempty"`                      // default 54 min
 	Non3gppDeregistrationTimerValue int `json:"non3gppDeregistrationTimerValue,omitempty"` // default 54 min
 
+	//AmfInstanceName and Ip
+	AmfInstanceName string `json:"amfInstanceName,omitempty"`
+	AmfInstanceIp   string `json:"amfInstanceIp,omitempty"`
 	//EventChannel  chan OnGoing
 	//EventChannel *EventChannel `json:"eventChannel,omitempty" yaml:"eventChannel" bson:"eventChannel,omitempty"`
 	EventChannel *EventChannel `json:"-"`
@@ -217,9 +222,9 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	stateVal := make(map[models.AccessType]string)
 	smCtxListVal := make(map[string]SmContext)
 	var ranUeNgapIDVal, amfUeNgapIDVal int64
-	var gnbIp string
+	var gnbId string
 	if ue.RanUe != nil && ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-		gnbIp = ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbIp
+		gnbId = ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
 		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 			ranUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
 			amfUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
@@ -269,14 +274,14 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	})
 
 	customAmfUe := CustomFieldsAmfUe{
-		State:         stateVal,
-		SmCtxList:     smCtxListVal,
-		ULCount:       ue.ULCount.Get(),
-		DLCount:       ue.DLCount.Get(),
-		RanUeNgapId:   ranUeNgapIDVal,
-		AmfUeNgapId:   amfUeNgapIDVal,
-		N1N2Message:   n1n2MsgVal,
-		RanRemoteAddr: gnbIp,
+		State:       stateVal,
+		SmCtxList:   smCtxListVal,
+		ULCount:     ue.ULCount.Get(),
+		DLCount:     ue.DLCount.Get(),
+		RanUeNgapId: ranUeNgapIDVal,
+		AmfUeNgapId: amfUeNgapIDVal,
+		N1N2Message: n1n2MsgVal,
+		RanId:       gnbId,
 	}
 
 	return json.Marshal(&struct {
@@ -302,12 +307,23 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	}
 
 	aux := auxCustom.CustomAmfUe
+	ran, ok := AMF_Self().AmfRanFindByGnbId(aux.RanId)
+	if !ok {
+		logger.ContextLog.Warnln("Ran Connection is not Exist with GnbID: ", aux.RanId)
+	}
 	for index, states := range aux.State {
-		ue.State[index].Set(fsm.StateType(states))
+		ue.State[index] = fsm.NewState(fsm.StateType(states))
 		if ue.RanUe[index] == nil {
 			ue.RanUe[index] = &RanUe{}
 		}
+		ue.RanUe[index].RanUeNgapId = aux.RanUeNgapId
+		ue.RanUe[index].AmfUeNgapId = aux.AmfUeNgapId
 		ue.RanUe[index].Log = logger.NgapLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
+		if ran != nil {
+			//ran.RanUeList = append(ran.RanUeList, ue.RanUe[index])
+			ue.RanUe[index].Ran = ran
+
+		}
 	}
 	for key, val := range aux.SmCtxList {
 		keyVal, _ := strconv.ParseInt(key, 10, 32)
@@ -351,8 +367,9 @@ type NasMsg struct {
 }
 
 type NgapMsg struct {
-	NgapMsg *ngapType.NGAPPDU
-	Ran     *AmfRan
+	SctplbMsg *sdcoreAmfServer.SctplbMessage
+	NgapMsg   *ngapType.NGAPPDU
+	Ran       *AmfRan
 }
 
 type SbiResponseMsg struct {
@@ -443,6 +460,8 @@ func (ue *AmfUe) init() {
 	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
 	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
+	ue.AmfInstanceName = os.Getenv("HOSTNAME")
+	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	//ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
 }
 
@@ -467,7 +486,10 @@ func (ue *AmfUe) Remove() {
 			logger.ContextLog.Errorf("Remove RanUe error: %v", err)
 		}
 	}
-	tmsiGenerator.FreeID(int64(ue.Tmsi))
+
+	//tmsiGenerator.FreeID(int64(ue.Tmsi))
+	AMF_Self().Drsm.ReleaseInt32ID(ue.Tmsi)
+
 	if len(ue.Supi) > 0 {
 		AMF_Self().UePool.Delete(ue.Supi)
 	}
@@ -983,6 +1005,7 @@ func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg)) {
 	if ue.EventChannel == nil {
 		ue.TxLog.Errorf("Creating new AmfUe EventChannel")
 		ue.EventChannel = ue.NewEventChannel()
+		ue.EventChannel.AmfUe = ue
 		ue.EventChannel.UpdateNgapHandler(handler)
 		go ue.EventChannel.Start()
 	}

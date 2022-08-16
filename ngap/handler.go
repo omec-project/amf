@@ -9,6 +9,7 @@ package ngap
 
 import (
 	"encoding/hex"
+	"os"
 	"strconv"
 
 	"github.com/omec-project/amf/consumer"
@@ -17,6 +18,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas"
 	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/aper"
 	"github.com/omec-project/nas/nasMessage"
@@ -26,7 +28,7 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
-func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.RanUe {
+func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context.RanUe, *ngapType.AMFUENGAPID) {
 	amfSelf := context.AMF_Self()
 
 	var rANUENGAPID *ngapType.RANUENGAPID
@@ -36,18 +38,18 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 
 	if ran == nil {
 		logger.NgapLog.Error("ran is nil")
-		return nil
+		return nil, nil
 	}
 	if message == nil {
 		ran.Log.Error("NGAP Message is nil")
-		return nil
+		return nil, nil
 	}
 	switch message.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := message.InitiatingMessage
 		if initiatingMessage == nil {
 			ran.Log.Errorln("initiatingMessage is nil")
-			return nil
+			return nil, nil
 		}
 		switch initiatingMessage.ProcedureCode.Value {
 		case ngapType.ProcedureCodeNGSetup:
@@ -55,7 +57,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 			ngapMsg := initiatingMessage.Value.InitialUEMessage
 			if ngapMsg == nil {
 				ran.Log.Error("InitialUEMessage is nil")
-				return nil
+				return nil, nil
 			}
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
@@ -65,7 +67,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RanUeNgapID is nil")
-						return nil
+						return nil, nil
 					}
 				case ngapType.ProtocolIEIDFiveGSTMSI: // optional, reject
 					fiveGSTMSI = ie.Value.FiveGSTMSI
@@ -110,7 +112,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 			ngapMsg := initiatingMessage.Value.UplinkNASTransport
 			if ngapMsg == nil {
 				ran.Log.Error("UplinkNasTransport is nil")
-				return nil
+				return nil, nil
 			}
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
@@ -120,8 +122,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RanUeNgapID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -135,8 +139,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -150,14 +156,14 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
 						ran.Log.Error("AMFUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				case ngapType.ProtocolIEIDRANUENGAPID:
 					rANUENGAPID = ie.Value.RANUENGAPID
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				}
 			}
@@ -175,8 +181,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -192,8 +200,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -208,8 +218,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -223,8 +235,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -240,8 +254,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -256,7 +272,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
 						ran.Log.Error("AMFUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				}
 			}
@@ -274,7 +290,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
 						ran.Log.Error("AMFUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				}
 			}
@@ -288,7 +304,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 		successfulOutcome := message.SuccessfulOutcome
 		if successfulOutcome == nil {
 			ran.Log.Errorln("successfulOutcome is nil")
-			return nil
+			return nil, nil
 		}
 
 		switch successfulOutcome.ProcedureCode.Value {
@@ -303,7 +319,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
 						ran.Log.Error("AMFUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				}
 			}
@@ -319,8 +335,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -337,8 +355,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -353,8 +373,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -369,8 +391,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -385,8 +409,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -401,7 +427,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
 						ran.Log.Error("AMFUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				}
 			}
@@ -412,7 +438,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 		unsuccessfulOutcome := message.UnsuccessfulOutcome
 		if unsuccessfulOutcome == nil {
 			ran.Log.Errorln("unsuccessfulOutcome is nil")
-			return nil
+			return nil, nil
 		}
 		switch unsuccessfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
@@ -426,8 +452,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -442,8 +470,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE RanUeNgapID")
 					if rANUENGAPID == nil {
 						ran.Log.Error("RANUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
+				case ngapType.ProtocolIEIDAMFUENGAPID:
+					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -458,14 +488,14 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) *context.
 					ran.Log.Trace("Decode IE AmfUeNgapID")
 					if aMFUENGAPID == nil {
 						ran.Log.Error("AMFUENGAPID is nil")
-						return nil
+						return nil, nil
 					}
 				}
 			}
 			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
 		}
 	}
-	return ranUe
+	return ranUe, aMFUENGAPID
 }
 
 func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -528,8 +558,10 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			}
 		}
 	}
+	if globalRANNodeID != nil {
+		ran.SetRanId(globalRANNodeID)
+	}
 
-	ran.SetRanId(globalRANNodeID)
 	if rANNodeName != nil {
 		ran.Name = rANNodeName.Value
 	}
@@ -1055,12 +1087,11 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 			context.StoreContextInDB(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
-		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
+		ran.Log.Infof("Release UE[%s] Context Due to Nw Initiated: Release Ue Context", amfUe.Supi)
 		err := ranUe.Remove()
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
-
 		amfUe.Remove()
 		context.DeleteContextFromDB(amfUe)
 	case context.UeContextReleaseHandover:
@@ -1323,7 +1354,7 @@ func HandleLocationReportingFailureIndication(ran *context.AmfRan, message *ngap
 	}
 }
 
-func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
 	amfSelf := context.AMF_Self()
 
 	var rANUENGAPID *ngapType.RANUENGAPID
@@ -1475,6 +1506,25 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				ranUe.Log.Warnf("Unknown UE [GUTI: %s]", guti)
 			} else {
 				ranUe.Log.Tracef("find AmfUe [GUTI: %s]", guti)
+				/* checking the guti-ue belongs to this amf instance */
+				id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(amfUe.Tmsi))
+				if id != nil && id.PodName != os.Getenv("HOSTNAME") && amfSelf.EnableSctpLb {
+					rsp := &sdcoreAmfServer.AmfMessage{}
+					rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
+					rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
+					rsp.AmfId = os.Getenv("HOSTNAME")
+					/* TODO for this release setting pod ip to simplify logic in sctplb */
+					rsp.RedirectId = id.PodIp
+					rsp.GnbId = ran.GnbId
+					rsp.Msg = sctplbMsg.Msg
+					if ranUe != nil && ranUe.AmfUe != nil {
+						ranUe.AmfUe.Remove()
+					} else if ranUe != nil {
+						ranUe.Remove()
+					}
+					ran.Amf2RanMsgChan <- rsp
+					return
+				}
 
 				if amfUe.CmConnect(ran.AnType) {
 					ranUe.Log.Debug("Implicit Deregistration")
@@ -1525,6 +1575,9 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Errorf("libngap Encoder Error: %+v", err)
 	}
 	ranUe.InitialUEMessage = pdu
+	if amfSelf.EnableSctpLb {
+		ranUe.SctplbMsg = sctplbMsg.Msg
+	}
 	nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, nASPDU.Value)
 }
 

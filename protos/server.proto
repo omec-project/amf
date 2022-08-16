@@ -1,9 +1,6 @@
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 //
 // SPDX-License-Identifier: Apache-2.0
-//
-
-
 syntax = "proto3";
 package sdcoreAmfServer;
 option go_package = "./sdcoreAmfServer";
@@ -13,19 +10,30 @@ enum msgType {
     INIT_MSG  = 1;
     GNB_MSG   = 2;
     AMF_MSG   = 3;
-    GNB_DISC  = 4;
-    GNB_CONN  = 5;
+    REDIRECT_MSG = 4;
+    GNB_DISC  = 5;
+    GNB_CONN  = 6;
 }
 
-message Message {
+message SctplbMessage {
     string SctplbId     = 1;
-    string AmfId        = 2;
-    msgType Msgtype     = 3;
-    string GnbId        = 4;
-    string VerboseMsg   = 5;
-    bytes Msg           = 6;
+    msgType Msgtype     = 2;
+    string GnbIpAddr    = 3;
+    string VerboseMsg   = 4;
+    bytes Msg           = 5;
+    string GnbId        = 6;
+}
+
+message AmfMessage {
+   string AmfId        = 1;
+   string RedirectId   = 2;
+   msgType Msgtype     = 3;
+   string GnbIpAddr    = 4;
+   string GnbId        = 5;
+   string VerboseMsg   = 6;
+   bytes Msg           = 7;
 }
 
 service NgapService {
-  rpc HandleMessage(stream Message) returns (stream Message) {}
+  rpc HandleMessage(stream SctplbMessage) returns (stream AmfMessage) {}
 }

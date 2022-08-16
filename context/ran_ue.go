@@ -79,9 +79,13 @@ type RanUe struct {
 
 	/* logger */
 	Log *logrus.Entry `json:"-"`
+
+	/* Sctplb Redirect Msg */
+	SctplbMsg []byte
 }
 
 func (ranUe *RanUe) Remove() error {
+	fmt.Printf("RanUe has been deleted")
 	if ranUe == nil {
 		return fmt.Errorf("RanUe not found in RemoveRanUe")
 	}
@@ -102,7 +106,8 @@ func (ranUe *RanUe) Remove() error {
 	}
 	self := AMF_Self()
 	self.RanUePool.Delete(ranUe.AmfUeNgapId)
-	amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
+	//amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
+	self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId))
 	return nil
 }
 

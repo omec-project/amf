@@ -8,12 +8,13 @@ package context
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"sync"
+
 	"github.com/omec-project/MongoDBLibrary"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/idgenerator"
 	"go.mongodb.org/mongo-driver/bson"
-	"os"
-	"sync"
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
@@ -22,14 +23,14 @@ import (
 var dbMutex sync.Mutex
 
 type CustomFieldsAmfUe struct {
-	State         map[models.AccessType]string `json:"state"`
-	SmCtxList     map[string]SmContext         `json:"smCtxList"`
-	N1N2Message   N1N2Message                  `json:"n1n2Msg"`
-	ULCount       uint32                       `json:"ulCount"`
-	DLCount       uint32                       `json:"dlCount"`
-	RanUeNgapId   int64                        `json:"ranUeNgapId"`
-	AmfUeNgapId   int64                        `json:"amfUeNgapId"`
-	RanRemoteAddr string                       `json:"ranRemoteAddr"`
+	State       map[models.AccessType]string `json:"state"`
+	SmCtxList   map[string]SmContext         `json:"smCtxList"`
+	N1N2Message N1N2Message                  `json:"n1n2Msg"`
+	ULCount     uint32                       `json:"ulCount"`
+	DLCount     uint32                       `json:"dlCount"`
+	RanUeNgapId int64                        `json:"ranUeNgapId"`
+	AmfUeNgapId int64                        `json:"amfUeNgapId"`
+	RanId       string                       `json:"ranId"`
 }
 
 var Namespace = os.Getenv("POD_NAMESPACE")
@@ -68,15 +69,26 @@ func SetupAmfCollection() {
 		factory.AmfConfig.Configuration.AmfDBName = "sdcore_amf"
 	}
 	if (factory.AmfConfig.Configuration.Mongodb == nil) ||
-		(factory.AmfConfig.Configuration.Mongodb.Url == "") {
-		mongoDbUrl = "mongodb://mongodb:27017"
+		factory.AmfConfig.Configuration.Mongodb.Url == "" {
+		mongoDbUrl = "mongodb://mongodb-arbiter-headless"
+	} else {
+		mongoDbUrl = factory.AmfConfig.Configuration.Mongodb.Url
 	}
+
+	logger.ContextLog.Infof("MondbName: %v, Url: %v", factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
 
 	if Namespace != "" {
 		AmfUeDataColl = Namespace + "." + AmfUeDataColl
 	}
-
-	MongoDBLibrary.SetMongoDB(factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
+	for {
+		MongoDBLibrary.SetMongoDB(factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
+		if MongoDBLibrary.Client == nil {
+			logger.ContextLog.Errorf("MongoDb Connection failed")
+		} else {
+			logger.ContextLog.Infof("Successfully connected to Mongodb")
+			break
+		}
+	}
 	_, err := MongoDBLibrary.CreateIndex(AmfUeDataColl, "supi")
 	if err != nil {
 		logger.ContextLog.Errorf("Create index failed on Supi field.")
@@ -92,10 +104,10 @@ func SetupAmfCollection() {
 		logger.ContextLog.Errorf("Create index failed on Tmsi field.")
 	}
 
-	_, err = MongoDBLibrary.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.amfUeNgapId")
+	/*_, err = MongoDBLibrary.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.amfUeNgapId")
 	if err != nil {
 		logger.ContextLog.Errorf("Create index failed on AmfUeNgapID field.")
-	}
+	}*/
 
 	// Indexing for ranUeNgapId would fail if we have multiple gnbs.
 	// TODO: We should create index with multiple fields (ranUeNgapId & ranIpAddr)
@@ -151,21 +163,26 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 		return nil
 	}
 
-	ue.Mutex.Lock()
-	defer ue.Mutex.Unlock()
+	dbMutex.Lock()
+	defer dbMutex.Unlock()
 
 	ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUe = ue
+	AMF_Self().RanUePool.Store(ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId, ue.RanUe[models.AccessType__3_GPP_ACCESS])
+	AMF_Self().UePool.Store(ue.Supi, ue)
 	ue.EventChannel = nil
 	ue.NASLog = logger.NasLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
 	ue.GmmLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
 	ue.TxLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
+	ue.AmfInstanceName = os.Getenv("HOSTNAME")
+	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	return ue
 }
 
 func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 	filter := bson.M{}
 	filter["customFieldsAmfUe.ranUeNgapId"] = ranUeNgapID
-	filter["customFieldsAmfUe.ranRemoteAddr"] = ran.GnbIp
+	filter["customFieldsAmfUe.ranId"] = ran.GnbId
 
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
@@ -182,7 +199,6 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 	if ranUe != nil {
 		return ranUe
 	}
-
 	return ue.RanUe[models.AccessType__3_GPP_ACCESS]
 }
 
@@ -205,7 +221,6 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	if ranUe != nil {
 		return ranUe
 	}
-
 	return ue.RanUe[models.AccessType__3_GPP_ACCESS]
 }
 
@@ -232,4 +247,47 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 	}
 
 	return ue, ok
+}
+
+func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
+	self := AMF_Self()
+	filter := bson.M{}
+	filter["supi"] = supi
+
+	ue = DbFetch(AmfUeDataColl, filter)
+	if ue == nil {
+		logger.ContextLog.Warnf("FindBySupi : no document found for supi ", supi)
+		return nil, false
+	} else {
+		ok = true
+	}
+	//Check if some parallel procedure has already
+	//fetched AmfUe. If so, then return the same.
+	//else return newly fetched AmfUe and store in context
+	if amfUe, ret := self.AmfUeFindBySupiLocal(supi); ret {
+		logger.ContextLog.Infof("FindBySupi : found by local", supi)
+		ue = amfUe
+		ok = ret
+	}
+
+	return ue, ok
+}
+
+func DbFetchAllEntries() (ueList []*AmfUe) {
+	ue := &AmfUe{}
+	filter := bson.M{}
+	results := MongoDBLibrary.RestfulAPIGetMany(AmfUeDataColl, filter)
+
+	for _, val := range results {
+		ue = &AmfUe{}
+		ue.init()
+		err := json.Unmarshal(mapToByte(val), ue)
+		if err != nil {
+			logger.ContextLog.Errorf("amfue unmarshall error: %v", err)
+			return nil
+		}
+		ueList = append(ueList, ue)
+	}
+
+	return ueList
 }
