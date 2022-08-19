@@ -41,10 +41,10 @@ func init() {
 	AMF_Self().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
 	AMF_Self().PlmnSupportList = make([]factory.PlmnSupportItem, 0, MaxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
-	AMF_Self().NetworkName.Full = "free5GC"
 	//tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
-	amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
+	AMF_Self().NetworkName.Full = "free5GC"
 	//amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, MaxValueOfAmfUeNgapId)
+	amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 }
 
 type AMFContext struct {
