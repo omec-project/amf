@@ -170,6 +170,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	if guti != "" {
 		ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
 		if ue != nil {
+			if msg.SecurityHeaderType == nas.SecurityHeaderTypePlainNas {
+				ue.NASLog.Infof("UE Context derived from Guti but received in plain nas: %v", guti)
+				return nil
+			}
 			ue.NASLog.Infof("UE Context derived from Guti: %v", guti)
 			return ue
 		} else {
