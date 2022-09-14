@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"time"
 
+	nrf_cache "github.com/omec-project/amf/nrfcache"
+
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -327,6 +329,10 @@ func (amf *AMF) Start() {
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	go amf.SendNFProfileUpdateToNrf()
+
+	if self.EnableNrfCaching {
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval, consumer.SendNfDiscoveryToNrf)
+	}
 
 	if self.EnableSctpLb {
 		go StartGrpcServer(self.SctpGrpcPort)

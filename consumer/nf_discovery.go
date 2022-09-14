@@ -8,6 +8,7 @@ package consumer
 import (
 	"context"
 	"fmt"
+	nrf_cache "github.com/omec-project/amf/nrfcache"
 	"net/http"
 
 	amf_context "github.com/omec-project/amf/context"
@@ -18,6 +19,16 @@ import (
 )
 
 func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType,
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
+
+	if amf_context.AMF_Self().EnableNrfCaching {
+		return nrf_cache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+	} else {
+		return SendNfDiscoveryToNrf(nrfUri, targetNfType, requestNfType, param)
+	}
+}
+
+func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfType,
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
 	// Set client and set url
 	configuration := Nnrf_NFDiscovery.NewConfiguration()

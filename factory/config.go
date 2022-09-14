@@ -70,9 +70,11 @@ type Configuration struct {
 	T3565                           TimerValue                `yaml:"t3565"`
 
 	//Maintain TaiList per slice
-	SliceTaiList  map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
-	EnableSctpLb  bool                    `yaml:"enableSctpLb"`
-	EnableDbStore bool                    `yaml:"enableDBStore"`
+	SliceTaiList             map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
+	EnableSctpLb             bool                    `yaml:"enableSctpLb"`
+	EnableDbStore            bool                    `yaml:"enableDBStore"`
+	EnableNrfCaching         bool                    `yaml:"enableNrfCaching"`
+	NrfCacheEvictionInterval int                     `yaml:"nrfCacheEvictionInterval"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

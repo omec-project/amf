@@ -86,6 +86,8 @@ type AMFContext struct {
 	T3565Cfg      factory.TimerValue
 	EnableSctpLb  bool
 	EnableDbStore bool
+	EnableNrfCaching         bool
+	NrfCacheEvictionInterval time.Duration
 }
 
 type AMFContextEventSubscription struct {
