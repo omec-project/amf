@@ -146,7 +146,7 @@ func (c *NrfCache) handleLookup(nrfUri string, targetNfType, requestNfType model
 	c.mutex.RUnlock()
 
 	if len(searchResult.NfInstances) == 0 {
-		logger.UtilLog.Infof("Cache miss for nftype %s", targetNfType)
+		logger.UtilLog.Tracef("Cache miss for nftype %s", targetNfType)
 
 		c.mutex.Lock()
 		searchResult.NfInstances = c.get(param)
@@ -187,7 +187,8 @@ func (c *NrfCache) get(opts *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) []mode
 	for _, element := range c.cache {
 		if !element.isExpired() {
 			if opts != nil {
-				if matchFilters[element.nfProfile.NfType](element.nfProfile, opts) {
+				cb, ok := matchFilters[element.nfProfile.NfType]
+				if ok && cb(element.nfProfile, opts) {
 					nfProfiles = append(nfProfiles, *(element.nfProfile))
 				}
 			} else {
@@ -204,6 +205,8 @@ func (c *NrfCache) remove(item *NfProfileItem) {
 }
 
 func (c *NrfCache) cleanupExpiredItems() {
+	logger.UtilLog.Infoln("nrf cache: cleanup expired items")
+
 	for item := c.priorityQ.at(0); item.isExpired(); {
 
 		logger.UtilLog.Tracef("evicted nf instance %s", item.nfProfile.NfInstanceId)
@@ -255,7 +258,7 @@ func NewNrfCache(duration time.Duration, dbqueryCb NrfDiscoveryQueryCb) *NrfCach
 		done:                make(chan struct{}),
 	}
 
-	cache.evictionTicker = time.NewTicker(duration * time.Second)
+	cache.evictionTicker = time.NewTicker(duration)
 
 	go cache.startExpiryProcessing()
 
@@ -297,6 +300,27 @@ func (c *NrfMasterCache) GetNrfCacheInstance(targetNfType models.NfType) *NrfCac
 	return cache
 }
 
+func (c *NrfMasterCache) clearNrfCache(nfType models.NfType) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	cache, exists := c.nfTypeToCacheMap[nfType]
+	if exists == true {
+		cache.purge()
+		delete(c.nfTypeToCacheMap, nfType)
+	}
+}
+
+func (c *NrfMasterCache) clearNrfMasterCache() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	for k, cache := range c.nfTypeToCacheMap {
+		cache.purge()
+		delete(c.nfTypeToCacheMap, k)
+	}
+}
+
 var masterCache *NrfMasterCache
 
 type NrfDiscoveryQueryCb func(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error)
@@ -310,6 +334,11 @@ func InitNrfCaching(interval time.Duration, cb NrfDiscoveryQueryCb) {
 	masterCache = m
 }
 
+func DisableNrfCaching() {
+	masterCache.clearNrfMasterCache()
+	masterCache = nil
+}
+
 func SearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
 
 	logger.UtilLog.Traceln("SearchNFInstances nrf cache")
@@ -321,7 +350,7 @@ func SearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType,
 	if c != nil {
 		searchResult, err = c.handleLookup(nrfUri, targetNfType, requestNfType, param)
 	} else {
-		logger.UtilLog.Traceln("Failed to find cache for nftype")
+		logger.UtilLog.Errorln("Failed to find cache for nftype")
 	}
 
 	for _, np := range searchResult.NfInstances {

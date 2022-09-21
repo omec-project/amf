@@ -10,6 +10,7 @@ package service
 import (
 	"bufio"
 	"fmt"
+	nrf_cache "github.com/omec-project/amf/nrfcache"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -17,8 +18,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	nrf_cache "github.com/omec-project/amf/nrfcache"
 
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
@@ -331,7 +330,8 @@ func (amf *AMF) Start() {
 	go amf.SendNFProfileUpdateToNrf()
 
 	if self.EnableNrfCaching {
-		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval, consumer.SendNfDiscoveryToNrf)
+		initLog.Infoln("Enable NRF caching feature")
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
 	}
 
 	if self.EnableSctpLb {

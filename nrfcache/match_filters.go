@@ -104,30 +104,32 @@ func MatchSmfProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNFI
 		}
 		matchFound = dnnMatched
 	}
-	logger.UtilLog.Infof("SMF match found = %v", matchFound)
+	logger.UtilLog.Tracef("SMF match found = %v", matchFound)
 	return matchFound
+}
+
+func MatchSupiRange(supi string, supiRange []models.SupiRange) bool {
+	matchCount := 0
+	for _, s := range supiRange {
+		if len(s.Pattern) > 0 {
+			r, _ := regexp.Compile(s.Pattern)
+			if r.MatchString(supi) {
+				matchCount++
+			}
+
+		} else if s.Start <= supi && supi <= s.End {
+			matchCount++
+		}
+	}
+
+	return matchCount > 0
 }
 
 func MatchAusfProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) bool {
 	matchFound := true
 	if opts.Supi.IsSet() {
 		if profile.AusfInfo != nil && len(profile.AusfInfo.SupiRanges) > 0 {
-			matchCount := 0
-			for _, s := range profile.AusfInfo.SupiRanges {
-				if len(s.Pattern) > 0 {
-					r, _ := regexp.Compile(s.Pattern)
-					if r.MatchString(opts.Supi.Value()) {
-						matchCount++
-					}
-
-				} else if s.Start <= opts.Supi.Value() && opts.Supi.Value() < s.End {
-					matchCount++
-				}
-			}
-
-			if matchCount == 0 {
-				matchFound = false
-			}
+			matchFound = MatchSupiRange(opts.Supi.Value(), profile.AusfInfo.SupiRanges)
 		}
 	}
 	logger.UtilLog.Tracef("Ausf match found = %v", matchFound)
@@ -135,61 +137,33 @@ func MatchAusfProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNF
 }
 
 func MatchNssfProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) bool {
+	logger.UtilLog.Traceln("Nssf match found ")
 	return true
 }
 
 func MatchAmfProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) bool {
+	logger.UtilLog.Traceln("Amf match found ")
 	return true
 }
 
 func MatchPcfProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) bool {
 	matchFound := true
 	if opts.Supi.IsSet() {
-		if profile.AusfInfo != nil && len(profile.AusfInfo.SupiRanges) > 0 {
-			matchCount := 0
-			for _, s := range profile.AusfInfo.SupiRanges {
-				if len(s.Pattern) > 0 {
-					r, _ := regexp.Compile(s.Pattern)
-					if r.MatchString(opts.Supi.Value()) {
-						matchCount++
-					}
-
-				} else if s.Start <= opts.Supi.Value() && opts.Supi.Value() < s.End {
-					matchCount++
-				}
-			}
-
-			if matchCount == 0 {
-				matchFound = false
-			}
+		if profile.PcfInfo != nil && len(profile.PcfInfo.SupiRanges) > 0 {
+			matchFound = MatchSupiRange(opts.Supi.Value(), profile.PcfInfo.SupiRanges)
 		}
 	}
-	logger.UtilLog.Infof("PCF match found = %v", matchFound)
+	logger.UtilLog.Tracef("PCF match found = %v", matchFound)
 	return matchFound
 }
 
 func MatchUdmProfile(profile *models.NfProfile, opts *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) bool {
 	matchFound := true
 	if opts.Supi.IsSet() {
-		if profile.AusfInfo != nil && len(profile.AusfInfo.SupiRanges) > 0 {
-			matchCount := 0
-			for _, s := range profile.AusfInfo.SupiRanges {
-				if len(s.Pattern) > 0 {
-					r, _ := regexp.Compile(s.Pattern)
-					if r.MatchString(opts.Supi.Value()) {
-						matchCount++
-					}
-
-				} else if s.Start <= opts.Supi.Value() && opts.Supi.Value() < s.End {
-					matchCount++
-				}
-			}
-
-			if matchCount == 0 {
-				matchFound = false
-			}
+		if profile.UdmInfo != nil && len(profile.UdmInfo.SupiRanges) > 0 {
+			matchFound = MatchSupiRange(opts.Supi.Value(), profile.UdmInfo.SupiRanges)
 		}
 	}
-	logger.UtilLog.Infof("UDM match found = %v", matchFound)
+	logger.UtilLog.Tracef("UDM match found = %v", matchFound)
 	return matchFound
 }
