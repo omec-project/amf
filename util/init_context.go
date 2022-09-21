@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/omec-project/util/drsm"
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
@@ -17,6 +18,22 @@ import (
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/openapi/models"
 )
+
+func InitDrsm() (*drsm.Drsm, error) {
+	podname := os.Getenv("HOSTNAME")
+	podip := os.Getenv("POD_IP")
+	podId := drsm.PodId{PodName: podname, PodIp: podip}
+	dbUrl := "mongodb://mongodb-arbiter-headless"
+	if factory.AmfConfig.Configuration.Mongodb != nil ||
+		factory.AmfConfig.Configuration.Mongodb.Url != "" {
+		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
+	}
+	opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
+	db := drsm.DbInfo{Url: dbUrl, Name: factory.AmfConfig.Configuration.AmfDBName}
+
+	// amfid is being used for amfngapid, subscriberid and tmsi for this release
+	return drsm.InitDRSM("amfid", podId, db, opt)
+}
 
 func InitAmfContext(context *context.AMFContext) {
 	config := factory.AmfConfig
@@ -44,7 +61,7 @@ func InitAmfContext(context *context.AMFContext) {
 	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			context.RegisterIPv4 = sbi.RegisterIPv4
+			context.RegisterIPv4 = os.Getenv("POD_IP")
 		}
 		if sbi.Port != 0 {
 			context.SBIPort = sbi.Port
@@ -95,6 +112,7 @@ func InitAmfContext(context *context.AMFContext) {
 	context.T3565Cfg = configuration.T3565
 	context.EnableSctpLb = configuration.EnableSctpLb
 	context.EnableDbStore = configuration.EnableDbStore
+
 }
 
 func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {

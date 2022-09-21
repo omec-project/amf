@@ -38,6 +38,7 @@ var (
 
 const (
 	FieldRanAddr     string = "ran_addr"
+	FieldRanId       string = "ran_id"
 	FieldAmfUeNgapID string = "amf_ue_ngap_id"
 	FieldSupi        string = "supi"
 	FieldSuci        string = "suci"
@@ -52,7 +53,7 @@ func init() {
 		TrimMessages:    true,
 		NoFieldsSpace:   true,
 		HideKeys:        true,
-		FieldsOrder:     []string{"component", "category", FieldRanAddr, FieldAmfUeNgapID, FieldSupi, FieldSuci},
+		FieldsOrder:     []string{"component", "category", FieldRanAddr, FieldRanId, FieldAmfUeNgapID, FieldSupi, FieldSuci},
 	}
 
 	AppLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "App"})

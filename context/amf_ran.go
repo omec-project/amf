@@ -9,6 +9,9 @@ package context
 
 import (
 	"fmt"
+	"net"
+	"strings"
+
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
@@ -16,7 +19,6 @@ import (
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
 	"github.com/sirupsen/logrus"
-	"net"
 )
 
 const (
@@ -32,18 +34,19 @@ type AmfRan struct {
 	RanId      *models.GlobalRanNodeId
 	Name       string
 	AnType     models.AccessType
-	GnbIp      string
+	GnbIp      string `json:"-"` //TODO to be removed
+	GnbId      string // RanId in string format, i.e.,mcc:mnc:gnbid
 	/* socket Connect*/
 	Conn net.Conn `json:"-"`
 	/* Supported TA List */
-	SupportedTAList []SupportedTAI
+	SupportedTAList []SupportedTAI //TODO SupportedTaList store and recover from DB
 
 	/* RAN UE List */
 	RanUeList []*RanUe `json:"-"` // RanUeNgapId as key
 
 	/* logger */
-	Amf2RanMsgChan chan *sdcoreAmfServer.Message `json:"-"`
-	Log            *logrus.Entry                 `json:"-"`
+	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
+	Log            *logrus.Entry                    `json:"-"`
 }
 
 type SupportedTAI struct {
@@ -65,7 +68,9 @@ func (ran *AmfRan) Remove() {
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
 	if AMF_Self().EnableSctpLb {
-		AMF_Self().DeleteAmfRanAddr(ran.GnbIp)
+		if ran.GnbId != "" {
+			AMF_Self().DeleteAmfRanId(ran.GnbId)
+		}
 	} else {
 		AMF_Self().DeleteAmfRan(ran.Conn)
 	}
@@ -103,7 +108,7 @@ func (ran *AmfRan) RanUeFindByRanUeNgapIDLocal(ranUeNgapID int64) *RanUe {
 			return ranUe
 		}
 	}
-
+	ran.Log.Infof("RanUe is not exist")
 	return nil
 }
 
@@ -135,6 +140,27 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
 	} else {
 		ran.AnType = models.AccessType__3_GPP_ACCESS
 	}
+
+	//Setting RanId in String format with ":" seperation of each field
+	if ranId.PlmnId != nil {
+		ran.GnbId = ranId.PlmnId.Mcc + ":" + ranId.PlmnId.Mnc + ":"
+	}
+	if ranId.GNbId != nil {
+		ran.GnbId += ranId.GNbId.GNBValue
+	}
+	AMF_Self().AmfRanPool.Store(ran.GnbId, ran)
+}
+
+func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
+	var ranId *models.GlobalRanNodeId = &models.GlobalRanNodeId{}
+	val := strings.Split(gnbId, ":")
+	if len(val) != 3 {
+		return nil
+	}
+	ranId.PlmnId = &models.PlmnId{Mcc: val[0], Mnc: val[1]}
+	ranId.GNbId = &models.GNbId{GNBValue: val[2]}
+	ran.RanPresent = RanPresentGNbId
+	return ranId
 }
 
 func (ran *AmfRan) RanID() string {

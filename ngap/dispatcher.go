@@ -9,11 +9,13 @@ package ngap
 
 import (
 	"net"
+	"os"
 	"reflect"
 
 	"git.cs.nctu.edu.tw/calee/sctp"
 
 	"fmt"
+
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -23,34 +25,74 @@ import (
 	"github.com/omec-project/ngap/ngapType"
 )
 
-func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfServer.Message) {
-	fmt.Printf("DispatchLb %v %T", remoteAddr, Amf2RanMsgChan)
+func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage) {
+	fmt.Printf("DispatchLb GnbId:%v GnbIp: %v %T", sctplbMsg.GnbId, sctplbMsg.GnbIpAddr, Amf2RanMsgChan)
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
 
-	ran, ok := amfSelf.AmfRanFindByAddr(remoteAddr)
-	if !ok {
-		logger.NgapLog.Infof("Create a new NG connection for: %s", remoteAddr)
-		ran = amfSelf.NewAmfRanAddr(remoteAddr)
+	if sctplbMsg.GnbId != "" {
+		var ok bool
+		ran, ok = amfSelf.AmfRanFindByGnbId(sctplbMsg.GnbId)
+		if !ok {
+			logger.NgapLog.Infof("Create a new NG connection for: %s", sctplbMsg.GnbId)
+			ran = amfSelf.NewAmfRanId(sctplbMsg.GnbId)
+			ran.Amf2RanMsgChan = Amf2RanMsgChan
+			fmt.Println("DispatchLb, Create new Amf RAN ", sctplbMsg.GnbId)
+		}
+	} else if sctplbMsg.GnbIpAddr != "" {
+		fmt.Printf("GnbIpAddress received but no GnbId")
+		ran = &context.AmfRan{}
+		ran.SupportedTAList = context.NewSupportedTAIList()
 		ran.Amf2RanMsgChan = Amf2RanMsgChan
-		fmt.Println("DispatchLb, Create new Amf RAN ", remoteAddr)
+		ran.Log = logger.NgapLog.WithField(logger.FieldRanAddr, sctplbMsg.GnbIpAddr)
+		ran.GnbIp = sctplbMsg.GnbIpAddr
+		fmt.Println("DispatchLb, Create new Amf RAN with GnbIpAddress ", sctplbMsg.GnbIpAddr)
 	}
 
-	if len(msg) == 0 {
-		fmt.Println("DispatchLb, Messgae of size 0 -  ", remoteAddr)
+	if len(sctplbMsg.Msg) == 0 {
+		fmt.Println("DispatchLb, Messgae of size 0 -  ", sctplbMsg.GnbId)
 		ran.Log.Infof("RAN close the connection.")
 		ran.Remove()
 		return
 	}
 
-	pdu, err := ngap.Decoder(msg)
+	pdu, err := ngap.Decoder(sctplbMsg.Msg)
 	if err != nil {
 		ran.Log.Errorf("NGAP decode error : %+v", err)
-		fmt.Println("DispatchLb, decode Messgae error ", remoteAddr)
+		fmt.Println("DispatchLb, decode Messgae error ", sctplbMsg.GnbId)
 		return
 	}
 
-	ranUe := FetchRanUeContext(ran, pdu)
+	ranUe, ngapId := FetchRanUeContext(ran, pdu)
+	if ngapId != nil {
+		//ranUe.Log.Debugln("RanUe RanNgapId AmfNgapId: ", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
+		/* checking whether same AMF instance can handle this message */
+		/* redirect it to correct owner if required */
+		id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
+		if id != nil && id.PodName != os.Getenv("HOSTNAME") {
+			rsp := &sdcoreAmfServer.AmfMessage{}
+			rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
+			rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
+			rsp.AmfId = os.Getenv("HOSTNAME")
+			/* TODO set only pod name, for this release setting pod ip to simplify logic in sctplb */
+			fmt.Printf("DispatchLb, amfNgapId: %v is not for this amf instance, rediret to amf instance: %v %v", ngapId.Value, id.PodName, id.PodIp)
+			rsp.RedirectId = id.PodIp
+			rsp.GnbId = ran.GnbId
+			rsp.Msg = make([]byte, len(sctplbMsg.Msg))
+			copy(rsp.Msg, sctplbMsg.Msg)
+			ran.Amf2RanMsgChan = Amf2RanMsgChan
+			ran.Amf2RanMsgChan <- rsp
+			if ranUe != nil && ranUe.AmfUe != nil {
+				ranUe.AmfUe.Remove()
+			}
+			if ranUe != nil {
+				ranUe.Remove()
+			}
+			return
+		} else {
+			fmt.Printf("DispatchLb, amfNgapId: %v for this amf instance", ngapId.Value)
+		}
+	}
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
@@ -58,13 +100,14 @@ func DispatchLb(remoteAddr string, msg []byte, Amf2RanMsgChan chan *sdcoreAmfSer
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
-			Ran:     ran,
-			NgapMsg: pdu,
+			Ran:       ran,
+			NgapMsg:   pdu,
+			SctplbMsg: sctplbMsg,
 		}
 
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		go DispatchNgapMsg(ran, pdu)
+		go DispatchNgapMsg(ran, pdu, sctplbMsg)
 	}
 }
 
@@ -90,7 +133,7 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
-	ranUe := FetchRanUeContext(ran, pdu)
+	ranUe, _ := FetchRanUeContext(ran, pdu)
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
@@ -98,22 +141,23 @@ func Dispatch(conn net.Conn, msg []byte) {
 		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
-			Ran:     ran,
-			NgapMsg: pdu,
+			Ran:       ran,
+			NgapMsg:   pdu,
+			SctplbMsg: nil,
 		}
 
 		ranUe.Ran.Conn = conn
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		go DispatchNgapMsg(ran, pdu)
+		go DispatchNgapMsg(ran, pdu, nil)
 	}
 }
 
 func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
-	DispatchNgapMsg(msg.Ran, msg.NgapMsg)
+	DispatchNgapMsg(msg.Ran, msg.NgapMsg, msg.SctplbMsg)
 }
 
-func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU) {
+func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
 
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
@@ -132,7 +176,7 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU) {
 		case ngapType.ProcedureCodeNGSetup:
 			HandleNGSetupRequest(ran, pdu)
 		case ngapType.ProcedureCodeInitialUEMessage:
-			HandleInitialUEMessage(ran, pdu)
+			HandleInitialUEMessage(ran, pdu, sctplbMsg)
 		case ngapType.ProcedureCodeUplinkNASTransport:
 			HandleUplinkNasTransport(ran, pdu)
 		case ngapType.ProcedureCodeNGReset:
@@ -285,14 +329,14 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 	}
 }
 
-func HandleSCTPNotificationLb(remoteAddr string) {
+func HandleSCTPNotificationLb(gnbId string) {
 
-	logger.NgapLog.Infof("Handle SCTP Notification[addr: %+v]", remoteAddr)
+	logger.NgapLog.Infof("Handle SCTP Notification[GnbId: %+v]", gnbId)
 
 	amfSelf := context.AMF_Self()
-	ran, ok := amfSelf.AmfRanFindByAddr(remoteAddr)
+	ran, ok := amfSelf.AmfRanFindByGnbId(gnbId)
 	if !ok {
-		logger.NgapLog.Warnf("RAN context has been removed[addr: %+v]", remoteAddr)
+		logger.NgapLog.Warnf("RAN context has been removed[gnbId: %+v]", gnbId)
 		return
 	}
 
@@ -300,7 +344,7 @@ func HandleSCTPNotificationLb(remoteAddr string) {
 	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
 		amfRan := value.(*context.AmfRan)
 
-		if amfRan.GnbIp == remoteAddr {
+		if amfRan.GnbId == gnbId {
 			amfRan.Remove()
 			ran.Log.Infof("removed stale entry in AmfRan pool")
 		}
