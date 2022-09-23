@@ -2,10 +2,6 @@ module github.com/omec-project/amf
 
 go 1.18
 
-replace github.com/omec-project/MongoDBLibrary => ./MongoDBLibrary
-
-replace github.com/omec-project/util/drsm => ./drsm
-
 exclude google.golang.org/grpc v1.48.0
 
 require (
@@ -14,7 +10,7 @@ require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-contrib/cors v1.3.1
-	github.com/gin-gonic/gin v1.7.0
+	github.com/gin-gonic/gin v1.7.3
 	github.com/google/uuid v1.3.0
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
@@ -31,7 +27,7 @@ require (
 	github.com/omec-project/ngap v1.1.0
 	github.com/omec-project/openapi v1.1.0
 	github.com/omec-project/path_util v1.1.0
-	github.com/omec-project/util/drsm v0.0.0-00010101000000-000000000000
+	github.com/omec-project/util v1.0.3
 	github.com/prometheus/client_golang v1.11.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.7.1
@@ -45,7 +41,7 @@ require (
 
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
-	github.com/asaskevich/govalidator v0.0.0-20200907205600-7a23bdc65eef // indirect
+	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/avast/retry-go/v4 v4.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
@@ -54,7 +50,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/evanphx/json-patch v4.9.0+incompatible // indirect
+	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.13.0 // indirect
 	github.com/go-playground/universal-translator v0.17.0 // indirect
