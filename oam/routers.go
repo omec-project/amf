@@ -94,4 +94,10 @@ var routes = Routes{
 		"/purge-ue-context/:supi",
 		HTTPPurgeUEContext,
 	},
+	{
+		"Active UE List",
+		strings.ToUpper("get"),
+		"/active-ues",
+		HTTPGetActiveUes,
+	},
 }

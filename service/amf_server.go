@@ -7,12 +7,14 @@ package service
 
 import (
 	"fmt"
-	"github.com/omec-project/amf/ngap"
-	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"os"
+
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/ngap"
+	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	"google.golang.org/grpc"
 )
 
 type Server struct {
@@ -20,14 +22,14 @@ type Server struct {
 }
 
 func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServer) error {
-	var Amf2RanMsgChan chan *sdcoreAmfServer.Message
-	Amf2RanMsgChan = make(chan *sdcoreAmfServer.Message, 100)
+	var Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage
+	Amf2RanMsgChan = make(chan *sdcoreAmfServer.AmfMessage, 100)
 
 	go func() {
 		for {
 			select {
 			case msg1 := <-Amf2RanMsgChan:
-				log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v ", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype)
+				log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
 				if err := srv.Send(msg1); err != nil {
 					log.Println("Error in sending response")
 				}
@@ -41,13 +43,26 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 			log.Println("Error in SCTPLB stream ", err)
 			break
 		} else {
-			log.Printf("Receive message body from client (%s): Verbose - %s, MsgType %v ", req.SctplbId, req.VerboseMsg, req.Msgtype)
+			log.Printf("Receive message body from client (%s): GnbIp: %v, GnbId: %v, Verbose - %s, MsgType %v ", req.SctplbId, req.GnbIpAddr, req.GnbId, req.VerboseMsg, req.Msgtype)
 			if req.Msgtype == sdcoreAmfServer.MsgType_INIT_MSG {
-				rsp := &sdcoreAmfServer.Message{}
+				rsp := &sdcoreAmfServer.AmfMessage{}
 				rsp.VerboseMsg = "Hello From AMF Pod !"
 				rsp.Msgtype = sdcoreAmfServer.MsgType_INIT_MSG
 				rsp.AmfId = os.Getenv("HOSTNAME")
 				log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v ", rsp.AmfId, rsp.VerboseMsg, rsp.Msgtype)
+				amfSelf := context.AMF_Self()
+				var ran *context.AmfRan
+				var ok bool
+				if ran, ok = amfSelf.AmfRanFindByGnbId(req.GnbId); !ok {
+					ran = amfSelf.NewAmfRanId(req.GnbId)
+					if req.GnbId != "" {
+						ran.GnbId = req.GnbId
+						ran.RanId = ran.ConvertGnbIdToRanId(ran.GnbId)
+						log.Printf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
+						rsp.GnbId = req.GnbId
+					}
+				}
+				ran.Amf2RanMsgChan = Amf2RanMsgChan
 				if err := srv.Send(rsp); err != nil {
 					log.Println("Error in sending response")
 				}
@@ -57,7 +72,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
 				log.Println("New GNB Connected ")
 			} else {
-				ngap.DispatchLb(req.GnbId, req.Msg, Amf2RanMsgChan)
+				ngap.DispatchLb(req, Amf2RanMsgChan)
 			}
 		}
 	}

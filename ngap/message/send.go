@@ -6,6 +6,8 @@
 package message
 
 import (
+	"os"
+
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer/callback"
@@ -13,7 +15,6 @@ import (
 	"github.com/omec-project/aper"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
-	"os"
 )
 
 func SendToRan(ran *context.AmfRan, packet []byte) {
@@ -35,10 +36,12 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 	}
 
 	if context.AMF_Self().EnableSctpLb {
-		msg := &sdcoreAmfServer.Message{VerboseMsg: "Message from AMF"}
+		msg := &sdcoreAmfServer.AmfMessage{VerboseMsg: "Message from AMF"}
 		msg.Msg = packet
 		msg.Msgtype = sdcoreAmfServer.MsgType_AMF_MSG
 		msg.AmfId = os.Getenv("HOSTNAME")
+		msg.GnbIpAddr = ran.GnbIp
+		msg.GnbId = ran.GnbId
 		ran.Amf2RanMsgChan <- msg
 	} else {
 		if ran.Conn == nil {

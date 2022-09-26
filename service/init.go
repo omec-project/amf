@@ -297,8 +297,6 @@ func (amf *AMF) Start() {
 		MaxAge:           86400,
 	}))
 
-	context.SetupAmfCollection()
-
 	httpcallback.AddService(router)
 	oam.AddService(router)
 	for _, serviceName := range factory.AmfConfig.Configuration.ServiceNameList {
@@ -318,6 +316,7 @@ func (amf *AMF) Start() {
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
+	self.Drsm, _ = util.InitDrsm()
 
 	addr := fmt.Sprintf("%s:%d", self.BindingIPv4, self.SBIPort)
 
@@ -337,6 +336,8 @@ func (amf *AMF) Start() {
 	if self.EnableSctpLb {
 		go StartGrpcServer(self.SctpGrpcPort)
 	}
+
+	go context.SetupAmfCollection()
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
@@ -752,7 +753,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 			Sst:  slice.Nssai.Sst,
 			Sd:   slice.Nssai.Sd,
 		}
-
+		ue.SetEventChannel(nil)
 		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}

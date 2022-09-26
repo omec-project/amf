@@ -513,7 +513,6 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 		return fmt.Errorf("UESecurityCapability is nil")
 	}
-
 	// TODO (TS 23.502 4.2.2.2 step 4): if UE's 5g-GUTI is included & serving AMF has changed
 	// since last registration procedure, new AMF may invoke Namf_Communication_UEContextTransfer
 	// to old AMF, including the complete registration request nas msg, to request UE's SUPI & UE Context
