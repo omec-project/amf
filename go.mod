@@ -2,8 +2,6 @@ module github.com/omec-project/amf
 
 go 1.16
 
-exclude google.golang.org/grpc v1.48.0
-
 require (
 	git.cs.nctu.edu.tw/calee/sctp v1.1.0
 	github.com/antihax/optional v1.0.0
@@ -17,7 +15,7 @@ require (
 	github.com/omec-project/MongoDBLibrary v1.1.3
 	github.com/omec-project/UeauCommon v1.1.0
 	github.com/omec-project/aper v1.1.0
-	github.com/omec-project/config5g v1.1.0
+	github.com/omec-project/config5g v1.2.0
 	github.com/omec-project/fsm v1.1.0
 	github.com/omec-project/http2_util v1.1.0
 	github.com/omec-project/http_wrapper v1.1.0
@@ -34,12 +32,9 @@ require (
 	github.com/stretchr/testify v1.8.0
 	github.com/urfave/cli v1.22.4
 	go.mongodb.org/mongo-driver v1.10.1
-	google.golang.org/grpc v1.43.0
+	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require (
-	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/thakurajayL/go-ipam v0.0.5-dev
-)
+require github.com/leodido/go-urn v1.2.1 // indirect
