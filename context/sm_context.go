@@ -39,6 +39,8 @@ type SmContext struct {
 	// for duplicate pdu session id handling
 	UlNASTransportVal *nasMessage.ULNASTransport
 	DuplicatedVal     bool
+
+	SmfProfiles []models.NfProfile
 }
 
 func NewSmContext(pduSessionID int32) *SmContext {
