@@ -8,8 +8,10 @@ package producer
 
 import (
 	"fmt"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/mohae/deepcopy"
 
@@ -433,5 +435,38 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 
 		nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message)
 	}()
+	return nil
+}
+
+func HandleNfSubscriptionStatusNotify(request *http_wrapper.Request) *http_wrapper.Response {
+	logger.ProducerLog.Traceln("[AMF] Handle NF Status Notify")
+
+	notificationData := request.Body.(models.NotificationData)
+
+	problemDetails := NfSubscriptionStatusNotifyProcedure(notificationData)
+	if problemDetails != nil {
+		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+	} else {
+		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+	}
+}
+
+func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationData) *models.ProblemDetails {
+	logger.ProducerLog.Debugf("NfSubscriptionStatusNotify: %+v", notificationData)
+
+	if notificationData.Event == "" || notificationData.NfInstanceUri == "" {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusBadRequest,
+			Cause:  "MANDATORY_IE_MISSING", // Defined in TS 29.510 6.1.6.2.17
+			Detail: "Missing IE [Event]/[NfInstanceUri] in NotificationData",
+		}
+		return problemDetails
+	}
+	nfInstanceId := notificationData.NfInstanceUri[strings.LastIndex(notificationData.NfInstanceUri, "/")+1:]
+
+	ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
+
+	logger.ProducerLog.Traceln("nfinstance deleted from cache: ", ok)
+
 	return nil
 }

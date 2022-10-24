@@ -44,6 +44,20 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 			err = fmt.Errorf("SearchNFInstances' response body cannot close: %+w", bodyCloseErr)
 		}
 	}()
+
+	// subscribe only if caching is enabled?
+	if amf_context.AMF_Self().EnableNrfCaching {
+		amfSelf := amf_context.AMF_Self()
+		for _, nfProfile := range result.NfInstances {
+			nrfSubscriptionData := models.NrfSubscriptionData{
+				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
+				SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
+				ReqNfType:               requestNfType,
+			}
+			SendCreateSubscription(nrfUri, nrfSubscriptionData)
+		}
+	}
+
 	return result, err
 }
 

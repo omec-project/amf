@@ -42,4 +42,4 @@ require (
 	github.com/omec-project/nrf v0.0.0-20221006160421-4313faa318bb // indirect
 )
 
-replace github.com/omec-project/nrf => github.com/aditya-mehta14/nrf v0.0.0-20221017082443-17c9eaf0da79
+replace github.com/omec-project/nrf => github.com/aditya-mehta14/nrf v0.0.0-20221024063457-b1865741f86c

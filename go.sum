@@ -100,6 +100,8 @@ github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdko
 github.com/Shopify/logrus-bugsnag v0.0.0-20171204204709-577dee27f20d/go.mod h1:HI8ITrYtUY+O+ZhtlqUnD8+KwNPOyugEhfP9fdUIaEQ=
 github.com/aditya-mehta14/nrf v0.0.0-20221017082443-17c9eaf0da79 h1:FR4FT/EIrsTUUuSci1lZcimxqgnZ3ZoweXmxj+FmkFA=
 github.com/aditya-mehta14/nrf v0.0.0-20221017082443-17c9eaf0da79/go.mod h1:bnakoadGIlS8e0b9ifBqQuqPLGbTVMbHGteccF8XM30=
+github.com/aditya-mehta14/nrf v0.0.0-20221024063457-b1865741f86c h1:m6EBrt1Z5jov8hff5+eROFSbSAq5E/hFV8gTbii4qsI=
+github.com/aditya-mehta14/nrf v0.0.0-20221024063457-b1865741f86c/go.mod h1:bnakoadGIlS8e0b9ifBqQuqPLGbTVMbHGteccF8XM30=
 github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 h1:+JkXLHME8vLJafGhOH4aoV2Iu8bR55nU6iKMVfYVLjY=
 github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1/go.mod h1:nuudZmJhzWtx2212z+pkuy7B6nkBqa+xwNXZHL1j8cg=
 github.com/alecthomas/template v0.0.0-20160405071501-a0175ee3bccc/go.mod h1:LOuyumcjzFXgccqObfd/Ljyb9UuFJ6TxHnclSeseNhc=

@@ -174,3 +174,26 @@ var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.
 	}
 	return
 }
+
+func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscriptionData) (models.NrfSubscriptionData, error) {
+	logger.ConsumerLog.Debugf("Send Create Subscription")
+
+	// Set client and set url
+	configuration := Nnrf_NFManagement.NewConfiguration()
+	configuration.SetBasePath(nrfUri)
+	client := Nnrf_NFManagement.NewAPIClient(configuration)
+
+	nrfSubData, res, err := client.SubscriptionsCollectionApi.CreateSubscription(context.TODO(), nrfSubscriptionData)
+
+	if err != nil || res == nil {
+		err = fmt.Errorf("NFStatusSubscribe failure")
+	}
+
+	defer func() {
+		if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
+			err = fmt.Errorf("CreateSubscription' response body cannot close: %+w", bodyCloseErr)
+		}
+	}()
+
+	return nrfSubData, err
+}
