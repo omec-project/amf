@@ -10,7 +10,7 @@ package service
 import (
 	"bufio"
 	"fmt"
-	nrf_cache "github.com/omec-project/amf/nrfcache"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"os"
 	"os/exec"
 	"os/signal"

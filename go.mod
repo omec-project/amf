@@ -30,11 +30,16 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli v1.22.4
+	github.com/urfave/cli v1.22.5
 	go.mongodb.org/mongo-driver v1.10.1
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/leodido/go-urn v1.2.1 // indirect
+require (
+	github.com/leodido/go-urn v1.2.1 // indirect
+	github.com/omec-project/nrf v0.0.0-20221006160421-4313faa318bb // indirect
+)
+
+replace github.com/omec-project/nrf => github.com/aditya-mehta14/nrf v0.0.0-20221017082443-17c9eaf0da79

@@ -8,7 +8,7 @@ package consumer
 import (
 	"context"
 	"fmt"
-	nrf_cache "github.com/omec-project/amf/nrfcache"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"net/http"
 
 	amf_context "github.com/omec-project/amf/context"
