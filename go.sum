@@ -819,8 +819,8 @@ github.com/omec-project/openapi v1.1.0/go.mod h1:Fv9ajWROYypcNER+ZwWXPhLCdV4pBz7
 github.com/omec-project/path_util v1.0.100-dev/go.mod h1:O1ch35al6+FXKmg6+5vOpKusl4fiB0u36oYjxwI4QK4=
 github.com/omec-project/path_util v1.1.0 h1:vzzLsay8+uexyYEqS06th8lMcwp+N+CXcaHhaypZn1Q=
 github.com/omec-project/path_util v1.1.0/go.mod h1:O1ch35al6+FXKmg6+5vOpKusl4fiB0u36oYjxwI4QK4=
-github.com/omec-project/util v1.0.3 h1:v4IoVKcC/FXRdgtA1H1WDvXXfOKHf4b60De1D/hWgUQ=
-github.com/omec-project/util v1.0.3/go.mod h1:BGsKjsH+kNoPcMhEEX1PgDAR4A2r03rD3902mQ9f1II=
+github.com/omec-project/util v1.0.4 h1:9BkSdA0j6/K/rw9Q79ONOTSGWBNTmt1q7YiapsGcNTI=
+github.com/omec-project/util v1.0.4/go.mod h1:BGsKjsH+kNoPcMhEEX1PgDAR4A2r03rD3902mQ9f1II=
 github.com/omec-project/util_3gpp v1.1.1 h1:lT8J2uvCuKaOrIasZgV7+bXSjBb9/i8FG9ZFQnpx2yE=
 github.com/omec-project/util_3gpp v1.1.1/go.mod h1:r8J8yuEwWeBLlX4ZqsCjbEYxUZDCTWn0H+xZ12kvB/s=
 github.com/onsi/ginkgo v0.0.0-20151202141238-7f8ab55aaf3b/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
