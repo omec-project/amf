@@ -119,6 +119,14 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 			}
 		}
 
+		if !smContextExist {
+			msg := new(nas.Message)
+			msg.PlainNasDecode(&smMessage)
+			if msg.GsmMessage != nil && msg.GsmMessage.Status5GSM != nil {
+				ue.GmmLog.Warningf("SmContext is not exist, 5GSM Status message received from UE with cause %v", msg.GsmMessage.Status5GSM.Cause5GSM)
+				return nil
+			}
+		}
 		// AMF has a PDU session routing context for the PDU session ID and the UE
 		if smContextExist {
 			// case i) Request type IE is either not included
