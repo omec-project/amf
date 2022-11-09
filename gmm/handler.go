@@ -119,6 +119,14 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 			}
 		}
 
+		if !smContextExist {
+			msg := new(nas.Message)
+			msg.PlainNasDecode(&smMessage)
+			if msg.GsmMessage != nil && msg.GsmMessage.Status5GSM != nil {
+				ue.GmmLog.Warningf("SmContext doesn't exist, 5GSM Status message received from UE with cause %v", msg.GsmMessage.Status5GSM.Cause5GSM)
+				return nil
+			}
+		}
 		// AMF has a PDU session routing context for the PDU session ID and the UE
 		if smContextExist {
 			// case i) Request type IE is either not included
@@ -1193,7 +1201,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 			return fmt.Errorf("Decode failed at RequestedNSSAI[%s]", err)
 		}
 
-		ue.GmmLog.Errorf("RequestedNssai: %+v", requestedNssai)
+		ue.GmmLog.Infof("RequestedNssai: %+v", requestedNssai)
 
 		needSliceSelection := false
 		for _, requestedSnssai := range requestedNssai {
