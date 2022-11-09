@@ -26,15 +26,19 @@ require (
 	github.com/omec-project/openapi v1.1.0
 	github.com/omec-project/path_util v1.1.0
 	github.com/omec-project/util v1.0.4
-	github.com/prometheus/client_golang v1.11.1
+	github.com/prometheus/client_golang v1.12.2
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli v1.22.4
+	github.com/urfave/cli v1.22.9
 	go.mongodb.org/mongo-driver v1.10.1
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/leodido/go-urn v1.2.1 // indirect
+require (
+	github.com/leodido/go-urn v1.2.1 // indirect
+	github.com/omec-project/smf v0.0.0-20221020155828-832b7272b37e
+	github.com/segmentio/kafka-go v0.4.38
+)

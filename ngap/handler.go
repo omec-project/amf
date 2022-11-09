@@ -1070,6 +1070,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
+		amfUe.PublishUeCtxtInfo()
 		context.StoreContextInDB(amfUe)
 	case context.UeContextReleaseUeContext:
 		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
@@ -1081,9 +1082,11 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		//Valid Security is not exist for this UE then only delete AMfUe Context
 		if !amfUe.SecurityContextAvailable {
 			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
+			amfUe.PublishUeCtxtInfo()
 			amfUe.Remove()
 			context.DeleteContextFromDB(amfUe)
 		} else {
+			amfUe.PublishUeCtxtInfo()
 			context.StoreContextInDB(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
@@ -1092,6 +1095,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
+		amfUe.PublishUeCtxtInfo()
 		amfUe.Remove()
 		context.DeleteContextFromDB(amfUe)
 	case context.UeContextReleaseHandover:
@@ -1712,6 +1716,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 		}
 
 		//store context in DB. PDU Establishment is complete.
+		amfUe.PublishUeCtxtInfo()
 		context.StoreContextInDB(amfUe)
 	}
 
@@ -2336,6 +2341,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 	ranUe.RecvdInitialContextSetupResponse = true
+	amfUe.PublishUeCtxtInfo()
 	context.StoreContextInDB(amfUe)
 }
 

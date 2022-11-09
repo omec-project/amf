@@ -43,6 +43,11 @@ type Mongodb struct {
 	Url  string `yaml:"url"`
 }
 
+type KafkaInfo struct {
+	BrokerUrl string `yaml:"brokerUrl,omitempty"`
+	Topic     string `yaml:"topicName,omitempty"`
+}
+
 type Configuration struct {
 	AmfName                         string                    `yaml:"amfName,omitempty"`
 	AmfDBName                       string                    `yaml:"amfDBName,omitempty"`
@@ -73,6 +78,7 @@ type Configuration struct {
 	SliceTaiList  map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
 	EnableSctpLb  bool                    `yaml:"enableSctpLb"`
 	EnableDbStore bool                    `yaml:"enableDBStore"`
+	KafkaInfo     KafkaInfo               `yaml:"kafkaInfo,omitempty"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {
