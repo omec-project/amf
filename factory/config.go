@@ -43,6 +43,12 @@ type Mongodb struct {
 	Url  string `yaml:"url"`
 }
 
+type KafkaInfo struct {
+	BrokerUri  string `yaml:"brokerUri,omitempty"`
+	BrokerPort int    `yaml:"brokerPort,omitempty"`
+	Topic      string `yaml:"topicName,omitempty"`
+}
+
 type Configuration struct {
 	AmfName                         string                    `yaml:"amfName,omitempty"`
 	AmfDBName                       string                    `yaml:"amfDBName,omitempty"`
@@ -70,9 +76,11 @@ type Configuration struct {
 	T3565                           TimerValue                `yaml:"t3565"`
 
 	//Maintain TaiList per slice
-	SliceTaiList  map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
-	EnableSctpLb  bool                    `yaml:"enableSctpLb"`
-	EnableDbStore bool                    `yaml:"enableDBStore"`
+	SliceTaiList     map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
+	EnableSctpLb     bool                    `yaml:"enableSctpLb"`
+	EnableDbStore    bool                    `yaml:"enableDBStore"`
+	KafkaInfo        KafkaInfo               `yaml:"kafkaInfo,omitempty"`
+	DebugProfilePort int                     `yaml:"debugProfilePort,omitempty"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

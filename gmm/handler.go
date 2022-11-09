@@ -242,6 +242,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 						newSmContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
 						ue.StoreSmContext(pduSessionID, newSmContext)
 						ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduSessionID)
+						ue.PublishUeCtxtInfo()
 						// TODO: handle response(response N2SmInfo to RAN if exists)
 					}
 				}
@@ -355,6 +356,7 @@ func forward5GSMMessageToSMF(
 			ngap_message.SendDownlinkNasTransport(ue.RanUe[accessType], n1Msg, nil)
 		}
 	}
+	ue.PublishUeCtxtInfo()
 	return nil
 }
 
