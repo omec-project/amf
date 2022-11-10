@@ -39,6 +39,5 @@ require (
 
 require (
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/omec-project/smf v0.0.0-20221020155828-832b7272b37e
 	github.com/segmentio/kafka-go v0.4.38
 )

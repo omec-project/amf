@@ -795,7 +795,6 @@ github.com/omec-project/aper v1.1.0 h1:4FkTkDNGBWnTtEgCDuEitFjww1CJWVQhGqMs91tri
 github.com/omec-project/aper v1.1.0/go.mod h1:oOkKRI2BIo8SHpCsEzNbo9qiowEtEy3q+wmO7TuDrx4=
 github.com/omec-project/config5g v1.2.0 h1:fyIg+1LZ9jn8DTkVUbD4jyxA4FgMICdIBwZVnzCyMd4=
 github.com/omec-project/config5g v1.2.0/go.mod h1:AWFzCbbgCBx/iJwt+zWbpDGLHRpFzg24OYHqIkdcMVA=
-github.com/omec-project/flowdesc v1.1.0/go.mod h1:yZo/8WStxay3J6xjA3sCto7xo4S94sHULTLn/7J5rJs=
 github.com/omec-project/fsm v1.1.0 h1:DYa5GMlzOfHY+qyQqSPNi/SgNGE7gNWo+g72tyhxNeQ=
 github.com/omec-project/fsm v1.1.0/go.mod h1:/j5mdVQW0dt+tkgYWh5TsQCpLhxHlmSPIWDUOvTYFGw=
 github.com/omec-project/http2_util v1.1.0 h1:8H2NME/V8iONth8TlyK/3w4pguAzaeUnEv9pmeAocwQ=
@@ -820,10 +819,6 @@ github.com/omec-project/openapi v1.1.0/go.mod h1:Fv9ajWROYypcNER+ZwWXPhLCdV4pBz7
 github.com/omec-project/path_util v1.0.100-dev/go.mod h1:O1ch35al6+FXKmg6+5vOpKusl4fiB0u36oYjxwI4QK4=
 github.com/omec-project/path_util v1.1.0 h1:vzzLsay8+uexyYEqS06th8lMcwp+N+CXcaHhaypZn1Q=
 github.com/omec-project/path_util v1.1.0/go.mod h1:O1ch35al6+FXKmg6+5vOpKusl4fiB0u36oYjxwI4QK4=
-github.com/omec-project/pfcp v1.1.3/go.mod h1:nPKZhoKK7xeW/aw6adMryAXoEl4BTUKCuZcUs7VnEpQ=
-github.com/omec-project/smf v0.0.0-20221020155828-832b7272b37e h1:CD7bF26uyAfgwUGTRIruGTmb7wE9rkHknU9QrJdW66Y=
-github.com/omec-project/smf v0.0.0-20221020155828-832b7272b37e/go.mod h1:HKNBSZdoRIDobQj6qGLHUq5ctjQFHmHHD3vHCHIjznM=
-github.com/omec-project/tlv v1.1.0/go.mod h1:FdPaQhfld4Zs5/oR5nsphb1JKGqGaFwFfqzIK9IVA3E=
 github.com/omec-project/util v1.0.4 h1:9BkSdA0j6/K/rw9Q79ONOTSGWBNTmt1q7YiapsGcNTI=
 github.com/omec-project/util v1.0.4/go.mod h1:BGsKjsH+kNoPcMhEEX1PgDAR4A2r03rD3902mQ9f1II=
 github.com/omec-project/util_3gpp v1.1.1 h1:lT8J2uvCuKaOrIasZgV7+bXSjBb9/i8FG9ZFQnpx2yE=

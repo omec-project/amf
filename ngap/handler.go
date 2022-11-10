@@ -1110,6 +1110,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 			ran.Log.Errorln(err.Error())
 		}
 		amfUe.AttachRanUe(targetRanUe)
+		amfUe.PublishUeCtxtInfo()
 		// Todo: remove indirect tunnel
 	default:
 		ran.Log.Errorf("Invalid Release Action[%d]", ranUe.ReleaseAction)
