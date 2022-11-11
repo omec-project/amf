@@ -114,7 +114,13 @@ func InitAmfContext(context *context.AMFContext) {
 	context.EnableSctpLb = configuration.EnableSctpLb
 	context.EnableDbStore = configuration.EnableDbStore
 	context.EnableNrfCaching = configuration.EnableNrfCaching
-	context.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
+	if configuration.EnableNrfCaching {
+		if configuration.NrfCacheEvictionInterval == 0 {
+			context.NrfCacheEvictionInterval = time.Duration(900) // 15 mins
+		} else {
+			context.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
+		}
+	}
 }
 
 func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {

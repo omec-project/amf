@@ -45,16 +45,19 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 		}
 	}()
 
-	// subscribe only if caching is enabled?
-	if amf_context.AMF_Self().EnableNrfCaching {
-		amfSelf := amf_context.AMF_Self()
-		for _, nfProfile := range result.NfInstances {
-			nrfSubscriptionData := models.NrfSubscriptionData{
-				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
-				SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
-				ReqNfType:               requestNfType,
-			}
-			SendCreateSubscription(nrfUri, nrfSubscriptionData)
+	amfSelf := amf_context.AMF_Self()
+
+	for _, nfProfile := range result.NfInstances {
+		nrfSubscriptionData := models.NrfSubscriptionData{
+			NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
+			SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
+			ReqNfType:               requestNfType,
+		}
+		_, problemDetails, err := SendCreateSubscription(nrfUri, nrfSubscriptionData)
+		if problemDetails != nil {
+			logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
+		} else if err != nil {
+			logger.ConsumerLog.Errorf("SendCreateSubscription Error[%+v]", err)
 		}
 	}
 

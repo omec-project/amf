@@ -74,7 +74,7 @@ type Configuration struct {
 	EnableSctpLb             bool                    `yaml:"enableSctpLb"`
 	EnableDbStore            bool                    `yaml:"enableDBStore"`
 	EnableNrfCaching         bool                    `yaml:"enableNrfCaching"`
-	NrfCacheEvictionInterval int                     `yaml:"nrfCacheEvictionInterval"`
+	NrfCacheEvictionInterval int                     `yaml:"nrfCacheEvictionInterval,omitempty"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

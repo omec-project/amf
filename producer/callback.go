@@ -17,6 +17,7 @@ import (
 
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
+	amf_context "github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas"
@@ -464,9 +465,12 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	}
 	nfInstanceId := notificationData.NfInstanceUri[strings.LastIndex(notificationData.NfInstanceUri, "/")+1:]
 
-	ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
-
-	logger.ProducerLog.Traceln("nfinstance deleted from cache: ", ok)
+	// If nrf caching is enabled, go ahead and delete the entry from the cache.
+	// This will force the amf to do nf discovery and get the updated nf profile from the nrf.
+	if amf_context.AMF_Self().EnableNrfCaching {
+		ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
+		logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
+	}
 
 	return nil
 }
