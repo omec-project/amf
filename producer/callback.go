@@ -471,6 +471,20 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 		ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
 		logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
 	}
+	if subscriptionId, ok := amf_context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
+		logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v",nfInstanceId,subscriptionId.(string))
+		problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+		if problemDetails != nil {
+			logger.ConsumerLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+		} else if err != nil {
+			logger.ConsumerLog.Errorf("Remove NF Subscription Error[%+v]", err)
+		} else {
+			logger.ConsumerLog.Infoln("[AMF] Remove NF Subscription successful")
+			amf_context.AMF_Self().NfStatusSubscriptions.Delete(nfInstanceId)
+		}
+	} else {
+		logger.ProducerLog.Infof("nfinstance %v not found in map", nfInstanceId)
+	}
 
 	return nil
 }

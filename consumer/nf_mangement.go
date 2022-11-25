@@ -204,3 +204,33 @@ func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscri
 	}
 	return
 }
+
+func SendRemoveSubscription(subscriptionId string) (problemDetails *models.ProblemDetails, err error) {
+	logger.ConsumerLog.Infoln("[AMF] Send Remove Subscription")
+
+	amfSelf := amf_context.AMF_Self()
+	// Set client and set url
+	configuration := Nnrf_NFManagement.NewConfiguration()
+	configuration.SetBasePath(amfSelf.NrfUri)
+	client := Nnrf_NFManagement.NewAPIClient(configuration)
+	var res *http.Response
+
+	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(context.Background(), subscriptionId)
+	if err == nil {
+		return
+	} else if res != nil {
+		defer func() {
+			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
+				err = fmt.Errorf("RemoveSubscription' response body cannot close: %+w", bodyCloseErr)
+			}
+		}()
+		if res.Status != err.Error() {
+			return
+		}
+		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
+		problemDetails = &problem
+	} else {
+		err = openapi.ReportError("server no response")
+	}
+	return
+}

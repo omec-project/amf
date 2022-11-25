@@ -53,12 +53,13 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 			SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
 			ReqNfType:               requestNfType,
 		}
-		_, problemDetails, err := SendCreateSubscription(nrfUri, nrfSubscriptionData)
+		nrfSubData, problemDetails, err := SendCreateSubscription(nrfUri, nrfSubscriptionData)
 		if problemDetails != nil {
 			logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
 		} else if err != nil {
 			logger.ConsumerLog.Errorf("SendCreateSubscription Error[%+v]", err)
 		}
+		amfSelf.NfStatusSubscriptions.Store(nfProfile.NfInstanceId, nrfSubData.SubscriptionId)
 	}
 
 	return result, err

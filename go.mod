@@ -37,9 +37,4 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require (
-	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/omec-project/nrf v0.0.0-20221006160421-4313faa318bb // indirect
-)
-
-replace github.com/omec-project/nrf => github.com/aditya-mehta14/nrf v0.0.0-20221024063457-b1865741f86c
+require github.com/leodido/go-urn v1.2.1 // indirect

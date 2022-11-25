@@ -73,6 +73,7 @@ type AMFContext struct {
 	TNLWeightFactor                 int64
 	SupportDnnLists                 []string
 	AMFStatusSubscriptions          sync.Map // map[subscriptionID]models.SubscriptionData
+	NfStatusSubscriptions           sync.Map // map[NfInstanceID]models.NrfSubscriptionData.SubscriptionId
 	NrfUri                          string
 	SecurityAlgorithm               SecurityAlgorithm
 	NetworkName                     factory.NetworkName
