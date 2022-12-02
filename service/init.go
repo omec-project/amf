@@ -10,6 +10,8 @@ package service
 import (
 	"bufio"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof" //Using package only for invoking initialization.
 	"os"
 	"os/exec"
 	"os/signal"
@@ -113,6 +115,14 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	}
 
 	amf.setLogLevel()
+
+	//Initiating a server for profiling
+	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
+		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
+		go func() {
+			http.ListenAndServe(addr, nil)
+		}()
+	}
 
 	if err := factory.CheckConfigVersion(); err != nil {
 		return err
@@ -312,6 +322,10 @@ func (amf *AMF) Start() {
 	}
 
 	go metrics.InitMetrics()
+
+	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
+		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
+	}
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
