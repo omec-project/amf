@@ -55,7 +55,6 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		}
 
 		ran.Log.Debugf("Send NGAP message To Ran")
-
 		if n, err := ran.Conn.Write(packet); err != nil {
 			ran.Log.Errorf("Send error: %+v", err)
 			return

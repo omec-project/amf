@@ -185,7 +185,7 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Errorf("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
+		logger.ContextLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
 		return nil
 	}
 
@@ -207,7 +207,7 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	filter["customFieldsAmfUe.amfUeNgapId"] = amfUeNgapID
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Errorf("DbFetchRanUeByAmfUeNgapID : no document found for amfUeNgapID ", amfUeNgapID)
+		logger.ContextLog.Errorln("DbFetchRanUeByAmfUeNgapID : no document found for amfUeNgapID ", amfUeNgapID)
 		return nil
 	}
 
@@ -230,7 +230,7 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 
 	ue = DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Warnf("FindByGuti : no document found for guti ", guti)
+		logger.ContextLog.Warnln("FindByGuti : no document found for guti ", guti)
 		return nil, false
 	} else {
 		ok = true
@@ -240,7 +240,7 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 	//fetched AmfUe. If so, then return the same.
 	//else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindByGutiLocal(guti); ret {
-		logger.ContextLog.Infof("FindByGuti : found by local", guti)
+		logger.ContextLog.Infoln("FindByGuti : found by local", guti)
 		ue = amfUe
 		ok = ret
 	}
@@ -255,7 +255,7 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 
 	ue = DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Warnf("FindBySupi : no document found for supi ", supi)
+		logger.ContextLog.Warnln("FindBySupi : no document found for supi ", supi)
 		return nil, false
 	} else {
 		ok = true
@@ -264,7 +264,7 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 	//fetched AmfUe. If so, then return the same.
 	//else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindBySupiLocal(supi); ret {
-		logger.ContextLog.Infof("FindBySupi : found by local", supi)
+		logger.ContextLog.Infoln("FindBySupi : found by local", supi)
 		ue = amfUe
 		ok = ret
 	}

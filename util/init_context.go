@@ -19,12 +19,12 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
-func InitDrsm() (*drsm.Drsm, error) {
+func InitDrsm() (drsm.DrsmInterface, error) {
 	podname := os.Getenv("HOSTNAME")
 	podip := os.Getenv("POD_IP")
 	podId := drsm.PodId{PodName: podname, PodIp: podip}
 	dbUrl := "mongodb://mongodb-arbiter-headless"
-	if factory.AmfConfig.Configuration.Mongodb != nil ||
+	if factory.AmfConfig.Configuration.Mongodb != nil &&
 		factory.AmfConfig.Configuration.Mongodb.Url != "" {
 		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
 	}

@@ -91,7 +91,7 @@ var (
 
 func init() {
 	initLog = logger.InitLog
-	RocUpdateConfigChannel = make(chan bool)
+	RocUpdateConfigChannel = make(chan bool, 1)
 }
 
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
@@ -476,7 +476,7 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	self := context.AMF_Self()
 	profile, err := consumer.BuildNFInstance(self)
 	if err != nil {
-		initLog.Error("Build AMF Profile Error: %v", err)
+		initLog.Errorf("Build AMF Profile Error: %v", err)
 		return profile, err
 	}
 	initLog.Infof("Pcf Profile Registering to NRF: %v", profile)
@@ -485,7 +485,7 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	return profile, err
 }
 
-//UpdateNF is the callback function, this is called when keepalivetimer elapsed
+// UpdateNF is the callback function, this is called when keepalivetimer elapsed
 func (amf *AMF) UpdateNF() {
 	KeepAliveTimerMutex.Lock()
 	defer KeepAliveTimerMutex.Unlock()
@@ -603,6 +603,9 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
 		var tai []models.Tai
 		var plmnList []*factory.PlmnSupportItem
+		if rsp.NetworkSlice == nil {
+			return false
+		}
 		for _, ns := range rsp.NetworkSlice {
 			var snssai *models.Snssai
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
@@ -665,7 +668,9 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 }
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
-	for rocUpdateConfig := range RocUpdateConfigChannel {
+	//for rocUpdateConfig := range RocUpdateConfigChannel {
+	for {
+		rocUpdateConfig := <-RocUpdateConfigChannel
 		if rocUpdateConfig {
 			self := context.AMF_Self()
 			util.InitAmfContext(self)

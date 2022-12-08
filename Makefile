@@ -58,10 +58,10 @@ $(GO_BIN_PATH)/%: %.go $(NF_GO_FILES)
 
 vpath %.go $(addprefix $(GO_SRC_PATH)/, $(GO_NF))
 
-test: $(NF_GO_FILES_ALL) 
-	@echo "Start building $(@F)...."
-	cd $(GO_SRC_PATH)/ && \
-	CGO_ENABLED=0 go test -o $(ROOT_PATH)/$@
+#test: $(NF_GO_FILES_ALL) 
+#	@echo "Start building $(@F)...."
+#	cd $(GO_SRC_PATH)/ && \
+#	CGO_ENABLED=0 go test -o $(ROOT_PATH)/$@
 
 clean:
 	rm -rf $(addprefix $(GO_BIN_PATH)/, $(GO_NF))
@@ -87,3 +87,34 @@ docker-push:
 	for target in $(DOCKER_TARGETS); do \
 		docker push ${DOCKER_REGISTRY}${DOCKER_REPOSITORY}5gc-$$target:${DOCKER_TAG}; \
 	done
+
+.coverage:
+	rm -rf $(CURDIR)/.coverage
+	mkdir -p $(CURDIR)/.coverage
+
+test: .coverage
+	docker run --rm -v $(CURDIR):/amf -w /amf golang:latest \
+		go test \
+			-failfast \
+			-coverprofile=.coverage/coverage-unit.txt \
+			-covermode=atomic \
+			-v \
+			./ ./...
+
+fmt:
+	@go fmt ./...
+
+golint:
+	@docker run --rm -v $(CURDIR):/app -w /app golangci/golangci-lint:latest golangci-lint run -v --config /app/.golangci.yml
+
+check-reuse:
+	@docker run --rm -v $(CURDIR):/amf -w /amf omecproject/reuse-verify:latest reuse lint
+
+run-aiab:
+	rm -rf $(HOME)/aether-in-a-box && rm -rf $(HOME)/cord
+	cd $(HOME) && git clone "https://gerrit.opencord.org/aether-in-a-box"
+	mkdir $(HOME)/cord && cd $(HOME)/cord && \
+		git clone "https://gerrit.opencord.org/sdcore-helm-charts" && \
+		git clone "https://gerrit.opencord.org/sdfabric-helm-charts" && cd ../aether-in-a-box && \
+			yq -i '.5g-control-plane.images |= {"amf": "5gc-amf:0.0.1-dev"}' sd-core-5g-values.yaml && \
+                make 5g-core && sleep 10 && make 5g-test

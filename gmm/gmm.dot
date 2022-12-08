@@ -1,0 +1,27 @@
+digraph FSM {
+	rankdir=LR
+	size="100"
+    node[width=1 fixedsize=false shape=ellipse style=filled fillcolor="skyblue"]
+	
+	Authentication -> SecurityMode [label="Authentication Success"]
+	SecurityMode -> ContextSetup [label="Security Skip"]
+	ContextSetup -> Deregistered [label="ContextSetup Fail"]
+	Authentication -> Authentication [label="Gmm Message"]
+	Deregistered -> Authentication [label="Start Authentication"]
+	Authentication -> Deregistered [label="Authentication Fail"]
+	SecurityMode -> ContextSetup [label="SecurityMode Success"]
+	Registered -> DeregistrationInitiated [label="Network Initiated Deregistration Event"]
+	DeregistrationInitiated -> Deregistered [label="Deregistration Accept"]
+	SecurityMode -> SecurityMode [label="Gmm Message"]
+	Authentication -> Authentication [label="Authentication Restart"]
+	Registered -> Registered [label="Gmm Message"]
+	DeregistrationInitiated -> DeregistrationInitiated [label="Gmm Message"]
+	SecurityMode -> Deregistered [label="SecurityMode Abort"]
+	ContextSetup -> Registered [label="ContextSetup Success"]
+	Deregistered -> Deregistered [label="Gmm Message"]
+	ContextSetup -> ContextSetup [label="Gmm Message"]
+	SecurityMode -> Deregistered [label="SecurityMode Fail"]
+	Registered -> DeregistrationInitiated [label="Initialize Deregistration"]
+	Registered -> Authentication [label="Start Authentication"]
+	Authentication -> Deregistered [label="Authentication Error"]
+}

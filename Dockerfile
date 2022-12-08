@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-FROM golang:1.16.0-stretch AS builder
+FROM golang:1.18.3-stretch AS builder
 
 LABEL maintainer="ONF <omec-dev@opennetworking.org>"
 
@@ -23,7 +23,7 @@ COPY . $GOPATH/src/amf
 RUN cd $GOPATH/src/amf \
     && make all
 
-FROM alpine:3.8 as amf
+FROM alpine:3.17 as amf
 
 LABEL description="ONF open source 5G Core Network" \
     version="Stage 3"

@@ -1606,7 +1606,7 @@ func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType model
 	return err
 }
 
-//TODO: to be implemented
+// TODO: to be implemented
 func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
 
 	//TODO send configuration update to update allowed nssai list with re-registration required to UE
@@ -1644,7 +1644,7 @@ func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, ns
 	return err
 }
 
-//TODO: to be implemented
+// TODO: to be implemented
 func HandleUeSliceInfoAdd(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
 
 	//TODO send configuration update to update allowed nssai list with re-registration required to UE
