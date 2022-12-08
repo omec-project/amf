@@ -69,7 +69,6 @@ func SetupAmfCollection() {
 		factory.AmfConfig.Configuration.AmfDBName = "sdcore_amf"
 	}
 
-
 	if (factory.AmfConfig.Configuration.Mongodb != nil) &&
 		(factory.AmfConfig.Configuration.Mongodb.Url != "") {
 		mongoDbUrl = factory.AmfConfig.Configuration.Mongodb.Url

@@ -8,7 +8,7 @@ require (
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/gin-contrib/cors v1.3.1
-	github.com/gin-gonic/gin v1.7.3
+	github.com/gin-gonic/gin v1.8.1
 	github.com/google/uuid v1.3.0
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
@@ -25,16 +25,19 @@ require (
 	github.com/omec-project/ngap v1.1.0
 	github.com/omec-project/openapi v1.1.0
 	github.com/omec-project/path_util v1.1.0
+	github.com/prometheus/client_golang v1.13.0
 	github.com/omec-project/util v1.0.6
-	github.com/prometheus/client_golang v1.11.1
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.8.0
-	github.com/urfave/cli v1.22.5
+	github.com/urfave/cli v1.22.9
 	go.mongodb.org/mongo-driver v1.10.1
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/leodido/go-urn v1.2.1 // indirect
+require (
+	github.com/omec-project/metricfunc v1.1.1
+	github.com/segmentio/kafka-go v0.4.38
+)

@@ -24,9 +24,11 @@ import (
 
 	"github.com/omec-project/UeauCommon"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/fsm"
 	"github.com/omec-project/idgenerator"
+	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasType"
 	"github.com/omec-project/nas/security"
@@ -1022,4 +1024,49 @@ func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
 	}
 	//tx.Message <- msg
 	return tx
+}
+
+func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
+
+	switch state {
+	case Deregistered:
+		return mi.SubsOpDel
+	case DeregistrationInitiated:
+		return mi.SubsOpDel
+	case Authentication:
+		return mi.SubsOpAdd
+	case SecurityMode:
+		return mi.SubsOpMod
+	case ContextSetup:
+		return mi.SubsOpMod
+	case Registered:
+		return mi.SubsOpMod
+	default:
+		return mi.SubsOpMod
+	}
+}
+
+//Collect Ctxt info and publish on Kafka stream
+func (ueContext *AmfUe) PublishUeCtxtInfo() {
+	op := getPublishUeCtxtInfoOp(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
+	kafkaSmCtxt := mi.CoreSubscriber{}
+
+	//Populate kafka sm ctxt struct
+	kafkaSmCtxt.Imsi = ueContext.Supi
+	kafkaSmCtxt.AmfId = ueContext.servingAMF.NfId
+	kafkaSmCtxt.Guti = ueContext.Guti
+	kafkaSmCtxt.Tmsi = ueContext.Tmsi
+	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
+	if ueContext.RanUe != nil && ueContext.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
+		kafkaSmCtxt.AmfNgapId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
+		kafkaSmCtxt.RanNgapId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
+		kafkaSmCtxt.GnbId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
+		kafkaSmCtxt.TacId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].Tai.Tac
+	}
+	kafkaSmCtxt.AmfSubState = string(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
+	ueState := ueContext.GetCmInfo()
+	kafkaSmCtxt.UeState = string(ueState[0].CmState)
+
+	//Send to stream
+	metrics.GetWriter().PublishUeCtxtEvent(kafkaSmCtxt, op)
 }

@@ -12,8 +12,10 @@ import (
 	"os"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/ngap"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"google.golang.org/grpc"
 )
 
@@ -60,6 +62,12 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						ran.RanId = ran.ConvertGnbIdToRanId(ran.GnbId)
 						log.Printf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
 						rsp.GnbId = req.GnbId
+
+						//send nf(gnb) status notification
+						gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
+							NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
+								NfStatus: mi.NfStatusConnected, NfName: req.GnbId}}
+						metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
 					}
 				}
 				ran.Amf2RanMsgChan = Amf2RanMsgChan
@@ -69,8 +77,18 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_DISC {
 				log.Println("GNB disconnected")
 				ngap.HandleSCTPNotificationLb(req.GnbId)
+				//send nf(gnb) status notification
+				gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
+					NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
+						NfStatus: mi.NfStatusDisconnected, NfName: req.GnbId}}
+				metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
 				log.Println("New GNB Connected ")
+				//send nf(gnb) status notification
+				gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
+					NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
+						NfStatus: mi.NfStatusConnected, NfName: req.GnbId}}
+				metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
 			} else {
 				ngap.DispatchLb(req, Amf2RanMsgChan)
 			}
