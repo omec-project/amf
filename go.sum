@@ -835,6 +835,8 @@ github.com/omec-project/ngap v1.1.0 h1:J9bkPEzzyGd1787nGY/aZVp3gckkZBoJB4tkTo59e
 github.com/omec-project/ngap v1.1.0/go.mod h1:A+T3+JKk+6AuhnMr6W319Tc7E176ig6rIRDVSKQ7E5g=
 github.com/omec-project/nrf v0.0.0-20221006160421-4313faa318bb h1:+dN9T/w9zvJ3R0UUUGriyYpSW41/cGV+tXV/jslueGQ=
 github.com/omec-project/nrf v0.0.0-20221006160421-4313faa318bb/go.mod h1:bnakoadGIlS8e0b9ifBqQuqPLGbTVMbHGteccF8XM30=
+github.com/omec-project/nrf v0.0.0-20221206151640-2d619e2b04d8 h1:ZkBqfupG+AlTAklBRdxJx3LPGo0CgEIsYFn6NiZObDk=
+github.com/omec-project/nrf v0.0.0-20221206151640-2d619e2b04d8/go.mod h1:bnakoadGIlS8e0b9ifBqQuqPLGbTVMbHGteccF8XM30=
 github.com/omec-project/openapi v1.0.100-dev/go.mod h1:Fv9ajWROYypcNER+ZwWXPhLCdV4pBz75KqFp/R/2gCw=
 github.com/omec-project/openapi v1.1.0 h1:N3v59+FM2V/eCv2Au10kbyeTf1DsScJkEdkDEcCdKE8=
 github.com/omec-project/openapi v1.1.0/go.mod h1:Fv9ajWROYypcNER+ZwWXPhLCdV4pBz75KqFp/R/2gCw=
@@ -1085,6 +1087,7 @@ github.com/urfave/cli v0.0.0-20171014202726-7bc6a0acffa5/go.mod h1:70zkFmudgCuE/
 github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijbERA=
 github.com/urfave/cli v1.22.1/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli v1.22.2/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
+github.com/urfave/cli v1.22.5/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli v1.22.9 h1:cv3/KhXGBGjEXLC4bH0sLuJ9BewaAbpk5oyMOveu4pw=
 github.com/urfave/cli v1.22.9/go.mod h1:Gos4lmkARVdJ6EkW0WaNv/tZAAMe9V7XWyB60NtXRu0=
 github.com/urfave/cli/v2 v2.11.1/go.mod h1:f8iq5LtQ/bLxafbdBSLPPNsgaW0l/2fYYEHhAyPlwvo=
