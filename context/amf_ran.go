@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"github.com/omec-project/ngap/ngapConvert"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
@@ -47,8 +47,7 @@ type AmfRan struct {
 
 	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
 	/* logger */
-	Log   *logrus.Entry `json:"-"`
-	Mutex *sync.Mutex   `json:"-"`
+	Log *logrus.Entry `json:"-"`
 }
 
 type SupportedTAI struct {
@@ -66,6 +65,12 @@ func NewSupportedTAIList() []SupportedTAI {
 }
 
 func (ran *AmfRan) Remove() {
+	//send nf(gnb) status notification
+	gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
+		NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
+			NfStatus: mi.NfStatusDisconnected, NfName: ran.GnbId}}
+	metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+
 	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()

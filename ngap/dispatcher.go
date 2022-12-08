@@ -69,7 +69,9 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 		/* checking whether same AMF instance can handle this message */
 		/* redirect it to correct owner if required */
 		id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
-		if id != nil && id.PodName != os.Getenv("HOSTNAME") {
+		if id == nil {
+			ran.Log.Warningf("DispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
+		} else if id != nil && id.PodName != os.Getenv("HOSTNAME") {
 			rsp := &sdcoreAmfServer.AmfMessage{}
 			rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
 			rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
@@ -90,7 +92,7 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 			}
 			return
 		} else {
-			fmt.Printf("DispatchLb, amfNgapId: %v for this amf instance", ngapId.Value)
+			ran.Log.Debugf("DispatchLb, amfNgapId: %v for this amf instance", ngapId.Value)
 		}
 	}
 
@@ -158,6 +160,7 @@ func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
 }
 
 func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage

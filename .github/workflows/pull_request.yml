@@ -11,10 +11,6 @@ concurrency:
 
 jobs:
   build:
-    #env:
-      # DOCKER_REGISTRY: "docker.io/"
-      # DOCKER_REPOSITORY: "badhrinathpa/"
-      # VERSION: "PR-${{ github.event.pull_request.number }}"
     runs-on: ubuntu-latest
     steps:
       # Checkout and build

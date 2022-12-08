@@ -28,6 +28,7 @@ import (
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/fsm"
 	"github.com/omec-project/idgenerator"
+	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasType"
 	"github.com/omec-project/nas/security"
@@ -1025,30 +1026,30 @@ func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
 	return tx
 }
 
-func getPublishUeCtxtInfoOp(state fsm.StateType) metrics.SubscriberOp {
+func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
 
 	switch state {
 	case Deregistered:
-		return metrics.SubsOpDel
+		return mi.SubsOpDel
 	case DeregistrationInitiated:
-		return metrics.SubsOpMod
+		return mi.SubsOpDel
 	case Authentication:
-		return metrics.SubsOpAdd
+		return mi.SubsOpAdd
 	case SecurityMode:
-		return metrics.SubsOpMod
+		return mi.SubsOpMod
 	case ContextSetup:
-		return metrics.SubsOpAdd
+		return mi.SubsOpMod
 	case Registered:
-		return metrics.SubsOpMod
+		return mi.SubsOpMod
 	default:
-		return metrics.SubsOpDel
+		return mi.SubsOpMod
 	}
 }
 
 //Collect Ctxt info and publish on Kafka stream
 func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	op := getPublishUeCtxtInfoOp(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
-	kafkaSmCtxt := metrics.CoreSubscriber{}
+	kafkaSmCtxt := mi.CoreSubscriber{}
 
 	//Populate kafka sm ctxt struct
 	kafkaSmCtxt.Imsi = ueContext.Supi

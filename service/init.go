@@ -91,7 +91,7 @@ var (
 
 func init() {
 	initLog = logger.InitLog
-	RocUpdateConfigChannel = make(chan bool, 1)
+	RocUpdateConfigChannel = make(chan bool)
 }
 
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
@@ -117,9 +117,12 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	amf.setLogLevel()
 
 	//Initiating a server for profiling
-	go func() {
-		http.ListenAndServe(":5001", nil)
-	}()
+	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
+		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
+		go func() {
+			http.ListenAndServe(addr, nil)
+		}()
+	}
 
 	if err := factory.CheckConfigVersion(); err != nil {
 		return err
@@ -319,6 +322,7 @@ func (amf *AMF) Start() {
 	}
 
 	go metrics.InitMetrics()
+
 	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
 		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
 	}
@@ -669,8 +673,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
 	//for rocUpdateConfig := range RocUpdateConfigChannel {
-	for {
-		rocUpdateConfig := <-RocUpdateConfigChannel
+	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
 			self := context.AMF_Self()
 			util.InitAmfContext(self)
