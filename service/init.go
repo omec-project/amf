@@ -117,9 +117,12 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	amf.setLogLevel()
 
 	//Initiating a server for profiling
-	go func() {
-		http.ListenAndServe(":5001", nil)
-	}()
+	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
+		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
+		go func() {
+			http.ListenAndServe(addr, nil)
+		}()
+	}
 
 	if err := factory.CheckConfigVersion(); err != nil {
 		return err
@@ -319,6 +322,10 @@ func (amf *AMF) Start() {
 	}
 
 	go metrics.InitMetrics()
+	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
+		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
+	}
+
 	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
 		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
 	}

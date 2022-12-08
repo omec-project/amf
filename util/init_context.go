@@ -15,6 +15,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/openapi/models"
 )
@@ -40,6 +41,8 @@ func InitAmfContext(context *context.AMFContext) {
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 	context.NfId = uuid.New().String()
+	metrics.SetNfInstanceId(context.NfId)
+
 	if configuration.AmfName != "" {
 		context.Name = configuration.AmfName
 	}
