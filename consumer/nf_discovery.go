@@ -8,6 +8,7 @@ package consumer
 import (
 	"context"
 	"fmt"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"net/http"
 
 	amf_context "github.com/omec-project/amf/context"
@@ -18,6 +19,16 @@ import (
 )
 
 func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType,
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
+
+	if amf_context.AMF_Self().EnableNrfCaching {
+		return nrf_cache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+	} else {
+		return SendNfDiscoveryToNrf(nrfUri, targetNfType, requestNfType, param)
+	}
+}
+
+func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfType,
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
 	// Set client and set url
 	configuration := Nnrf_NFDiscovery.NewConfiguration()
@@ -33,6 +44,24 @@ func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfT
 			err = fmt.Errorf("SearchNFInstances' response body cannot close: %+w", bodyCloseErr)
 		}
 	}()
+
+	amfSelf := amf_context.AMF_Self()
+
+	for _, nfProfile := range result.NfInstances {
+		nrfSubscriptionData := models.NrfSubscriptionData{
+			NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
+			SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
+			ReqNfType:               requestNfType,
+		}
+		nrfSubData, problemDetails, err := SendCreateSubscription(nrfUri, nrfSubscriptionData)
+		if problemDetails != nil {
+			logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
+		} else if err != nil {
+			logger.ConsumerLog.Errorf("SendCreateSubscription Error[%+v]", err)
+		}
+		amfSelf.NfStatusSubscriptions.Store(nfProfile.NfInstanceId, nrfSubData.SubscriptionId)
+	}
+
 	return result, err
 }
 

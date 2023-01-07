@@ -10,6 +10,7 @@ package service
 import (
 	"bufio"
 	"fmt"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"net/http"
 	_ "net/http/pprof" //Using package only for invoking initialization.
 	"os"
@@ -340,6 +341,11 @@ func (amf *AMF) Start() {
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	go amf.SendNFProfileUpdateToNrf()
+
+	if self.EnableNrfCaching {
+		initLog.Infoln("Enable NRF caching feature")
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
+	}
 
 	if self.EnableSctpLb {
 		go StartGrpcServer(self.SctpGrpcPort)

@@ -39,5 +39,6 @@ require (
 
 require (
 	github.com/omec-project/metricfunc v1.1.1
+    github.com/omec-project/nrf v0.0.0-20221206151640-2d619e2b04d8
 	github.com/segmentio/kafka-go v0.4.38
 )
