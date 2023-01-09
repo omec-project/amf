@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
+
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -322,9 +324,6 @@ func (amf *AMF) Start() {
 	}
 
 	go metrics.InitMetrics()
-	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
-		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
-	}
 
 	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
 		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
@@ -343,6 +342,11 @@ func (amf *AMF) Start() {
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	go amf.SendNFProfileUpdateToNrf()
+
+	if self.EnableNrfCaching {
+		initLog.Infoln("Enable NRF caching feature")
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
+	}
 
 	if self.EnableSctpLb {
 		go StartGrpcServer(self.SctpGrpcPort)
@@ -456,6 +460,22 @@ func (amf *AMF) Terminate() {
 	ngap_service.Stop()
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+
+	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
+		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
+			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			if problemDetails != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Error[%+v]", err)
+			} else {
+				logger.InitLog.Infoln("[AMF] Remove NF Subscription successful")
+			}
+		}
+		return true
+	})
+
 	logger.InitLog.Infof("AMF terminated")
 }
 

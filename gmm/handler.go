@@ -252,7 +252,6 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 						ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduSessionID)
 						ue.PublishUeCtxtInfo()
 						// TODO: handle response(response N2SmInfo to RAN if exists)
-						ue.PublishUeCtxtInfo()
 					}
 				}
 			case nasMessage.ULNASTransportRequestTypeModificationRequest:
@@ -364,7 +363,6 @@ func forward5GSMMessageToSMF(
 			ue.GmmLog.Debugf("AMF forward Only N1 SM Message to UE")
 			ngap_message.SendDownlinkNasTransport(ue.RanUe[accessType], n1Msg, nil)
 		}
-		ue.PublishUeCtxtInfo()
 	}
 	ue.PublishUeCtxtInfo()
 	return nil
