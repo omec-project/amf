@@ -43,7 +43,6 @@ metrics. Metrics include connected gNodeB's and its status.
 - AMF stateless and moving the subscriber states in the database
 - Supporting multiple instances of AMF
 
-
 Compliance of the 5G Network functions can be found at [5G Compliance ](https://docs.sd-core.opennetworking.org/master/overview/3gpp-compliance-5g.html)
 
 ## Reach out to us thorugh 
