@@ -8,10 +8,11 @@ package producer
 
 import (
 	"fmt"
-	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"net/http"
 	"strconv"
 	"strings"
+
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 
 	"github.com/mohae/deepcopy"
 
@@ -465,25 +466,28 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	}
 	nfInstanceId := notificationData.NfInstanceUri[strings.LastIndex(notificationData.NfInstanceUri, "/")+1:]
 
+	logger.ProducerLog.Infof("Recieved Subscription Status Notification from NRF: %v", notificationData.Event)
 	// If nrf caching is enabled, go ahead and delete the entry from the cache.
 	// This will force the amf to do nf discovery and get the updated nf profile from the nrf.
-	if amf_context.AMF_Self().EnableNrfCaching {
-		ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
-		logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
-	}
-	if subscriptionId, ok := amf_context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
-		logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v",nfInstanceId,subscriptionId.(string))
-		problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
-		if problemDetails != nil {
-			logger.ConsumerLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
-		} else if err != nil {
-			logger.ConsumerLog.Errorf("Remove NF Subscription Error[%+v]", err)
-		} else {
-			logger.ConsumerLog.Infoln("[AMF] Remove NF Subscription successful")
-			amf_context.AMF_Self().NfStatusSubscriptions.Delete(nfInstanceId)
+	if notificationData.Event == models.NotificationEventType_DEREGISTERED {
+		if amf_context.AMF_Self().EnableNrfCaching {
+			ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
+			logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
 		}
-	} else {
-		logger.ProducerLog.Infof("nfinstance %v not found in map", nfInstanceId)
+		if subscriptionId, ok := amf_context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
+			logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v", nfInstanceId, subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			if problemDetails != nil {
+				logger.ConsumerLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.ConsumerLog.Errorf("Remove NF Subscription Error[%+v]", err)
+			} else {
+				logger.ConsumerLog.Infoln("[AMF] Remove NF Subscription successful")
+				amf_context.AMF_Self().NfStatusSubscriptions.Delete(nfInstanceId)
+			}
+		} else {
+			logger.ProducerLog.Infof("nfinstance %v not found in map", nfInstanceId)
+		}
 	}
 
 	return nil

@@ -95,8 +95,7 @@ func PublishMsgEvent(msgType mi.AmfMsgType) error {
 		StatWriter.SendMessage(msg)
 	}
 	return nil
-}
-*/
+}*/
 
 func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
 

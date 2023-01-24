@@ -10,7 +10,6 @@ package service
 import (
 	"bufio"
 	"fmt"
-	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"net/http"
 	_ "net/http/pprof" //Using package only for invoking initialization.
 	"os"
@@ -20,6 +19,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
@@ -459,6 +460,22 @@ func (amf *AMF) Terminate() {
 	ngap_service.Stop()
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+
+	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
+		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
+			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			if problemDetails != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Error[%+v]", err)
+			} else {
+				logger.InitLog.Infoln("[AMF] Remove NF Subscription successful")
+			}
+		}
+		return true
+	})
+
 	logger.InitLog.Infof("AMF terminated")
 }
 

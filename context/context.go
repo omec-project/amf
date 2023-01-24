@@ -49,7 +49,7 @@ func init() {
 }
 
 type AMFContext struct {
-	Drsm                            *drsm.Drsm
+	Drsm                            drsm.DrsmInterface
 	EventSubscriptionIDGenerator    *idgenerator.IDGenerator
 	EventSubscriptions              sync.Map
 	UePool                          sync.Map         // map[supi]*AmfUe
