@@ -79,6 +79,7 @@ require (
 	github.com/montanaflynn/stats v0.6.6 // indirect
 	github.com/omec-project/logger_conf v1.1.0 // indirect
 	github.com/omec-project/metricfunc v1.1.1
+	github.com/omec-project/nrf v1.0.1
 	github.com/omec-project/util_3gpp v1.1.1 // indirect
 	github.com/pelletier/go-toml v1.7.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect

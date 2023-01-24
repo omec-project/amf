@@ -18,6 +18,7 @@ type MockDrsmInterface interface {
 	ReleaseIp(pool, ip string) error
 	CreateIpPool(poolName string, ipPool string) error
 	DeleteIpPool(poolName string) error
+	DeletePod(string)
 }
 type MockDrsm struct {
 }
@@ -28,6 +29,10 @@ func MockDrsmInit() (drsm.DrsmInterface, error) {
 	//opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
 	d := &MockDrsm{}
 	return d, nil
+}
+
+func (d *MockDrsm) DeletePod(s string) {
+	logger.AppLog.Info("MockDeletePod")
 }
 
 func (d *MockDrsm) AllocateInt32ID() (int32, error) {

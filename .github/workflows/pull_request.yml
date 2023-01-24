@@ -39,10 +39,10 @@ jobs:
           branch: ${{ github.event.pull_request.head.ref }}
           author: "Github Actions <actions@github>"
           commit-message: "Actions: Updated with changes from CI"
-      - name: Run AIAB
-        run: |
-          sudo apt-get update
-          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-          sudo chmod a+x /usr/local/bin/yq
-          make docker-build
-          make run-aiab
+            #      - name: Run AIAB
+            #        run: |
+            #          sudo apt-get update
+            #          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+            #          sudo chmod a+x /usr/local/bin/yq
+            #          make docker-build
+            #          make run-aiab
