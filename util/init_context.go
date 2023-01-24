@@ -8,6 +8,7 @@ package util
 
 import (
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/omec-project/util/drsm"
@@ -20,10 +21,12 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
-func InitDrsm() (*drsm.Drsm, error) {
+func InitDrsm() (drsm.DrsmInterface, error) {
 	podname := os.Getenv("HOSTNAME")
 	podip := os.Getenv("POD_IP")
-	podId := drsm.PodId{PodName: podname, PodIp: podip}
+	logger.UtilLog.Infof("NfId Instance: %v", context.AMF_Self().NfId)
+	podId := drsm.PodId{PodName: podname, PodInstance: context.AMF_Self().NfId, PodIp: podip}
+	logger.UtilLog.Debugf("PodId: %v", podId)
 	dbUrl := "mongodb://mongodb-arbiter-headless"
 	if factory.AmfConfig.Configuration.Mongodb != nil ||
 		factory.AmfConfig.Configuration.Mongodb.Url != "" {
@@ -40,7 +43,9 @@ func InitAmfContext(context *context.AMFContext) {
 	config := factory.AmfConfig
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
-	context.NfId = uuid.New().String()
+	if context.NfId == "" {
+		context.NfId = uuid.New().String()
+	}
 	metrics.SetNfInstanceId(context.NfId)
 
 	if configuration.AmfName != "" {
@@ -115,7 +120,14 @@ func InitAmfContext(context *context.AMFContext) {
 	context.T3565Cfg = configuration.T3565
 	context.EnableSctpLb = configuration.EnableSctpLb
 	context.EnableDbStore = configuration.EnableDbStore
-
+	context.EnableNrfCaching = configuration.EnableNrfCaching
+	if configuration.EnableNrfCaching {
+		if configuration.NrfCacheEvictionInterval == 0 {
+			context.NrfCacheEvictionInterval = time.Duration(900) // 15 mins
+		} else {
+			context.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
+		}
+	}
 }
 
 func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {

@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
+
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
@@ -18,6 +20,16 @@ import (
 )
 
 func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType,
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
+
+	if amf_context.AMF_Self().EnableNrfCaching {
+		return nrf_cache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+	} else {
+		return SendNfDiscoveryToNrf(nrfUri, targetNfType, requestNfType, param)
+	}
+}
+
+func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfType,
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
 	// Set client and set url
 	configuration := Nnrf_NFDiscovery.NewConfiguration()
@@ -33,6 +45,27 @@ func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfT
 			err = fmt.Errorf("SearchNFInstances' response body cannot close: %+w", bodyCloseErr)
 		}
 	}()
+
+	amfSelf := amf_context.AMF_Self()
+
+	for _, nfProfile := range result.NfInstances {
+		// checking whether the AMF subscribed to this target nfinstanceid or not
+		if _, ok := amfSelf.NfStatusSubscriptions.Load(nfProfile.NfInstanceId); !ok {
+			nrfSubscriptionData := models.NrfSubscriptionData{
+				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
+				SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
+				ReqNfType:               requestNfType,
+			}
+			nrfSubData, problemDetails, err := SendCreateSubscription(nrfUri, nrfSubscriptionData)
+			if problemDetails != nil {
+				logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.ConsumerLog.Errorf("SendCreateSubscription Error[%+v]", err)
+			}
+			amfSelf.NfStatusSubscriptions.Store(nfProfile.NfInstanceId, nrfSubData.SubscriptionId)
+		}
+	}
+
 	return result, err
 }
 
