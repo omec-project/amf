@@ -45,9 +45,9 @@ type AmfRan struct {
 	/* RAN UE List */
 	RanUeList []*RanUe `json:"-"` // RanUeNgapId as key
 
-	/* logger */
 	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
-	Log            *logrus.Entry                    `json:"-"`
+	/* logger */
+	Log *logrus.Entry `json:"-"`
 }
 
 type SupportedTAI struct {
@@ -88,7 +88,7 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	self := AMF_Self()
 	amfUeNgapID, err := self.AllocateAmfUeNgapID()
 	if err != nil {
-		ran.Log.Errorf("Alloc Amf ue ngap id failed", err)
+		ran.Log.Errorln("Alloc Amf ue ngap id failed", err)
 		return nil, fmt.Errorf("Allocate AMF UE NGAP ID error: %+v", err)
 	}
 	ranUe.AmfUeNgapId = amfUeNgapID

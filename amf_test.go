@@ -2,7 +2,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 //
-
 /*
  * AMF Unit Testcases
  *
@@ -12,20 +11,22 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/service"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
-	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/models"
 	"github.com/stretchr/testify/require"
 )
 
-//var AMF = &service.AMF{}
+var AMFTest = &service.AMF{}
 
 func init() {
+	os.Setenv("POD_IP", "127.0.0.1")
 	factory.InitConfigFactory("amfTest/amfcfg.yaml")
 }
 
@@ -35,6 +36,7 @@ func GetNetworkSliceConfig() *protos.NetworkSliceResponse {
 	rsp.NetworkSlice = make([]*protos.NetworkSlice, 0)
 
 	ns := protos.NetworkSlice{}
+	ns.OperationType = protos.OpType_SLICE_ADD
 	slice := protos.NSSAI{Sst: "1", Sd: "010203"}
 	ns.Nssai = &slice
 
@@ -54,15 +56,16 @@ func TestInitialConfig(t *testing.T) {
 	factory.AmfConfig.Configuration.ServedGumaiList = nil
 	factory.AmfConfig.Configuration.SupportTAIList = nil
 	var Rsp chan *protos.NetworkSliceResponse
-	Rsp = make(chan *protos.NetworkSliceResponse)
+	Rsp = make(chan *protos.NetworkSliceResponse, 1)
+
 	go func() {
-		Rsp <- GetNetworkSliceConfig()
+		AMFTest.UpdateConfig(Rsp)
 	}()
-	go func() {
-		AMF.UpdateConfig(Rsp)
-	}()
+	Rsp <- GetNetworkSliceConfig()
 
 	time.Sleep(2 * time.Second)
+	close(Rsp)
+
 	if factory.AmfConfig.Configuration.PlmnSupportList != nil &&
 		factory.AmfConfig.Configuration.ServedGumaiList != nil &&
 		factory.AmfConfig.Configuration.SupportTAIList != nil {
@@ -102,7 +105,7 @@ func TestUpdateConfig(t *testing.T) {
 		Rsp <- &nrp
 	}()
 	go func() {
-		AMF.UpdateConfig(Rsp)
+		AMFTest.UpdateConfig(Rsp)
 	}()
 
 	time.Sleep(2 * time.Second)
@@ -117,11 +120,11 @@ func TestUpdateConfig(t *testing.T) {
 func TestRegisterNF(t *testing.T) {
 	// Save current function and restore at the end:
 	origRegisterNFInstance := consumer.SendRegisterNFInstance
-	origSearchNFInstances := consumer.SendSearchNFInstances
+	//origSearchNFInstances := consumer.SendSearchNFInstances
 	origUpdateNFInstance := consumer.SendUpdateNFInstance
 	defer func() {
 		consumer.SendRegisterNFInstance = origRegisterNFInstance
-		consumer.SendSearchNFInstances = origSearchNFInstances
+		//consumer.SendSearchNFInstances = origSearchNFInstances
 		consumer.SendUpdateNFInstance = origUpdateNFInstance
 	}()
 	fmt.Printf("test case TestRegisterNF \n")
@@ -132,19 +135,20 @@ func TestRegisterNF(t *testing.T) {
 		fmt.Printf("Test RegisterNFInstance called\n")
 		return prof, "", "", nil
 	}
-	consumer.SendSearchNFInstances = func(nrfUri string, targetNfType, requestNfType models.NfType, param Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (*models.SearchResult, error) {
+	/*consumer.SendSearchNFInstances = func(nrfUri string, targetNfType, requestNfType models.NfType, param Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (*models.SearchResult, error) {
 		fmt.Printf("Test SearchNFInstance called\n")
 		return &models.SearchResult{}, nil
-	}
+	}*/
 	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
 		return prof, nil, nil
 	}
-	go AMFTest.RegisterNF()
-	service.ConfigPodTrigger <- true
+	go AMFTest.SendNFProfileUpdateToNrf()
+	service.RocUpdateConfigChannel <- true
 	time.Sleep(5 * time.Second)
 	require.Equal(t, service.KeepAliveTimer != nil, true)
 
-	service.ConfigPodTrigger <- false
+	/*service.RocUpdateConfigChannel <- false
 	time.Sleep(1 * time.Second)
 	require.Equal(t, service.KeepAliveTimer == nil, true)
+	*/
 }

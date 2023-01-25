@@ -278,7 +278,7 @@ func (context *AMFContext) AmfUeFindBySupi(supi string) (ue *AmfUe, ok bool) {
 	} else if context.EnableDbStore {
 		ue, ok = DbFetchUeBySupi(supi)
 		if ue != nil && ok {
-			logger.ContextLog.Infof("Ue with supi found in DB : ", supi)
+			logger.ContextLog.Infoln("Ue with supi found in DB : ", supi)
 			context.UePool.Store(ue.Supi, ue)
 		} else {
 			logger.ContextLog.Infoln("Ue with Supi not found locally and in DB: ", supi)
@@ -464,17 +464,17 @@ func (context *AMFContext) AmfUeFindBySupiLocal(supi string) (ue *AmfUe, ok bool
 func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
 	ue, ok = context.AmfUeFindByGutiLocal(guti)
 	if ok {
-		logger.ContextLog.Infof("Guti found locally : ", guti)
+		logger.ContextLog.Infoln("Guti found locally : ", guti)
 	} else if context.EnableDbStore {
 		ue, ok = DbFetchUeByGuti(guti)
 		if ue != nil && ok {
-			logger.ContextLog.Infof("Ue with Guti found in DB : ", guti)
+			logger.ContextLog.Infoln("Ue with Guti found in DB : ", guti)
 			context.UePool.Store(ue.Supi, ue)
 		} else {
-			logger.ContextLog.Infof("Ue with Guti not found locally and in DB: ", guti)
+			logger.ContextLog.Infoln("Ue with Guti not found locally and in DB: ", guti)
 		}
 	} else {
-		logger.ContextLog.Infof("Ue with Guti not found : ", guti)
+		logger.ContextLog.Infoln("Ue with Guti not found : ", guti)
 	}
 	return
 }

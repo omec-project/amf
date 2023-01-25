@@ -250,8 +250,8 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 						newSmContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
 						ue.StoreSmContext(pduSessionID, newSmContext)
 						ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduSessionID)
-						ue.PublishUeCtxtInfo()
 						// TODO: handle response(response N2SmInfo to RAN if exists)
+						ue.PublishUeCtxtInfo()
 					}
 				}
 			case nasMessage.ULNASTransportRequestTypeModificationRequest:
@@ -1614,7 +1614,7 @@ func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType model
 	return err
 }
 
-//TODO: to be implemented
+// TODO: to be implemented
 func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
 
 	//TODO send configuration update to update allowed nssai list with re-registration required to UE
@@ -1652,7 +1652,7 @@ func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, ns
 	return err
 }
 
-//TODO: to be implemented
+// TODO: to be implemented
 func HandleUeSliceInfoAdd(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
 
 	//TODO send configuration update to update allowed nssai list with re-registration required to UE

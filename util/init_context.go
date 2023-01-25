@@ -28,7 +28,7 @@ func InitDrsm() (drsm.DrsmInterface, error) {
 	podId := drsm.PodId{PodName: podname, PodInstance: context.AMF_Self().NfId, PodIp: podip}
 	logger.UtilLog.Debugf("PodId: %v", podId)
 	dbUrl := "mongodb://mongodb-arbiter-headless"
-	if factory.AmfConfig.Configuration.Mongodb != nil ||
+	if factory.AmfConfig.Configuration.Mongodb != nil &&
 		factory.AmfConfig.Configuration.Mongodb.Url != "" {
 		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
 	}

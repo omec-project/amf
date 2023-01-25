@@ -304,7 +304,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 		Alias: (*Alias)(ue),
 	}
 	if err := json.Unmarshal(data, &auxCustom); err != nil {
-		logger.ContextLog.Errorf("AMFUe Unmarshal failed : ", err)
+		logger.ContextLog.Errorln("AMFUe Unmarshal failed : ", err)
 		return err
 	}
 
@@ -751,7 +751,7 @@ func (ue *AmfUe) SelectSecurityAlg(intOrder, encOrder []uint8) {
 	}
 }
 
-//this is clearing the transient data of registration request, this is called entrypoint of Deregistration and Registration state
+// this is clearing the transient data of registration request, this is called entrypoint of Deregistration and Registration state
 func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.RegistrationRequest = nil
 	ue.RegistrationType5GS = 0
@@ -767,7 +767,7 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.onGoing[accessType].Procedure = OnGoingProcedureNothing
 }
 
-//this method called when we are reusing the same uecontext during the registration procedure
+// this method called when we are reusing the same uecontext during the registration procedure
 func (ue *AmfUe) ClearRegistrationData() {
 	//Allowed Nssai should be cleared first as it is a new Registration
 	ue.SubscribedNssai = nil
