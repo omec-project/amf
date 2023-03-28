@@ -260,7 +260,7 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 // toBeSwitch -> Xn Handover to request to switch the PDU session to a new downlink N3 tunnel endpoint
 // failedToBeSwitch -> indicate that the PDU session failed to be setup in the target RAN
 // targetId, targetServingNfId(preparation with AMF change) -> N2 handover
-// release -> duplicated PDU Session Id in subclause 5.2.2.3.11, slice not available in subclause 5.2.2.3.12
+// release -> duplicated PDU Session Id in TS 29.502 subclause 5.2.2.3.11, slice not available in TS 29.502 subclause 5.2.2.3.12
 // ngApCause -> e.g. the NGAP cause for requesting to deactivate the user plane connection of the PDU session.
 // 5gMmCauseValue -> AMF received a 5GMM cause code from the UE e.g 5GMM Status message in response to
 // a Downlink NAS Transport message carrying 5GSM payload
