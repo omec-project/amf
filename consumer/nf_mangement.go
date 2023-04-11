@@ -12,12 +12,12 @@ import (
 	"strings"
 	"time"
 
-	amf_context "github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/util"
-	"github.com/free5gc/openapi"
-	"github.com/free5gc/openapi/Nnrf_NFManagement"
-	"github.com/free5gc/openapi/models"
+	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/util"
+	"github.com/omec-project/openapi"
+	"github.com/omec-project/openapi/Nnrf_NFManagement"
+	"github.com/omec-project/openapi/models"
 )
 
 func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile, err error) {
@@ -75,8 +75,8 @@ func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile,
 	return profile, err
 }
 
-func SendRegisterNFInstance(nrfUri, nfInstanceId string, profile models.NfProfile) (
-	resouceNrfUri string, retrieveNfInstanceId string, err error) {
+var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.NfProfile) (
+	prof models.NfProfile, resouceNrfUri string, retrieveNfInstanceId string, err error) {
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
 	configuration.SetBasePath(nrfUri)
@@ -84,7 +84,7 @@ func SendRegisterNFInstance(nrfUri, nfInstanceId string, profile models.NfProfil
 
 	var res *http.Response
 	for {
-		_, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(context.TODO(), nfInstanceId, profile)
+		prof, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(context.TODO(), nfInstanceId, profile)
 		if err != nil || res == nil {
 			// TODO : add log
 			fmt.Println(fmt.Errorf("AMF register to NRF Error[%s]", err.Error()))
@@ -111,7 +111,7 @@ func SendRegisterNFInstance(nrfUri, nfInstanceId string, profile models.NfProfil
 			fmt.Println(fmt.Errorf("NRF return wrong status code %d", status))
 		}
 	}
-	return resouceNrfUri, retrieveNfInstanceId, err
+	return prof, resouceNrfUri, retrieveNfInstanceId, err
 }
 
 func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err error) {
@@ -132,6 +132,96 @@ func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err erro
 		defer func() {
 			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
 				err = fmt.Errorf("SearchNFInstances' response body cannot close: %+w", bodyCloseErr)
+			}
+		}()
+		if res.Status != err.Error() {
+			return
+		}
+		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
+		problemDetails = &problem
+	} else {
+		err = openapi.ReportError("server no response")
+	}
+	return
+}
+
+var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
+	logger.ConsumerLog.Debugf("Send Update NFInstance")
+
+	amfSelf := amf_context.AMF_Self()
+	configuration := Nnrf_NFManagement.NewConfiguration()
+	configuration.SetBasePath(amfSelf.NrfUri)
+	client := Nnrf_NFManagement.NewAPIClient(configuration)
+
+	var res *http.Response
+	nfProfile, res, err = client.NFInstanceIDDocumentApi.UpdateNFInstance(context.Background(), amfSelf.NfId, patchItem)
+	if err == nil {
+		return
+	} else if res != nil {
+		defer func() {
+			if resCloseErr := res.Body.Close(); resCloseErr != nil {
+				logger.ConsumerLog.Errorf("UpdateNFInstance response cannot close: %+v", resCloseErr)
+			}
+		}()
+		if res.Status != err.Error() {
+			logger.ConsumerLog.Errorf("UpdateNFInstance received error response: %v", res.Status)
+			return
+		}
+		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
+		problemDetails = &problem
+	} else {
+		err = openapi.ReportError("server no response")
+	}
+	return
+}
+
+func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscriptionData) (nrfSubData models.NrfSubscriptionData, problemDetails *models.ProblemDetails, err error) {
+	logger.ConsumerLog.Debugf("Send Create Subscription")
+
+	// Set client and set url
+	configuration := Nnrf_NFManagement.NewConfiguration()
+	configuration.SetBasePath(nrfUri)
+	client := Nnrf_NFManagement.NewAPIClient(configuration)
+
+	var res *http.Response
+	nrfSubData, res, err = client.SubscriptionsCollectionApi.CreateSubscription(context.TODO(), nrfSubscriptionData)
+	if err == nil {
+		return
+	} else if res != nil {
+		defer func() {
+			if resCloseErr := res.Body.Close(); resCloseErr != nil {
+				logger.ConsumerLog.Errorf("SendCreateSubscription response cannot close: %+v", resCloseErr)
+			}
+		}()
+		if res.Status != err.Error() {
+			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %v", res.Status)
+			return
+		}
+		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
+		problemDetails = &problem
+	} else {
+		err = openapi.ReportError("server no response")
+	}
+	return
+}
+
+func SendRemoveSubscription(subscriptionId string) (problemDetails *models.ProblemDetails, err error) {
+	logger.ConsumerLog.Infoln("[AMF] Send Remove Subscription")
+
+	amfSelf := amf_context.AMF_Self()
+	// Set client and set url
+	configuration := Nnrf_NFManagement.NewConfiguration()
+	configuration.SetBasePath(amfSelf.NrfUri)
+	client := Nnrf_NFManagement.NewAPIClient(configuration)
+	var res *http.Response
+
+	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(context.Background(), subscriptionId)
+	if err == nil {
+		return
+	} else if res != nil {
+		defer func() {
+			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
+				err = fmt.Errorf("RemoveSubscription' response body cannot close: %+w", bodyCloseErr)
 			}
 		}()
 		if res.Status != err.Error() {

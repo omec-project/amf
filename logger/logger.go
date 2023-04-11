@@ -34,10 +34,12 @@ var (
 	EeLog       *logrus.Entry
 	GinLog      *logrus.Entry
 	GrpcLog     *logrus.Entry
+	KafkaLog    *logrus.Entry
 )
 
 const (
 	FieldRanAddr     string = "ran_addr"
+	FieldRanId       string = "ran_id"
 	FieldAmfUeNgapID string = "amf_ue_ngap_id"
 	FieldSupi        string = "supi"
 	FieldSuci        string = "suci"
@@ -52,7 +54,7 @@ func init() {
 		TrimMessages:    true,
 		NoFieldsSpace:   true,
 		HideKeys:        true,
-		FieldsOrder:     []string{"component", "category", FieldRanAddr, FieldAmfUeNgapID, FieldSupi, FieldSuci},
+		FieldsOrder:     []string{"component", "category", FieldRanAddr, FieldRanId, FieldAmfUeNgapID, FieldSupi, FieldSuci},
 	}
 
 	AppLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "App"})
@@ -74,6 +76,7 @@ func init() {
 	EeLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "EventExposure"})
 	GinLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "GIN"})
 	GrpcLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "GRPC"})
+	KafkaLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "Kafka"})
 }
 
 func SetLogLevel(level logrus.Level) {

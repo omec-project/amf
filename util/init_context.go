@@ -8,21 +8,46 @@ package util
 
 import (
 	"os"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/omec-project/util/drsm"
 
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/openapi/models"
 )
+
+func InitDrsm() (drsm.DrsmInterface, error) {
+	podname := os.Getenv("HOSTNAME")
+	podip := os.Getenv("POD_IP")
+	logger.UtilLog.Infof("NfId Instance: %v", context.AMF_Self().NfId)
+	podId := drsm.PodId{PodName: podname, PodInstance: context.AMF_Self().NfId, PodIp: podip}
+	logger.UtilLog.Debugf("PodId: %v", podId)
+	dbUrl := "mongodb://mongodb-arbiter-headless"
+	if factory.AmfConfig.Configuration.Mongodb != nil &&
+		factory.AmfConfig.Configuration.Mongodb.Url != "" {
+		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
+	}
+	opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
+	db := drsm.DbInfo{Url: dbUrl, Name: factory.AmfConfig.Configuration.AmfDBName}
+
+	// amfid is being used for amfngapid, subscriberid and tmsi for this release
+	return drsm.InitDRSM("amfid", podId, db, opt)
+}
 
 func InitAmfContext(context *context.AMFContext) {
 	config := factory.AmfConfig
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
-	context.NfId = uuid.New().String()
+	if context.NfId == "" {
+		context.NfId = uuid.New().String()
+	}
+	metrics.SetNfInstanceId(context.NfId)
+
 	if configuration.AmfName != "" {
 		context.Name = configuration.AmfName
 	}
@@ -31,6 +56,8 @@ func InitAmfContext(context *context.AMFContext) {
 	} else {
 		context.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
+	context.NgapPort = configuration.NgapPort
+	context.SctpGrpcPort = configuration.SctpGrpcPort
 	sbi := configuration.Sbi
 	if sbi.Scheme != "" {
 		context.UriScheme = models.UriScheme(sbi.Scheme)
@@ -42,7 +69,7 @@ func InitAmfContext(context *context.AMFContext) {
 	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			context.RegisterIPv4 = sbi.RegisterIPv4
+			context.RegisterIPv4 = os.Getenv("POD_IP")
 		}
 		if sbi.Port != 0 {
 			context.SBIPort = sbi.Port
@@ -91,6 +118,16 @@ func InitAmfContext(context *context.AMFContext) {
 	context.T3550Cfg = configuration.T3550
 	context.T3560Cfg = configuration.T3560
 	context.T3565Cfg = configuration.T3565
+	context.EnableSctpLb = configuration.EnableSctpLb
+	context.EnableDbStore = configuration.EnableDbStore
+	context.EnableNrfCaching = configuration.EnableNrfCaching
+	if configuration.EnableNrfCaching {
+		if configuration.NrfCacheEvictionInterval == 0 {
+			context.NrfCacheEvictionInterval = time.Duration(900) // 15 mins
+		} else {
+			context.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
+		}
+	}
 }
 
 func getIntAlgOrder(integrityOrder []string) (intOrder []uint8) {

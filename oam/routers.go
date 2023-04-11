@@ -7,12 +7,13 @@ package oam
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/logger_util"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/logger_util"
 )
 
 // Route is the information for every URI.
@@ -54,6 +55,10 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 		switch route.Method {
 		case "GET":
 			group.GET(route.Pattern, route.HandlerFunc)
+		case "DELETE":
+			group.DELETE(route.Pattern, route.HandlerFunc)
+		case "POST":
+			group.POST(route.Pattern, route.HandlerFunc)
 		}
 	}
 	return group
@@ -83,5 +88,24 @@ var routes = Routes{
 		"GET",
 		"/registered-ue-context/:supi",
 		HTTPRegisteredUEContext,
+	},
+
+	{
+		"Purge UE Context",
+		strings.ToUpper("Delete"),
+		"/purge-ue-context/:supi",
+		HTTPPurgeUEContext,
+	},
+	{
+		"Active UE List",
+		strings.ToUpper("get"),
+		"/active-ues",
+		HTTPGetActiveUes,
+	},
+	{
+		"Amf Instance Down Notification",
+		strings.ToUpper("post"),
+		"/amfInstanceDown/:nfid",
+		HTTPAmfInstanceDown,
 	},
 }

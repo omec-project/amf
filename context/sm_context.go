@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -9,220 +10,222 @@ package context
 import (
 	"sync"
 
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/openapi/models"
 )
 
 type SmContext struct {
-	mu sync.RWMutex // protect the following fields
+	Mu sync.RWMutex // protect the following fields
 
 	// pdu session information
-	pduSessionID int32
-	smContextRef string
-	snssai       models.Snssai
-	dnn          string
-	accessType   models.AccessType
-	nsInstance   string
-	userLocation models.UserLocation
-	plmnID       models.PlmnId
+	PduSessionIDVal int32
+	SmContextRefVal string
+	SnssaiVal       models.Snssai
+	DnnVal          string
+	AccessTypeVal   models.AccessType
+	NsInstanceVal   string
+	UserLocationVal models.UserLocation
+	PlmnIDVal       models.PlmnId
 
 	// SMF information
-	smfID  string
-	smfUri string
-	hSmfID string
-	vSmfID string
+	SmfIDVal  string
+	SmfUriVal string
+	HSmfIDVal string
+	VSmfIDVal string
 
 	//status of pdusession
-	pduSessionInactive bool
+	PduSessionInactiveVal bool
 
 	// for duplicate pdu session id handling
-	ulNASTransport *nasMessage.ULNASTransport
-	duplicated     bool
+	UlNASTransportVal *nasMessage.ULNASTransport
+	DuplicatedVal     bool
+
+	SmfProfiles []models.NfProfile
 }
 
 func NewSmContext(pduSessionID int32) *SmContext {
-	c := &SmContext{pduSessionID: pduSessionID}
+	c := &SmContext{PduSessionIDVal: pduSessionID}
 	return c
 }
 
 func (c *SmContext) IsPduSessionActive() bool {
-	return !c.pduSessionInactive
+	return !c.PduSessionInactiveVal
 }
 
 func (c *SmContext) SetPduSessionInActive(s bool) {
-	c.pduSessionInactive = s
+	c.PduSessionInactiveVal = s
 }
 
 func (c *SmContext) PduSessionID() int32 {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.pduSessionID
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.PduSessionIDVal
 }
 
 func (c *SmContext) SetPduSessionID(id int32) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.pduSessionID = id
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.PduSessionIDVal = id
 }
 
 func (c *SmContext) SmContextRef() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.smContextRef
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.SmContextRefVal
 }
 
 func (c *SmContext) SetSmContextRef(ref string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.smContextRef = ref
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.SmContextRefVal = ref
 }
 
 func (c *SmContext) AccessType() models.AccessType {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.accessType
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.AccessTypeVal
 }
 
 func (c *SmContext) SetAccessType(accessType models.AccessType) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.accessType = accessType
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.AccessTypeVal = accessType
 }
 
 func (c *SmContext) Snssai() models.Snssai {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.snssai
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.SnssaiVal
 }
 
 func (c *SmContext) SetSnssai(snssai models.Snssai) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.snssai = snssai
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.SnssaiVal = snssai
 }
 
 func (c *SmContext) Dnn() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.dnn
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.DnnVal
 }
 
 func (c *SmContext) SetDnn(dnn string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.dnn = dnn
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.DnnVal = dnn
 }
 
 func (c *SmContext) NsInstance() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.nsInstance
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.NsInstanceVal
 }
 
 func (c *SmContext) SetNsInstance(nsInstanceID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.nsInstance = nsInstanceID
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.NsInstanceVal = nsInstanceID
 }
 
 func (c *SmContext) UserLocation() models.UserLocation {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.userLocation
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.UserLocationVal
 }
 
 func (c *SmContext) SetUserLocation(userLocation models.UserLocation) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.userLocation = userLocation
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.UserLocationVal = userLocation
 }
 
 func (c *SmContext) PlmnID() models.PlmnId {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.plmnID
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.PlmnIDVal
 }
 
 func (c *SmContext) SetPlmnID(plmnID models.PlmnId) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.plmnID = plmnID
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.PlmnIDVal = plmnID
 }
 
 func (c *SmContext) SmfID() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.smfID
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.SmfIDVal
 }
 
 func (c *SmContext) SetSmfID(smfID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.smfID = smfID
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.SmfIDVal = smfID
 }
 
 func (c *SmContext) SmfUri() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.smfUri
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.SmfUriVal
 }
 
 func (c *SmContext) SetSmfUri(smfUri string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.smfUri = smfUri
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.SmfUriVal = smfUri
 }
 
 func (c *SmContext) HSmfID() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.hSmfID
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.HSmfIDVal
 }
 
 func (c *SmContext) SetHSmfID(hsmfID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.hSmfID = hsmfID
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.HSmfIDVal = hsmfID
 }
 
 func (c *SmContext) VSmfID() string {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.vSmfID
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.VSmfIDVal
 }
 
 func (c *SmContext) SetVSmfID(vsmfID string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.vSmfID = vsmfID
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.VSmfIDVal = vsmfID
 }
 
 func (c *SmContext) PduSessionIDDuplicated() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.duplicated
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.DuplicatedVal
 }
 
 func (c *SmContext) SetDuplicatedPduSessionID(duplicated bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.duplicated = duplicated
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.DuplicatedVal = duplicated
 }
 
 func (c *SmContext) ULNASTransport() *nasMessage.ULNASTransport {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.ulNASTransport
+	c.Mu.RLock()
+	defer c.Mu.RUnlock()
+	return c.UlNASTransportVal
 }
 
 func (c *SmContext) StoreULNASTransport(msg *nasMessage.ULNASTransport) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.ulNASTransport = msg
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.UlNASTransportVal = msg
 }
 
 func (c *SmContext) DeleteULNASTransport() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.ulNASTransport = nil
+	c.Mu.Lock()
+	defer c.Mu.Unlock()
+	c.UlNASTransportVal = nil
 }

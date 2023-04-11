@@ -7,14 +7,14 @@
 package message
 
 import (
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	ngap_message "github.com/free5gc/amf/ngap/message"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/nasType"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/nasType"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
 )
 
 // backOffTimerUint = 7 means backoffTimer is null

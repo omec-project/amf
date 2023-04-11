@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -10,16 +11,16 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/free5gc/amf/context"
-	gmm_message "github.com/free5gc/amf/gmm/message"
-	"github.com/free5gc/amf/logger"
-	ngap_message "github.com/free5gc/amf/ngap/message"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/aper"
-	"github.com/free5gc/http_wrapper"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	gmm_message "github.com/omec-project/amf/gmm/message"
+	"github.com/omec-project/amf/logger"
+	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/aper"
+	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
 )
 
 func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
@@ -266,6 +267,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				}
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				//context.StoreContextInDB(ue)
 				return n1n2MessageTransferRspData, "", nil, nil
 			case models.NgapIeType_PDU_RES_MOD_REQ:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Modify Request from SMF")
@@ -274,6 +276,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ngap_message.SendPDUSessionResourceModifyRequest(ue.RanUe[anType], list)
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				//context.StoreContextInDB(ue)
 				return n1n2MessageTransferRspData, "", nil, nil
 			case models.NgapIeType_PDU_RES_REL_CMD:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Release Command from SMF")
@@ -282,6 +285,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[anType], nasPdu, list)
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
+				//context.StoreContextInDB(ue)
 				return n1n2MessageTransferRspData, "", nil, nil
 			default:
 				ue.ProducerLog.Errorf("NGAP IE Type[%s] is not supported for SmInfo", smInfo.N2InfoContent.NgapIeType)

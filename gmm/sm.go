@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -9,15 +10,15 @@ package gmm
 import (
 	"fmt"
 
-	"github.com/free5gc/amf/context"
-	gmm_message "github.com/free5gc/amf/gmm/message"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/util"
-	"github.com/free5gc/fsm"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	gmm_message "github.com/omec-project/amf/gmm/message"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/util"
+	"github.com/omec-project/fsm"
+	"github.com/omec-project/nas"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/openapi/models"
 )
 
 func DeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
@@ -75,6 +76,9 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		accessType := args[ArgAccessType].(models.AccessType)
 		amfUe.ClearRegistrationRequestData(accessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Registered]")
+		//store context in DB. Registration procedure is complete.
+		amfUe.PublishUeCtxtInfo()
+		context.StoreContextInDB(amfUe)
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		procedureCode := args[ArgProcedureCode].(int64)
@@ -153,6 +157,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
 		amfUe.TxLog = amfUe.TxLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Authentication]")
+		amfUe.PublishUeCtxtInfo()
 		fallthrough
 	case AuthRestartEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
@@ -195,6 +200,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			if err := HandleAuthenticationResponse(amfUe, accessType, gmmMessage.AuthenticationResponse); err != nil {
 				logger.GmmLog.Errorln(err)
 			}
+			amfUe.PublishUeCtxtInfo()
 		case nas.MsgTypeAuthenticationFailure:
 			if err := HandleAuthenticationFailure(amfUe, accessType, gmmMessage.AuthenticationFailure); err != nil {
 				logger.GmmLog.Errorln(err)
@@ -242,7 +248,7 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe.TxLog = amfUe.NASLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
 		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
 		amfUe.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
-
+		amfUe.PublishUeCtxtInfo()
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[SecurityMode]")
 		if amfUe.SecurityContextIsValid() {
 			amfUe.GmmLog.Debugln("UE has a valid security context - skip security mode control procedure")
@@ -354,7 +360,7 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		gmmMessage := args[ArgNASMessage]
 		accessType := args[ArgAccessType].(models.AccessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[ContextSetup]")
-
+		amfUe.PublishUeCtxtInfo()
 		switch message := gmmMessage.(type) {
 		case *nasMessage.RegistrationRequest:
 			amfUe.RegistrationRequest = message
@@ -459,6 +465,7 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 				}
 			}
 		}
+		amfUe.PublishUeCtxtInfo()
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		gmmMessage := args[ArgNASMessage].(*nas.GmmMessage)
@@ -487,6 +494,7 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 }
 
 func SetDeregisteredState(amfUe *context.AmfUe, anType uint8) {
+	amfUe.SubscriptionDataValid = false
 	if anType == nasMessage.AccessType3GPP {
 		amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
 		amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)

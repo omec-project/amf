@@ -22,22 +22,22 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
 
-	"github.com/free5gc/amf/consumer"
-	"github.com/free5gc/amf/context"
-	gmm_message "github.com/free5gc/amf/gmm/message"
-	ngap_message "github.com/free5gc/amf/ngap/message"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/amf/util"
-	"github.com/free5gc/fsm"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasConvert"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/nasType"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/Nnrf_NFDiscovery"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/consumer"
+	"github.com/omec-project/amf/context"
+	gmm_message "github.com/omec-project/amf/gmm/message"
+	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/util"
+	"github.com/omec-project/fsm"
+	"github.com/omec-project/nas"
+	"github.com/omec-project/nas/nasConvert"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/nasType"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/ngap/ngapConvert"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
+	"github.com/omec-project/openapi/models"
 )
 
 func HandleULNASTransport(ue *context.AmfUe, anType models.AccessType,
@@ -119,6 +119,14 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 			}
 		}
 
+		if !smContextExist {
+			msg := new(nas.Message)
+			msg.PlainNasDecode(&smMessage)
+			if msg.GsmMessage != nil && msg.GsmMessage.Status5GSM != nil {
+				ue.GmmLog.Warningf("SmContext doesn't exist, 5GSM Status message received from UE with cause %v", msg.GsmMessage.Status5GSM.Cause5GSM)
+				return nil
+			}
+		}
 		// AMF has a PDU session routing context for the PDU session ID and the UE
 		if smContextExist {
 			// case i) Request type IE is either not included
@@ -245,6 +253,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 						ue.StoreSmContext(pduSessionID, newSmContext)
 						ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduSessionID)
 						// TODO: handle response(response N2SmInfo to RAN if exists)
+						ue.PublishUeCtxtInfo()
 					}
 				}
 			case nasMessage.ULNASTransportRequestTypeModificationRequest:
@@ -357,6 +366,7 @@ func forward5GSMMessageToSMF(
 			ngap_message.SendDownlinkNasTransport(ue.RanUe[accessType], n1Msg, nil)
 		}
 	}
+	ue.PublishUeCtxtInfo()
 	return nil
 }
 
@@ -515,7 +525,6 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 		return fmt.Errorf("UESecurityCapability is nil")
 	}
-
 	// TODO (TS 23.502 4.2.2.2 step 4): if UE's 5g-GUTI is included & serving AMF has changed
 	// since last registration procedure, new AMF may invoke Namf_Communication_UEContextTransfer
 	// to old AMF, including the complete registration request nas msg, to request UE's SUPI & UE Context
@@ -636,7 +645,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	// N5g-eir_EquipmentIdentityCheck_Get service operation
 
 	if ue.ServingAmfChanged || ue.State[models.AccessType_NON_3_GPP_ACCESS].Is(context.Registered) ||
-		!ue.ContextValid {
+		!ue.SubscriptionDataValid {
 		if err := communicateWithUDM(ue, anType); err != nil {
 			return err
 		}
@@ -788,7 +797,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 	// N5g-eir_EquipmentIdentityCheck_Get service operation
 
 	if ue.ServingAmfChanged || ue.State[models.AccessType_NON_3_GPP_ACCESS].Is(context.Registered) ||
-		!ue.ContextValid {
+		!ue.SubscriptionDataValid {
 		if err := communicateWithUDM(ue, anType); err != nil {
 			return err
 		}
@@ -1158,7 +1167,7 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType) error {
 		ue.GmmLog.Errorf("SDM Subscribe Error[%+v]", err)
 		return fmt.Errorf("SDM Subscribe Error[%+v]", err)
 	}
-	ue.ContextValid = true
+	ue.SubscriptionDataValid = true
 	return nil
 }
 
@@ -1196,7 +1205,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 			return fmt.Errorf("Decode failed at RequestedNSSAI[%s]", err)
 		}
 
-		ue.GmmLog.Errorf("RequestedNssai: %+v", requestedNssai)
+		ue.GmmLog.Infof("RequestedNssai: %+v", requestedNssai)
 
 		needSliceSelection := false
 		for _, requestedSnssai := range requestedNssai {
@@ -1296,7 +1305,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 					UserLocation:     &ue.Location,
 					RrcEstCause:      ue.RanUe[anType].RRCEstablishmentCause,
 					UeContextRequest: ue.RanUe[anType].UeContextRequest,
-					AnN2IPv4Addr:     ue.RanUe[anType].Ran.Conn.RemoteAddr().String(),
+					AnN2IPv4Addr:     ue.RanUe[anType].Ran.GnbIp,
 					AllowedNssai: &models.AllowedNssai{
 						AllowedSnssaiList: ue.AllowedNssai[anType],
 						AccessType:        anType,
@@ -1484,7 +1493,7 @@ func HandleConfigurationUpdateComplete(ue *context.AmfUe,
 
 	// TODO: Stop timer T3555 in TS 24.501 Figure 5.4.4.1.1 in handler
 	// TODO: Send acknowledgment by Nudm_SMD_Info_Service to UDM in handler
-	//		import "github.com/free5gc/openapi/Nudm_SubscriberDataManagement" client.Info
+	//		import "github.com/omec-project/openapi/Nudm_SubscriberDataManagement" client.Info
 
 	return nil
 }
@@ -1607,7 +1616,7 @@ func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType model
 	return err
 }
 
-//TODO: to be implemented
+// TODO: to be implemented
 func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
 
 	//TODO send configuration update to update allowed nssai list with re-registration required to UE
@@ -1645,7 +1654,7 @@ func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, ns
 	return err
 }
 
-//TODO: to be implemented
+// TODO: to be implemented
 func HandleUeSliceInfoAdd(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
 
 	//TODO send configuration update to update allowed nssai list with re-registration required to UE
@@ -2254,6 +2263,7 @@ func HandleRegistrationComplete(ue *context.AmfUe, accessType models.AccessType,
 		ngap_message.SendUEContextReleaseCommand(ue.RanUe[accessType], context.UeContextN2NormalRelease,
 			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
 	}
+
 	return GmmFSM.SendEvent(ue.State[accessType], ContextSetupSuccessEvent, fsm.ArgsType{
 		ArgAmfUe:      ue,
 		ArgAccessType: accessType,

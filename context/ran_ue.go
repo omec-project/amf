@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -15,10 +16,10 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/sirupsen/logrus"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/ngap/ngapConvert"
-	"github.com/free5gc/ngap/ngapType"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/ngap/ngapConvert"
+	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
 )
 
 type RelAction int
@@ -36,26 +37,26 @@ const (
 
 type RanUe struct {
 	/* UE identity*/
-	RanUeNgapId int64
-	AmfUeNgapId int64
+	RanUeNgapId int64 `json:"ranUeNgapId, omitempty"`
+	AmfUeNgapId int64 `json:"amfUeNgapId, omitempty"`
 
 	/* HandOver Info*/
 	HandOverType        ngapType.HandoverType
-	SuccessPduSessionId []int32
-	SourceUe            *RanUe
-	TargetUe            *RanUe
+	SuccessPduSessionId []int32 `json:"successPduSessionId, omitempty"`
+	SourceUe            *RanUe  `json:"-"`
+	TargetUe            *RanUe  `json:"-"`
 
 	/* UserLocation*/
 	Tai      models.Tai
 	Location models.UserLocation
 	/* context about udm */
-	SupportVoPSn3gpp  bool
-	SupportVoPS       bool
-	SupportedFeatures string
-	LastActTime       *time.Time
+	SupportVoPSn3gpp  bool       `json:"-"`
+	SupportVoPS       bool       `json:"-"`
+	SupportedFeatures string     `json:"-"`
+	LastActTime       *time.Time `json:"-"`
 
 	/* Related Context*/
-	AmfUe *AmfUe
+	AmfUe *AmfUe `json:"-"`
 	Ran   *AmfRan
 
 	/* Routing ID */
@@ -77,10 +78,14 @@ type RanUe struct {
 	RecvdInitialContextSetupResponse bool
 
 	/* logger */
-	Log *logrus.Entry
+	Log *logrus.Entry `json:"-"`
+
+	/* Sctplb Redirect Msg */
+	SctplbMsg []byte
 }
 
 func (ranUe *RanUe) Remove() error {
+	fmt.Printf("RanUe has been deleted")
 	if ranUe == nil {
 		return fmt.Errorf("RanUe not found in RemoveRanUe")
 	}
@@ -101,7 +106,8 @@ func (ranUe *RanUe) Remove() error {
 	}
 	self := AMF_Self()
 	self.RanUePool.Delete(ranUe.AmfUeNgapId)
-	amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
+	//amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
+	self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId))
 	return nil
 }
 

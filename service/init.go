@@ -1,5 +1,5 @@
+// SPDX-FileCopyrightText: 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
-// Copyright (c) 2021 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -10,48 +10,52 @@ package service
 import (
 	"bufio"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof" //Using package only for invoking initialization.
 	"os"
 	"os/exec"
 	"os/signal"
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
+
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/free5gc/amf/communication"
-	"github.com/free5gc/amf/consumer"
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/eventexposure"
-	"github.com/free5gc/amf/factory"
-	"github.com/free5gc/amf/gmm"
-	"github.com/free5gc/amf/httpcallback"
-	"github.com/free5gc/amf/location"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/amf/metrics"
-	"github.com/free5gc/amf/mt"
-	"github.com/free5gc/amf/ngap"
-	ngap_message "github.com/free5gc/amf/ngap/message"
-	ngap_service "github.com/free5gc/amf/ngap/service"
-	"github.com/free5gc/amf/oam"
-	"github.com/free5gc/amf/producer/callback"
-	"github.com/free5gc/amf/util"
-	aperLogger "github.com/free5gc/aper/logger"
-	"github.com/free5gc/fsm"
-	fsmLogger "github.com/free5gc/fsm/logger"
-	"github.com/free5gc/http2_util"
-	"github.com/free5gc/logger_util"
-	nasLogger "github.com/free5gc/nas/logger"
-	ngapLogger "github.com/free5gc/ngap/logger"
-	openApiLogger "github.com/free5gc/openapi/logger"
-	"github.com/free5gc/openapi/models"
-	"github.com/free5gc/path_util"
-	pathUtilLogger "github.com/free5gc/path_util/logger"
 	"github.com/fsnotify/fsnotify"
+	"github.com/omec-project/amf/communication"
+	"github.com/omec-project/amf/consumer"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/eventexposure"
+	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/gmm"
+	"github.com/omec-project/amf/httpcallback"
+	"github.com/omec-project/amf/location"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
+	"github.com/omec-project/amf/mt"
+	"github.com/omec-project/amf/ngap"
+	ngap_message "github.com/omec-project/amf/ngap/message"
+	ngap_service "github.com/omec-project/amf/ngap/service"
+	"github.com/omec-project/amf/oam"
+	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/util"
+	aperLogger "github.com/omec-project/aper/logger"
 	gClient "github.com/omec-project/config5g/proto/client"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
+	"github.com/omec-project/fsm"
+	fsmLogger "github.com/omec-project/fsm/logger"
+	"github.com/omec-project/http2_util"
+	"github.com/omec-project/logger_util"
+	nasLogger "github.com/omec-project/nas/logger"
+	ngapLogger "github.com/omec-project/ngap/logger"
+	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/path_util"
+	pathUtilLogger "github.com/omec-project/path_util/logger"
 	"github.com/spf13/viper"
 )
 
@@ -62,7 +66,8 @@ var RocUpdateConfigChannel chan bool
 type (
 	// Config information.
 	Config struct {
-		amfcfg string
+		amfcfg         string
+		heartBeatTimer string
 	}
 )
 
@@ -80,6 +85,11 @@ var amfCLi = []cli.Flag{
 }
 
 var initLog *logrus.Entry
+
+var (
+	KeepAliveTimer      *time.Timer
+	KeepAliveTimerMutex sync.Mutex
+)
 
 func init() {
 	initLog = logger.InitLog
@@ -107,6 +117,14 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	}
 
 	amf.setLogLevel()
+
+	//Initiating a server for profiling
+	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
+		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
+		go func() {
+			http.ListenAndServe(addr, nil)
+		}()
+	}
 
 	if err := factory.CheckConfigVersion(); err != nil {
 		return err
@@ -259,22 +277,6 @@ func (amf *AMF) setLogLevel() {
 		}
 		pathUtilLogger.SetReportCaller(factory.AmfConfig.Logger.PathUtil.ReportCaller)
 	}
-
-	if factory.AmfConfig.Logger.OpenApi != nil {
-		if factory.AmfConfig.Logger.OpenApi.DebugLevel != "" {
-			if level, err := logrus.ParseLevel(factory.AmfConfig.Logger.OpenApi.DebugLevel); err != nil {
-				openApiLogger.OpenApiLog.Warnf("OpenAPI Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.OpenApi.DebugLevel)
-				openApiLogger.SetLogLevel(logrus.InfoLevel)
-			} else {
-				openApiLogger.SetLogLevel(level)
-			}
-		} else {
-			openApiLogger.OpenApiLog.Warnln("OpenAPI Log level not set. Default set to [info] level")
-			openApiLogger.SetLogLevel(logrus.InfoLevel)
-		}
-		openApiLogger.SetReportCaller(factory.AmfConfig.Logger.OpenApi.ReportCaller)
-	}
 }
 
 func (amf *AMF) FilterCli(c *cli.Context) (args []string) {
@@ -323,8 +325,13 @@ func (amf *AMF) Start() {
 
 	go metrics.InitMetrics()
 
+	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
+		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
+	}
+
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
+	self.Drsm, _ = util.InitDrsm()
 
 	addr := fmt.Sprintf("%s:%d", self.BindingIPv4, self.SBIPort)
 
@@ -332,9 +339,20 @@ func (amf *AMF) Start() {
 		HandleMessage:      ngap.Dispatch,
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
-	ngap_service.Run(self.NgapIpList, 38412, ngapHandler)
+	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	go amf.SendNFProfileUpdateToNrf()
+
+	if self.EnableNrfCaching {
+		initLog.Infoln("Enable NRF caching feature")
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
+	}
+
+	if self.EnableSctpLb {
+		go StartGrpcServer(self.SctpGrpcPort)
+	}
+
+	go context.SetupAmfCollection()
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
@@ -442,7 +460,96 @@ func (amf *AMF) Terminate() {
 	ngap_service.Stop()
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+
+	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
+		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
+			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			if problemDetails != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Error[%+v]", err)
+			} else {
+				logger.InitLog.Infoln("[AMF] Remove NF Subscription successful")
+			}
+		}
+		return true
+	})
+
 	logger.InitLog.Infof("AMF terminated")
+}
+
+func (amf *AMF) StartKeepAliveTimer(nfProfile models.NfProfile) {
+	KeepAliveTimerMutex.Lock()
+	defer KeepAliveTimerMutex.Unlock()
+	amf.StopKeepAliveTimer()
+	if nfProfile.HeartBeatTimer == 0 {
+		nfProfile.HeartBeatTimer = 60
+	}
+	logger.InitLog.Infof("Started KeepAlive Timer: %v sec", nfProfile.HeartBeatTimer)
+	//AfterFunc starts timer and waits for KeepAliveTimer to elapse and then calls amf.UpdateNF function
+	KeepAliveTimer = time.AfterFunc(time.Duration(nfProfile.HeartBeatTimer)*time.Second, amf.UpdateNF)
+}
+
+func (amf *AMF) StopKeepAliveTimer() {
+	if KeepAliveTimer != nil {
+		logger.InitLog.Infof("Stopped KeepAlive Timer.")
+		KeepAliveTimer.Stop()
+		KeepAliveTimer = nil
+	}
+}
+
+func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
+	self := context.AMF_Self()
+	profile, err := consumer.BuildNFInstance(self)
+	if err != nil {
+		initLog.Errorf("Build AMF Profile Error: %v", err)
+		return profile, err
+	}
+	initLog.Infof("Pcf Profile Registering to NRF: %v", profile)
+	//Indefinite attempt to register until success
+	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile)
+	return profile, err
+}
+
+// UpdateNF is the callback function, this is called when keepalivetimer elapsed
+func (amf *AMF) UpdateNF() {
+	KeepAliveTimerMutex.Lock()
+	defer KeepAliveTimerMutex.Unlock()
+	if KeepAliveTimer == nil {
+		initLog.Warnf("KeepAlive timer has been stopped.")
+		return
+	}
+	//setting default value 30 sec
+	var heartBeatTimer int32 = 60
+	pitem := models.PatchItem{
+		Op:    "replace",
+		Path:  "/nfStatus",
+		Value: "REGISTERED",
+	}
+	var patchItem []models.PatchItem
+	patchItem = append(patchItem, pitem)
+	nfProfile, problemDetails, err := consumer.SendUpdateNFInstance(patchItem)
+	if problemDetails != nil {
+		initLog.Errorf("AMF update to NRF ProblemDetails[%v]", problemDetails)
+		//5xx response from NRF, 404 Not Found, 400 Bad Request
+		if (problemDetails.Status/100) == 5 ||
+			problemDetails.Status == 404 || problemDetails.Status == 400 {
+			//register with NRF full profile
+			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+		}
+	} else if err != nil {
+		initLog.Errorf("AMF update to NRF Error[%s]", err.Error())
+		nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+	}
+
+	if nfProfile.HeartBeatTimer != 0 {
+		// use hearbeattimer value with received timer value from NRF
+		heartBeatTimer = nfProfile.HeartBeatTimer
+	}
+	logger.InitLog.Debugf("Restarted KeepAlive Timer: %v sec", heartBeatTimer)
+	//restart timer with received HeartBeatTimer value
+	KeepAliveTimer = time.AfterFunc(time.Duration(heartBeatTimer)*time.Second, amf.UpdateNF)
 }
 
 func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []models.Tai, opType protos.OpType) {
@@ -523,6 +630,9 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
 		var tai []models.Tai
 		var plmnList []*factory.PlmnSupportItem
+		if rsp.NetworkSlice == nil {
+			return false
+		}
 		for _, ns := range rsp.NetworkSlice {
 			var snssai *models.Snssai
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
@@ -585,6 +695,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 }
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
+	//for rocUpdateConfig := range RocUpdateConfigChannel {
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
 			self := context.AMF_Self()
@@ -599,9 +710,11 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 				profile = profileTmp
 			}
 
-			if _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
+			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
 				logger.CfgLog.Warnf("Send Register NF Instance with updated profile failed: %+v", err)
 			} else {
+				//stop keepAliveTimer if its running and start the timer
+				amf.StartKeepAliveTimer(prof)
 				self.NfId = nfId
 				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
 			}
@@ -675,7 +788,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 			Sst:  slice.Nssai.Sst,
 			Sd:   slice.Nssai.Sd,
 		}
-
+		ue.SetEventChannel(nil)
 		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}

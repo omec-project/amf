@@ -12,13 +12,13 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/free5gc/amf/context"
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/nas"
-	"github.com/free5gc/nas/nasConvert"
-	"github.com/free5gc/nas/nasMessage"
-	"github.com/free5gc/nas/security"
-	"github.com/free5gc/openapi/models"
+	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/nas"
+	"github.com/omec-project/nas/nasConvert"
+	"github.com/omec-project/nas/nasMessage"
+	"github.com/omec-project/nas/security"
+	"github.com/omec-project/openapi/models"
 )
 
 var mutex sync.Mutex
@@ -170,6 +170,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	if guti != "" {
 		ue, _ = context.AMF_Self().AmfUeFindByGuti(guti)
 		if ue != nil {
+			if msg.SecurityHeaderType == nas.SecurityHeaderTypePlainNas {
+				ue.NASLog.Infof("UE Context derived from Guti but received in plain nas: %v", guti)
+				return nil
+			}
 			ue.NASLog.Infof("UE Context derived from Guti: %v", guti)
 			return ue
 		} else {

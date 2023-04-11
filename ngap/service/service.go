@@ -15,8 +15,8 @@ import (
 
 	"git.cs.nctu.edu.tw/calee/sctp"
 
-	"github.com/free5gc/amf/logger"
-	"github.com/free5gc/ngap"
+	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/ngap"
 )
 
 type NGAPHandler struct {
@@ -24,7 +24,7 @@ type NGAPHandler struct {
 	HandleNotification func(conn net.Conn, notification sctp.Notification)
 }
 
-const readBufSize uint32 = 8192
+const readBufSize uint32 = 131072
 
 // set default read timeout to 2 seconds
 var readTimeout syscall.Timeval = syscall.Timeval{Sec: 2, Usec: 0}

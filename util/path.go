@@ -3,12 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//+build !debug
+//go:build !debug
+// +build !debug
 
 package util
 
 import (
-	"github.com/free5gc/path_util"
+	"github.com/omec-project/path_util"
 )
 
 var (
