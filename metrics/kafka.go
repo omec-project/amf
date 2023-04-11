@@ -79,7 +79,7 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 
 var nfInstanceId string
 
-//initialised by context package
+// initialised by context package
 func SetNfInstanceId(s string) {
 	nfInstanceId = s
 }
