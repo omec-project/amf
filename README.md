@@ -39,6 +39,7 @@ metrics. Metrics include connected gNodeB's and its status.
 - PDU Establishment Request/Release
 - Paging
 - CN High Availibilty and Stateless session support
+- AMF metrics are available via metricfunc on the 5g Grafana dashboard
 
 ## Upcoming Changes in AMF
 
