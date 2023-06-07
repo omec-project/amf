@@ -31,7 +31,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli v1.22.10
-	go.mongodb.org/mongo-driver v1.11.0
+	go.mongodb.org/mongo-driver v1.11.7
 	google.golang.org/grpc v1.48.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0
