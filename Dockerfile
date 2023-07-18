@@ -8,6 +8,7 @@ FROM golang:1.16.0-stretch AS builder
 LABEL maintainer="ONF <omec-dev@opennetworking.org>"
 
 #RUN apt remove cmdtest yarn
+RUN echo "deb http://archive.debian.org/debian stretch main" > /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get -y install apt-transport-https ca-certificates
 RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg > pubkey.gpg

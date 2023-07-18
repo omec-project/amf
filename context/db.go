@@ -176,6 +176,7 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	ue.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
+	ue.TxLog.Errorln("amfue fetched")
 	return ue
 }
 
