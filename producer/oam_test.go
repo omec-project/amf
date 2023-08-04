@@ -35,6 +35,7 @@ func init() {
 
 func TestHandleOAMPurgeUEContextRequest_UEDeregistered(t *testing.T) {
 	self := context.AMF_Self()
+	self.Drsm, _ = util.MockDrsmInit()
 	amfUe := self.NewAmfUe("imsi-208930100007497")
 
 	HandleOAMPurgeUEContextRequest(amfUe.Supi, "", nil)

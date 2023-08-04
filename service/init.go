@@ -10,6 +10,8 @@ package service
 import (
 	"bufio"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof" //Using package only for invoking initialization.
 	"os"
 	"os/exec"
 	"os/signal"
@@ -17,6 +19,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 
 	"github.com/gin-contrib/cors"
 	"github.com/sirupsen/logrus"
@@ -113,6 +117,14 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	}
 
 	amf.setLogLevel()
+
+	//Initiating a server for profiling
+	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
+		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
+		go func() {
+			http.ListenAndServe(addr, nil)
+		}()
+	}
 
 	if err := factory.CheckConfigVersion(); err != nil {
 		return err
@@ -313,6 +325,10 @@ func (amf *AMF) Start() {
 
 	go metrics.InitMetrics()
 
+	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
+		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
+	}
+
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
 	self.Drsm, _ = util.InitDrsm()
@@ -326,6 +342,11 @@ func (amf *AMF) Start() {
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	go amf.SendNFProfileUpdateToNrf()
+
+	if self.EnableNrfCaching {
+		initLog.Infoln("Enable NRF caching feature")
+		nrf_cache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
+	}
 
 	if self.EnableSctpLb {
 		go StartGrpcServer(self.SctpGrpcPort)
@@ -439,6 +460,22 @@ func (amf *AMF) Terminate() {
 	ngap_service.Stop()
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+
+	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
+		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
+			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			if problemDetails != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+			} else if err != nil {
+				logger.InitLog.Errorf("Remove NF Subscription Error[%+v]", err)
+			} else {
+				logger.InitLog.Infoln("[AMF] Remove NF Subscription successful")
+			}
+		}
+		return true
+	})
+
 	logger.InitLog.Infof("AMF terminated")
 }
 
@@ -466,7 +503,7 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	self := context.AMF_Self()
 	profile, err := consumer.BuildNFInstance(self)
 	if err != nil {
-		initLog.Error("Build AMF Profile Error: %v", err)
+		initLog.Errorf("Build AMF Profile Error: %v", err)
 		return profile, err
 	}
 	initLog.Infof("Pcf Profile Registering to NRF: %v", profile)
@@ -475,7 +512,7 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	return profile, err
 }
 
-//UpdateNF is the callback function, this is called when keepalivetimer elapsed
+// UpdateNF is the callback function, this is called when keepalivetimer elapsed
 func (amf *AMF) UpdateNF() {
 	KeepAliveTimerMutex.Lock()
 	defer KeepAliveTimerMutex.Unlock()
@@ -593,6 +630,9 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
 		var tai []models.Tai
 		var plmnList []*factory.PlmnSupportItem
+		if rsp.NetworkSlice == nil {
+			return false
+		}
 		for _, ns := range rsp.NetworkSlice {
 			var snssai *models.Snssai
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
@@ -655,6 +695,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 }
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
+	//for rocUpdateConfig := range RocUpdateConfigChannel {
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
 			self := context.AMF_Self()
