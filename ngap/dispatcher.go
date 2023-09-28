@@ -99,7 +99,7 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
 		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
-		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
+		//ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:       ran,
