@@ -142,6 +142,10 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		fmt.Println("amfcfg does not exists in /free5gc/config")
 	}
 
+	if factory.AmfConfig.Configuration.WebuiUri == "" {
+		factory.AmfConfig.Configuration.WebuiUri = "webui:9876"
+	}
+
 	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
 		factory.AmfConfig.Configuration.ServedGumaiList = nil
 		factory.AmfConfig.Configuration.SupportTAIList = nil
