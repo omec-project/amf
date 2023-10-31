@@ -73,7 +73,7 @@ func HandleCreateUEContextRequest(request *http_wrapper.Request) *http_wrapper.R
 	if msg.TransferErr != nil {
 		ueContextCreateErr = msg.TransferErr.(*models.UeContextCreateError)
 	}
-	//createUeContextResponse, ueContextCreateError := CreateUEContextProcedure(ueContextID, createUeContextRequest)
+	// createUeContextResponse, ueContextCreateError := CreateUEContextProcedure(ueContextID, createUeContextRequest)
 	if ueContextCreateErr != nil {
 		return http_wrapper.NewResponse(int(ueContextCreateErr.Error.Status), nil, ueContextCreateErr)
 	} else {
@@ -82,7 +82,8 @@ func HandleCreateUEContextRequest(request *http_wrapper.Request) *http_wrapper.R
 }
 
 func CreateUEContextProcedure(ueContextID string, createUeContextRequest models.CreateUeContextRequest) (
-	*models.CreateUeContextResponse, *models.UeContextCreateError) {
+	*models.CreateUeContextResponse, *models.UeContextCreateError,
+) {
 	amfSelf := context.AMF_Self()
 	ueContextCreateData := createUeContextRequest.JsonData
 
@@ -205,7 +206,7 @@ func HandleReleaseUEContextRequest(request *http_wrapper.Request) *http_wrapper.
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
-	//problemDetails := ReleaseUEContextProcedure(ueContextID, ueContextRelease)
+	// problemDetails := ReleaseUEContextProcedure(ueContextID, ueContextRelease)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -280,7 +281,7 @@ func HandleUEContextTransferRequest(request *http_wrapper.Request) *http_wrapper
 		ueContextTransferResponse = msg.RespData.(*models.UeContextTransferResponse)
 	}
 
-	//ueContextTransferResponse, problemDetails := UEContextTransferProcedure(ueContextID, ueContextTransferRequest)
+	// ueContextTransferResponse, problemDetails := UEContextTransferProcedure(ueContextID, ueContextTransferRequest)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -289,7 +290,8 @@ func HandleUEContextTransferRequest(request *http_wrapper.Request) *http_wrapper
 }
 
 func UEContextTransferProcedure(ueContextID string, ueContextTransferRequest models.UeContextTransferRequest) (
-	*models.UeContextTransferResponse, *models.ProblemDetails) {
+	*models.UeContextTransferResponse, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	if ueContextTransferRequest.JsonData == nil {
@@ -501,7 +503,7 @@ func HandleAssignEbiDataRequest(request *http_wrapper.Request) *http_wrapper.Res
 
 	amfSelf := context.AMF_Self()
 
-	//assignedEbiData, assignEbiError, problemDetails := AssignEbiDataProcedure(ueContextID, assignEbiData)
+	// assignedEbiData, assignEbiError, problemDetails := AssignEbiDataProcedure(ueContextID, assignEbiData)
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := &models.ProblemDetails{
@@ -538,7 +540,8 @@ func HandleAssignEbiDataRequest(request *http_wrapper.Request) *http_wrapper.Res
 }
 
 func AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiData) (
-	*models.AssignedEbiData, *models.AssignEbiError, *models.ProblemDetails) {
+	*models.AssignedEbiData, *models.AssignEbiError, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
@@ -591,7 +594,7 @@ func HandleRegistrationStatusUpdateRequest(request *http_wrapper.Request) *http_
 	if msg.RespData != nil {
 		ueRegStatusUpdateRspData = msg.RespData.(*models.UeRegStatusUpdateRspData)
 	}
-	//ueRegStatusUpdateRspData, problemDetails := RegistrationStatusUpdateProcedure(ueContextID, ueRegStatusUpdateReqData)
+	// ueRegStatusUpdateRspData, problemDetails := RegistrationStatusUpdateProcedure(ueContextID, ueRegStatusUpdateReqData)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -600,7 +603,8 @@ func HandleRegistrationStatusUpdateRequest(request *http_wrapper.Request) *http_
 }
 
 func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
-	*models.UeRegStatusUpdateRspData, *models.ProblemDetails) {
+	*models.UeRegStatusUpdateRspData, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	// ueContextID must be a 5g GUTI (TS 29.518 6.1.3.2.4.5.1)

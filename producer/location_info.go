@@ -55,7 +55,7 @@ func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapp
 	if msg.RespData != nil {
 		provideLocInfo = msg.RespData.(*models.ProvideLocInfo)
 	}
-	//provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
+	// provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -64,7 +64,8 @@ func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapp
 }
 
 func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContextID string) (
-	*models.ProvideLocInfo, *models.ProblemDetails) {
+	*models.ProvideLocInfo, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)

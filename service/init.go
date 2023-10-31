@@ -11,7 +11,7 @@ import (
 	"bufio"
 	"fmt"
 	"net/http"
-	_ "net/http/pprof" //Using package only for invoking initialization.
+	_ "net/http/pprof" // Using package only for invoking initialization.
 	"os"
 	"os/exec"
 	"os/signal"
@@ -20,13 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	nrf_cache "github.com/omec-project/nrf/nrfcache"
-
-	"github.com/gin-contrib/cors"
-	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
-
 	"github.com/fsnotify/fsnotify"
+	"github.com/gin-contrib/cors"
 	"github.com/omec-project/amf/communication"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
@@ -53,10 +48,13 @@ import (
 	"github.com/omec-project/logger_util"
 	nasLogger "github.com/omec-project/nas/logger"
 	ngapLogger "github.com/omec-project/ngap/logger"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/path_util"
 	pathUtilLogger "github.com/omec-project/path_util/logger"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/urfave/cli"
 )
 
 type AMF struct{}
@@ -118,7 +116,7 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 
 	amf.setLogLevel()
 
-	//Initiating a server for profiling
+	// Initiating a server for profiling
 	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
 		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
 		go func() {
@@ -153,7 +151,7 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	} else {
 		go func() {
 			logger.GrpcLog.Infoln("Reading Amf Configuration from Helm")
-			//sending true to the channel for sending NFRegistration to NRF
+			// sending true to the channel for sending NFRegistration to NRF
 			RocUpdateConfigChannel <- true
 		}()
 	}
@@ -487,7 +485,7 @@ func (amf *AMF) StartKeepAliveTimer(nfProfile models.NfProfile) {
 		nfProfile.HeartBeatTimer = 60
 	}
 	logger.InitLog.Infof("Started KeepAlive Timer: %v sec", nfProfile.HeartBeatTimer)
-	//AfterFunc starts timer and waits for KeepAliveTimer to elapse and then calls amf.UpdateNF function
+	// AfterFunc starts timer and waits for KeepAliveTimer to elapse and then calls amf.UpdateNF function
 	KeepAliveTimer = time.AfterFunc(time.Duration(nfProfile.HeartBeatTimer)*time.Second, amf.UpdateNF)
 }
 
@@ -507,7 +505,7 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 		return profile, err
 	}
 	initLog.Infof("Pcf Profile Registering to NRF: %v", profile)
-	//Indefinite attempt to register until success
+	// Indefinite attempt to register until success
 	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile)
 	return profile, err
 }
@@ -520,7 +518,7 @@ func (amf *AMF) UpdateNF() {
 		initLog.Warnf("KeepAlive timer has been stopped.")
 		return
 	}
-	//setting default value 30 sec
+	// setting default value 30 sec
 	var heartBeatTimer int32 = 60
 	pitem := models.PatchItem{
 		Op:    "replace",
@@ -532,10 +530,10 @@ func (amf *AMF) UpdateNF() {
 	nfProfile, problemDetails, err := consumer.SendUpdateNFInstance(patchItem)
 	if problemDetails != nil {
 		initLog.Errorf("AMF update to NRF ProblemDetails[%v]", problemDetails)
-		//5xx response from NRF, 404 Not Found, 400 Bad Request
+		// 5xx response from NRF, 404 Not Found, 400 Bad Request
 		if (problemDetails.Status/100) == 5 ||
 			problemDetails.Status == 404 || problemDetails.Status == 400 {
-			//register with NRF full profile
+			// register with NRF full profile
 			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
 		}
 	} else if err != nil {
@@ -548,7 +546,7 @@ func (amf *AMF) UpdateNF() {
 		heartBeatTimer = nfProfile.HeartBeatTimer
 	}
 	logger.InitLog.Debugf("Restarted KeepAlive Timer: %v sec", heartBeatTimer)
-	//restart timer with received HeartBeatTimer value
+	// restart timer with received HeartBeatTimer value
 	KeepAliveTimer = time.AfterFunc(time.Duration(heartBeatTimer)*time.Second, amf.UpdateNF)
 }
 
@@ -563,16 +561,13 @@ func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []m
 				if nssai_r == nssai {
 					found = true
 					if opType == protos.OpType_SLICE_DELETE {
-						factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList =
-							append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList[:i], p.SNssaiList[i+1:]...)
+						factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList = append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList[:i], p.SNssaiList[i+1:]...)
 						if len(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList) == 0 {
-							factory.AmfConfig.Configuration.PlmnSupportList =
-								append(factory.AmfConfig.Configuration.PlmnSupportList[:plmnindex],
-									factory.AmfConfig.Configuration.PlmnSupportList[plmnindex+1:]...)
+							factory.AmfConfig.Configuration.PlmnSupportList = append(factory.AmfConfig.Configuration.PlmnSupportList[:plmnindex],
+								factory.AmfConfig.Configuration.PlmnSupportList[plmnindex+1:]...)
 
-							factory.AmfConfig.Configuration.ServedGumaiList =
-								append(factory.AmfConfig.Configuration.ServedGumaiList[:plmnindex],
-									factory.AmfConfig.Configuration.ServedGumaiList[plmnindex+1:]...)
+							factory.AmfConfig.Configuration.ServedGumaiList = append(factory.AmfConfig.Configuration.ServedGumaiList[:plmnindex],
+								factory.AmfConfig.Configuration.ServedGumaiList[plmnindex+1:]...)
 						}
 					}
 					break
@@ -581,29 +576,26 @@ func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []m
 
 			if !found && opType != protos.OpType_SLICE_DELETE {
 				logger.GrpcLog.Infof("plmn found but slice not found in AMF Configuration")
-				factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList =
-					append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList, nssai_r)
+				factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList = append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList, nssai_r)
 			}
 			break
 		}
 	}
 
-	var guami = models.Guami{PlmnId: &plmn.PlmnId, AmfId: "cafe00"}
+	guami := models.Guami{PlmnId: &plmn.PlmnId, AmfId: "cafe00"}
 	if !plmnFound && opType != protos.OpType_SLICE_DELETE {
-		factory.AmfConfig.Configuration.PlmnSupportList =
-			append(factory.AmfConfig.Configuration.PlmnSupportList, plmn)
-		factory.AmfConfig.Configuration.ServedGumaiList =
-			append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
+		factory.AmfConfig.Configuration.PlmnSupportList = append(factory.AmfConfig.Configuration.PlmnSupportList, plmn)
+		factory.AmfConfig.Configuration.ServedGumaiList = append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
 	}
 	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
 	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v in AMF\n", factory.AmfConfig.Configuration.PlmnSupportList,
 		factory.AmfConfig.Configuration.ServedGumaiList)
-	//same plmn received but Tacs in gnb updated
+	// same plmn received but Tacs in gnb updated
 	nssai_r := plmn.SNssaiList[0]
 	slice := strconv.FormatInt(int64(nssai_r.Sst), 10) + nssai_r.Sd
 	delete(factory.AmfConfig.Configuration.SliceTaiList, slice)
 	if opType != protos.OpType_SLICE_DELETE {
-		//maintaining slice level tai List
+		// maintaining slice level tai List
 		if factory.AmfConfig.Configuration.SliceTaiList == nil {
 			factory.AmfConfig.Configuration.SliceTaiList = make(map[string][]models.Tai)
 		}
@@ -620,11 +612,11 @@ func (amf *AMF) UpdateSupportedTaiList() {
 	for _, slice := range factory.AmfConfig.Configuration.SliceTaiList {
 		for _, tai := range slice {
 			logger.GrpcLog.Infoln("Tai list present in Slice", tai, factory.AmfConfig.Configuration.SupportTAIList)
-			factory.AmfConfig.Configuration.SupportTAIList =
-				append(factory.AmfConfig.Configuration.SupportTAIList, tai)
+			factory.AmfConfig.Configuration.SupportTAIList = append(factory.AmfConfig.Configuration.SupportTAIList, tai)
 		}
 	}
 }
+
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
@@ -642,7 +634,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				snssai.Sst = int32(val)
 				snssai.Sd = ns.Nssai.Sd
 			}
-			//inform connected UEs with update slices
+			// inform connected UEs with update slices
 			if len(ns.DeletedImsis) > 0 {
 				HandleImsiDeleteFromNetworkSlice(ns)
 			}
@@ -680,13 +672,12 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				} else {
 					logger.GrpcLog.Infoln("Plmn not present in the message ")
 				}
-
 			}
 		} // end of network slice for loop
 
-		//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
-		//factory.AmfConfig.Configuration.ServedGumaiList = nil
-		//factory.AmfConfig.Configuration.PlmnSupportList = nil
+		// Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
+		// factory.AmfConfig.Configuration.ServedGumaiList = nil
+		// factory.AmfConfig.Configuration.PlmnSupportList = nil
 		if len(factory.AmfConfig.Configuration.ServedGumaiList) > 0 {
 			RocUpdateConfigChannel <- true
 		}
@@ -695,7 +686,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 }
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
-	//for rocUpdateConfig := range RocUpdateConfigChannel {
+	// for rocUpdateConfig := range RocUpdateConfigChannel {
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
 			self := context.AMF_Self()
@@ -713,7 +704,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
 				logger.CfgLog.Warnf("Send Register NF Instance with updated profile failed: %+v", err)
 			} else {
-				//stop keepAliveTimer if its running and start the timer
+				// stop keepAliveTimer if its running and start the timer
 				amf.StartKeepAliveTimer(prof)
 				self.NfId = nfId
 				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
@@ -781,7 +772,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue
 		}
-		//publish the event to ue channel
+		// publish the event to ue channel
 		configMsg := context.ConfigMsg{
 			Supi: supi,
 			Msg:  slice,
@@ -806,7 +797,7 @@ func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue
 		}
-		//publish the event to ue channel
+		// publish the event to ue channel
 		configMsg := context.ConfigMsg{
 			Supi: supi,
 			Msg:  slice,

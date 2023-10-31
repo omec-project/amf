@@ -70,13 +70,13 @@ func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile,
 		NotificationType: models.NotificationType_N1_MESSAGES,
 		N1MessageClass:   models.N1MessageClass__5_GMM,
 	}
-	profile.DefaultNotificationSubscriptions =
-		append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
+	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
 	return profile, err
 }
 
 var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.NfProfile) (
-	prof models.NfProfile, resouceNrfUri string, retrieveNfInstanceId string, err error) {
+	prof models.NfProfile, resouceNrfUri string, retrieveNfInstanceId string, err error,
+) {
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
 	configuration.SetBasePath(nrfUri)
