@@ -23,7 +23,6 @@ type Writer struct {
 var StatWriter Writer
 
 func InitialiseKafkaStream(config *factory.Configuration) error {
-
 	brokerUrl := "sd-core-kafka-headless:9092"
 	topicName := "sdcore-data-source-amf"
 
@@ -53,7 +52,6 @@ func InitialiseKafkaStream(config *factory.Configuration) error {
 }
 
 func GetWriter() Writer {
-
 	return StatWriter
 }
 
@@ -64,9 +62,10 @@ func (writer Writer) SendMessage(message []byte) error {
 }
 
 func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.SubscriberOp) error {
-
-	smKafkaEvt := mi.MetricEvent{EventType: mi.CSubscriberEvt,
-		SubscriberData: mi.CoreSubscriberData{Subscriber: ctxt, Operation: op}}
+	smKafkaEvt := mi.MetricEvent{
+		EventType:      mi.CSubscriberEvt,
+		SubscriberData: mi.CoreSubscriberData{Subscriber: ctxt, Operation: op},
+	}
 	if msg, err := json.Marshal(smKafkaEvt); err != nil {
 		logger.KafkaLog.Errorf("publishing ue context event error [%v] ", err.Error())
 		return err
@@ -99,7 +98,6 @@ func PublishMsgEvent(msgType mi.AmfMsgType) error {
 */
 
 func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
-
 	if msg, err := json.Marshal(msgEvent); err != nil {
 		return err
 	} else {

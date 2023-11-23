@@ -20,13 +20,12 @@ type MockDrsmInterface interface {
 	DeleteIpPool(poolName string) error
 	DeletePod(string)
 }
-type MockDrsm struct {
-}
+type MockDrsm struct{}
 
 func MockDrsmInit() (drsm.DrsmInterface, error) {
-	//db := drsm.DbInfo{"mongodb://mongodb", "amf"}
-	//podId := drsm.PodId{"amf-instance1", "1.1.1.1"}
-	//opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
+	// db := drsm.DbInfo{"mongodb://mongodb", "amf"}
+	// podId := drsm.PodId{"amf-instance1", "1.1.1.1"}
+	// opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
 	d := &MockDrsm{}
 	return d, nil
 }

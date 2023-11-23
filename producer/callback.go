@@ -12,10 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	nrf_cache "github.com/omec-project/nrf/nrfcache"
-
 	"github.com/mohae/deepcopy"
-
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	amf_context "github.com/omec-project/amf/context"
@@ -28,6 +25,7 @@ import (
 	"github.com/omec-project/nas/nasConvert"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/ngap/ngapType"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"github.com/omec-project/openapi/models"
 )
 
@@ -82,7 +80,7 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
-	//problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
+	// problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -91,7 +89,8 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 }
 
 func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
-	smContextStatusNotification models.SmContextStatusNotification) *models.ProblemDetails {
+	smContextStatusNotification models.SmContextStatusNotification,
+) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByGuti(guti)
@@ -230,7 +229,7 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *htt
 	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
-	//problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
+	// problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
 
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
@@ -240,7 +239,8 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *htt
 }
 
 func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
-	policyUpdate models.PolicyUpdate) *models.ProblemDetails {
+	policyUpdate models.PolicyUpdate,
+) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
@@ -332,7 +332,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
-	//problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
+	// problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -341,7 +341,8 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *
 }
 
 func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
-	terminationNotification models.TerminationNotification) *models.ProblemDetails {
+	terminationNotification models.TerminationNotification,
+) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
@@ -466,7 +467,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	}
 	nfInstanceId := notificationData.NfInstanceUri[strings.LastIndex(notificationData.NfInstanceUri, "/")+1:]
 
-	logger.ProducerLog.Infof("Recieved Subscription Status Notification from NRF: %v", notificationData.Event)
+	logger.ProducerLog.Infof("Received Subscription Status Notification from NRF: %v", notificationData.Event)
 	// If nrf caching is enabled, go ahead and delete the entry from the cache.
 	// This will force the amf to do nf discovery and get the updated nf profile from the nrf.
 	if notificationData.Event == models.NotificationEventType_DEREGISTERED {

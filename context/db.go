@@ -13,11 +13,10 @@ import (
 
 	"github.com/omec-project/MongoDBLibrary"
 	"github.com/omec-project/amf/factory"
-	"github.com/omec-project/idgenerator"
-	"go.mongodb.org/mongo-driver/bson"
-
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/idgenerator"
 	"github.com/omec-project/openapi/models"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 var dbMutex sync.Mutex
@@ -33,12 +32,14 @@ type CustomFieldsAmfUe struct {
 	RanId       string                       `json:"ranId"`
 }
 
-var Namespace = os.Getenv("POD_NAMESPACE")
-var AmfUeDataColl = "amf.data.amfState"
+var (
+	Namespace     = os.Getenv("POD_NAMESPACE")
+	AmfUeDataColl = "amf.data.amfState"
+)
 
 func AllocateUniqueID(generator **idgenerator.IDGenerator, idName string) (int64, error) {
-	//Use MongoDB increment field to generate new offset.
-	//generate ids between offset to 8192 above offset.
+	// Use MongoDB increment field to generate new offset.
+	// generate ids between offset to 8192 above offset.
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if *generator == nil {
@@ -190,11 +191,11 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 		return nil
 	}
 
-	//Check if some parallel procedure has already
-	//fetched AmfUe and stored the RanUE in context.
-	//If so, then return the stored RanUE
-	//else return RanUE from newly fetched AmfUe
-	//and store in context
+	// Check if some parallel procedure has already
+	// fetched AmfUe and stored the RanUE in context.
+	// If so, then return the stored RanUE
+	// else return RanUE from newly fetched AmfUe
+	// and store in context
 	ranUe := ran.RanUeFindByRanUeNgapIDLocal(ranUeNgapID)
 	if ranUe != nil {
 		return ranUe
@@ -212,11 +213,11 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 		return nil
 	}
 
-	//Check if some parallel procedure has already
-	//fetched AmfUe and stored the RanUE in context.
-	//If so, then return the stored RanUE
-	//else return RanUE from newly fetched AmfUe
-	//and store in context
+	// Check if some parallel procedure has already
+	// fetched AmfUe and stored the RanUE in context.
+	// If so, then return the stored RanUE
+	// else return RanUE from newly fetched AmfUe
+	// and store in context
 	ranUe := self.RanUeFindByAmfUeNgapIDLocal(amfUeNgapID)
 	if ranUe != nil {
 		return ranUe
@@ -237,9 +238,9 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 		ok = true
 	}
 
-	//Check if some parallel procedure has already
-	//fetched AmfUe. If so, then return the same.
-	//else return newly fetched AmfUe and store in context
+	// Check if some parallel procedure has already
+	// fetched AmfUe. If so, then return the same.
+	// else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindByGutiLocal(guti); ret {
 		logger.ContextLog.Infoln("FindByGuti : found by local", guti)
 		ue = amfUe
@@ -261,9 +262,9 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 	} else {
 		ok = true
 	}
-	//Check if some parallel procedure has already
-	//fetched AmfUe. If so, then return the same.
-	//else return newly fetched AmfUe and store in context
+	// Check if some parallel procedure has already
+	// fetched AmfUe. If so, then return the same.
+	// else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindBySupiLocal(supi); ret {
 		logger.ContextLog.Infoln("FindBySupi : found by local", supi)
 		ue = amfUe

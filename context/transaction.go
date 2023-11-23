@@ -35,6 +35,7 @@ func (tx *EventChannel) UpdateConfigHandler(handler func(s1, s2, s3 string, msg 
 	tx.AmfUe.TxLog.Infof("updated confighandler")
 	tx.ConfigHandler = handler
 }
+
 func (tx *EventChannel) Start() {
 	for {
 		select {

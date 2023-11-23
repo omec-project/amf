@@ -14,12 +14,11 @@ import (
 	"time"
 
 	"github.com/mohae/deepcopy"
-	"github.com/sirupsen/logrus"
-
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/ngapConvert"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"github.com/sirupsen/logrus"
 )
 
 type RelAction int
@@ -106,7 +105,7 @@ func (ranUe *RanUe) Remove() error {
 	}
 	self := AMF_Self()
 	self.RanUePool.Delete(ranUe.AmfUeNgapId)
-	//amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
+	// amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
 	self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId))
 	return nil
 }

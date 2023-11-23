@@ -98,7 +98,6 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 	if err := Dispatch(ue.AmfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
 		ue.AmfUe.NASLog.Errorf("Handle NAS Error: %v", err)
 	}
-
 }
 
 func DispatchMsg(amfUe *context.AmfUe, transInfo context.NasMsg) {
