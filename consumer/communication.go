@@ -21,7 +21,8 @@ import (
 
 func BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanId models.NgRanTargetId,
 	sourceToTargetData models.N2InfoContent, pduSessionList []models.N2SmInformation,
-	n2NotifyUri string, ngapCause *models.NgApCause) models.UeContextCreateData {
+	n2NotifyUri string, ngapCause *models.NgApCause,
+) models.UeContextCreateData {
 	var ueContextCreateData models.UeContextCreateData
 
 	ueContext := BuildUeContextModel(ue)
@@ -121,7 +122,8 @@ func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTrig
 }
 
 func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.UeContextCreateData) (
-	ueContextCreatedData *models.UeContextCreatedData, problemDetails *models.ProblemDetails, err error) {
+	ueContextCreatedData *models.UeContextCreatedData, problemDetails *models.ProblemDetails, err error,
+) {
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
@@ -150,7 +152,8 @@ func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.Ue
 }
 
 func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause) (
-	problemDetails *models.ProblemDetails, err error) {
+	problemDetails *models.ProblemDetails, err error,
+) {
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
@@ -192,7 +195,8 @@ func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause) 
 
 func UEContextTransferRequest(
 	ue *amf_context.AmfUe, accessType models.AccessType, transferReason models.TransferReason) (
-	ueContextTransferRspData *models.UeContextTransferRspData, problemDetails *models.ProblemDetails, err error) {
+	ueContextTransferRspData *models.UeContextTransferRspData, problemDetails *models.ProblemDetails, err error,
+) {
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
@@ -241,7 +245,8 @@ func UEContextTransferRequest(
 
 // This operation is called "RegistrationCompleteNotify" at TS 23.502
 func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusUpdateReqData) (
-	regStatusTransferComplete bool, problemDetails *models.ProblemDetails, err error) {
+	regStatusTransferComplete bool, problemDetails *models.ProblemDetails, err error,
+) {
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
@@ -249,8 +254,7 @@ func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusU
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 	defer cancel()
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
-	res, httpResp, localErr :=
-		client.IndividualUeContextDocumentApi.RegistrationStatusUpdate(ctx, ueContextId, request)
+	res, httpResp, localErr := client.IndividualUeContextDocumentApi.RegistrationStatusUpdate(ctx, ueContextId, request)
 	if localErr == nil {
 		regStatusTransferComplete = res.RegStatusTransferComplete
 	} else if httpResp != nil {

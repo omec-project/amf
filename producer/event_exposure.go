@@ -35,7 +35,8 @@ func HandleCreateAMFEventSubscription(request *http_wrapper.Request) *http_wrapp
 
 // TODO: handle event filter
 func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreateEventSubscription) (
-	*models.AmfCreatedEventSubscription, *models.ProblemDetails) {
+	*models.AmfCreatedEventSubscription, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	createdEventSubscription := &models.AmfCreatedEventSubscription{}
@@ -249,7 +250,8 @@ func HandleModifyAMFEventSubscription(request *http_wrapper.Request) *http_wrapp
 func ModifyAMFEventSubscriptionProcedure(
 	subscriptionID string,
 	modifySubscriptionRequest models.ModifySubscriptionRequest) (
-	*models.AmfUpdatedEventSubscription, *models.ProblemDetails) {
+	*models.AmfUpdatedEventSubscription, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	contextSubscription, ok := amfSelf.FindEventSubscription(subscriptionID)
@@ -317,7 +319,8 @@ func subReports(ue *context.AmfUe, subscriptionId string) {
 
 // DO NOT handle AmfEventType_PRESENCE_IN_AOI_REPORT and AmfEventType_UES_IN_AREA_REPORT(about area)
 func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscriptionId string) (
-	report models.AmfEventReport, ok bool) {
+	report models.AmfEventReport, ok bool,
+) {
 	ueSubscription, ok := ue.EventSubscriptionsInfo[subscriptionId]
 	if !ok {
 		return report, ok

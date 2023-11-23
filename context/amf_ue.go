@@ -20,8 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/omec-project/UeauCommon"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -34,6 +32,7 @@ import (
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"github.com/sirupsen/logrus"
 )
 
 type OnGoingProcedure string
@@ -67,7 +66,7 @@ const (
 )
 
 type AmfUe struct {
-	//Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
+	// Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
 	Mutex sync.Mutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
 	servingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
@@ -169,8 +168,8 @@ type AmfUe struct {
 	Kn3iwf                   []uint8                      `json:"kn3iwf,omitempty"`    // 32 byte
 	NH                       []uint8                      `json:"nh,omitempty"`        // 32 byte
 	NCC                      uint8                        `json:"ncc,omitempty"`       // 0..7
-	//ULCount                  security.Count               `json:"ulCount,omitempty" yaml:"ulCount" bson:"ulCount,omitempty"`
-	//DLCount                  security.Count               `json:"dlCount,omitempty" yaml:"dlCount" bson:"dlCount,omitempty"`
+	// ULCount                  security.Count               `json:"ulCount,omitempty" yaml:"ulCount" bson:"ulCount,omitempty"`
+	// DLCount                  security.Count               `json:"dlCount,omitempty" yaml:"dlCount" bson:"dlCount,omitempty"`
 	ULCount      security.Count `json:"-"`
 	DLCount      security.Count `json:"-"`
 	CipheringAlg uint8          `json:"cipheringAlg,omitempty"`
@@ -202,17 +201,17 @@ type AmfUe struct {
 	T3512Value                      int `json:"t3512Value,omitempty"`                      // default 54 min
 	Non3gppDeregistrationTimerValue int `json:"non3gppDeregistrationTimerValue,omitempty"` // default 54 min
 
-	//AmfInstanceName and Ip
+	// AmfInstanceName and Ip
 	AmfInstanceName string `json:"amfInstanceName,omitempty"`
 	AmfInstanceIp   string `json:"amfInstanceIp,omitempty"`
-	//EventChannel  chan OnGoing
-	//EventChannel *EventChannel `json:"eventChannel,omitempty" yaml:"eventChannel" bson:"eventChannel,omitempty"`
+	// EventChannel  chan OnGoing
+	// EventChannel *EventChannel `json:"eventChannel,omitempty" yaml:"eventChannel" bson:"eventChannel,omitempty"`
 	EventChannel *EventChannel `json:"-"`
 	// logger
-	//NASLog      *logrus.Entry `json:"nasLog,omitempty" yaml:"nasLog" bson:"nasLog,omitempty"`
-	//GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
-	//TxLog       *logrus.Entry `json:"txLog,omitempty" yaml:"txLog" bson:"txLog,omitempty"`
-	//ProducerLog *logrus.Entry `json:"producerLog,omitempty" yaml:"producerLog" bson:"producerLog,omitempty"`
+	// NASLog      *logrus.Entry `json:"nasLog,omitempty" yaml:"nasLog" bson:"nasLog,omitempty"`
+	// GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
+	// TxLog       *logrus.Entry `json:"txLog,omitempty" yaml:"txLog" bson:"txLog,omitempty"`
+	// ProducerLog *logrus.Entry `json:"producerLog,omitempty" yaml:"producerLog" bson:"producerLog,omitempty"`
 	NASLog      *logrus.Entry `json:"-"`
 	GmmLog      *logrus.Entry `json:"-"`
 	TxLog       *logrus.Entry `json:"-"`
@@ -252,7 +251,6 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 				*n1n2MsgVal.Request.JsonData.N2InfoContainer = *ue.N1N2Message.Request.JsonData.N2InfoContainer
 			}
 		}
-
 	}
 
 	ue.SmContextList.Range(func(key, val interface{}) bool {
@@ -322,9 +320,8 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 		ue.RanUe[index].AmfUeNgapId = aux.AmfUeNgapId
 		ue.RanUe[index].Log = logger.NgapLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
 		if ran != nil {
-			//ran.RanUeList = append(ran.RanUeList, ue.RanUe[index])
+			// ran.RanUeList = append(ran.RanUeList, ue.RanUe[index])
 			ue.RanUe[index].Ran = ran
-
 		}
 	}
 	for key, val := range aux.SmCtxList {
@@ -349,8 +346,7 @@ const (
 	NasMessage
 )
 
-type InterfaceMsg interface {
-}
+type InterfaceMsg interface{}
 
 /*type InterfaceMsg struct {
 	AnType        models.AccessType
@@ -464,7 +460,7 @@ func (ue *AmfUe) init() {
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
-	//ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
+	// ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
 }
 
 func (ue *AmfUe) ServingAMF() *AMFContext {
@@ -489,7 +485,7 @@ func (ue *AmfUe) Remove() {
 		}
 	}
 
-	//tmsiGenerator.FreeID(int64(ue.Tmsi))
+	// tmsiGenerator.FreeID(int64(ue.Tmsi))
 	AMF_Self().Drsm.ReleaseInt32ID(ue.Tmsi)
 
 	if len(ue.Supi) > 0 {
@@ -773,16 +769,15 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 
 // this method called when we are reusing the same uecontext during the registration procedure
 func (ue *AmfUe) ClearRegistrationData() {
-	//Allowed Nssai should be cleared first as it is a new Registration
+	// Allowed Nssai should be cleared first as it is a new Registration
 	ue.SubscribedNssai = nil
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
 	ue.SubscriptionDataValid = false
-	//Clearing SMContextList locally
+	// Clearing SMContextList locally
 	ue.SmContextList.Range(func(key, _ interface{}) bool {
 		ue.SmContextList.Delete(key)
 		return true
 	})
-
 }
 
 func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoing) {
@@ -1026,12 +1021,11 @@ func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
 		Event:   make(chan string, 10),
 		AmfUe:   ue,
 	}
-	//tx.Message <- msg
+	// tx.Message <- msg
 	return tx
 }
 
 func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
-
 	switch state {
 	case Deregistered:
 		return mi.SubsOpDel
@@ -1055,7 +1049,7 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	op := getPublishUeCtxtInfoOp(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
 	kafkaSmCtxt := mi.CoreSubscriber{}
 
-	//Populate kafka sm ctxt struct
+	// Populate kafka sm ctxt struct
 	kafkaSmCtxt.Imsi = ueContext.Supi
 	kafkaSmCtxt.AmfId = ueContext.servingAMF.NfId
 	kafkaSmCtxt.Guti = ueContext.Guti
@@ -1071,6 +1065,6 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	ueState := ueContext.GetCmInfo()
 	kafkaSmCtxt.UeState = string(ueState[0].CmState)
 
-	//Send to stream
+	// Send to stream
 	metrics.GetWriter().PublishUeCtxtEvent(kafkaSmCtxt, op)
 }

@@ -63,7 +63,6 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 			ran.Log.Debugf("Write %d bytes", n)
 		}
 	}
-
 }
 
 func SendToRanUe(ue *context.RanUe, packet []byte) {
@@ -131,7 +130,8 @@ func SendNGSetupFailure(ran *context.AmfRan, cause ngapType.Cause) {
 
 // partOfNGInterface: if reset type is "reset all", set it to nil TS 38.413 9.2.6.11
 func SendNGReset(ran *context.AmfRan, cause ngapType.Cause,
-	partOfNGInterface *ngapType.UEAssociatedLogicalNGConnectionList) {
+	partOfNGInterface *ngapType.UEAssociatedLogicalNGConnectionList,
+) {
 	ran.Log.Info("Send NG Reset")
 
 	pkt, err := BuildNGReset(cause, partOfNGInterface)
@@ -143,7 +143,8 @@ func SendNGReset(ran *context.AmfRan, cause ngapType.Cause,
 }
 
 func SendNGResetAcknowledge(ran *context.AmfRan, partOfNGInterface *ngapType.UEAssociatedLogicalNGConnectionList,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	ran.Log.Info("Send NG Reset Acknowledge")
 
 	if partOfNGInterface != nil && len(partOfNGInterface.List) == 0 {
@@ -160,7 +161,8 @@ func SendNGResetAcknowledge(ran *context.AmfRan, partOfNGInterface *ngapType.UEA
 }
 
 func SendDownlinkNasTransport(ue *context.RanUe, nasPdu []byte,
-	mobilityRestrictionList *ngapType.MobilityRestrictionList) {
+	mobilityRestrictionList *ngapType.MobilityRestrictionList,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -181,7 +183,8 @@ func SendDownlinkNasTransport(ue *context.RanUe, nasPdu []byte,
 }
 
 func SendPDUSessionResourceReleaseCommand(ue *context.RanUe, nasPdu []byte,
-	pduSessionResourceReleasedList ngapType.PDUSessionResourceToReleaseListRelCmd) {
+	pduSessionResourceReleasedList ngapType.PDUSessionResourceToReleaseListRelCmd,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -223,7 +226,8 @@ func SendUEContextReleaseCommand(ue *context.RanUe, action context.RelAction, ca
 }
 
 func SendErrorIndication(ran *context.AmfRan, amfUeNgapId, ranUeNgapId *int64, cause *ngapType.Cause,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if ran == nil {
 		logger.NgapLog.Error("Ran is nil")
 		return
@@ -274,7 +278,8 @@ func SendHandoverCancelAcknowledge(ue *context.RanUe, criticalityDiagnostics *ng
 // nasPDU: from nas layer
 // pduSessionResourceSetupRequestList: provided by AMF, and transfer data is from SMF
 func SendPDUSessionResourceSetupRequest(ue *context.RanUe, nasPdu []byte,
-	pduSessionResourceSetupRequestList ngapType.PDUSessionResourceSetupListSUReq) {
+	pduSessionResourceSetupRequestList ngapType.PDUSessionResourceSetupListSUReq,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -301,7 +306,8 @@ func SendPDUSessionResourceModifyConfirm(
 	ue *context.RanUe,
 	pduSessionResourceModifyConfirmList ngapType.PDUSessionResourceModifyListModCfm,
 	pduSessionResourceFailedToModifyList ngapType.PDUSessionResourceFailedToModifyListModCfm,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -330,7 +336,8 @@ func SendPDUSessionResourceModifyConfirm(
 
 // pduSessionResourceModifyRequestList: from SMF
 func SendPDUSessionResourceModifyRequest(ue *context.RanUe,
-	pduSessionResourceModifyRequestList ngapType.PDUSessionResourceModifyListModReq) {
+	pduSessionResourceModifyRequestList ngapType.PDUSessionResourceModifyListModReq,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -358,7 +365,8 @@ func SendInitialContextSetupRequest(
 	pduSessionResourceSetupRequestList *ngapType.PDUSessionResourceSetupListCxtReq,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
 	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
-	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator) {
+	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
+) {
 	if amfUe == nil {
 		logger.NgapLog.Error("AmfUe is nil")
 		return
@@ -390,7 +398,8 @@ func SendUEContextModificationRequest(
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
 	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
 	mobilityRestrictionList *ngapType.MobilityRestrictionList,
-	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator) {
+	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
+) {
 	if amfUe == nil {
 		logger.NgapLog.Error("AmfUe is nil")
 		return
@@ -416,7 +425,8 @@ func SendHandoverCommand(
 	pduSessionResourceHandoverList ngapType.PDUSessionResourceHandoverList,
 	pduSessionResourceToReleaseList ngapType.PDUSessionResourceToReleaseListHOCmd,
 	container ngapType.TargetToSourceTransparentContainer,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if sourceUe == nil {
 		logger.NgapLog.Error("SourceUe is nil")
 		return
@@ -447,7 +457,8 @@ func SendHandoverCommand(
 // criticalityDiagnostics = criticalityDiagonstics IE in receiver node's error indication
 // when received node can't comprehend the IE or missing IE
 func SendHandoverPreparationFailure(sourceUe *context.RanUe, cause ngapType.Cause,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if sourceUe == nil {
 		logger.NgapLog.Error("SourceUe is nil")
 		return
@@ -480,7 +491,8 @@ a Nsmf_PDUSession_CreateSMContext Response(N2 SM Information (PDU Session ID, ca
 // N2 handover in same AMF
 func SendHandoverRequest(sourceUe *context.RanUe, targetRan *context.AmfRan, cause ngapType.Cause,
 	pduSessionResourceSetupListHOReq ngapType.PDUSessionResourceSetupListHOReq,
-	sourceToTargetTransparentContainer ngapType.SourceToTargetTransparentContainer, nsci bool) {
+	sourceToTargetTransparentContainer ngapType.SourceToTargetTransparentContainer, nsci bool,
+) {
 	if sourceUe == nil {
 		logger.NgapLog.Error("sourceUe is nil")
 		return
@@ -549,7 +561,8 @@ func SendPathSwitchRequestAcknowledge(
 	newSecurityContextIndicator bool,
 	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformation,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -584,7 +597,8 @@ func SendPathSwitchRequestFailure(
 	amfUeNgapId,
 	ranUeNgapId int64,
 	pduSessionResourceReleasedList *ngapType.PDUSessionResourceReleasedListPSFail,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	ran.Log.Info("Send Path Switch Request Failure")
 
 	if pduSessionResourceReleasedList != nil && len(pduSessionResourceReleasedList.List) > context.MaxNumOfPDUSessions {
@@ -692,7 +706,8 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 // ngapMessage: initial UE Message to reroute
 // allowedNSSAI: provided by AMF, and AMF get it from NSSF (4.2.2.2.3 step 4b)
 func SendRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNgapID *int64, ngapMessage []byte,
-	allowedNSSAI *ngapType.AllowedNSSAI) {
+	allowedNSSAI *ngapType.AllowedNSSAI,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("AmfUe is nil")
 		return
@@ -715,7 +730,8 @@ func SendRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNga
 
 // criticality ->from received node when received node can't comprehend the IE or missing IE
 func SendRanConfigurationUpdateAcknowledge(
-	ran *context.AmfRan, criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	ran *context.AmfRan, criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if ran == nil {
 		logger.NgapLog.Error("Ran is nil")
 		return
@@ -735,7 +751,8 @@ func SendRanConfigurationUpdateAcknowledge(
 // If the AMF cannot accept the update,
 // it shall respond with a RAN CONFIGURATION UPDATE FAILURE message and appropriate cause value.
 func SendRanConfigurationUpdateFailure(ran *context.AmfRan, cause ngapType.Cause,
-	criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
+) {
 	if ran == nil {
 		logger.NgapLog.Error("Ran is nil")
 		return
@@ -787,7 +804,8 @@ func SendOverloadStart(
 	ran *context.AmfRan,
 	amfOverloadResponse *ngapType.OverloadResponse,
 	amfTrafficLoadReductionIndication int64,
-	overloadStartNSSAIList *ngapType.OverloadStartNSSAIList) {
+	overloadStartNSSAIList *ngapType.OverloadStartNSSAIList,
+) {
 	if ran == nil {
 		logger.NgapLog.Error("Ran is nil")
 		return
@@ -906,7 +924,8 @@ func SendLocationReportingControl(
 	ue *context.RanUe,
 	AOIList *ngapType.AreaOfInterestList,
 	LocationReportingReferenceIDToBeCancelled int64,
-	eventType ngapType.EventType) {
+	eventType ngapType.EventType,
+) {
 	if ue == nil {
 		logger.NgapLog.Error("RanUe is nil")
 		return
@@ -952,7 +971,8 @@ func SendUETNLABindingReleaseRequest(ue *context.RanUe) {
 
 // Weight Factor associated with each of the TNL association within the AMF
 func SendAMFConfigurationUpdate(ran *context.AmfRan, usage ngapType.TNLAssociationUsage,
-	weightfactor ngapType.TNLAddressWeightFactor) {
+	weightfactor ngapType.TNLAddressWeightFactor,
+) {
 	if ran == nil {
 		logger.NgapLog.Error("Ran is nil")
 		return

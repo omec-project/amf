@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/antihax/optional"
-
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nudm_SubscriberDataManagement"
@@ -76,8 +75,7 @@ func SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails *models.ProblemD
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 	defer cancel()
-	data, httpResp, localErr :=
-		client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(ctx, ue.Supi, &paramOpt)
+	data, httpResp, localErr := client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		ue.SmfSelectionData = &data
 	} else if httpResp != nil {
@@ -101,8 +99,7 @@ func SDMGetUeContextInSmfData(ue *amf_context.AmfUe) (problemDetails *models.Pro
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 	defer cancel()
 
-	data, httpResp, localErr :=
-		client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(ctx, ue.Supi, nil)
+	data, httpResp, localErr := client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(ctx, ue.Supi, nil)
 	if localErr == nil {
 		ue.UeContextInSmfData = &data
 	} else if httpResp != nil {
@@ -158,8 +155,7 @@ func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe) (problemDetails
 	}
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 	defer cancel()
-	nssai, httpResp, localErr :=
-		client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(ctx, ue.Supi, &paramOpt)
+	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		for _, defaultSnssai := range nssai.DefaultSingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{

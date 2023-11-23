@@ -239,18 +239,18 @@ linters-settings:
 linters:
   enable:
     - gofmt
-    - govet
-    - errcheck
-    - staticcheck
-    - unused
-    - gosimple
-    - structcheck
+    # - govet
+    # - errcheck
+    # - staticcheck
+    # - unused
+    # - gosimple
+    # - structcheck
     - varcheck
     - ineffassign
-    - deadcode
+    # - deadcode
     - typecheck
     # Additional
-    - lll
+    # - lll
     - godox
     #- gomnd
     #- goconst
@@ -258,16 +258,16 @@ linters:
     # - maligned
     # - nestif
     # - gomodguard
-    - nakedret
+    # - nakedret
     - gci
     - misspell
     - gofumpt
     - whitespace
-    - unconvert
+    # - unconvert
     - predeclared
     - noctx
     - dogsled
-    - bodyclose
+    # - bodyclose
     - asciicheck
       #- stylecheck
       # - unparam

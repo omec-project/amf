@@ -19,7 +19,8 @@ import (
 
 // backOffTimerUint = 7 means backoffTimer is null
 func SendDLNASTransport(ue *context.RanUe, payloadContainerType uint8, nasPdu []byte,
-	pduSessionId int32, cause uint8, backOffTimerUint *uint8, backOffTimer uint8) {
+	pduSessionId int32, cause uint8, backOffTimerUint *uint8, backOffTimer uint8,
+) {
 	ue.AmfUe.GmmLog.Info("Send DL NAS Transport")
 	var causePtr *uint8
 	if cause != 0 {
@@ -104,7 +105,8 @@ func SendAuthenticationRequest(ue *context.RanUe) {
 }
 
 func SendServiceAccept(ue *context.RanUe, pDUSessionStatus *[16]bool, reactivationResult *[16]bool,
-	errPduSessionId, errCause []uint8) {
+	errPduSessionId, errCause []uint8,
+) {
 	ue.AmfUe.GmmLog.Info("Send Service Accept")
 
 	nasMsg, err := BuildServiceAccept(ue.AmfUe, pDUSessionStatus, reactivationResult, errPduSessionId, errCause)
@@ -116,7 +118,8 @@ func SendServiceAccept(ue *context.RanUe, pDUSessionStatus *[16]bool, reactivati
 }
 
 func SendConfigurationUpdateCommand(amfUe *context.AmfUe, accessType models.AccessType,
-	networkSlicingIndication *nasType.NetworkSlicingIndication) {
+	networkSlicingIndication *nasType.NetworkSlicingIndication,
+) {
 	amfUe.GmmLog.Info("Configuration Update Command")
 
 	nasMsg, err := BuildConfigurationUpdateCommand(amfUe, accessType, networkSlicingIndication)
@@ -208,7 +211,7 @@ func SendSecurityModeCommand(ue *context.RanUe, eapSuccess bool, eapMessage stri
 func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrationRequired bool, cause5GMM uint8) {
 	ue.AmfUe.GmmLog.Info("Send Deregistration Request")
 
-	//setting accesstype
+	// setting accesstype
 	ue.AmfUe.DeregistrationTargetAccessType = accessType
 
 	nasMsg, err := BuildDeregistrationRequest(ue, accessType, reRegistrationRequired, cause5GMM)
@@ -264,7 +267,8 @@ func SendRegistrationAccept(
 	pDUSessionStatus *[16]bool,
 	reactivationResult *[16]bool,
 	errPduSessionId, errCause []uint8,
-	pduSessionResourceSetupList *ngapType.PDUSessionResourceSetupListCxtReq) {
+	pduSessionResourceSetupList *ngapType.PDUSessionResourceSetupListCxtReq,
+) {
 	ue.GmmLog.Info("Send Registration Accept")
 
 	nasMsg, err := BuildRegistrationAccept(ue, anType, pDUSessionStatus, reactivationResult, errPduSessionId, errCause)

@@ -14,7 +14,6 @@ import (
 	"syscall"
 
 	"git.cs.nctu.edu.tw/calee/sctp"
-
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap"
 )

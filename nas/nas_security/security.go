@@ -141,7 +141,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 		mobileIdentity5GSContents := msg.RegistrationRequest.MobileIdentity5GS.GetMobileIdentity5GSContents()
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
-			logger.CommLog.Debugf("Guti received in Registraion Request Message: %v", guti)
+			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
 			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not

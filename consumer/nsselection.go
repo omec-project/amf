@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/antihax/optional"
-
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi"
@@ -21,7 +20,8 @@ import (
 )
 
 func NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []models.MappingOfSnssai) (
-	*models.ProblemDetails, error) {
+	*models.ProblemDetails, error,
+) {
 	configuration := Nnssf_NSSelection.NewConfiguration()
 	configuration.SetBasePath(ue.NssfUri)
 	client := Nnssf_NSSelection.NewAPIClient(configuration)
@@ -71,7 +71,8 @@ func NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []model
 }
 
 func NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai models.Snssai) (
-	*models.AuthorizedNetworkSliceInfo, *models.ProblemDetails, error) {
+	*models.AuthorizedNetworkSliceInfo, *models.ProblemDetails, error,
+) {
 	configuration := Nnssf_NSSelection.NewConfiguration()
 	configuration.SetBasePath(ue.NssfUri)
 	client := Nnssf_NSSelection.NewAPIClient(configuration)

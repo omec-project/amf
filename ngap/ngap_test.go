@@ -8,11 +8,10 @@ import (
 	"testing"
 	"time"
 
-	ngaputil "github.com/omec-project/amf/ngap/util"
-
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/ngap"
+	ngaputil "github.com/omec-project/amf/ngap/util"
 	"github.com/omec-project/amf/util"
 )
 
@@ -58,7 +57,6 @@ func TestHandleNGSetupRequest(t *testing.T) {
 	conn := &ngaputil.TestConn{}
 	for _, test := range testTable {
 		testNGSetupReq, err := ngaputil.GetNGSetupRequest(test.gnbId, test.bitLength, test.gnbName, test.tac)
-
 		if err != nil {
 			t.Log("Failed to to create NGSetupRequest")
 			return

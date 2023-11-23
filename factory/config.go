@@ -75,7 +75,7 @@ type Configuration struct {
 	T3560                           TimerValue                `yaml:"t3560"`
 	T3565                           TimerValue                `yaml:"t3565"`
 
-	//Maintain TaiList per slice
+	// Maintain TaiList per slice
 	SliceTaiList             map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
 	EnableSctpLb             bool                    `yaml:"enableSctpLb"`
 	EnableDbStore            bool                    `yaml:"enableDBStore"`

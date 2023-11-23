@@ -120,11 +120,11 @@ func TestUpdateConfig(t *testing.T) {
 func TestRegisterNF(t *testing.T) {
 	// Save current function and restore at the end:
 	origRegisterNFInstance := consumer.SendRegisterNFInstance
-	//origSearchNFInstances := consumer.SendSearchNFInstances
+	// origSearchNFInstances := consumer.SendSearchNFInstances
 	origUpdateNFInstance := consumer.SendUpdateNFInstance
 	defer func() {
 		consumer.SendRegisterNFInstance = origRegisterNFInstance
-		//consumer.SendSearchNFInstances = origSearchNFInstances
+		// consumer.SendSearchNFInstances = origSearchNFInstances
 		consumer.SendUpdateNFInstance = origUpdateNFInstance
 	}()
 	fmt.Printf("test case TestRegisterNF \n")

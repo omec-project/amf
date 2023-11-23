@@ -76,7 +76,7 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		accessType := args[ArgAccessType].(models.AccessType)
 		amfUe.ClearRegistrationRequestData(accessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Registered]")
-		//store context in DB. Registration procedure is complete.
+		// store context in DB. Registration procedure is complete.
 		amfUe.PublishUeCtxtInfo()
 		context.StoreContextInDB(amfUe)
 	case GmmMessageEvent:
@@ -300,7 +300,7 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 				logger.GmmLog.Errorln(err)
 			}
 		case nas.MsgTypeRegistrationRequest:
-			//Sending AbortEvent to ongoing procedure
+			// Sending AbortEvent to ongoing procedure
 			err := GmmFSM.SendEvent(state, SecurityModeAbortEvent, fsm.ArgsType{
 				ArgAmfUe:      amfUe,
 				ArgAccessType: accessType,

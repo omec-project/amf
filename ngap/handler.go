@@ -75,7 +75,6 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					fiveGSTMSI = ie.Value.FiveGSTMSI
 					ran.Log.Trace("Decode IE 5G-S-TMSI")
 				}
-
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 			if ranUe == nil {
@@ -99,7 +98,6 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					// Described in TS 23.502 4.2.2.2.2 step 4 (without UDSF deployment)
 
 					if amfUe, ok := amfSelf.AmfUeFindByGuti(guti); ok {
-
 						ranUe, err = ran.NewRanUe(rANUENGAPID.Value)
 						if err != nil {
 							ran.Log.Errorf("NewRanUe Error: %+v", err)
@@ -434,7 +432,6 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 				}
 			}
 			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
-
 		}
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		unsuccessfulOutcome := message.UnsuccessfulOutcome
@@ -637,15 +634,18 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 
 	if cause.Present == ngapType.CausePresentNothing {
 		ngap_message.SendNGSetupResponse(ran)
-		//send nf(gnb) status notification
-		gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
-			NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
-				NfStatus: mi.NfStatusConnected, NfName: ran.GnbId}}
+		// send nf(gnb) status notification
+		gnbStatus := mi.MetricEvent{
+			EventType: mi.CNfStatusEvt,
+			NfStatusData: mi.CNfStatus{
+				NfType:   mi.NfTypeGnb,
+				NfStatus: mi.NfStatusConnected, NfName: ran.GnbId,
+			},
+		}
 		metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
 	} else {
 		ngap_message.SendNGSetupFailure(ran, cause)
 	}
-
 }
 
 func HandleUplinkNasTransport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -1087,7 +1087,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 			ran.Log.Errorln(err.Error())
 		}
 
-		//Valid Security is not exist for this UE then only delete AMfUe Context
+		// Valid Security is not exist for this UE then only delete AMfUe Context
 		if !amfUe.SecurityContextAvailable {
 			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
 			amfUe.PublishUeCtxtInfo()
@@ -1724,7 +1724,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 			}
 		}
 
-		//store context in DB. PDU Establishment is complete.
+		// store context in DB. PDU Establishment is complete.
 		amfUe.PublishUeCtxtInfo()
 		context.StoreContextInDB(amfUe)
 	}
@@ -1998,8 +1998,7 @@ func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPP
 					var nasPdu []byte
 					if n1Msg != nil {
 						pduSessionId := uint8(pduSessionID)
-						nasPdu, err =
-							gmm_message.BuildDLNASTransport(amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
+						nasPdu, err = gmm_message.BuildDLNASTransport(amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
 						if err != nil {
 							ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
 						}
@@ -4712,7 +4711,8 @@ func buildCriticalityDiagnostics(
 	triggeringMessage *aper.Enumerated,
 	procedureCriticality *aper.Enumerated,
 	iesCriticalityDiagnostics *ngapType.CriticalityDiagnosticsIEList) (
-	criticalityDiagnostics ngapType.CriticalityDiagnostics) {
+	criticalityDiagnostics ngapType.CriticalityDiagnostics,
+) {
 	if procedureCode != nil {
 		criticalityDiagnostics.ProcedureCode = new(ngapType.ProcedureCode)
 		criticalityDiagnostics.ProcedureCode.Value = *procedureCode
@@ -4736,7 +4736,8 @@ func buildCriticalityDiagnostics(
 }
 
 func buildCriticalityDiagnosticsIEItem(ieCriticality aper.Enumerated, ieID int64, typeOfErr aper.Enumerated) (
-	item ngapType.CriticalityDiagnosticsIEItem) {
+	item ngapType.CriticalityDiagnosticsIEItem,
+) {
 	item = ngapType.CriticalityDiagnosticsIEItem{
 		IECriticality: ngapType.Criticality{
 			Value: ieCriticality,
