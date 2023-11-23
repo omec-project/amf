@@ -630,9 +630,6 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
 		var tai []models.Tai
 		var plmnList []*factory.PlmnSupportItem
-		if rsp.NetworkSlice == nil {
-			return false
-		}
 		for _, ns := range rsp.NetworkSlice {
 			var snssai *models.Snssai
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
@@ -682,7 +679,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 				}
 
 			}
-		} // end of network slice for loop
+		}
 
 		//Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
 		//factory.AmfConfig.Configuration.ServedGumaiList = nil
@@ -695,7 +692,6 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 }
 
 func (amf *AMF) SendNFProfileUpdateToNrf() {
-	//for rocUpdateConfig := range RocUpdateConfigChannel {
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
 			self := context.AMF_Self()
