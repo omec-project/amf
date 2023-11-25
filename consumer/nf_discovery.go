@@ -10,18 +10,17 @@ import (
 	"fmt"
 	"net/http"
 
-	nrf_cache "github.com/omec-project/nrf/nrfcache"
-
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
+	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/models"
 )
 
 func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
-
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+) (models.SearchResult, error) {
 	if amf_context.AMF_Self().EnableNrfCaching {
 		return nrf_cache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param)
 	} else {
@@ -30,7 +29,8 @@ func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfT
 }
 
 func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+) (models.SearchResult, error) {
 	// Set client and set url
 	configuration := Nnrf_NFDiscovery.NewConfiguration()
 	configuration.SetBasePath(nrfUri)
@@ -70,7 +70,8 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 }
 
 func SearchUdmSdmInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) error {
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+) error {
 	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
 	if localErr != nil {
 		return localErr
@@ -95,7 +96,8 @@ func SearchUdmSdmInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, re
 }
 
 func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) error {
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+) error {
 	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
 	if localErr != nil {
 		return localErr
@@ -118,7 +120,8 @@ func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetN
 }
 
 func SearchAmfCommunicationInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType,
-	requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (err error) {
+	requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+) (err error) {
 	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
 	if localErr != nil {
 		err = localErr

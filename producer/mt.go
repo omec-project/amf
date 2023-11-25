@@ -56,7 +56,7 @@ func HandleProvideDomainSelectionInfoRequest(request *http_wrapper.Request) *htt
 	if msg.RespData != nil {
 		ueContextInfo = msg.RespData.(*models.UeContextInfo)
 	}
-	//ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
+	// ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
 	//	infoClassQuery, supportedFeaturesQuery)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
@@ -66,7 +66,8 @@ func HandleProvideDomainSelectionInfoRequest(request *http_wrapper.Request) *htt
 }
 
 func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery string, supportedFeaturesQuery string) (
-	*models.UeContextInfo, *models.ProblemDetails) {
+	*models.UeContextInfo, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)

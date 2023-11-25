@@ -9,7 +9,6 @@ import (
 	"reflect"
 
 	"github.com/mohae/deepcopy"
-
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
 )

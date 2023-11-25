@@ -33,7 +33,8 @@ func HandleAMFStatusChangeSubscribeRequest(request *http_wrapper.Request) *http_
 }
 
 func AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.SubscriptionData) (
-	subscriptionDataRsp models.SubscriptionData, locationHeader string, problemDetails *models.ProblemDetails) {
+	subscriptionDataRsp models.SubscriptionData, locationHeader string, problemDetails *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	for _, guami := range subscriptionDataReq.GuamiList {
@@ -105,7 +106,8 @@ func HandleAMFStatusChangeSubscribeModify(request *http_wrapper.Request) *http_w
 }
 
 func AMFStatusChangeSubscribeModifyProcedure(subscriptionID string, subscriptionData models.SubscriptionData) (
-	*models.SubscriptionData, *models.ProblemDetails) {
+	*models.SubscriptionData, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	if currentSubscriptionData, ok := amfSelf.FindAMFStatusSubscription(subscriptionID); !ok {

@@ -9,12 +9,11 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/sirupsen/logrus"
-
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/Namf_Communication"
 	"github.com/omec-project/openapi/models"
+	"github.com/sirupsen/logrus"
 )
 
 var HttpLog *logrus.Entry
@@ -54,7 +53,8 @@ func SendN1N2TransferFailureNotification(ue *amf_context.AmfUe, cause models.N1N
 }
 
 func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n1Msg []byte,
-	registerContext *models.RegistrationContextContainer) {
+	registerContext *models.RegistrationContextContainer,
+) {
 	ue.N1N2MessageSubscription.Range(func(key, value interface{}) bool {
 		subscriptionID := key.(int64)
 		subscription := value.(models.UeN1N2InfoSubscriptionCreateData)
@@ -91,7 +91,8 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 
 // TS 29.518 5.2.2.3.5.2
 func SendN1MessageNotifyAtAMFReAllocation(
-	ue *amf_context.AmfUe, n1Msg []byte, registerContext *models.RegistrationContextContainer) {
+	ue *amf_context.AmfUe, n1Msg []byte, registerContext *models.RegistrationContextContainer,
+) {
 	configuration := Namf_Communication.NewConfiguration()
 	client := Namf_Communication.NewAPIClient(configuration)
 
