@@ -92,16 +92,14 @@ func SelectSmf(
 
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
-		if ue.NssfUri == "" {
-			// TODO: Set a timeout of NSSF Selection or will starvation here
-			for {
-				if err := SearchNssfNSSelectionInstance(ue, nrfUri, models.NfType_NSSF,
-					models.NfType_AMF, nil); err != nil {
-					ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
-					time.Sleep(2 * time.Second)
-				} else {
-					break
-				}
+		// TODO: Set a timeout of NSSF Selection or will starvation here
+		for {
+			if err := SearchNssfNSSelectionInstance(ue, nrfUri, models.NfType_NSSF,
+				models.NfType_AMF, nil); err != nil {
+				ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
+				time.Sleep(2 * time.Second)
+			} else {
+				break
 			}
 		}
 
