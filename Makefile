@@ -58,7 +58,7 @@ $(GO_BIN_PATH)/%: %.go $(NF_GO_FILES)
 
 vpath %.go $(addprefix $(GO_SRC_PATH)/, $(GO_NF))
 
-#test: $(NF_GO_FILES_ALL) 
+#test: $(NF_GO_FILES_ALL)
 #	@echo "Start building $(@F)...."
 #	cd $(GO_SRC_PATH)/ && \
 #	CGO_ENABLED=0 go test -o $(ROOT_PATH)/$@
@@ -117,4 +117,4 @@ run-aiab:
 		git clone "https://gerrit.opencord.org/sdcore-helm-charts" && \
 		git clone "https://gerrit.opencord.org/sdfabric-helm-charts" && cd ../aether-in-a-box && \
 			yq -i '.5g-control-plane.images |= {"amf": "5gc-amf:0.0.1-dev"}' sd-core-5g-values.yaml && \
-                make 5g-core && sleep 10 && make 5g-test
+                make 5g-test
