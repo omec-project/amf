@@ -26,7 +26,7 @@ require (
 	github.com/omec-project/openapi v1.1.0
 	github.com/omec-project/path_util v1.1.0
 	github.com/omec-project/util v1.0.9
-	github.com/prometheus/client_golang v1.14.0
+	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.17.0
 	github.com/stretchr/testify v1.8.4
@@ -85,7 +85,7 @@ require (
 	github.com/lib/pq v1.10.6 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
+	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.6.6 // indirect
@@ -95,9 +95,9 @@ require (
 	github.com/omec-project/util_3gpp v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.3.0 // indirect
-	github.com/prometheus/common v0.37.0 // indirect
-	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
+	github.com/prometheus/common v0.44.0 // indirect
+	github.com/prometheus/procfs v0.11.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/segmentio/kafka-go v0.4.45
 	github.com/spf13/afero v1.10.0 // indirect
