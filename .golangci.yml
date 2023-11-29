@@ -258,7 +258,7 @@ linters:
     # - maligned
     # - nestif
     # - gomodguard
-    # - nakedret
+    - nakedret
     - gci
     - misspell
     - gofumpt

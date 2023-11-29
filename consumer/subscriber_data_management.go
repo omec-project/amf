@@ -180,7 +180,7 @@ func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe) (problemDetails
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return problemDetails, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem

@@ -179,11 +179,11 @@ func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause) 
 	httpResp, localErr := client.IndividualUeContextDocumentApi.ReleaseUEContext(
 		ctx, ueContextId, ueContextRelease)
 	if localErr == nil {
-		return
+		return problemDetails, err
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return problemDetails, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
@@ -233,7 +233,7 @@ func UEContextTransferRequest(
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return ueContextTransferRspData, problemDetails, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
