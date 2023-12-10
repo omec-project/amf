@@ -19,7 +19,7 @@ COPY . $GOPATH/src/amf
 RUN cd $GOPATH/src/amf \
     && make all
 
-FROM alpine:3.18 as amf
+FROM alpine:3.19 as amf
 
 LABEL description="ONF open source 5G Core Network" \
     version="Stage 3"
