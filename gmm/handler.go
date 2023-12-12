@@ -1173,18 +1173,16 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType) error {
 
 func getSubscribedNssai(ue *context.AmfUe) {
 	amfSelf := context.AMF_Self()
-	if ue.NudmSDMUri == "" {
-		param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
-			Supi: optional.NewString(ue.Supi),
-		}
-		for {
-			err := consumer.SearchUdmSdmInstance(ue, amfSelf.NrfUri, models.NfType_UDM, models.NfType_AMF, &param)
-			if err != nil {
-				ue.GmmLog.Errorf("AMF can not select an Nudm_SDM Instance by NRF[Error: %+v]", err)
-				time.Sleep(2 * time.Second)
-			} else {
-				break
-			}
+	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
+		Supi: optional.NewString(ue.Supi),
+	}
+	for {
+		err := consumer.SearchUdmSdmInstance(ue, amfSelf.NrfUri, models.NfType_UDM, models.NfType_AMF, &param)
+		if err != nil {
+			ue.GmmLog.Errorf("AMF can not select an Nudm_SDM Instance by NRF[Error: %+v]", err)
+			time.Sleep(2 * time.Second)
+		} else {
+			break
 		}
 	}
 	problemDetails, err := consumer.SDMGetSliceSelectionSubscriptionData(ue)
