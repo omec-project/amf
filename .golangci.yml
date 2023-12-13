@@ -245,7 +245,6 @@ linters:
     # - unused
     # - gosimple
     # - structcheck
-    - varcheck
     - ineffassign
     - typecheck
     # Additional
