@@ -642,7 +642,9 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				NfStatus: mi.NfStatusConnected, NfName: ran.GnbId,
 			},
 		}
-		metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+		if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+			ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+		}
 	} else {
 		ngap_message.SendNGSetupFailure(ran, cause)
 	}
@@ -1520,7 +1522,10 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 			} else {
 				ranUe.Log.Tracef("find AmfUe [GUTI: %s]", guti)
 				/* checking the guti-ue belongs to this amf instance */
-				id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(amfUe.Tmsi))
+				id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(amfUe.Tmsi))
+				if err != nil {
+					ranUe.Log.Errorf("Error checking the guti-ue in this instance: %v", err)
+				}
 				if id != nil && id.PodName != os.Getenv("HOSTNAME") && amfSelf.EnableSctpLb {
 					rsp := &sdcoreAmfServer.AmfMessage{}
 					rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
@@ -1533,7 +1538,9 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 					if ranUe != nil && ranUe.AmfUe != nil {
 						ranUe.AmfUe.Remove()
 					} else if ranUe != nil {
-						ranUe.Remove()
+						if err := ranUe.Remove(); err != nil {
+							ranUe.Log.Errorf("Could not remove ranUe: %v", err)
+						}
 					}
 					ran.Amf2RanMsgChan <- rsp
 					return

@@ -16,6 +16,7 @@ import (
 
 	"github.com/antihax/optional"
 	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/openapi"
@@ -26,10 +27,15 @@ import (
 
 func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
 	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
-	i, _ := strconv.Atoi(servingSmfIndexStr)
+	i, err := strconv.Atoi(servingSmfIndexStr)
+	if err != nil {
+		logger.ConsumerLog.Errorf("Could not convert %s to int: %v", servingSmfIndexStr, err)
+	}
 	servingSmfIndexInt := i + 1
 	servingSmfIndex = servingSmfIndexInt % smfNum
-	os.Setenv("SERVING_SMF_INDEX", strconv.Itoa(servingSmfIndex))
+	if err := os.Setenv("SERVING_SMF_INDEX", strconv.Itoa(servingSmfIndex)); err != nil {
+		logger.ConsumerLog.Errorf("Could not set env SERVING_SMF_INDEX: %v", err)
+	}
 	return
 }
 

@@ -240,7 +240,7 @@ linters:
   enable:
     - gofmt
     # - govet
-    # - errcheck
+    - errcheck
     # - staticcheck
     # - unused
     # - gosimple

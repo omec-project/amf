@@ -106,7 +106,9 @@ func (ranUe *RanUe) Remove() error {
 	self := AMF_Self()
 	self.RanUePool.Delete(ranUe.AmfUeNgapId)
 	// amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
-	self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId))
+	if err := self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId)); err != nil {
+		logger.ContextLog.Errorf("Error releasing UE: %v", err)
+	}
 	return nil
 }
 
@@ -243,7 +245,10 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Location.N3gaLocation.PortNumber = ngapConvert.PortNumberToInt(port)
 		// N3GPP TAI is operator-specific
 		// TODO: define N3GPP TAI
-		tmp, _ := strconv.ParseUint(amfSelf.SupportTaiLists[0].Tac, 10, 32)
+		tmp, err := strconv.ParseUint(amfSelf.SupportTaiLists[0].Tac, 10, 32)
+		if err != nil {
+			logger.ContextLog.Errorf("Error parsing TAC: %v", err)
+		}
 		tac := fmt.Sprintf("%06x", tmp)
 		ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
 			PlmnId: amfSelf.SupportTaiLists[0].PlmnId,

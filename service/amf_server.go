@@ -71,7 +71,9 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 								NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
 							},
 						}
-						metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+						if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+							log.Printf("Error publishing NfStatusEvent: %v", err)
+						}
 					}
 				}
 				ran.Amf2RanMsgChan = Amf2RanMsgChan
@@ -89,7 +91,9 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						NfStatus: mi.NfStatusDisconnected, NfName: req.GnbId,
 					},
 				}
-				metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+				if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+					log.Printf("Error publishing NfStatusEvent: %v", err)
+				}
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
 				log.Println("New GNB Connected ")
 				// send nf(gnb) status notification
@@ -100,7 +104,9 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
 					},
 				}
-				metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+				if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+					log.Printf("Error publishing NfStatusEvent: %v", err)
+				}
 			} else {
 				ngap.DispatchLb(req, Amf2RanMsgChan)
 			}

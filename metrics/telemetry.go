@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/omec-project/amf/logger"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -64,7 +65,9 @@ func init() {
 // InitMetrics initialises AMF stats
 func InitMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(":9089", nil)
+	if err := http.ListenAndServe(":9089", nil); err != nil {
+		logger.InitLog.Errorf("Could not open metrics port: %v", err)
+	}
 }
 
 // IncrementNgapMsgStats increments message level stats

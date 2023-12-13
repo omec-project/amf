@@ -146,7 +146,9 @@ func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
 func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
 	servedGuami := context.ServedGuamiList[0]
 
-	context.Drsm.ReleaseInt32ID(ue.Tmsi)
+	if err := context.Drsm.ReleaseInt32ID(ue.Tmsi); err != nil {
+		logger.ContextLog.Errorf("Errro releasing tmsi: %v", err)
+	}
 	// tmsiGenerator.FreeID(int64(ue.Tmsi))
 
 	ue.Tmsi = context.TmsiAllocate()
@@ -168,7 +170,10 @@ func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.Acc
 	taiList := make([]models.Tai, len(context.SupportTaiLists))
 	copy(taiList, context.SupportTaiLists)
 	for i := range taiList {
-		tmp, _ := strconv.ParseUint(taiList[i].Tac, 10, 32)
+		tmp, err := strconv.ParseUint(taiList[i].Tac, 10, 32)
+		if err != nil {
+			logger.ContextLog.Errorf("Could not convert TAC to int: %v", err)
+		}
 		taiList[i].Tac = fmt.Sprintf("%06x", tmp)
 		logger.ContextLog.Infof("Supported Tai List in AMF Plmn: %v, Tac: %v", taiList[i].PlmnId, taiList[i].Tac)
 	}
@@ -209,7 +214,9 @@ func (context *AMFContext) DeleteAMFStatusSubscription(subscriptionID string) {
 		logger.ContextLog.Error(err)
 	} else {
 		// amfStatusSubscriptionIDGenerator.FreeID(id)
-		context.Drsm.ReleaseInt32ID(int32(id))
+		if err := context.Drsm.ReleaseInt32ID(int32(id)); err != nil {
+			logger.ContextLog.Error(err)
+		}
 	}
 }
 
@@ -431,7 +438,10 @@ func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
 }
 
 func mapToByte(data map[string]interface{}) (ret []byte) {
-	ret, _ = json.Marshal(data)
+	ret, err := json.Marshal(data)
+	if err != nil {
+		logger.ContextLog.Error(err)
+	}
 	return
 }
 
