@@ -325,7 +325,10 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 		}
 	}
 	for key, val := range aux.SmCtxList {
-		keyVal, _ := strconv.ParseInt(key, 10, 32)
+		keyVal, err := strconv.ParseInt(key, 10, 32)
+		if err != nil {
+			logger.ContextLog.Errorf("Error parsing int from %s: %v", key, err)
+		}
 		ue.StoreSmContext(int32(keyVal), &val)
 	}
 	sqn := uint8(aux.ULCount & 0x000000ff)
@@ -486,7 +489,9 @@ func (ue *AmfUe) Remove() {
 	}
 
 	// tmsiGenerator.FreeID(int64(ue.Tmsi))
-	AMF_Self().Drsm.ReleaseInt32ID(ue.Tmsi)
+	if err := AMF_Self().Drsm.ReleaseInt32ID(ue.Tmsi); err != nil {
+		logger.ContextLog.Errorf("Error releasing RanUe: %v", err)
+	}
 
 	if len(ue.Supi) > 0 {
 		AMF_Self().UePool.Delete(ue.Supi)
@@ -1066,5 +1071,7 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	kafkaSmCtxt.UeState = string(ueState[0].CmState)
 
 	// Send to stream
-	metrics.GetWriter().PublishUeCtxtEvent(kafkaSmCtxt, op)
+	if err := metrics.GetWriter().PublishUeCtxtEvent(kafkaSmCtxt, op); err != nil {
+		logger.ContextLog.Errorf("Could not publish Ue Context Event: %v", err)
+	}
 }

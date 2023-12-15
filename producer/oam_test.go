@@ -6,6 +6,7 @@
 package producer
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/omec-project/amf/context"
@@ -25,7 +26,9 @@ type TestCases struct {
 }
 
 func init() {
-	factory.InitConfigFactory("../amfTest/amfcfg.yaml")
+	if err := factory.InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {
+		fmt.Printf("Error in InitConfigFactory: %v\n", err)
+	}
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
@@ -35,7 +38,11 @@ func init() {
 
 func TestHandleOAMPurgeUEContextRequest_UEDeregistered(t *testing.T) {
 	self := context.AMF_Self()
-	self.Drsm, _ = util.MockDrsmInit()
+	var err error
+	self.Drsm, err = util.MockDrsmInit()
+	if err != nil {
+		fmt.Printf("Error in MockDrsmInit: %v\n", err)
+	}
 	amfUe := self.NewAmfUe("imsi-208930100007497")
 
 	HandleOAMPurgeUEContextRequest(amfUe.Supi, "", nil)

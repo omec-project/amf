@@ -66,8 +66,8 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 		//ranUe.Log.Debugln("RanUe RanNgapId AmfNgapId: ", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
 		/* checking whether same AMF instance can handle this message */
 		/* redirect it to correct owner if required */
-		id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
-		if id == nil {
+		id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
+		if id == nil || err != nil {
 			ran.Log.Warningf("DispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
 		} else if id != nil && id.PodName != os.Getenv("HOSTNAME") {
 			rsp := &sdcoreAmfServer.AmfMessage{}
@@ -86,7 +86,9 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 				ranUe.AmfUe.Remove()
 			}
 			if ranUe != nil {
-				ranUe.Remove()
+				if err := ranUe.Remove(); err != nil {
+					ran.Log.Errorf("Could not remove ranUe: %v", err)
+				}
 			}
 			return
 		} else {

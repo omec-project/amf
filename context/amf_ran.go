@@ -73,7 +73,9 @@ func (ran *AmfRan) Remove() {
 			NfStatus: mi.NfStatusDisconnected, NfName: ran.GnbId,
 		},
 	}
-	metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+	if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+		ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+	}
 
 	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())

@@ -120,7 +120,9 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
 		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
 		go func() {
-			http.ListenAndServe(addr, nil)
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				initLog.Errorln(err)
+			}
 		}()
 	}
 
@@ -292,6 +294,7 @@ func (amf *AMF) FilterCli(c *cli.Context) (args []string) {
 
 func (amf *AMF) Start() {
 	initLog.Infoln("Server started")
+	var err error
 
 	router := logger_util.NewGinWithLogrus(logger.GinLog)
 	router.Use(cors.New(cors.Config{
@@ -323,13 +326,16 @@ func (amf *AMF) Start() {
 
 	go metrics.InitMetrics()
 
-	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
+	if err = metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
 		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
 	}
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
-	self.Drsm, _ = util.InitDrsm()
+	self.Drsm, err = util.InitDrsm()
+	if err != nil {
+		initLog.Errorf("initialise DRSM failed, %v", err.Error())
+	}
 
 	addr := fmt.Sprintf("%s:%d", self.BindingIPv4, self.SBIPort)
 
@@ -626,7 +632,10 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
 			if ns.Nssai != nil {
 				snssai = new(models.Snssai)
-				val, _ := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
+				val, err := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
+				if err != nil {
+					logger.GrpcLog.Errorln(err)
+				}
 				snssai.Sst = int32(val)
 				snssai.Sd = ns.Nssai.Sd
 			}
@@ -716,26 +725,38 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 	// - Only 1 Allowed Nssai is exist and its slice information matched
 	ns := msg.(*protos.NetworkSlice)
 	if len(ue.AllowedNssai[models.AccessType__3_GPP_ACCESS]) == 1 {
-		st, _ := strconv.Atoi(ns.Nssai.Sst)
+		st, err := strconv.Atoi(ns.Nssai.Sst)
+		if err != nil {
+			logger.CfgLog.Errorln(err)
+		}
 		if ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sst == int32(st) &&
 			ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sd == ns.Nssai.Sd {
-			gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
+			err := gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			})
+			if err != nil {
+				logger.CfgLog.Errorln(err)
+			}
 		} else {
 			logger.CfgLog.Infof("Deleted slice not matched with slice info in UEContext")
 		}
 	} else {
 		var Nssai models.Snssai
-		st, _ := strconv.Atoi(ns.Nssai.Sst)
+		st, err := strconv.Atoi(ns.Nssai.Sst)
+		if err != nil {
+			logger.CfgLog.Errorln(err)
+		}
 		Nssai.Sst = int32(st)
 		Nssai.Sd = ns.Nssai.Sd
-		gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoDeleteEvent, fsm.ArgsType{
+		err = gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoDeleteEvent, fsm.ArgsType{
 			gmm.ArgAmfUe:      ue,
 			gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			gmm.ArgNssai:      Nssai,
 		})
+		if err != nil {
+			logger.CfgLog.Errorln(err)
+		}
 	}
 }
 
@@ -745,14 +766,20 @@ func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 
 	ns := msg.(*protos.NetworkSlice)
 	var Nssai models.Snssai
-	st, _ := strconv.Atoi(ns.Nssai.Sst)
+	st, err := strconv.Atoi(ns.Nssai.Sst)
+	if err != nil {
+		logger.CfgLog.Errorln(err)
+	}
 	Nssai.Sst = int32(st)
 	Nssai.Sd = ns.Nssai.Sd
-	gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoAddEvent, fsm.ArgsType{
+	err = gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoAddEvent, fsm.ArgsType{
 		gmm.ArgAmfUe:      ue,
 		gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 		gmm.ArgNssai:      Nssai,
 	})
+	if err != nil {
+		logger.CfgLog.Errorln(err)
+	}
 }
 
 func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {

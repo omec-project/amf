@@ -240,14 +240,12 @@ linters:
   enable:
     - gofmt
     # - govet
-    # - errcheck
+    - errcheck
     # - staticcheck
     # - unused
     # - gosimple
     # - structcheck
-    - varcheck
     - ineffassign
-    # - deadcode
     - typecheck
     # Additional
     # - lll

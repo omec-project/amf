@@ -71,7 +71,9 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 		return err
 	} else {
 		logger.KafkaLog.Debugf("publishing ue context event[%s] ", msg)
-		StatWriter.SendMessage(msg)
+		if err := StatWriter.SendMessage(msg); err != nil {
+			logger.KafkaLog.Errorf("Could not publish ue context event, error [%v]", err.Error())
+		}
 	}
 	return nil
 }
@@ -102,7 +104,9 @@ func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
 		return err
 	} else {
 		logger.KafkaLog.Debugf("publishing nf status event[%s] ", msg)
-		StatWriter.SendMessage(msg)
+		if err := StatWriter.SendMessage(msg); err != nil {
+			logger.KafkaLog.Errorf("Error publishing nf status event: %v", err)
+		}
 	}
 	return nil
 }

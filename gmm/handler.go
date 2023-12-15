@@ -122,7 +122,9 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 
 		if !smContextExist {
 			msg := new(nas.Message)
-			msg.PlainNasDecode(&smMessage)
+			if err := msg.PlainNasDecode(&smMessage); err != nil {
+				ue.GmmLog.Errorf("Could not decode Nas message: %v", err)
+			}
 			if msg.GsmMessage != nil && msg.GsmMessage.Status5GSM != nil {
 				ue.GmmLog.Warningf("SmContext doesn't exist, 5GSM Status message received from UE with cause %v", msg.GsmMessage.Status5GSM.Cause5GSM)
 				return nil
