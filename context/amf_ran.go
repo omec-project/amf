@@ -35,12 +35,12 @@ type AmfRan struct {
 	RanId      *models.GlobalRanNodeId
 	Name       string
 	AnType     models.AccessType
-	GnbIp      string `json:"-"` //TODO to be removed
+	GnbIp      string `json:"-"` // TODO to be removed
 	GnbId      string // RanId in string format, i.e.,mcc:mnc:gnbid
 	/* socket Connect*/
 	Conn net.Conn `json:"-"`
 	/* Supported TA List */
-	SupportedTAList []SupportedTAI //TODO SupportedTaList store and recover from DB
+	SupportedTAList []SupportedTAI // TODO SupportedTaList store and recover from DB
 
 	/* RAN UE List */
 	RanUeList []*RanUe `json:"-"` // RanUeNgapId as key
@@ -65,11 +65,17 @@ func NewSupportedTAIList() []SupportedTAI {
 }
 
 func (ran *AmfRan) Remove() {
-	//send nf(gnb) status notification
-	gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
-		NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
-			NfStatus: mi.NfStatusDisconnected, NfName: ran.GnbId}}
-	metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+	// send nf(gnb) status notification
+	gnbStatus := mi.MetricEvent{
+		EventType: mi.CNfStatusEvt,
+		NfStatusData: mi.CNfStatus{
+			NfType:   mi.NfTypeGnb,
+			NfStatus: mi.NfStatusDisconnected, NfName: ran.GnbId,
+		},
+	}
+	if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+		ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+	}
 
 	ran.SetRanStats(RanDisconnected)
 	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
@@ -148,7 +154,7 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
 		ran.AnType = models.AccessType__3_GPP_ACCESS
 	}
 
-	//Setting RanId in String format with ":" seperation of each field
+	// Setting RanId in String format with ":" separation of each field
 	if ranId.PlmnId != nil {
 		ran.GnbId = ranId.PlmnId.Mcc + ":" + ranId.PlmnId.Mnc + ":"
 	}

@@ -16,9 +16,8 @@ import (
 	"os"
 	"reflect"
 
-	"gopkg.in/yaml.v2"
-
 	"github.com/omec-project/amf/logger"
+	"gopkg.in/yaml.v2"
 )
 
 var AmfConfig Config
@@ -47,7 +46,7 @@ func UpdateAmfConfig(f string) error {
 		if yamlErr := yaml.Unmarshal(content, &amfConfig); yamlErr != nil {
 			return yamlErr
 		}
-		//Checking which config has been changed
+		// Checking which config has been changed
 		if reflect.DeepEqual(AmfConfig.Configuration.AmfName, amfConfig.Configuration.AmfName) == false {
 			logger.CfgLog.Infoln("updated AMF Name is changed to ", amfConfig.Configuration.AmfName)
 		}

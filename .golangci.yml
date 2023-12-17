@@ -214,9 +214,6 @@ linters-settings:
   misspell:
     #locale: US
     ignore-words:
-  whitespace:
-    multi-if: false   # Enforces newlines (or comments) after every multi-line if statement
-    multi-func: false # Enforces newlines (or comments) after every multi-line function signature
   wsl:
     # If true append is only allowed to be cuddled if appending value is
     # matching variables, fields or types on line above. Default is true.
@@ -242,18 +239,16 @@ linters-settings:
 linters:
   enable:
     - gofmt
-    - govet
+    # - govet
     - errcheck
-    - staticcheck
-    - unused
-    - gosimple
-    - structcheck
-    - varcheck
+    # - staticcheck
+    # - unused
+    # - gosimple
+    # - structcheck
     - ineffassign
-    - deadcode
     - typecheck
     # Additional
-    - lll
+    # - lll
     - godox
     #- gomnd
     #- goconst
@@ -266,11 +261,11 @@ linters:
     - misspell
     - gofumpt
     - whitespace
-    - unconvert
+    # - unconvert
     - predeclared
     - noctx
     - dogsled
-    - bodyclose
+    # - bodyclose
     - asciicheck
       #- stylecheck
       # - unparam

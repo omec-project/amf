@@ -36,7 +36,10 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		} else {
 			if amfSelf.EnableSctpLb {
 				/* checking the guti-ue belongs to this amf instance */
-				id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(ue.AmfUe.Tmsi))
+				id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ue.AmfUe.Tmsi))
+				if err != nil {
+					logger.NasLog.Errorf("Error checking guti-ue: %v", err)
+				}
 				if id != nil && id.PodName != os.Getenv("HOSTNAME") {
 					rsp := &sdcoreAmfServer.AmfMessage{}
 					rsp.VerboseMsg = "Redirecting Msg From AMF Pod !"
@@ -49,7 +52,9 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 					if ue != nil && ue.AmfUe != nil {
 						ue.AmfUe.Remove()
 					} else if ue != nil {
-						ue.Remove()
+						if err := ue.Remove(); err != nil {
+							logger.NasLog.Errorf("Error removing ue: %v", err)
+						}
 					}
 					ue.Ran.Amf2RanMsgChan <- rsp
 					return
@@ -98,7 +103,6 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 	if err := Dispatch(ue.AmfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
 		ue.AmfUe.NASLog.Errorf("Handle NAS Error: %v", err)
 	}
-
 }
 
 func DispatchMsg(amfUe *context.AmfUe, transInfo context.NasMsg) {

@@ -17,7 +17,8 @@ import (
 )
 
 func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initialRegistrationInd bool) (
-	*models.ProblemDetails, error) {
+	*models.ProblemDetails, error,
+) {
 	configuration := Nudm_UEContextManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmUECMUri)
 	client := Nudm_UEContextManagement.NewAPIClient(configuration)
@@ -59,8 +60,7 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 		defer cancel()
 
-		_, httpResp, localErr :=
-			client.AMFRegistrationForNon3GPPAccessApi.Register(ctx, ue.Supi, registrationData)
+		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessApi.Register(ctx, ue.Supi, registrationData)
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {

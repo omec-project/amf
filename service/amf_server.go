@@ -63,11 +63,17 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						log.Printf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
 						rsp.GnbId = req.GnbId
 
-						//send nf(gnb) status notification
-						gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
-							NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
-								NfStatus: mi.NfStatusConnected, NfName: req.GnbId}}
-						metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+						// send nf(gnb) status notification
+						gnbStatus := mi.MetricEvent{
+							EventType: mi.CNfStatusEvt,
+							NfStatusData: mi.CNfStatus{
+								NfType:   mi.NfTypeGnb,
+								NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
+							},
+						}
+						if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+							log.Printf("Error publishing NfStatusEvent: %v", err)
+						}
 					}
 				}
 				ran.Amf2RanMsgChan = Amf2RanMsgChan
@@ -77,18 +83,30 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_DISC {
 				log.Println("GNB disconnected")
 				ngap.HandleSCTPNotificationLb(req.GnbId)
-				//send nf(gnb) status notification
-				gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
-					NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
-						NfStatus: mi.NfStatusDisconnected, NfName: req.GnbId}}
-				metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+				// send nf(gnb) status notification
+				gnbStatus := mi.MetricEvent{
+					EventType: mi.CNfStatusEvt,
+					NfStatusData: mi.CNfStatus{
+						NfType:   mi.NfTypeGnb,
+						NfStatus: mi.NfStatusDisconnected, NfName: req.GnbId,
+					},
+				}
+				if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+					log.Printf("Error publishing NfStatusEvent: %v", err)
+				}
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
 				log.Println("New GNB Connected ")
-				//send nf(gnb) status notification
-				gnbStatus := mi.MetricEvent{EventType: mi.CNfStatusEvt,
-					NfStatusData: mi.CNfStatus{NfType: mi.NfTypeGnb,
-						NfStatus: mi.NfStatusConnected, NfName: req.GnbId}}
-				metrics.StatWriter.PublishNfStatusEvent(gnbStatus)
+				// send nf(gnb) status notification
+				gnbStatus := mi.MetricEvent{
+					EventType: mi.CNfStatusEvt,
+					NfStatusData: mi.CNfStatus{
+						NfType:   mi.NfTypeGnb,
+						NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
+					},
+				}
+				if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+					log.Printf("Error publishing NfStatusEvent: %v", err)
+				}
 			} else {
 				ngap.DispatchLb(req, Amf2RanMsgChan)
 			}
@@ -98,7 +116,6 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 }
 
 func StartGrpcServer(port int) {
-
 	endpt := fmt.Sprintf(":%d", port)
 	fmt.Println("Listen - ", endpt)
 	lis, err := net.Listen("tcp", endpt)

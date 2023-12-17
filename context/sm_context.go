@@ -33,7 +33,7 @@ type SmContext struct {
 	HSmfIDVal string
 	VSmfIDVal string
 
-	//status of pdusession
+	// status of pdusession
 	PduSessionInactiveVal bool
 
 	// for duplicate pdu session id handling

@@ -26,8 +26,12 @@ import (
 var AMFTest = &service.AMF{}
 
 func init() {
-	os.Setenv("POD_IP", "127.0.0.1")
-	factory.InitConfigFactory("amfTest/amfcfg.yaml")
+	if err := os.Setenv("POD_IP", "127.0.0.1"); err != nil {
+		fmt.Printf("Could not set env POD_IP: %+v\n", err)
+	}
+	if err := factory.InitConfigFactory("amfTest/amfcfg.yaml"); err != nil {
+		fmt.Printf("Could not InitConfigFactory: %+v\n", err)
+	}
 }
 
 func GetNetworkSliceConfig() *protos.NetworkSliceResponse {
@@ -120,11 +124,11 @@ func TestUpdateConfig(t *testing.T) {
 func TestRegisterNF(t *testing.T) {
 	// Save current function and restore at the end:
 	origRegisterNFInstance := consumer.SendRegisterNFInstance
-	//origSearchNFInstances := consumer.SendSearchNFInstances
+	// origSearchNFInstances := consumer.SendSearchNFInstances
 	origUpdateNFInstance := consumer.SendUpdateNFInstance
 	defer func() {
 		consumer.SendRegisterNFInstance = origRegisterNFInstance
-		//consumer.SendSearchNFInstances = origSearchNFInstances
+		// consumer.SendSearchNFInstances = origSearchNFInstances
 		consumer.SendUpdateNFInstance = origUpdateNFInstance
 	}()
 	fmt.Printf("test case TestRegisterNF \n")

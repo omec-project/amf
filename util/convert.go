@@ -42,7 +42,6 @@ func SeperateAmfId(amfid string) (regionId, setId, ptrId string, err error) {
 	regionId = amfid[:2]
 	byteArray, err1 := hex.DecodeString(amfid[2:])
 	if err1 != nil {
-
 		err = err1
 		return
 	}

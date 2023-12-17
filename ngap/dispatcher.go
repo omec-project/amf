@@ -8,14 +8,12 @@
 package ngap
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"reflect"
 
 	"git.cs.nctu.edu.tw/calee/sctp"
-
-	"fmt"
-
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -68,8 +66,8 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 		//ranUe.Log.Debugln("RanUe RanNgapId AmfNgapId: ", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
 		/* checking whether same AMF instance can handle this message */
 		/* redirect it to correct owner if required */
-		id, _ := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
-		if id == nil {
+		id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
+		if id == nil || err != nil {
 			ran.Log.Warningf("DispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
 		} else if id != nil && id.PodName != os.Getenv("HOSTNAME") {
 			rsp := &sdcoreAmfServer.AmfMessage{}
@@ -88,7 +86,9 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 				ranUe.AmfUe.Remove()
 			}
 			if ranUe != nil {
-				ranUe.Remove()
+				if err := ranUe.Remove(); err != nil {
+					ran.Log.Errorf("Could not remove ranUe: %v", err)
+				}
 			}
 			return
 		} else {
@@ -99,7 +99,7 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
 		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
-		ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
+		// ranUe.AmfUe.TxLog.Infof("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:       ran,
@@ -160,7 +160,6 @@ func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
 }
 
 func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
-
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
@@ -296,7 +295,7 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 		return
 	}
 
-	//Removing Stale Connections in AmfRanPool
+	// Removing Stale Connections in AmfRanPool
 	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
 		amfRan := value.(*context.AmfRan)
 
@@ -332,7 +331,6 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 }
 
 func HandleSCTPNotificationLb(gnbId string) {
-
 	logger.NgapLog.Infof("Handle SCTP Notification[GnbId: %+v]", gnbId)
 
 	amfSelf := context.AMF_Self()
@@ -342,7 +340,7 @@ func HandleSCTPNotificationLb(gnbId string) {
 		return
 	}
 
-	//Removing Stale Connections in AmfRanPool
+	// Removing Stale Connections in AmfRanPool
 	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
 		amfRan := value.(*context.AmfRan)
 

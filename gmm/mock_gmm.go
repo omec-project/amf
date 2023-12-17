@@ -11,12 +11,14 @@ import (
 	"github.com/omec-project/fsm"
 )
 
-var MockRegisteredCallCount uint32 = 0
-var MockDeregisteredInitiatedCallCount uint32 = 0
-var MockContextSetupCallCount uint32 = 0
-var MockDeRegisteredCallCount uint32 = 0
-var MockSecurityModeCallCount uint32 = 0
-var MockAuthenticationCallCount uint32 = 0
+var (
+	MockRegisteredCallCount            uint32 = 0
+	MockDeregisteredInitiatedCallCount uint32 = 0
+	MockContextSetupCallCount          uint32 = 0
+	MockDeRegisteredCallCount          uint32 = 0
+	MockSecurityModeCallCount          uint32 = 0
+	MockAuthenticationCallCount        uint32 = 0
+)
 
 var mockCallbacks = fsm.Callbacks{
 	context.Deregistered:            MockDeRegistered,

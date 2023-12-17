@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/antihax/optional"
-
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/nas/nasType"
@@ -25,7 +24,8 @@ import (
 )
 
 func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
-	resynchronizationInfo *models.ResynchronizationInfo) (*models.UeAuthenticationCtx, *models.ProblemDetails, error) {
+	resynchronizationInfo *models.ResynchronizationInfo,
+) (*models.UeAuthenticationCtx, *models.ProblemDetails, error) {
 	configuration := Nausf_UEAuthentication.NewConfiguration()
 	configuration.SetBasePath(ue.AusfUri)
 
@@ -34,7 +34,7 @@ func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
 	amfSelf := amf_context.AMF_Self()
 	servedGuami := amfSelf.ServedGuamiList[0]
 	var plmnId *models.PlmnId
-	//take ServingNetwork plmn from UserLocation.Tai if received
+	// take ServingNetwork plmn from UserLocation.Tai if received
 	if ue.Tai.PlmnId != nil {
 		plmnId = ue.Tai.PlmnId
 	} else {
@@ -70,7 +70,8 @@ func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
 }
 
 func SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
-	*models.ConfirmationDataResponse, *models.ProblemDetails, error) {
+	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
+) {
 	var ausfUri string
 	if confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Href); err != nil {
 		return nil, nil, err
@@ -110,7 +111,8 @@ func SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
 }
 
 func SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage) (
-	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error) {
+	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
+) {
 	confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Href)
 	if err != nil {
 		logger.ConsumerLog.Errorf("url Parse failed: %+v", err)
@@ -135,7 +137,7 @@ func SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage)
 	} else if httpResponse != nil {
 		if httpResponse.Status != err.Error() {
 			err1 = err
-			return
+			return response, problemDetails, err1
 		}
 		switch httpResponse.StatusCode {
 		case 400, 500:

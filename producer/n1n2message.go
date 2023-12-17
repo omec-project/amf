@@ -120,7 +120,8 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	n1n2MessageTransferRequest models.N1N2MessageTransferRequest) (
 	n1n2MessageTransferRspData *models.N1N2MessageTransferRspData,
 	locationHeader string, problemDetails *models.ProblemDetails,
-	transferErr *models.N1N2MessageTransferError) {
+	transferErr *models.N1N2MessageTransferError,
+) {
 	var (
 		requestData *models.N1N2MessageTransferReqData = n1n2MessageTransferRequest.JsonData
 		n2Info      []byte                             = n1n2MessageTransferRequest.BinaryDataN2Information
@@ -268,7 +269,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				}
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
-				//context.StoreContextInDB(ue)
+				// context.StoreContextInDB(ue)
 				return n1n2MessageTransferRspData, "", nil, nil
 			case models.NgapIeType_PDU_RES_MOD_REQ:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Modify Request from SMF")
@@ -277,7 +278,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ngap_message.SendPDUSessionResourceModifyRequest(ue.RanUe[anType], list)
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
-				//context.StoreContextInDB(ue)
+				// context.StoreContextInDB(ue)
 				return n1n2MessageTransferRspData, "", nil, nil
 			case models.NgapIeType_PDU_RES_REL_CMD:
 				ue.ProducerLog.Debugln("AMF Transfer NGAP PDU Session Resource Release Command from SMF")
@@ -286,7 +287,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[anType], nasPdu, list)
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
-				//context.StoreContextInDB(ue)
+				// context.StoreContextInDB(ue)
 				return n1n2MessageTransferRspData, "", nil, nil
 			default:
 				ue.ProducerLog.Errorf("NGAP IE Type[%s] is not supported for SmInfo", smInfo.N2InfoContent.NgapIeType)
@@ -453,7 +454,7 @@ func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http
 		n1n2MessageRspData = msg.RespData.(*models.N1N2MessageTransferCause)
 	}
 
-	//status, problemDetails := N1N2MessageTransferStatusProcedure(ueContextID, reqUri)
+	// status, problemDetails := N1N2MessageTransferStatusProcedure(ueContextID, reqUri)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -462,7 +463,8 @@ func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http
 }
 
 func N1N2MessageTransferStatusProcedure(ueContextID string, reqUri string) (models.N1N2MessageTransferCause,
-	*models.ProblemDetails) {
+	*models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
@@ -516,7 +518,7 @@ func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrap
 	if msg.RespData != nil {
 		n1n2MessageRspData = msg.RespData.(*models.UeN1N2InfoSubscriptionCreateData)
 	}
-	//ueN1N2InfoSubscriptionCreatedData, problemDetails := N1N2MessageSubscribeProcedure(ueContextID, ueN1N2InfoSubscriptionCreateData)
+	// ueN1N2InfoSubscriptionCreatedData, problemDetails := N1N2MessageSubscribeProcedure(ueContextID, ueN1N2InfoSubscriptionCreateData)
 	if msg.ProblemDetails != nil {
 		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -526,7 +528,8 @@ func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrap
 
 func N1N2MessageSubscribeProcedure(ueContextID string,
 	ueN1N2InfoSubscriptionCreateData models.UeN1N2InfoSubscriptionCreateData) (
-	*models.UeN1N2InfoSubscriptionCreatedData, *models.ProblemDetails) {
+	*models.UeN1N2InfoSubscriptionCreatedData, *models.ProblemDetails,
+) {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)

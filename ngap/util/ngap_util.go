@@ -32,8 +32,7 @@ type TestConn struct {
 	Data []byte
 }
 
-type TestConnAddr struct {
-}
+type TestConnAddr struct{}
 
 func (tca TestConnAddr) Network() (a string) { return }
 func (tca TestConnAddr) String() (a string)  { return }
@@ -76,7 +75,6 @@ func GetNGSetupRequest(gnbId []byte, bitlength uint64, name, tac string) ([]byte
 // BuildNGSetupRequest forms and returns a new NGAPPDU struct value for
 // NGSetupRequest populated with default values.
 func BuildNGSetupRequest() (pdu ngapType.NGAPPDU) {
-
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
 	pdu.InitiatingMessage = new(ngapType.InitiatingMessage)
 

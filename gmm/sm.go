@@ -58,7 +58,9 @@ func DeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case NwInitiatedDeregistrationEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
-		NetworkInitiatedDeregistrationProcedure(amfUe, accessType)
+		if err := NetworkInitiatedDeregistrationProcedure(amfUe, accessType); err != nil {
+			logger.GmmLog.Errorln(err)
+		}
 	case StartAuthEvent:
 		logger.GmmLog.Debugln(event)
 	case fsm.ExitEvent:
@@ -76,7 +78,7 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		accessType := args[ArgAccessType].(models.AccessType)
 		amfUe.ClearRegistrationRequestData(accessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Registered]")
-		//store context in DB. Registration procedure is complete.
+		// store context in DB. Registration procedure is complete.
 		amfUe.PublishUeCtxtInfo()
 		context.StoreContextInDB(amfUe)
 	case GmmMessageEvent:
@@ -138,7 +140,9 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case NwInitiatedDeregistrationEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
-		NetworkInitiatedDeregistrationProcedure(amfUe, accessType)
+		if err := NetworkInitiatedDeregistrationProcedure(amfUe, accessType); err != nil {
+			logger.GmmLog.Errorln(err)
+		}
 	/*TODO */
 	case SliceInfoAddEvent:
 	case SliceInfoDeleteEvent:
@@ -222,11 +226,15 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
 		logger.GmmLog.Debugln(event)
-		HandleAuthenticationError(amfUe, accessType)
+		if err := HandleAuthenticationError(amfUe, accessType); err != nil {
+			logger.GmmLog.Errorln(err)
+		}
 	case NwInitiatedDeregistrationEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
-		NetworkInitiatedDeregistrationProcedure(amfUe, accessType)
+		if err := NetworkInitiatedDeregistrationProcedure(amfUe, accessType); err != nil {
+			logger.GmmLog.Errorln(err)
+		}
 	case fsm.ExitEvent:
 		// clear authentication related data at exit
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -268,11 +276,14 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			// Generate KnasEnc, KnasInt
 			amfUe.DerivateAlgKey()
 			if amfUe.CipheringAlg == security.AlgCiphering128NEA0 && amfUe.IntegrityAlg == security.AlgIntegrity128NIA0 {
-				GmmFSM.SendEvent(state, SecuritySkipEvent, fsm.ArgsType{
+				err := GmmFSM.SendEvent(state, SecuritySkipEvent, fsm.ArgsType{
 					ArgAmfUe:      amfUe,
 					ArgAccessType: accessType,
 					ArgNASMessage: amfUe.RegistrationRequest,
 				})
+				if err != nil {
+					logger.GmmLog.Errorln(err)
+				}
 			} else {
 				gmm_message.SendSecurityModeCommand(amfUe.RanUe[accessType], eapSuccess, eapMessage)
 			}
@@ -300,7 +311,7 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 				logger.GmmLog.Errorln(err)
 			}
 		case nas.MsgTypeRegistrationRequest:
-			//Sending AbortEvent to ongoing procedure
+			// Sending AbortEvent to ongoing procedure
 			err := GmmFSM.SendEvent(state, SecurityModeAbortEvent, fsm.ArgsType{
 				ArgAmfUe:      amfUe,
 				ArgAccessType: accessType,
@@ -340,7 +351,9 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		accessType := args[ArgAccessType].(models.AccessType)
 		amfUe.T3560.Stop()
 		amfUe.T3560 = nil
-		NetworkInitiatedDeregistrationProcedure(amfUe, accessType)
+		if err := NetworkInitiatedDeregistrationProcedure(amfUe, accessType); err != nil {
+			logger.GmmLog.Errorln(err)
+		}
 	case SecurityModeSuccessEvent:
 		logger.GmmLog.Debugln(event)
 	case SecurityModeFailEvent:
@@ -440,7 +453,9 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe.T3550.Stop()
 		amfUe.T3550 = nil
 		amfUe.State[accessType].Set(context.Registered)
-		NetworkInitiatedDeregistrationProcedure(amfUe, accessType)
+		if err := NetworkInitiatedDeregistrationProcedure(amfUe, accessType); err != nil {
+			logger.GmmLog.Errorln(err)
+		}
 	case ContextSetupFailEvent:
 		logger.GmmLog.Debugln(event)
 	case fsm.ExitEvent:
