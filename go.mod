@@ -28,7 +28,7 @@ require (
 	github.com/omec-project/util v1.0.11
 	github.com/prometheus/client_golang v1.17.0
 	github.com/sirupsen/logrus v1.9.3
-	github.com/spf13/viper v1.18.1
+	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli v1.22.14
 	go.mongodb.org/mongo-driver v1.11.7
