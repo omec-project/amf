@@ -69,7 +69,7 @@ type AmfUe struct {
 	// Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
 	Mutex sync.Mutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
-	servingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
+	servingAMF *AMFContext // never nil
 
 	/* Gmm State */
 	State map[models.AccessType]*fsm.State `json:"-"`
@@ -147,9 +147,9 @@ type AmfUe struct {
 	SmContextList sync.Map `json:"-"` // map[int32]*SmContext, pdu session id as key
 	/* Related Context*/
 	//RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty" yaml:"ranUe" bson:"ranUe,omitempty"`
-	RanUe map[models.AccessType]*RanUe `json:"ranUe, omitEmpty"`
+	RanUe map[models.AccessType]*RanUe `json:"ranUe,omitEmpty"`
 	/* other */
-	onGoing                       map[models.AccessType]*OnGoing        `json:"onGoing,omitempty"`
+	onGoing                       map[models.AccessType]*OnGoing
 	UeRadioCapability             string                                `json:"ueRadioCapability,omitempty"` // OCTET string
 	Capability5GMM                nasType.Capability5GMM                `json:"capability5GMM,omitempty"`
 	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication `json:"configurationUpdateIndication,omitempty"`

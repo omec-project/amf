@@ -36,12 +36,12 @@ const (
 
 type RanUe struct {
 	/* UE identity*/
-	RanUeNgapId int64 `json:"ranUeNgapId, omitempty"`
-	AmfUeNgapId int64 `json:"amfUeNgapId, omitempty"`
+	RanUeNgapId int64 `json:"ranUeNgapId,omitempty"`
+	AmfUeNgapId int64 `json:"amfUeNgapId,omitempty"`
 
 	/* HandOver Info*/
 	HandOverType        ngapType.HandoverType
-	SuccessPduSessionId []int32 `json:"successPduSessionId, omitempty"`
+	SuccessPduSessionId []int32 `json:"successPduSessionId,omitempty"`
 	SourceUe            *RanUe  `json:"-"`
 	TargetUe            *RanUe  `json:"-"`
 

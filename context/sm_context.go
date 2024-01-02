@@ -15,7 +15,7 @@ import (
 )
 
 type SmContext struct {
-	Mu sync.RWMutex // protect the following fields
+	Mu *sync.RWMutex // protect the following fields
 
 	// pdu session information
 	PduSessionIDVal int32
