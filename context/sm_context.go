@@ -44,7 +44,10 @@ type SmContext struct {
 }
 
 func NewSmContext(pduSessionID int32) *SmContext {
-	c := &SmContext{PduSessionIDVal: pduSessionID}
+	c := &SmContext{
+		PduSessionIDVal: pduSessionID,
+		Mu:              new(sync.RWMutex),
+	}
 	return c
 }
 

@@ -905,6 +905,7 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 	if len(ueContext.SessionContextList) > 0 {
 		for _, pduSessionContext := range ueContext.SessionContextList {
 			smContext := SmContext{
+				Mu:              new(sync.RWMutex),
 				PduSessionIDVal: pduSessionContext.PduSessionId,
 				SmContextRefVal: pduSessionContext.SmContextRef,
 				SnssaiVal:       *pduSessionContext.SNssai,
