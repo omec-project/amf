@@ -63,7 +63,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: "go.mod"
+          go-version-file: 'go.mod'
 
       - name: Unit tests
         run: go test ./...
