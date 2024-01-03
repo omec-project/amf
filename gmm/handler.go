@@ -1623,16 +1623,16 @@ func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, ns
 
 	// we are doing local cleanup for now, below code will be deprecated when we support
 	// Configuration Update
-	var problemDetail *models.ProblemDetails
+	var problemDetails *models.ProblemDetails
 	ue.SmContextList.Range(func(key, value interface{}) bool {
 		smContext := value.(*context.SmContext)
 		if smContext.Snssai().Sst == int32(nssai.Sst) && smContext.Snssai().Sd == nssai.Sd {
 			logger.GmmLog.Infof("Deleted Slice [sst: %v, sd: %v]matched with smcontext, sending Release SMContext Request to SMF",
 				smContext.Snssai().Sst, smContext.Snssai().Sd)
 			// send smcontext release request
-			problemDetail, err = consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
-			if problemDetail != nil {
-				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
+			problemDetails, err = consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
+			if problemDetails != nil {
+				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
 				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
 			}
