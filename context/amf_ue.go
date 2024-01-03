@@ -69,7 +69,7 @@ type AmfUe struct {
 	// Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
 	Mutex sync.Mutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
-	servingAMF *AMFContext // never nil
+	ServingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
 
 	/* Gmm State */
 	State map[models.AccessType]*fsm.State `json:"-"`
@@ -442,7 +442,7 @@ type NGRANCGI struct {
 }
 
 func (ue *AmfUe) init() {
-	ue.servingAMF = AMF_Self()
+	ue.ServingAMF = AMF_Self()
 	ue.State = make(map[models.AccessType]*fsm.State)
 	ue.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(Deregistered)
 	ue.State[models.AccessType_NON_3_GPP_ACCESS] = fsm.NewState(Deregistered)
@@ -462,10 +462,6 @@ func (ue *AmfUe) init() {
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	// ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
-}
-
-func (ue *AmfUe) ServingAMF() *AMFContext {
-	return ue.servingAMF
 }
 
 func (ue *AmfUe) CmConnect(anType models.AccessType) bool {
@@ -1054,7 +1050,7 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 
 	// Populate kafka sm ctxt struct
 	kafkaSmCtxt.Imsi = ueContext.Supi
-	kafkaSmCtxt.AmfId = ueContext.servingAMF.NfId
+	kafkaSmCtxt.AmfId = ueContext.ServingAMF.NfId
 	kafkaSmCtxt.Guti = ueContext.Guti
 	kafkaSmCtxt.Tmsi = ueContext.Tmsi
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
