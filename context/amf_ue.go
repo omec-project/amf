@@ -149,10 +149,10 @@ type AmfUe struct {
 	//RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty" yaml:"ranUe" bson:"ranUe,omitempty"`
 	RanUe map[models.AccessType]*RanUe `json:"ranUe,omitEmpty"`
 	/* other */
-	onGoing                       map[models.AccessType]*OnGoing
-	UeRadioCapability             string                                `json:"ueRadioCapability,omitempty"` // OCTET string
-	Capability5GMM                nasType.Capability5GMM                `json:"capability5GMM,omitempty"`
-	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication `json:"configurationUpdateIndication,omitempty"`
+	OnGoing                       map[models.AccessType]*OnGoingProcedureWithPrio `json:"onGoing,omitempty"`
+	UeRadioCapability             string                                          `json:"ueRadioCapability,omitempty"` // OCTET string
+	Capability5GMM                nasType.Capability5GMM                          `json:"capability5GMM,omitempty"`
+	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication           `json:"configurationUpdateIndication,omitempty"`
 	/* context related to Paging */
 	UeRadioCapabilityForPaging                 *UERadioCapabilityForPaging                 `json:"ueRadioCapabilityForPaging,omitempty"`
 	InfoOnRecommendedCellsAndRanNodesForPaging *InfoOnRecommendedCellsAndRanNodesForPaging `json:"infoOnRecommendedCellsAndRanNodesForPaging,omitempty"`
@@ -202,11 +202,9 @@ type AmfUe struct {
 	Non3gppDeregistrationTimerValue int `json:"non3gppDeregistrationTimerValue,omitempty"` // default 54 min
 
 	// AmfInstanceName and Ip
-	AmfInstanceName string `json:"amfInstanceName,omitempty"`
-	AmfInstanceIp   string `json:"amfInstanceIp,omitempty"`
-	// EventChannel  chan OnGoing
-	// EventChannel *EventChannel `json:"eventChannel,omitempty" yaml:"eventChannel" bson:"eventChannel,omitempty"`
-	EventChannel *EventChannel `json:"-"`
+	AmfInstanceName string        `json:"amfInstanceName,omitempty"`
+	AmfInstanceIp   string        `json:"amfInstanceIp,omitempty"`
+	EventChannel    *EventChannel `json:"-"`
 	// logger
 	// NASLog      *logrus.Entry `json:"nasLog,omitempty" yaml:"nasLog" bson:"nasLog,omitempty"`
 	// GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
@@ -408,7 +406,7 @@ type N1N2Message struct {
 	ResourceUri string
 }
 
-type OnGoing struct {
+type OnGoingProcedureWithPrio struct {
 	Procedure OnGoingProcedure
 	Ppi       int32 // Paging priority
 }
@@ -455,11 +453,11 @@ func (ue *AmfUe) init() {
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
 	ue.N1N2MessageIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.N1N2MessageSubscribeIDGenerator = idgenerator.NewGenerator(1, 2147483647)
-	ue.onGoing = make(map[models.AccessType]*OnGoing)
-	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoing)
-	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
-	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
-	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.OnGoing = make(map[models.AccessType]*OnGoingProcedureWithPrio)
+	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
+	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.OnGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
+	ue.OnGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
@@ -769,7 +767,7 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 		ue.RanUe[accessType].RecvdInitialContextSetupResponse = false
 	}
 	ue.RetransmissionOfInitialNASMsg = false
-	ue.onGoing[accessType].Procedure = OnGoingProcedureNothing
+	ue.OnGoing[accessType].Procedure = OnGoingProcedureNothing
 }
 
 // this method called when we are reusing the same uecontext during the registration procedure
@@ -785,15 +783,15 @@ func (ue *AmfUe) ClearRegistrationData() {
 	})
 }
 
-func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoing) {
-	prevOnGoing := ue.onGoing[anType]
-	ue.onGoing[anType] = onGoing
+func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoingProcedureWithPrio) {
+	prevOnGoing := ue.OnGoing[anType]
+	ue.OnGoing[anType] = onGoing
 	ue.GmmLog.Debugf("OnGoing[%s]->[%s] PPI[%d]->[%d]", prevOnGoing.Procedure, onGoing.Procedure,
 		prevOnGoing.Ppi, onGoing.Ppi)
 }
 
-func (ue *AmfUe) OnGoing(anType models.AccessType) OnGoing {
-	return *ue.onGoing[anType]
+func (ue *AmfUe) GetOnGoing(anType models.AccessType) OnGoingProcedureWithPrio {
+	return *ue.OnGoing[anType]
 }
 
 func (ue *AmfUe) RemoveAmPolicyAssociation() {

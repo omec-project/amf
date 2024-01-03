@@ -51,7 +51,7 @@ func SendNotification(ue *context.RanUe, nasMsg []byte) {
 			ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 		}, func() {
 			amfUe.GmmLog.Warnf("T3565 Expires %d times, abort notification procedure", cfg.MaxRetryTimes)
-			if amfUe.OnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
+			if amfUe.GetOnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
 				callback.SendN1N2TransferFailureNotification(amfUe, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
 			}
 			amfUe.T3565 = nil // clear the timer

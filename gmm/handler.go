@@ -395,7 +395,7 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		ue.SecurityContextAvailable = false
 	}
 
-	ue.SetOnGoing(anType, &context.OnGoing{
+	ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 		Procedure: context.OnGoingProcedureRegistration,
 	})
 
@@ -1694,8 +1694,8 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	}
 
 	// Set No ongoing
-	if procedure := ue.OnGoing(anType).Procedure; procedure == context.OnGoingProcedurePaging {
-		ue.SetOnGoing(anType, &context.OnGoing{
+	if procedure := ue.GetOnGoing(anType).Procedure; procedure == context.OnGoingProcedurePaging {
+		ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 			Procedure: context.OnGoingProcedureNothing,
 		})
 	} else if procedure != context.OnGoingProcedureNothing {
