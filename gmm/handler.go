@@ -146,7 +146,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 					Release: true,
 					Cause:   models.Cause_REL_DUE_TO_DUPLICATE_SESSION_ID,
 					SmContextStatusUri: fmt.Sprintf("%s/namf-callback/v1/smContextStatus/%s/%d",
-						ue.ServingAMF().GetIPv4Uri(), ue.Guti, pduSessionID),
+						ue.ServingAMF.GetIPv4Uri(), ue.Guti, pduSessionID),
 				}
 				ue.GmmLog.Warningf("Duplicated PDU session ID[%d]", pduSessionID)
 				smContext.SetDuplicatedPduSessionID(true)
@@ -216,7 +216,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 				} else {
 					// if user's subscription context obtained from UDM does not contain the default DNN for the,
 					// S-NSSAI, the AMF shall use a locally configured DNN as the DNN
-					dnn = ue.ServingAMF().SupportDnnLists[0]
+					dnn = ue.ServingAMF.SupportDnnLists[0]
 
 					if ue.SmfSelectionData != nil {
 						snssaiStr := util.SnssaiModelsToHex(snssai)
@@ -395,7 +395,7 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		ue.SecurityContextAvailable = false
 	}
 
-	ue.SetOnGoing(anType, &context.OnGoing{
+	ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 		Procedure: context.OnGoingProcedureRegistration,
 	})
 
@@ -1564,14 +1564,15 @@ func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType model
 	}
 	// TODO: Need to implement Nudm_SDM_Unsubscribe
 
+	var problemDetails *models.ProblemDetails
 	ue.SmContextList.Range(func(key, value interface{}) bool {
 		smContext := value.(*context.SmContext)
 
 		if smContext.AccessType() == accessType {
 			ue.GmmLog.Infof("Sending SmContext [slice: %v, dnn: %v] Release Request to SMF", smContext.Snssai(), smContext.Dnn())
-			problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
-			if problemDetail != nil {
-				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
+			problemDetails, err = consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
+			if problemDetails != nil {
+				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
 				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
 			}
@@ -1590,7 +1591,7 @@ func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType model
 
 		if terminateAmPolicyAssocaition {
 			ue.GmmLog.Infof("Sending AmPolicyControlDelete to AMF")
-			problemDetails, err := consumer.AMPolicyControlDelete(ue)
+			problemDetails, err = consumer.AMPolicyControlDelete(ue)
 			if problemDetails != nil {
 				err = fmt.Errorf("AM Policy Control Delete Failed Problem[%+v]", problemDetails)
 				// Should error be logged here ?
@@ -1622,15 +1623,16 @@ func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, ns
 
 	// we are doing local cleanup for now, below code will be deprecated when we support
 	// Configuration Update
+	var problemDetails *models.ProblemDetails
 	ue.SmContextList.Range(func(key, value interface{}) bool {
 		smContext := value.(*context.SmContext)
 		if smContext.Snssai().Sst == int32(nssai.Sst) && smContext.Snssai().Sd == nssai.Sd {
 			logger.GmmLog.Infof("Deleted Slice [sst: %v, sd: %v]matched with smcontext, sending Release SMContext Request to SMF",
 				smContext.Snssai().Sst, smContext.Snssai().Sd)
 			// send smcontext release request
-			problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
-			if problemDetail != nil {
-				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
+			problemDetails, err = consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
+			if problemDetails != nil {
+				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
 				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
 			}
@@ -1692,8 +1694,8 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 	}
 
 	// Set No ongoing
-	if procedure := ue.OnGoing(anType).Procedure; procedure == context.OnGoingProcedurePaging {
-		ue.SetOnGoing(anType, &context.OnGoing{
+	if procedure := ue.GetOnGoing(anType).Procedure; procedure == context.OnGoingProcedurePaging {
+		ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 			Procedure: context.OnGoingProcedureNothing,
 		})
 	} else if procedure != context.OnGoingProcedureNothing {

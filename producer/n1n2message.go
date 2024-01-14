@@ -193,7 +193,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 		}
 	}
 
-	onGoing := ue.OnGoing(anType)
+	onGoing := ue.GetOnGoing(anType)
 	// 4xx response cases
 	// TODO: Error Status 307, 403 in TS29.518 Table 6.1.3.5.3.1-3
 	switch onGoing.Procedure {
@@ -352,7 +352,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ResourceUri: locationHeader,
 			}
 			ue.N1N2Message = &message
-			ue.SetOnGoing(anType, &context.OnGoing{
+			ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 				Procedure: context.OnGoingProcedurePaging,
 				Ppi:       requestData.Ppi,
 			})
@@ -405,7 +405,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			}
 			ue.N1N2Message = &message
 
-			ue.SetOnGoing(anType, &context.OnGoing{
+			ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 				Procedure: context.OnGoingProcedurePaging,
 				Ppi:       requestData.Ppi,
 			})

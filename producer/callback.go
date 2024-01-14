@@ -288,7 +288,7 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 				}
 
 				ue.ConfigurationUpdateMessage = message
-				ue.SetOnGoing(models.AccessType__3_GPP_ACCESS, &context.OnGoing{
+				ue.SetOnGoing(models.AccessType__3_GPP_ACCESS, &context.OnGoingProcedureWithPrio{
 					Procedure: context.OnGoingProcedurePaging,
 				})
 

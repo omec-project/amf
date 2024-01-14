@@ -3557,7 +3557,7 @@ func HandleHandoverRequired(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Errorf("targetID type[%d] is not supported", targetID.Present)
 		return
 	}
-	amfUe.SetOnGoing(sourceUe.Ran.AnType, &context.OnGoing{
+	amfUe.SetOnGoing(sourceUe.Ran.AnType, &context.OnGoingProcedureWithPrio{
 		Procedure: context.OnGoingProcedureN2Handover,
 	})
 	if !amfUe.SecurityContextIsValid() {

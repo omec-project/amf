@@ -10,6 +10,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/ngap"
 	ngaputil "github.com/omec-project/amf/ngap/util"
 	"github.com/omec-project/amf/util"
@@ -20,6 +21,9 @@ func init() {
 	testAmfConfig := "../amfTest/amfcfg.yaml"
 	if err := factory.InitConfigFactory(testAmfConfig); err != nil {
 		log.Fatal("Failed to initialzie Factory Config")
+	}
+	if err := metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
+		log.Fatalf("Failed to initialize Kafka Stream")
 	}
 
 	util.InitAmfContext(context.AMF_Self())

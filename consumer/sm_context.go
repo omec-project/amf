@@ -61,7 +61,7 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 }
 
 func refreshSmfProfiles(ue *amf_context.AmfUe, smCtxt *amf_context.SmContext, ignoreSmfId string) *[]models.NfProfile {
-	nrfUri := ue.ServingAMF().NrfUri
+	nrfUri := ue.ServingAMF.NrfUri
 	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
 		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
 		Dnn:          optional.NewString(smCtxt.Dnn()),
@@ -94,7 +94,7 @@ func SelectSmf(
 
 	ue.GmmLog.Infof("Select SMF [snssai: %+v, dnn: %+v]", snssai, dnn)
 
-	nrfUri := ue.ServingAMF().NrfUri // default NRF URI is pre-configured by AMF
+	nrfUri := ue.ServingAMF.NrfUri // default NRF URI is pre-configured by AMF
 
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
@@ -282,7 +282,7 @@ func SendUpdateSmContextActivateUpCnxState(
 	if smContext.AccessType() != accessType {
 		updateData.AnType = smContext.AccessType()
 	}
-	if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.PresenceInLadn = models.PresenceState_IN_AREA
 		}
@@ -342,7 +342,7 @@ func SendUpdateSmContextXnHandover(
 	}
 	updateData.ToBeSwitched = true
 	updateData.UeLocation = &ue.Location
-	if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.PresenceInLadn = models.PresenceState_IN_AREA
 		} else {
@@ -413,7 +413,7 @@ func SendUpdateSmContextN2HandoverComplete(
 		updateData.ServingNetwork = guami.PlmnId
 		updateData.Guami = guami
 	}
-	if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.PresenceInLadn = models.PresenceState_IN_AREA
 		} else {
@@ -467,7 +467,7 @@ func SendUpdateSmContextHandoverBetweenAMF(
 		if !amf_context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
 			updateData.UeLocation = &ue.Location
 		}
-		if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+		if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 			if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 				updateData.PresenceInLadn = models.PresenceState_IN_AREA
 			}

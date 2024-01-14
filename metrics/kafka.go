@@ -17,7 +17,7 @@ import (
 )
 
 type Writer struct {
-	kafkaWriter kafka.Writer
+	kafkaWriter *kafka.Writer
 }
 
 var StatWriter Writer
@@ -44,7 +44,7 @@ func InitialiseKafkaStream(config *factory.Configuration) error {
 	}
 
 	StatWriter = Writer{
-		kafkaWriter: producer,
+		kafkaWriter: &producer,
 	}
 
 	logger.KafkaLog.Debugf("initialising kafka stream with url[%v], topic[%v]", brokerUrl, topicName)
