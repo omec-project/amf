@@ -78,27 +78,6 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 	return nil
 }
 
-var nfInstanceId string
-
-// initialised by context package
-func SetNfInstanceId(s string) {
-	nfInstanceId = s
-}
-
-/*
-func PublishMsgEvent(msgType mi.AmfMsgType) error {
-
-	smKafkaMsgEvt := mi.MetricEvent{EventType: mi.CMsgTypeEvt, MsgType: mi.CoreMsgType{MsgType: msgType.String(), SourceNfId: nfInstanceId}}
-	if msg, err := json.Marshal(smKafkaMsgEvt); err != nil {
-		return err
-	} else {
-		logger.KafkaLog.Debugf("publishing msg event[%s] ", msg)
-		StatWriter.SendMessage(msg)
-	}
-	return nil
-}
-*/
-
 func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
 	if msg, err := json.Marshal(msgEvent); err != nil {
 		return err

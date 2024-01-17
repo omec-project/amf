@@ -242,7 +242,7 @@ linters:
     - govet
     - errcheck
     - staticcheck
-    # - unused
+    - unused
     # - gosimple
     # - structcheck
     - ineffassign

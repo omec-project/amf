@@ -64,8 +64,7 @@ var RocUpdateConfigChannel chan bool
 type (
 	// Config information.
 	Config struct {
-		amfcfg         string
-		heartBeatTimer string
+		amfcfg string
 	}
 )
 

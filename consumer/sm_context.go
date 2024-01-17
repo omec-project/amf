@@ -60,29 +60,6 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 	return fmt.Errorf("no alternate profiles available")
 }
 
-func refreshSmfProfiles(ue *amf_context.AmfUe, smCtxt *amf_context.SmContext, ignoreSmfId string) *[]models.NfProfile {
-	nrfUri := ue.ServingAMF.NrfUri
-	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
-		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
-		Dnn:          optional.NewString(smCtxt.Dnn()),
-		Snssais:      optional.NewInterface(util.MarshToJsonString([]models.Snssai{smCtxt.Snssai()})),
-	}
-
-	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
-	if err != nil {
-		return nil
-	}
-
-	var altSmfInst []models.NfProfile
-	// iterate over nf instances to ignore failed NF
-	for _, inst := range result.NfInstances {
-		if inst.NfInstanceId != ignoreSmfId {
-			altSmfInst = append(altSmfInst, inst)
-		}
-	}
-	return &altSmfInst
-}
-
 func SelectSmf(
 	ue *amf_context.AmfUe,
 	anType models.AccessType,
