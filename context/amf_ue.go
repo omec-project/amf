@@ -147,7 +147,7 @@ type AmfUe struct {
 	SmContextList sync.Map `json:"-"` // map[int32]*SmContext, pdu session id as key
 	/* Related Context*/
 	//RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty" yaml:"ranUe" bson:"ranUe,omitempty"`
-	RanUe map[models.AccessType]*RanUe `json:"ranUe,omitEmpty"`
+	RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty"`
 	/* other */
 	OnGoing                       map[models.AccessType]*OnGoingProcedureWithPrio `json:"onGoing,omitempty"`
 	UeRadioCapability             string                                          `json:"ueRadioCapability,omitempty"` // OCTET string

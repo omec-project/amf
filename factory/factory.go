@@ -12,7 +12,6 @@ package factory
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 
@@ -24,7 +23,7 @@ var AmfConfig Config
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
-	if content, err := ioutil.ReadFile(f); err != nil {
+	if content, err := os.ReadFile(f); err != nil {
 		return err
 	} else {
 		AmfConfig = Config{}
@@ -38,7 +37,7 @@ func InitConfigFactory(f string) error {
 }
 
 func UpdateAmfConfig(f string) error {
-	if content, err := ioutil.ReadFile(f); err != nil {
+	if content, err := os.ReadFile(f); err != nil {
 		return err
 	} else {
 		var amfConfig Config
