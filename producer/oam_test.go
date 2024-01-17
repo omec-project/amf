@@ -18,13 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type TestCases struct {
-	amfContext         context.AMFContext
-	amfue              context.AmfUe
-	expectedUeFsmState string
-	description        string
-}
-
 func init() {
 	if err := factory.InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {
 		fmt.Printf("Error in InitConfigFactory: %v\n", err)
