@@ -22,7 +22,7 @@ DOCKER_LABEL_VCS_REF     ?= $(shell git diff-index --quiet HEAD -- && git rev-pa
 DOCKER_LABEL_COMMIT_DATE ?= $(shell git diff-index --quiet HEAD -- && git show -s --format=%cd --date=iso-strict HEAD || echo "unknown" )
 DOCKER_LABEL_BUILD_DATE  ?= $(shell date -u "+%Y-%m-%dT%H:%M:%SZ")
 
-DOCKER_TARGETS           ?= builder amf
+DOCKER_TARGETS           ?= amf
 
 GO_BIN_PATH = bin
 GO_SRC_PATH = ./
