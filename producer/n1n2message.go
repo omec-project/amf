@@ -28,11 +28,11 @@ func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, inter
 		r1, r2 := N1N2MessageTransferStatusProcedure(s1, s2)
 		return r1, "", r2, nil
 	}
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case models.N1N2MessageTransferRequest:
-		return N1N2MessageTransferProcedure(s1, s2, msg.(models.N1N2MessageTransferRequest))
+		return N1N2MessageTransferProcedure(s1, s2, msg)
 	case models.UeN1N2InfoSubscriptionCreateData:
-		r1, r2 := N1N2MessageSubscribeProcedure(s1, msg.(models.UeN1N2InfoSubscriptionCreateData))
+		r1, r2 := N1N2MessageSubscribeProcedure(s1, msg)
 		return r1, "", r2, nil
 	}
 

@@ -40,22 +40,22 @@ func (tx *EventChannel) Start() {
 	for {
 		select {
 		case msg := <-tx.Message:
-			switch msg.(type) {
+			switch msg := msg.(type) {
 			case NasMsg:
-				tx.NasHandler(tx.AmfUe, msg.(NasMsg))
+				tx.NasHandler(tx.AmfUe, msg)
 			case NgapMsg:
-				tx.NgapHandler(tx.AmfUe, msg.(NgapMsg))
+				tx.NgapHandler(tx.AmfUe, msg)
 			case SbiMsg:
-				p_1, p_2, p_3, p_4 := tx.SbiHandler(msg.(SbiMsg).UeContextId, msg.(SbiMsg).ReqUri, msg.(SbiMsg).Msg)
+				p_1, p_2, p_3, p_4 := tx.SbiHandler(msg.UeContextId, msg.ReqUri, msg.Msg)
 				res := SbiResponseMsg{
 					RespData:       p_1,
 					LocationHeader: p_2,
 					ProblemDetails: p_3,
 					TransferErr:    p_4,
 				}
-				msg.(SbiMsg).Result <- res
+				msg.Result <- res
 			case ConfigMsg:
-				tx.ConfigHandler(msg.(ConfigMsg).Supi, msg.(ConfigMsg).Sst, msg.(ConfigMsg).Sd, msg.(ConfigMsg).Msg)
+				tx.ConfigHandler(msg.Supi, msg.Sst, msg.Sd, msg.Msg)
 			}
 		case event := <-tx.Event:
 			if event == "quit" {
