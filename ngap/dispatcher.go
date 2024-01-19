@@ -301,7 +301,7 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 
 		conn := amfRan.Conn.(*sctp.SCTPConn)
 		errorConn := sctp.NewSCTPConn(-1, nil)
-		if reflect.DeepEqual(conn, errorConn) == true {
+		if reflect.DeepEqual(conn, errorConn) {
 			amfRan.Remove()
 			ran.Log.Infof("removed stale entry in AmfRan pool")
 		}

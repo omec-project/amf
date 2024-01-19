@@ -18,21 +18,21 @@ import (
 )
 
 func UeContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case models.CreateUeContextRequest:
-		r1, r2 := CreateUEContextProcedure(s1, msg.(models.CreateUeContextRequest))
+		r1, r2 := CreateUEContextProcedure(s1, msg)
 		return r1, "", nil, r2
 	case models.UeContextRelease:
-		r1 := ReleaseUEContextProcedure(s1, msg.(models.UeContextRelease))
+		r1 := ReleaseUEContextProcedure(s1, msg)
 		return nil, "", r1, nil
 	case models.UeContextTransferRequest:
-		r1, r2 := UEContextTransferProcedure(s1, msg.(models.UeContextTransferRequest))
+		r1, r2 := UEContextTransferProcedure(s1, msg)
 		return r1, "", r2, nil
 	case models.AssignEbiData:
-		r1, r2, r3 := AssignEbiDataProcedure(s1, msg.(models.AssignEbiData))
+		r1, r2, r3 := AssignEbiDataProcedure(s1, msg)
 		return r1, "", r3, r2
 	case models.UeRegStatusUpdateReqData:
-		r1, r2 := RegistrationStatusUpdateProcedure(s1, msg.(models.UeRegStatusUpdateReqData))
+		r1, r2 := RegistrationStatusUpdateProcedure(s1, msg)
 		return r1, "", r2, nil
 	}
 

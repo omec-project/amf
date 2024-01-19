@@ -30,7 +30,7 @@ import (
 )
 
 func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case models.SmContextStatusNotification:
 		var pduSessionID int
 		if pduSessionIDTmp, err := strconv.Atoi(s2); err != nil {
@@ -38,13 +38,13 @@ func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 		} else {
 			pduSessionID = pduSessionIDTmp
 		}
-		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg.(models.SmContextStatusNotification))
+		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg)
 		return nil, "", r1, nil
 	case models.PolicyUpdate:
-		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg.(models.PolicyUpdate))
+		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg)
 		return nil, "", r1, nil
 	case models.TerminationNotification:
-		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg.(models.TerminationNotification))
+		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg)
 		return nil, "", r1, nil
 	}
 

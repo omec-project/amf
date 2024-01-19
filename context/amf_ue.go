@@ -1010,8 +1010,6 @@ func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg)) {
 		ue.EventChannel.UpdateNgapHandler(handler)
 		go ue.EventChannel.Start()
 	}
-
-	return
 }
 
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {

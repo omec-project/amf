@@ -59,8 +59,7 @@ func TestInitialConfig(t *testing.T) {
 	factory.AmfConfig.Configuration.PlmnSupportList = nil
 	factory.AmfConfig.Configuration.ServedGumaiList = nil
 	factory.AmfConfig.Configuration.SupportTAIList = nil
-	var Rsp chan *protos.NetworkSliceResponse
-	Rsp = make(chan *protos.NetworkSliceResponse, 1)
+	Rsp := make(chan *protos.NetworkSliceResponse, 1)
 
 	go func() {
 		AMFTest.UpdateConfig(Rsp)
@@ -103,8 +102,7 @@ func TestUpdateConfig(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	var Rsp chan *protos.NetworkSliceResponse
-	Rsp = make(chan *protos.NetworkSliceResponse)
+	Rsp := make(chan *protos.NetworkSliceResponse)
 	go func() {
 		Rsp <- &nrp
 	}()
