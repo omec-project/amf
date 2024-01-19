@@ -39,6 +39,13 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
+const (
+	S_NSSAI_CONGESTION        = "S-NSSAI_CONGESTION"
+	DNN_CONGESTION            = "DNN_CONGESTION"
+	PRIORITIZED_SERVICES_ONLY = "PRIORITIZED_SERVICES_ONLY"
+	OUT_OF_LADN_SERVICE_AREA  = "OUT_OF_LADN_SERVICE_AREA"
+)
+
 func HandleULNASTransport(ue *context.AmfUe, anType models.AccessType,
 	ulNasTransport *nasMessage.ULNASTransport,
 ) error {
@@ -846,11 +853,11 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 							cause := nasMessage.Cause5GMMProtocolErrorUnspecified
 							if errResponse != nil {
 								switch errResponse.JsonData.Error.Cause {
-								case "OUT_OF_LADN_SERVICE_AREA":
+								case OUT_OF_LADN_SERVICE_AREA:
 									cause = nasMessage.Cause5GMMLADNNotAvailable
-								case "PRIORITIZED_SERVICES_ONLY":
+								case PRIORITIZED_SERVICES_ONLY:
 									cause = nasMessage.Cause5GMMRestrictedServiceArea
-								case "DNN_CONGESTION", "S-NSSAI_CONGESTION":
+								case DNN_CONGESTION, S_NSSAI_CONGESTION:
 									cause = nasMessage.Cause5GMMInsufficientUserPlaneResourcesForThePDUSession
 								}
 							}
@@ -962,11 +969,11 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 						cause := nasMessage.Cause5GMMProtocolErrorUnspecified
 						if errRes != nil {
 							switch errRes.JsonData.Error.Cause {
-							case "OUT_OF_LADN_SERVICE_AREA":
+							case OUT_OF_LADN_SERVICE_AREA:
 								cause = nasMessage.Cause5GMMLADNNotAvailable
-							case "PRIORITIZED_SERVICES_ONLY":
+							case PRIORITIZED_SERVICES_ONLY:
 								cause = nasMessage.Cause5GMMRestrictedServiceArea
-							case "DNN_CONGESTION", "S-NSSAI_CONGESTION":
+							case DNN_CONGESTION, S_NSSAI_CONGESTION:
 								cause = nasMessage.Cause5GMMInsufficientUserPlaneResourcesForThePDUSession
 							}
 						}
@@ -1804,11 +1811,11 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 						cause := nasMessage.Cause5GMMProtocolErrorUnspecified
 						if errRes != nil {
 							switch errRes.JsonData.Error.Cause {
-							case "OUT_OF_LADN_SERVICE_AREA":
+							case OUT_OF_LADN_SERVICE_AREA:
 								cause = nasMessage.Cause5GMMLADNNotAvailable
-							case "PRIORITIZED_SERVICES_ONLY":
+							case PRIORITIZED_SERVICES_ONLY:
 								cause = nasMessage.Cause5GMMRestrictedServiceArea
-							case "DNN_CONGESTION", "S-NSSAI_CONGESTION":
+							case DNN_CONGESTION, S_NSSAI_CONGESTION:
 								cause = nasMessage.Cause5GMMInsufficientUserPlaneResourcesForThePDUSession
 							}
 						}
@@ -1903,11 +1910,11 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 							cause := nasMessage.Cause5GMMProtocolErrorUnspecified
 							if errRes != nil {
 								switch errRes.JsonData.Error.Cause {
-								case "OUT_OF_LADN_SERVICE_AREA":
+								case OUT_OF_LADN_SERVICE_AREA:
 									cause = nasMessage.Cause5GMMLADNNotAvailable
-								case "PRIORITIZED_SERVICES_ONLY":
+								case PRIORITIZED_SERVICES_ONLY:
 									cause = nasMessage.Cause5GMMRestrictedServiceArea
-								case "DNN_CONGESTION", "S-NSSAI_CONGESTION":
+								case DNN_CONGESTION, S_NSSAI_CONGESTION:
 									cause = nasMessage.Cause5GMMInsufficientUserPlaneResourcesForThePDUSession
 								}
 							}
