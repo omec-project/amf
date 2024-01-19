@@ -24,7 +24,7 @@ type Server struct {
 }
 
 func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServer) error {
-	var Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage = make(chan *sdcoreAmfServer.AmfMessage, 100)
+	Amf2RanMsgChan := make(chan *sdcoreAmfServer.AmfMessage, 100)
 
 	go func() {
 		for {
