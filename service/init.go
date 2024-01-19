@@ -59,6 +59,8 @@ import (
 
 type AMF struct{}
 
+const IMSI_PREFIX = "imsi-"
+
 var RocUpdateConfigChannel chan bool
 
 type (
@@ -724,7 +726,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 
 func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi("imsi-" + supi)
+	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
 	// Triggers for NwInitiatedDeRegistration
 	// - Only 1 Allowed Nssai is exist and its slice information matched
@@ -767,7 +769,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 
 func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi("imsi-" + supi)
+	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
 	ns := msg.(*protos.NetworkSlice)
 	var Nssai models.Snssai
@@ -794,7 +796,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 
 	for _, supi := range slice.DeletedImsis {
 		amfSelf := context.AMF_Self()
-		ue, ok = amfSelf.AmfUeFindBySupi("imsi-" + supi)
+		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 		if !ok {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue
@@ -819,7 +821,7 @@ func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
 
 	for _, supi := range slice.AddUpdatedImsis {
 		amfSelf := context.AMF_Self()
-		ue, ok = amfSelf.AmfUeFindBySupi("imsi-" + supi)
+		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 		if !ok {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue

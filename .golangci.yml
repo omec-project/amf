@@ -244,14 +244,13 @@ linters:
     - staticcheck
     - unused
     - gosimple
-    # - structcheck
     - ineffassign
     - typecheck
     # Additional
     # - lll
     - godox
     #- gomnd
-    #- goconst
+    - goconst
     # - gocognit
     # - maligned
     # - nestif

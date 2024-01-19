@@ -25,6 +25,8 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
+const N2SMINFO_ID = "N2SmInfo"
+
 func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
 	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
 	i, err := strconv.Atoi(servingSmfIndexStr)
@@ -302,7 +304,7 @@ func SendUpdateSmContextN2Info(
 	updateData := models.SmContextUpdateData{}
 	updateData.N2SmInfoType = n2SmType
 	updateData.N2SmInfo = new(models.RefToBinaryData)
-	updateData.N2SmInfo.ContentId = "N2SmInfo"
+	updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	updateData.UeLocation = &ue.Location
 	return SendUpdateSmContextRequest(smContext, updateData, nil, N2SmInfo)
 }
@@ -315,7 +317,7 @@ func SendUpdateSmContextXnHandover(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.ToBeSwitched = true
 	updateData.UeLocation = &ue.Location
@@ -337,7 +339,7 @@ func SendUpdateSmContextXnHandoverFailed(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.FailedToBeSwitched = true
 	return SendUpdateSmContextRequest(smContext, updateData, nil, N2SmInfo)
@@ -354,7 +356,7 @@ func SendUpdateSmContextN2HandoverPreparing(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.HoState = models.HoState_PREPARING
 	updateData.TargetId = targetId
@@ -373,7 +375,7 @@ func SendUpdateSmContextN2HandoverPrepared(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.HoState = models.HoState_PREPARED
 	return SendUpdateSmContextRequest(smContext, updateData, nil, N2SmInfo)
@@ -561,7 +563,7 @@ func buildReleaseSmContextRequest(
 	if n2Info != nil {
 		releaseData.N2SmInfoType = n2SmInfoType
 		releaseData.N2SmInfo = &models.RefToBinaryData{
-			ContentId: "n2SmInfo",
+			ContentId: N2SMINFO_ID,
 		}
 	}
 	// TODO: other param(ueLocation...)
