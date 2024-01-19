@@ -102,7 +102,7 @@ func TestUpdateConfig(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	var Rsp chan *protos.NetworkSliceResponse = make(chan *protos.NetworkSliceResponse)
+	Rsp := make(chan *protos.NetworkSliceResponse)
 	go func() {
 		Rsp <- &nrp
 	}()
