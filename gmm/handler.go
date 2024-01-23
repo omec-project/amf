@@ -1633,7 +1633,7 @@ func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, ns
 	var problemDetails *models.ProblemDetails
 	ue.SmContextList.Range(func(key, value interface{}) bool {
 		smContext := value.(*context.SmContext)
-		if smContext.Snssai().Sst == int32(nssai.Sst) && smContext.Snssai().Sd == nssai.Sd {
+		if smContext.Snssai().Sst == nssai.Sst && smContext.Snssai().Sd == nssai.Sd {
 			logger.GmmLog.Infof("Deleted Slice [sst: %v, sd: %v]matched with smcontext, sending Release SMContext Request to SMF",
 				smContext.Snssai().Sst, smContext.Snssai().Sd)
 			// send smcontext release request
