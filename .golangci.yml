@@ -252,7 +252,6 @@ linters:
     #- gomnd
     - goconst
     # - gocognit
-    # - maligned
     # - nestif
     # - gomodguard
     - nakedret
@@ -260,7 +259,7 @@ linters:
     - misspell
     - gofumpt
     - whitespace
-    # - unconvert
+    - unconvert
     - predeclared
     - noctx
     - dogsled

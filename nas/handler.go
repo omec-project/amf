@@ -36,7 +36,7 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		} else {
 			if amfSelf.EnableSctpLb {
 				/* checking the guti-ue belongs to this amf instance */
-				id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ue.AmfUe.Tmsi))
+				id, err := amfSelf.Drsm.FindOwnerInt32ID(ue.AmfUe.Tmsi)
 				if err != nil {
 					logger.NasLog.Errorf("Error checking guti-ue: %v", err)
 				}
