@@ -165,7 +165,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 					ue.GmmLog.Errorln(err)
 					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
-				} else if response != nil {
+				} else {
 					smContext.SetUserLocation(ue.Location)
 					responseData := response.JsonData
 					n2Info := response.BinaryDataN2SmInformation

@@ -69,7 +69,7 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 		id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
 		if id == nil || err != nil {
 			ran.Log.Warningf("DispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
-		} else if id != nil && id.PodName != os.Getenv("HOSTNAME") {
+		} else if id.PodName != os.Getenv("HOSTNAME") {
 			rsp := &sdcoreAmfServer.AmfMessage{}
 			rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
 			rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
