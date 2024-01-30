@@ -321,7 +321,7 @@ func UEContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 		return nil, problemDetails
 	}
 
-	var ueContextTransferResponse *models.UeContextTransferResponse
+	ueContextTransferResponse := &models.UeContextTransferResponse{}
 	ueContextTransferResponse.JsonData = new(models.UeContextTransferRspData)
 	ueContextTransferRspData := ueContextTransferResponse.JsonData
 
@@ -555,7 +555,7 @@ func AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 
 	// TODO: AssignEbiError not used, check it!
 	if _, ok := ue.SmContextFindByPDUSessionID(assignEbiData.PduSessionId); ok {
-		var assignedEbiData *models.AssignedEbiData
+		assignedEbiData := &models.AssignedEbiData{}
 		assignedEbiData.PduSessionId = assignEbiData.PduSessionId
 		return assignedEbiData, nil, nil
 	} else {
