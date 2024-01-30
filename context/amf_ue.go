@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/omec-project/util/ueauth"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
@@ -32,6 +31,7 @@ import (
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/ueauth"
 	"github.com/sirupsen/logrus"
 )
 
