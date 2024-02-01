@@ -18,7 +18,6 @@ require (
 	github.com/omec-project/config5g v1.2.0
 	github.com/omec-project/http2_util v1.1.0
 	github.com/omec-project/http_wrapper v1.1.0
-	github.com/omec-project/idgenerator v1.1.0
 	github.com/omec-project/logger_util v1.1.0
 	github.com/omec-project/nas v1.1.4
 	github.com/omec-project/ngap v1.1.0
