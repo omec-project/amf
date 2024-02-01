@@ -16,7 +16,6 @@ require (
 	github.com/omec-project/UeauCommon v1.1.0
 	github.com/omec-project/aper v1.1.0
 	github.com/omec-project/config5g v1.2.0
-	github.com/omec-project/fsm v1.1.0
 	github.com/omec-project/http2_util v1.1.0
 	github.com/omec-project/http_wrapper v1.1.0
 	github.com/omec-project/idgenerator v1.1.0
