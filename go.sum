@@ -349,8 +349,6 @@ github.com/omec-project/http2_util v1.1.0 h1:8H2NME/V8iONth8TlyK/3w4pguAzaeUnEv9
 github.com/omec-project/http2_util v1.1.0/go.mod h1:QwoZRaUyhEp/kTEqXvf0gCYtfQrNHBdkVw939vsMjZY=
 github.com/omec-project/http_wrapper v1.1.0 h1:2hD8RUaR/VVg3tUUfuxsuo1/JNpZLiAE8IvATGqDME4=
 github.com/omec-project/http_wrapper v1.1.0/go.mod h1:mc045fjVVJ0/q0g4QG4nuSC0N1BIqGR/ZoK76XgifVU=
-github.com/omec-project/idgenerator v1.1.0 h1:XDHZYO13VqZCkRhMA4xNl19MqCL3AFaY2MNwoF8uzVs=
-github.com/omec-project/idgenerator v1.1.0/go.mod h1:qFK0oP9WNCBjro7ZXPzmbSzCosWmxp4KRVORPl6ztRo=
 github.com/omec-project/logger_conf v1.0.100-dev/go.mod h1:Upj0MgzSpB/Ifw+3WsBaYbqWuF4SyyUeKqW7/HhL8Aw=
 github.com/omec-project/logger_conf v1.1.0 h1:C0/HbsSOWV8D3/lm7Iqe1nUL9ltVtVO4MDC9ZxIo/xc=
 github.com/omec-project/logger_conf v1.1.0/go.mod h1:2+SOX9OFbPZ+UNv8k+tvPnaWHo4CuX5G/x12dz5sWUE=
