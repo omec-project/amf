@@ -23,7 +23,6 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/fsm"
 	"github.com/omec-project/idgenerator"
 	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"github.com/omec-project/nas/nasMessage"
@@ -31,6 +30,7 @@ import (
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/ueauth"
 	"github.com/sirupsen/logrus"
 )
