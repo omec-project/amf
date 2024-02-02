@@ -28,11 +28,11 @@ func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, inter
 		r1, r2 := N1N2MessageTransferStatusProcedure(s1, s2)
 		return r1, "", r2, nil
 	}
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case models.N1N2MessageTransferRequest:
-		return N1N2MessageTransferProcedure(s1, s2, msg.(models.N1N2MessageTransferRequest))
+		return N1N2MessageTransferProcedure(s1, s2, msg)
 	case models.UeN1N2InfoSubscriptionCreateData:
-		r1, r2 := N1N2MessageSubscribeProcedure(s1, msg.(models.UeN1N2InfoSubscriptionCreateData))
+		r1, r2 := N1N2MessageSubscribeProcedure(s1, msg)
 		return r1, "", r2, nil
 	}
 
@@ -193,7 +193,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 		}
 	}
 
-	onGoing := ue.OnGoing(anType)
+	onGoing := ue.GetOnGoing(anType)
 	// 4xx response cases
 	// TODO: Error Status 307, 403 in TS29.518 Table 6.1.3.5.3.1-3
 	switch onGoing.Procedure {
@@ -352,7 +352,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ResourceUri: locationHeader,
 			}
 			ue.N1N2Message = &message
-			ue.SetOnGoing(anType, &context.OnGoing{
+			ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 				Procedure: context.OnGoingProcedurePaging,
 				Ppi:       requestData.Ppi,
 			})
@@ -405,7 +405,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			}
 			ue.N1N2Message = &message
 
-			ue.SetOnGoing(anType, &context.OnGoing{
+			ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
 				Procedure: context.OnGoingProcedurePaging,
 				Ppi:       requestData.Ppi,
 			})

@@ -24,17 +24,14 @@ type Server struct {
 }
 
 func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServer) error {
-	var Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage
-	Amf2RanMsgChan = make(chan *sdcoreAmfServer.AmfMessage, 100)
+	Amf2RanMsgChan := make(chan *sdcoreAmfServer.AmfMessage, 100)
 
 	go func() {
 		for {
-			select {
-			case msg1 := <-Amf2RanMsgChan:
-				log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
-				if err := srv.Send(msg1); err != nil {
-					log.Println("Error in sending response")
-				}
+			msg1 := <-Amf2RanMsgChan
+			log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
+			if err := srv.Send(msg1); err != nil {
+				log.Println("Error in sending response")
 			}
 		}
 	}()

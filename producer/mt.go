@@ -16,9 +16,9 @@ import (
 )
 
 func MtHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case string:
-		r1, r2 := ProvideDomainSelectionInfoProcedure(s1, s2, msg.(string))
+		r1, r2 := ProvideDomainSelectionInfoProcedure(s1, s2, msg)
 		return r1, "", r2, nil
 	}
 

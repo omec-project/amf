@@ -636,24 +636,6 @@ func BuildRegistrationAccept(
 	return nas_security.Encode(ue, m)
 }
 
-func includeConfiguredNssaiCheck(ue *context.AmfUe) bool {
-	if len(ue.ConfiguredNssai) == 0 {
-		return false
-	}
-
-	registrationRequest := ue.RegistrationRequest
-	if registrationRequest.RequestedNSSAI == nil {
-		return true
-	}
-	if ue.NetworkSliceInfo != nil && len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) != 0 {
-		return true
-	}
-	if registrationRequest.NetworkSlicingIndication != nil && registrationRequest.NetworkSlicingIndication.GetDCNI() == 1 {
-		return true
-	}
-	return false
-}
-
 func BuildStatus5GMM(cause uint8) ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()

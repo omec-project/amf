@@ -11,9 +11,9 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/gmm"
-	"github.com/omec-project/fsm"
 	"github.com/omec-project/nas"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/fsm"
 )
 
 func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message) error {

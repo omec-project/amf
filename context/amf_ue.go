@@ -24,14 +24,14 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/fsm"
-	"github.com/omec-project/idgenerator"
 	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasType"
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/fsm"
+	"github.com/omec-project/util/idgenerator"
 	"github.com/sirupsen/logrus"
 )
 
@@ -69,7 +69,7 @@ type AmfUe struct {
 	// Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
 	Mutex sync.Mutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
-	servingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
+	ServingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
 
 	/* Gmm State */
 	State map[models.AccessType]*fsm.State `json:"-"`
@@ -147,12 +147,12 @@ type AmfUe struct {
 	SmContextList sync.Map `json:"-"` // map[int32]*SmContext, pdu session id as key
 	/* Related Context*/
 	//RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty" yaml:"ranUe" bson:"ranUe,omitempty"`
-	RanUe map[models.AccessType]*RanUe `json:"ranUe, omitEmpty"`
+	RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty"`
 	/* other */
-	onGoing                       map[models.AccessType]*OnGoing        `json:"onGoing,omitempty"`
-	UeRadioCapability             string                                `json:"ueRadioCapability,omitempty"` // OCTET string
-	Capability5GMM                nasType.Capability5GMM                `json:"capability5GMM,omitempty"`
-	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication `json:"configurationUpdateIndication,omitempty"`
+	OnGoing                       map[models.AccessType]*OnGoingProcedureWithPrio `json:"onGoing,omitempty"`
+	UeRadioCapability             string                                          `json:"ueRadioCapability,omitempty"` // OCTET string
+	Capability5GMM                nasType.Capability5GMM                          `json:"capability5GMM,omitempty"`
+	ConfigurationUpdateIndication nasType.ConfigurationUpdateIndication           `json:"configurationUpdateIndication,omitempty"`
 	/* context related to Paging */
 	UeRadioCapabilityForPaging                 *UERadioCapabilityForPaging                 `json:"ueRadioCapabilityForPaging,omitempty"`
 	InfoOnRecommendedCellsAndRanNodesForPaging *InfoOnRecommendedCellsAndRanNodesForPaging `json:"infoOnRecommendedCellsAndRanNodesForPaging,omitempty"`
@@ -202,11 +202,9 @@ type AmfUe struct {
 	Non3gppDeregistrationTimerValue int `json:"non3gppDeregistrationTimerValue,omitempty"` // default 54 min
 
 	// AmfInstanceName and Ip
-	AmfInstanceName string `json:"amfInstanceName,omitempty"`
-	AmfInstanceIp   string `json:"amfInstanceIp,omitempty"`
-	// EventChannel  chan OnGoing
-	// EventChannel *EventChannel `json:"eventChannel,omitempty" yaml:"eventChannel" bson:"eventChannel,omitempty"`
-	EventChannel *EventChannel `json:"-"`
+	AmfInstanceName string        `json:"amfInstanceName,omitempty"`
+	AmfInstanceIp   string        `json:"amfInstanceIp,omitempty"`
+	EventChannel    *EventChannel `json:"-"`
 	// logger
 	// NASLog      *logrus.Entry `json:"nasLog,omitempty" yaml:"nasLog" bson:"nasLog,omitempty"`
 	// GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
@@ -408,7 +406,7 @@ type N1N2Message struct {
 	ResourceUri string
 }
 
-type OnGoing struct {
+type OnGoingProcedureWithPrio struct {
 	Procedure OnGoingProcedure
 	Ppi       int32 // Paging priority
 }
@@ -444,7 +442,7 @@ type NGRANCGI struct {
 }
 
 func (ue *AmfUe) init() {
-	ue.servingAMF = AMF_Self()
+	ue.ServingAMF = AMF_Self()
 	ue.State = make(map[models.AccessType]*fsm.State)
 	ue.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(Deregistered)
 	ue.State[models.AccessType_NON_3_GPP_ACCESS] = fsm.NewState(Deregistered)
@@ -455,19 +453,15 @@ func (ue *AmfUe) init() {
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
 	ue.N1N2MessageIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.N1N2MessageSubscribeIDGenerator = idgenerator.NewGenerator(1, 2147483647)
-	ue.onGoing = make(map[models.AccessType]*OnGoing)
-	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoing)
-	ue.onGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
-	ue.onGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoing)
-	ue.onGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.OnGoing = make(map[models.AccessType]*OnGoingProcedureWithPrio)
+	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
+	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.OnGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
+	ue.OnGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	// ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
-}
-
-func (ue *AmfUe) ServingAMF() *AMFContext {
-	return ue.servingAMF
 }
 
 func (ue *AmfUe) CmConnect(anType models.AccessType) bool {
@@ -769,7 +763,7 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 		ue.RanUe[accessType].RecvdInitialContextSetupResponse = false
 	}
 	ue.RetransmissionOfInitialNASMsg = false
-	ue.onGoing[accessType].Procedure = OnGoingProcedureNothing
+	ue.OnGoing[accessType].Procedure = OnGoingProcedureNothing
 }
 
 // this method called when we are reusing the same uecontext during the registration procedure
@@ -785,15 +779,15 @@ func (ue *AmfUe) ClearRegistrationData() {
 	})
 }
 
-func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoing) {
-	prevOnGoing := ue.onGoing[anType]
-	ue.onGoing[anType] = onGoing
+func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoingProcedureWithPrio) {
+	prevOnGoing := ue.OnGoing[anType]
+	ue.OnGoing[anType] = onGoing
 	ue.GmmLog.Debugf("OnGoing[%s]->[%s] PPI[%d]->[%d]", prevOnGoing.Procedure, onGoing.Procedure,
 		prevOnGoing.Ppi, onGoing.Ppi)
 }
 
-func (ue *AmfUe) OnGoing(anType models.AccessType) OnGoing {
-	return *ue.onGoing[anType]
+func (ue *AmfUe) GetOnGoing(anType models.AccessType) OnGoingProcedureWithPrio {
+	return *ue.OnGoing[anType]
 }
 
 func (ue *AmfUe) RemoveAmPolicyAssociation() {
@@ -911,6 +905,7 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 	if len(ueContext.SessionContextList) > 0 {
 		for _, pduSessionContext := range ueContext.SessionContextList {
 			smContext := SmContext{
+				Mu:              new(sync.RWMutex),
 				PduSessionIDVal: pduSessionContext.PduSessionId,
 				SmContextRefVal: pduSessionContext.SmContextRef,
 				SnssaiVal:       *pduSessionContext.SNssai,
@@ -1015,8 +1010,6 @@ func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg)) {
 		ue.EventChannel.UpdateNgapHandler(handler)
 		go ue.EventChannel.Start()
 	}
-
-	return
 }
 
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
@@ -1056,7 +1049,7 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 
 	// Populate kafka sm ctxt struct
 	kafkaSmCtxt.Imsi = ueContext.Supi
-	kafkaSmCtxt.AmfId = ueContext.servingAMF.NfId
+	kafkaSmCtxt.AmfId = ueContext.ServingAMF.NfId
 	kafkaSmCtxt.Guti = ueContext.Guti
 	kafkaSmCtxt.Tmsi = ueContext.Tmsi
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp

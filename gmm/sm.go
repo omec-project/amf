@@ -14,11 +14,11 @@ import (
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/fsm"
 	"github.com/omec-project/nas"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/fsm"
 )
 
 func DeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {

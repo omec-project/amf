@@ -9,7 +9,7 @@ package gmm
 import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/fsm"
+	"github.com/omec-project/util/fsm"
 )
 
 const (

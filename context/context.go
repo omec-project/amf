@@ -20,9 +20,9 @@ import (
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/idgenerator"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/drsm"
+	"github.com/omec-project/util/idgenerator"
 )
 
 var (
@@ -119,7 +119,7 @@ func (context *AMFContext) TmsiAllocate() int32 {
 		return -1
 	}
 	logger.ContextLog.Infof("Allocate TMSI : %v", val)
-	return int32(val)
+	return val
 }
 
 func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {

@@ -13,9 +13,9 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/fsm"
 	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/fsm"
 )
 
 type PduSession struct {

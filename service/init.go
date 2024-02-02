@@ -42,8 +42,6 @@ import (
 	aperLogger "github.com/omec-project/aper/logger"
 	gClient "github.com/omec-project/config5g/proto/client"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
-	"github.com/omec-project/fsm"
-	fsmLogger "github.com/omec-project/fsm/logger"
 	"github.com/omec-project/http2_util"
 	"github.com/omec-project/logger_util"
 	nasLogger "github.com/omec-project/nas/logger"
@@ -52,6 +50,8 @@ import (
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/path_util"
 	pathUtilLogger "github.com/omec-project/path_util/logger"
+	"github.com/omec-project/util/fsm"
+	fsmLogger "github.com/omec-project/util/fsm/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli"
@@ -59,13 +59,14 @@ import (
 
 type AMF struct{}
 
+const IMSI_PREFIX = "imsi-"
+
 var RocUpdateConfigChannel chan bool
 
 type (
 	// Config information.
 	Config struct {
-		amfcfg         string
-		heartBeatTimer string
+		amfcfg string
 	}
 )
 
@@ -134,8 +135,8 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		viper.SetConfigName("amfcfg.conf")
 		viper.SetConfigType("yaml")
 		viper.AddConfigPath("/free5gc/config")
-		err := viper.ReadInConfig() // Find and read the config file
-		if err != nil {             // Handle errors reading the config file
+		err = viper.ReadInConfig() // Find and read the config file
+		if err != nil {            // Handle errors reading the config file
 			return err
 		}
 	} else if os.IsNotExist(err) {
@@ -541,10 +542,16 @@ func (amf *AMF) UpdateNF() {
 			problemDetails.Status == 404 || problemDetails.Status == 400 {
 			// register with NRF full profile
 			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+			if err != nil {
+				initLog.Errorf("Could not register to NRF Error[%s]", err.Error())
+			}
 		}
 	} else if err != nil {
 		initLog.Errorf("AMF update to NRF Error[%s]", err.Error())
 		nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+		if err != nil {
+			initLog.Errorf("Could not register to NRF Error[%s]", err.Error())
+		}
 	}
 
 	if nfProfile.HeartBeatTimer != 0 {
@@ -719,7 +726,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 
 func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi("imsi-" + supi)
+	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
 	// Triggers for NwInitiatedDeRegistration
 	// - Only 1 Allowed Nssai is exist and its slice information matched
@@ -762,7 +769,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 
 func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi("imsi-" + supi)
+	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
 	ns := msg.(*protos.NetworkSlice)
 	var Nssai models.Snssai
@@ -789,7 +796,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 
 	for _, supi := range slice.DeletedImsis {
 		amfSelf := context.AMF_Self()
-		ue, ok = amfSelf.AmfUeFindBySupi("imsi-" + supi)
+		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 		if !ok {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue
@@ -814,7 +821,7 @@ func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
 
 	for _, supi := range slice.AddUpdatedImsis {
 		amfSelf := context.AMF_Self()
-		ue, ok = amfSelf.AmfUeFindBySupi("imsi-" + supi)
+		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 		if !ok {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
 			continue

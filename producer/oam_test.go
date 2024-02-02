@@ -13,17 +13,10 @@ import (
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/fsm"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/fsm"
 	"github.com/stretchr/testify/assert"
 )
-
-type TestCases struct {
-	amfContext         context.AMFContext
-	amfue              context.AmfUe
-	expectedUeFsmState string
-	description        string
-}
 
 func init() {
 	if err := factory.InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {

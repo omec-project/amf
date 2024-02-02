@@ -9,30 +9,28 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0
 	github.com/gin-contrib/cors v1.5.0
 	github.com/gin-gonic/gin v1.9.1
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/MongoDBLibrary v1.1.3
 	github.com/omec-project/UeauCommon v1.1.0
 	github.com/omec-project/aper v1.1.0
 	github.com/omec-project/config5g v1.2.0
-	github.com/omec-project/fsm v1.1.0
 	github.com/omec-project/http2_util v1.1.0
 	github.com/omec-project/http_wrapper v1.1.0
-	github.com/omec-project/idgenerator v1.1.0
 	github.com/omec-project/logger_util v1.1.0
 	github.com/omec-project/nas v1.1.4
 	github.com/omec-project/ngap v1.1.0
 	github.com/omec-project/openapi v1.1.0
 	github.com/omec-project/path_util v1.1.0
-	github.com/omec-project/util v1.0.11
+	github.com/omec-project/util v1.0.12
 	github.com/prometheus/client_golang v1.18.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli v1.22.14
 	go.mongodb.org/mongo-driver v1.11.7
-	google.golang.org/grpc v1.60.1
+	google.golang.org/grpc v1.61.0
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -119,7 +117,7 @@ require (
 	go.uber.org/zap v1.23.0 // indirect
 	go4.org/intern v0.0.0-20220617035311-6925f38cc365 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
-	golang.org/x/crypto v0.16.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
 	golang.org/x/sync v0.5.0 // indirect

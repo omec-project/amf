@@ -14,7 +14,6 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/drsm"
@@ -45,7 +44,6 @@ func InitAmfContext(context *context.AMFContext) {
 	if context.NfId == "" {
 		context.NfId = uuid.New().String()
 	}
-	metrics.SetNfInstanceId(context.NfId)
 
 	if configuration.AmfName != "" {
 		context.Name = configuration.AmfName

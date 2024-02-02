@@ -15,7 +15,7 @@ import (
 )
 
 type SmContext struct {
-	Mu sync.RWMutex // protect the following fields
+	Mu *sync.RWMutex // protect the following fields
 
 	// pdu session information
 	PduSessionIDVal int32
@@ -44,7 +44,10 @@ type SmContext struct {
 }
 
 func NewSmContext(pduSessionID int32) *SmContext {
-	c := &SmContext{PduSessionIDVal: pduSessionID}
+	c := &SmContext{
+		PduSessionIDVal: pduSessionID,
+		Mu:              new(sync.RWMutex),
+	}
 	return c
 }
 

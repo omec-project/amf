@@ -14,8 +14,8 @@ import (
 	"github.com/omec-project/MongoDBLibrary"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/idgenerator"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/idgenerator"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -51,7 +51,7 @@ func AllocateUniqueID(generator **idgenerator.IDGenerator, idName string) (int64
 		//        Later this value can be used to trigger
 		//        creation of new instance
 		minVal := int64((val-1)*8192 + 1)
-		maxVal := int64(minVal + 8192)
+		maxVal := minVal + 8192
 		*generator = idgenerator.NewGenerator(minVal, maxVal)
 	}
 

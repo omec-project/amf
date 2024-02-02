@@ -36,7 +36,7 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		} else {
 			if amfSelf.EnableSctpLb {
 				/* checking the guti-ue belongs to this amf instance */
-				id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ue.AmfUe.Tmsi))
+				id, err := amfSelf.Drsm.FindOwnerInt32ID(ue.AmfUe.Tmsi)
 				if err != nil {
 					logger.NasLog.Errorf("Error checking guti-ue: %v", err)
 				}
@@ -49,9 +49,9 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 					rsp.RedirectId = id.PodIp
 					rsp.GnbId = ue.Ran.GnbId
 					rsp.Msg = ue.SctplbMsg
-					if ue != nil && ue.AmfUe != nil {
+					if ue.AmfUe != nil {
 						ue.AmfUe.Remove()
-					} else if ue != nil {
+					} else {
 						if err := ue.Remove(); err != nil {
 							logger.NasLog.Errorf("Error removing ue: %v", err)
 						}

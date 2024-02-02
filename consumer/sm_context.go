@@ -25,6 +25,8 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
+const N2SMINFO_ID = "N2SmInfo"
+
 func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
 	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
 	i, err := strconv.Atoi(servingSmfIndexStr)
@@ -60,29 +62,6 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 	return fmt.Errorf("no alternate profiles available")
 }
 
-func refreshSmfProfiles(ue *amf_context.AmfUe, smCtxt *amf_context.SmContext, ignoreSmfId string) *[]models.NfProfile {
-	nrfUri := ue.ServingAMF().NrfUri
-	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
-		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
-		Dnn:          optional.NewString(smCtxt.Dnn()),
-		Snssais:      optional.NewInterface(util.MarshToJsonString([]models.Snssai{smCtxt.Snssai()})),
-	}
-
-	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
-	if err != nil {
-		return nil
-	}
-
-	var altSmfInst []models.NfProfile
-	// iterate over nf instances to ignore failed NF
-	for _, inst := range result.NfInstances {
-		if inst.NfInstanceId != ignoreSmfId {
-			altSmfInst = append(altSmfInst, inst)
-		}
-	}
-	return &altSmfInst
-}
-
 func SelectSmf(
 	ue *amf_context.AmfUe,
 	anType models.AccessType,
@@ -94,7 +73,7 @@ func SelectSmf(
 
 	ue.GmmLog.Infof("Select SMF [snssai: %+v, dnn: %+v]", snssai, dnn)
 
-	nrfUri := ue.ServingAMF().NrfUri // default NRF URI is pre-configured by AMF
+	nrfUri := ue.ServingAMF.NrfUri // default NRF URI is pre-configured by AMF
 
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
@@ -282,7 +261,7 @@ func SendUpdateSmContextActivateUpCnxState(
 	if smContext.AccessType() != accessType {
 		updateData.AnType = smContext.AccessType()
 	}
-	if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.PresenceInLadn = models.PresenceState_IN_AREA
 		}
@@ -325,7 +304,7 @@ func SendUpdateSmContextN2Info(
 	updateData := models.SmContextUpdateData{}
 	updateData.N2SmInfoType = n2SmType
 	updateData.N2SmInfo = new(models.RefToBinaryData)
-	updateData.N2SmInfo.ContentId = "N2SmInfo"
+	updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	updateData.UeLocation = &ue.Location
 	return SendUpdateSmContextRequest(smContext, updateData, nil, N2SmInfo)
 }
@@ -338,11 +317,11 @@ func SendUpdateSmContextXnHandover(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.ToBeSwitched = true
 	updateData.UeLocation = &ue.Location
-	if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.PresenceInLadn = models.PresenceState_IN_AREA
 		} else {
@@ -360,7 +339,7 @@ func SendUpdateSmContextXnHandoverFailed(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.FailedToBeSwitched = true
 	return SendUpdateSmContextRequest(smContext, updateData, nil, N2SmInfo)
@@ -377,7 +356,7 @@ func SendUpdateSmContextN2HandoverPreparing(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.HoState = models.HoState_PREPARING
 	updateData.TargetId = targetId
@@ -396,7 +375,7 @@ func SendUpdateSmContextN2HandoverPrepared(
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
 		updateData.N2SmInfo = new(models.RefToBinaryData)
-		updateData.N2SmInfo.ContentId = "N2SmInfo"
+		updateData.N2SmInfo.ContentId = N2SMINFO_ID
 	}
 	updateData.HoState = models.HoState_PREPARED
 	return SendUpdateSmContextRequest(smContext, updateData, nil, N2SmInfo)
@@ -413,7 +392,7 @@ func SendUpdateSmContextN2HandoverComplete(
 		updateData.ServingNetwork = guami.PlmnId
 		updateData.Guami = guami
 	}
-	if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.PresenceInLadn = models.PresenceState_IN_AREA
 		} else {
@@ -467,7 +446,7 @@ func SendUpdateSmContextHandoverBetweenAMF(
 		if !amf_context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
 			updateData.UeLocation = &ue.Location
 		}
-		if ladn, ok := ue.ServingAMF().LadnPool[smContext.Dnn()]; ok {
+		if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 			if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 				updateData.PresenceInLadn = models.PresenceState_IN_AREA
 			}
@@ -584,7 +563,7 @@ func buildReleaseSmContextRequest(
 	if n2Info != nil {
 		releaseData.N2SmInfoType = n2SmInfoType
 		releaseData.N2SmInfo = &models.RefToBinaryData{
-			ContentId: "n2SmInfo",
+			ContentId: N2SMINFO_ID,
 		}
 	}
 	// TODO: other param(ueLocation...)
