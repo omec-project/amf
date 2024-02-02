@@ -20,7 +20,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/omec-project/UeauCommon"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
@@ -32,6 +31,7 @@ import (
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/idgenerator"
+	"github.com/omec-project/util/ueauth"
 	"github.com/sirupsen/logrus"
 )
 
@@ -615,16 +615,20 @@ func (ue *AmfUe) DerivateKamf() {
 	}
 
 	P0 := []byte(groups[1])
-	L0 := UeauCommon.KDFLen(P0)
+	L0 := ueauth.KDFLen(P0)
 	P1 := ue.ABBA
-	L1 := UeauCommon.KDFLen(P1)
+	L1 := ueauth.KDFLen(P1)
 
 	KseafDecode, err := hex.DecodeString(ue.Kseaf)
 	if err != nil {
 		logger.ContextLog.Error(err)
 		return
 	}
-	KamfBytes := UeauCommon.GetKDFValue(KseafDecode, UeauCommon.FC_FOR_KAMF_DERIVATION, P0, L0, P1, L1)
+	KamfBytes, err := ueauth.GetKDFValue(KseafDecode, ueauth.FC_FOR_KAMF_DERIVATION, P0, L0, P1, L1)
+	if err != nil {
+		logger.ContextLog.Error(err)
+		return
+	}
 	ue.Kamf = hex.EncodeToString(KamfBytes)
 }
 
@@ -632,25 +636,33 @@ func (ue *AmfUe) DerivateKamf() {
 func (ue *AmfUe) DerivateAlgKey() {
 	// Security Key
 	P0 := []byte{security.NNASEncAlg}
-	L0 := UeauCommon.KDFLen(P0)
+	L0 := ueauth.KDFLen(P0)
 	P1 := []byte{ue.CipheringAlg}
-	L1 := UeauCommon.KDFLen(P1)
+	L1 := ueauth.KDFLen(P1)
 
 	KamfBytes, err := hex.DecodeString(ue.Kamf)
 	if err != nil {
 		logger.ContextLog.Error(err)
 		return
 	}
-	kenc := UeauCommon.GetKDFValue(KamfBytes, UeauCommon.FC_FOR_ALGORITHM_KEY_DERIVATION, P0, L0, P1, L1)
+	kenc, err := ueauth.GetKDFValue(KamfBytes, ueauth.FC_FOR_ALGORITHM_KEY_DERIVATION, P0, L0, P1, L1)
+	if err != nil {
+		logger.ContextLog.Error(err)
+		return
+	}
 	copy(ue.KnasEnc[:], kenc[16:32])
 
 	// Integrity Key
 	P0 = []byte{security.NNASIntAlg}
-	L0 = UeauCommon.KDFLen(P0)
+	L0 = ueauth.KDFLen(P0)
 	P1 = []byte{ue.IntegrityAlg}
-	L1 = UeauCommon.KDFLen(P1)
+	L1 = ueauth.KDFLen(P1)
 
-	kint := UeauCommon.GetKDFValue(KamfBytes, UeauCommon.FC_FOR_ALGORITHM_KEY_DERIVATION, P0, L0, P1, L1)
+	kint, err := ueauth.GetKDFValue(KamfBytes, ueauth.FC_FOR_ALGORITHM_KEY_DERIVATION, P0, L0, P1, L1)
+	if err != nil {
+		logger.ContextLog.Error(err)
+		return
+	}
 	copy(ue.KnasInt[:], kint[16:32])
 }
 
@@ -659,19 +671,23 @@ func (ue *AmfUe) DerivateAnKey(anType models.AccessType) {
 	accessType := security.AccessType3GPP // Defalut 3gpp
 	P0 := make([]byte, 4)
 	binary.BigEndian.PutUint32(P0, ue.ULCount.Get())
-	L0 := UeauCommon.KDFLen(P0)
+	L0 := ueauth.KDFLen(P0)
 	if anType == models.AccessType_NON_3_GPP_ACCESS {
 		accessType = security.AccessTypeNon3GPP
 	}
 	P1 := []byte{accessType}
-	L1 := UeauCommon.KDFLen(P1)
+	L1 := ueauth.KDFLen(P1)
 
 	KamfBytes, err := hex.DecodeString(ue.Kamf)
 	if err != nil {
 		logger.ContextLog.Error(err)
 		return
 	}
-	key := UeauCommon.GetKDFValue(KamfBytes, UeauCommon.FC_FOR_KGNB_KN3IWF_DERIVATION, P0, L0, P1, L1)
+	key, err := ueauth.GetKDFValue(KamfBytes, ueauth.FC_FOR_KGNB_KN3IWF_DERIVATION, P0, L0, P1, L1)
+	if err != nil {
+		logger.ContextLog.Error(err)
+		return
+	}
 	switch accessType {
 	case security.AccessType3GPP:
 		ue.Kgnb = key
@@ -683,14 +699,18 @@ func (ue *AmfUe) DerivateAnKey(anType models.AccessType) {
 // NH Derivation function defined in TS 33.501 Annex A.10
 func (ue *AmfUe) DerivateNH(syncInput []byte) {
 	P0 := syncInput
-	L0 := UeauCommon.KDFLen(P0)
+	L0 := ueauth.KDFLen(P0)
 
 	KamfBytes, err := hex.DecodeString(ue.Kamf)
 	if err != nil {
 		logger.ContextLog.Error(err)
 		return
 	}
-	ue.NH = UeauCommon.GetKDFValue(KamfBytes, UeauCommon.FC_FOR_NH_DERIVATION, P0, L0)
+	ue.NH, err = ueauth.GetKDFValue(KamfBytes, ueauth.FC_FOR_NH_DERIVATION, P0, L0)
+	if err != nil {
+		logger.ContextLog.Error(err)
+		return
+	}
 }
 
 func (ue *AmfUe) UpdateSecurityContext(anType models.AccessType) {
