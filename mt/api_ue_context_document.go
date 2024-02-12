@@ -21,14 +21,14 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
 
 // ProvideDomainSelectionInfo - Namf_MT Provide Domain Selection Info service Operation
 func HTTPProvideDomainSelectionInfo(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	infoClassQuery := c.Query("info-class")
 	req.Query.Add("info-class", infoClassQuery)

@@ -12,7 +12,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -27,7 +27,7 @@ func setCorsHeader(c *gin.Context) {
 func HTTPRegisteredUEContext(c *gin.Context) {
 	setCorsHeader(c)
 
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	if supi, exists := c.Params.Get("supi"); exists {
 		req.Params["supi"] = supi
 	}
@@ -51,7 +51,7 @@ func HTTPRegisteredUEContext(c *gin.Context) {
 func HTTPGetActiveUes(c *gin.Context) {
 	setCorsHeader(c)
 
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 
 	rsp := producer.HandleOAMActiveUEContextsFromDB(req)
 

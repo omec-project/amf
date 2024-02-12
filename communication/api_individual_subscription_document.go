@@ -21,7 +21,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -56,7 +56,7 @@ func HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, subscriptionData)
+	req := httpwrapper.NewRequest(c.Request, subscriptionData)
 	req.Params["subscriptionId"] = c.Params.ByName("subscriptionId")
 
 	rsp := producer.HandleAMFStatusChangeSubscribeModify(req)
@@ -77,7 +77,7 @@ func HTTPAMFStatusChangeSubscribeModify(c *gin.Context) {
 
 // AMFStatusChangeUnSubscribe - Namf_Communication AMF Status Change UnSubscribe service Operation
 func HTTPAMFStatusChangeUnSubscribe(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionId"] = c.Params.ByName("subscriptionId")
 
 	rsp := producer.HandleAMFStatusChangeUnSubscribeRequest(req)

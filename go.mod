@@ -16,10 +16,10 @@ require (
 	github.com/omec-project/aper v1.1.0
 	github.com/omec-project/config5g v1.2.0
 	github.com/omec-project/http2_util v1.1.0
-	github.com/omec-project/http_wrapper v1.1.0
 	github.com/omec-project/logger_util v1.1.0
 	github.com/omec-project/nas v1.1.4
 	github.com/omec-project/ngap v1.1.0
+	github.com/omec-project/nrf v1.0.2-0.20240209194459-21f8e64ba367
 	github.com/omec-project/openapi v1.1.0
 	github.com/omec-project/path_util v1.1.0
 	github.com/omec-project/util v1.0.12
@@ -72,7 +72,7 @@ require (
 	github.com/go-playground/validator/v10 v10.15.5 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt v3.2.1+incompatible // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
@@ -89,7 +89,6 @@ require (
 	github.com/montanaflynn/stats v0.6.6 // indirect
 	github.com/omec-project/logger_conf v1.1.0 // indirect
 	github.com/omec-project/metricfunc v1.1.1
-	github.com/omec-project/nrf v1.0.1
 	github.com/omec-project/util_3gpp v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

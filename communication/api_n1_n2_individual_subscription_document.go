@@ -21,14 +21,14 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
 
 // N1N2MessageUnSubscribe - Namf_Communication N1N2 Message UnSubscribe (UE Specific) service Operation
 func HTTPN1N2MessageUnSubscribe(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	req.Params["subscriptionId"] = c.Params.ByName("subscriptionId")
 

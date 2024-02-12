@@ -17,10 +17,10 @@ import (
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/aper"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
@@ -40,7 +40,7 @@ func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, inter
 }
 
 // TS23502 4.2.3.3, 4.2.4.3, 4.3.2.2, 4.3.2.3, 4.3.3.2, 4.3.7
-func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
 	var problemDetails *models.ProblemDetails
@@ -57,7 +57,7 @@ func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapp
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -84,20 +84,20 @@ func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapp
 	//			ueContextID, reqUri, n1n2MessageTransferRequest)
 
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else if transferErr != nil {
-		return http_wrapper.NewResponse(int(transferErr.Error.Status), nil, transferErr)
+		return httpwrapper.NewResponse(int(transferErr.Error.Status), nil, transferErr)
 	} else if n1n2MessageTransferRspData != nil {
 		switch n1n2MessageTransferRspData.Cause {
 		case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
 			fallthrough
 		case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
-			return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
+			return httpwrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
 		case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
 			headers := http.Header{
 				"Location": {locationHeader},
 			}
-			return http_wrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
+			return httpwrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
 		}
 	}
 
@@ -105,7 +105,7 @@ func HandleN1N2MessageTransferRequest(request *http_wrapper.Request) *http_wrapp
 		Status: http.StatusForbidden,
 		Cause:  "UNSPECIFIED",
 	}
-	return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 }
 
 // There are 4 possible return value for this function:
@@ -423,7 +423,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	}
 }
 
-func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleN1N2MessageTransferStatusRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle N1N2Message Transfer Status Request")
 
 	ueContextID := request.Params["ueContextId"]
@@ -437,7 +437,7 @@ func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -456,9 +456,9 @@ func HandleN1N2MessageTransferStatusRequest(request *http_wrapper.Request) *http
 
 	// status, problemDetails := N1N2MessageTransferStatusProcedure(ueContextID, reqUri)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, n1n2MessageRspData)
+		return httpwrapper.NewResponse(http.StatusOK, nil, n1n2MessageRspData)
 	}
 }
 
@@ -490,7 +490,7 @@ func N1N2MessageTransferStatusProcedure(ueContextID string, reqUri string) (mode
 }
 
 // TS 29.518 5.2.2.3.3
-func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleN1N2MessageSubscirbeRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	ueN1N2InfoSubscriptionCreateData := request.Body.(models.UeN1N2InfoSubscriptionCreateData)
 	ueContextID := request.Params["ueContextId"]
 
@@ -502,7 +502,7 @@ func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrap
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -520,9 +520,9 @@ func HandleN1N2MessageSubscirbeRequest(request *http_wrapper.Request) *http_wrap
 	}
 	// ueN1N2InfoSubscriptionCreatedData, problemDetails := N1N2MessageSubscribeProcedure(ueContextID, ueN1N2InfoSubscriptionCreateData)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusCreated, nil, n1n2MessageRspData)
+		return httpwrapper.NewResponse(http.StatusCreated, nil, n1n2MessageRspData)
 	}
 }
 
@@ -557,7 +557,7 @@ func N1N2MessageSubscribeProcedure(ueContextID string,
 	return ueN1N2InfoSubscriptionCreatedData, nil
 }
 
-func HandleN1N2MessageUnSubscribeRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleN1N2MessageUnSubscribeRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle N1N2Message Unsubscribe Request")
 
 	ueContextID := request.Params["ueContextId"]
@@ -565,9 +565,9 @@ func HandleN1N2MessageUnSubscribeRequest(request *http_wrapper.Request) *http_wr
 
 	problemDetails := N1N2MessageUnSubscribeProcedure(ueContextID, subscriptionID)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
