@@ -12,24 +12,24 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
-func HandleCreateAMFEventSubscription(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleCreateAMFEventSubscription(request *httpwrapper.Request) *httpwrapper.Response {
 	createEventSubscription := request.Body.(models.AmfCreateEventSubscription)
 
 	createdEventSubscription, problemDetails := CreateAMFEventSubscriptionProcedure(createEventSubscription)
 	if createdEventSubscription != nil {
-		return http_wrapper.NewResponse(http.StatusCreated, nil, createdEventSubscription)
+		return httpwrapper.NewResponse(http.StatusCreated, nil, createdEventSubscription)
 	} else if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
 		problemDetails = &models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "UNSPECIFIED_NF_FAILURE",
 		}
-		return http_wrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 }
 
@@ -192,16 +192,16 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	return createdEventSubscription, nil
 }
 
-func HandleDeleteAMFEventSubscription(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleDeleteAMFEventSubscription(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.EeLog.Infoln("Handle Delete AMF Event Subscription")
 
 	subscriptionID := request.Params["subscriptionId"]
 
 	problemDetails := DeleteAMFEventSubscriptionProcedure(subscriptionID)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, nil)
+		return httpwrapper.NewResponse(http.StatusOK, nil, nil)
 	}
 }
 
@@ -226,7 +226,7 @@ func DeleteAMFEventSubscriptionProcedure(subscriptionID string) *models.ProblemD
 	return nil
 }
 
-func HandleModifyAMFEventSubscription(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleModifyAMFEventSubscription(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.EeLog.Infoln("Handle Modify AMF Event Subscription")
 
 	subscriptionID := request.Params["subscriptionId"]
@@ -235,15 +235,15 @@ func HandleModifyAMFEventSubscription(request *http_wrapper.Request) *http_wrapp
 	updatedEventSubscription, problemDetails := ModifyAMFEventSubscriptionProcedure(subscriptionID,
 		modifySubscriptionRequest)
 	if updatedEventSubscription != nil {
-		return http_wrapper.NewResponse(http.StatusOK, nil, updatedEventSubscription)
+		return httpwrapper.NewResponse(http.StatusOK, nil, updatedEventSubscription)
 	} else if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
 		problemDetails = &models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "UNSPECIFIED_NF_FAILURE",
 		}
-		return http_wrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 }
 

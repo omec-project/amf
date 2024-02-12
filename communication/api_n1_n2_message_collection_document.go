@@ -23,7 +23,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -69,7 +69,7 @@ func HTTPN1N2MessageTransfer(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, n1n2MessageTransferRequest)
+	req := httpwrapper.NewRequest(c.Request, n1n2MessageTransferRequest)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	req.Params["reqUri"] = c.Request.RequestURI
 
@@ -93,7 +93,7 @@ func HTTPN1N2MessageTransfer(c *gin.Context) {
 }
 
 func HTTPN1N2MessageTransferStatus(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	req.Params["reqUri"] = c.Request.RequestURI
 

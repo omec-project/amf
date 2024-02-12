@@ -11,8 +11,8 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func LocationInfoHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
@@ -25,7 +25,7 @@ func LocationInfoHandler(s1, s2 string, msg interface{}) (interface{}, string, i
 	return nil, "", nil, nil
 }
 
-func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
 	logger.ProducerLog.Info("Handle Provide Location Info Request")
@@ -39,7 +39,7 @@ func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapp
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 
 	sbiMsg := context.SbiMsg{
@@ -57,9 +57,9 @@ func HandleProvideLocationInfoRequest(request *http_wrapper.Request) *http_wrapp
 	}
 	// provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, provideLocInfo)
+		return httpwrapper.NewResponse(http.StatusOK, nil, provideLocInfo)
 	}
 }
 

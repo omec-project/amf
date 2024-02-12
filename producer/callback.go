@@ -21,12 +21,12 @@ import (
 	"github.com/omec-project/amf/nas"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/nas/nasConvert"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/ngap/ngapType"
 	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
@@ -51,7 +51,7 @@ func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 	return nil, "", nil, nil
 }
 
-func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
 	logger.ProducerLog.Infoln("[AMF] Handle SmContext Status Notify")
@@ -67,7 +67,7 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 			Cause:  "CONTEXT_NOT_FOUND",
 			Detail: fmt.Sprintf("Guti[%s] Not Found", guti),
 		}
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 
 	smContextStatusNotification := request.Body.(models.SmContextStatusNotification)
@@ -82,9 +82,9 @@ func HandleSmContextStatusNotify(request *http_wrapper.Request) *http_wrapper.Re
 	msg := <-sbiMsg.Result
 	// problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
@@ -202,7 +202,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 	return nil
 }
 
-func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleAmPolicyControlUpdateNotifyUpdate(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
 	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Policy update notification]")
@@ -218,7 +218,7 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *htt
 			Cause:  "CONTEXT_NOT_FOUND",
 			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
 		}
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: polAssoID,
@@ -232,9 +232,9 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *http_wrapper.Request) *htt
 	// problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
 
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
@@ -305,7 +305,7 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 }
 
 // TS 29.507 4.2.4.3
-func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Request for termination of the policy association]")
 
@@ -320,7 +320,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *
 			Cause:  "CONTEXT_NOT_FOUND",
 			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
 		}
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: polAssoID,
@@ -334,9 +334,9 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *http_wrapper.Request) *
 
 	// problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
@@ -370,16 +370,16 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
 }
 
 // TS 23.502 4.2.2.2.3 Registration with AMF re-allocation
-func HandleN1MessageNotify(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleN1MessageNotify(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ProducerLog.Infoln("[AMF] Handle N1 Message Notify")
 
 	n1MessageNotify := request.Body.(models.N1MessageNotify)
 
 	problemDetails := N1MessageNotifyProcedure(n1MessageNotify)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
@@ -441,16 +441,16 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 	return nil
 }
 
-func HandleNfSubscriptionStatusNotify(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ProducerLog.Traceln("[AMF] Handle NF Status Notify")
 
 	notificationData := request.Body.(models.NotificationData)
 
 	problemDetails := NfSubscriptionStatusNotifyProcedure(notificationData)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
