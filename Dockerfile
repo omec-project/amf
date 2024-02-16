@@ -8,32 +8,40 @@ FROM golang:1.22.0-bookworm AS builder
 LABEL maintainer="ONF <omec-dev@opennetworking.org>"
 
 RUN echo "deb http://archive.debian.org/debian stretch main" > /etc/apt/sources.list
-RUN apt-get update
-RUN apt-get -y install apt-transport-https ca-certificates
-RUN apt-get update
-RUN apt-get -y install gcc cmake autoconf libtool pkg-config libmnl-dev libyaml-dev
-RUN apt-get clean
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    gcc \
+    cmake \
+    autoconf \
+    libtool \
+    pkg-config \
+    libmnl-dev \
+    libyaml-dev && \
+    apt-get clean
 
-RUN cd $GOPATH/src && mkdir -p amf
-COPY . $GOPATH/src/amf
-RUN cd $GOPATH/src/amf \
-    && make all
+WORKDIR $GOPATH/src/amf
+
+COPY . .
+RUN make all
 
 FROM alpine:3.19 as amf
 
-LABEL description="ONF open source 5G Core Network" \
+LABEL description="Aether open source 5G Core Network" \
     version="Stage 3"
 
 ARG DEBUG_TOOLS
 
-# Install debug tools ~ 100MB (if DEBUG_TOOLS is set to true)
-RUN apk update
-RUN apk add -U vim strace net-tools curl netcat-openbsd bind-tools bash
+RUN apk update && apk add --no-cache -U bash
+
+# Install debug tools ~ 50MB (if DEBUG_TOOLS is set to true)
+RUN if [ "$DEBUG_TOOLS" = "true" ]; then \
+        apk update && apk add --no-cache -U vim strace net-tools curl netcat-openbsd bind-tools; \
+        fi
 
 # Set working dir
-WORKDIR /free5gc
-RUN mkdir -p amf/
+WORKDIR /free5gc/amf
 
 # Copy executable and default certs
-COPY --from=builder /go/src/amf/bin/* ./amf
-WORKDIR /free5gc/amf
+COPY --from=builder /go/src/amf/bin/* .
