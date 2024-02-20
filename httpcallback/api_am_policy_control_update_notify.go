@@ -12,7 +12,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -46,7 +46,7 @@ func HTTPAmPolicyControlUpdateNotifyUpdate(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, policyUpdate)
+	req := httpwrapper.NewRequest(c.Request, policyUpdate)
 	req.Params["polAssoId"] = c.Params.ByName("polAssoId")
 
 	rsp := producer.HandleAmPolicyControlUpdateNotifyUpdate(req)
@@ -94,7 +94,7 @@ func HTTPAmPolicyControlUpdateNotifyTerminate(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, terminationNotification)
+	req := httpwrapper.NewRequest(c.Request, terminationNotification)
 	req.Params["polAssoId"] = c.Params.ByName("polAssoId")
 
 	rsp := producer.HandleAmPolicyControlUpdateNotifyTerminate(req)

@@ -21,7 +21,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -55,7 +55,7 @@ func HTTPN1N2MessageSubscribe(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, ueN1N2InfoSubscriptionCreateData)
+	req := httpwrapper.NewRequest(c.Request, ueN1N2InfoSubscriptionCreateData)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 
 	rsp := producer.HandleN1N2MessageSubscirbeRequest(req)

@@ -23,7 +23,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -69,7 +69,7 @@ func HTTPCreateUEContext(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, createUeContextRequest)
+	req := httpwrapper.NewRequest(c.Request, createUeContextRequest)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	rsp := producer.HandleCreateUEContextRequest(req)
 
@@ -132,7 +132,7 @@ func HTTPEBIAssignment(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, assignEbiData)
+	req := httpwrapper.NewRequest(c.Request, assignEbiData)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	rsp := producer.HandleAssignEbiDataRequest(req)
 
@@ -180,7 +180,7 @@ func HTTPRegistrationStatusUpdate(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, ueRegStatusUpdateReqData)
+	req := httpwrapper.NewRequest(c.Request, ueRegStatusUpdateReqData)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	rsp := producer.HandleRegistrationStatusUpdateRequest(req)
 
@@ -228,7 +228,7 @@ func HTTPReleaseUEContext(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, ueContextRelease)
+	req := httpwrapper.NewRequest(c.Request, ueContextRelease)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	rsp := producer.HandleReleaseUEContextRequest(req)
 
@@ -285,7 +285,7 @@ func HTTPUEContextTransfer(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, ueContextTransferRequest)
+	req := httpwrapper.NewRequest(c.Request, ueContextTransferRequest)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 	rsp := producer.HandleUEContextTransferRequest(req)
 

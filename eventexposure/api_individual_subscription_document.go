@@ -21,14 +21,14 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
 
 // DeleteSubscription - Namf_EventExposure Unsubscribe service Operation
 func HTTPDeleteSubscription(c *gin.Context) {
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	req.Params["subscriptionId"] = c.Param("subscriptionId")
 
 	rsp := producer.HandleDeleteAMFEventSubscription(req)
@@ -81,7 +81,7 @@ func HTTPModifySubscription(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, modifySubscriptionRequest)
+	req := httpwrapper.NewRequest(c.Request, modifySubscriptionRequest)
 	req.Params["subscriptionId"] = c.Param("subscriptionId")
 
 	rsp := producer.HandleModifyAMFEventSubscription(req)

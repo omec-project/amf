@@ -11,8 +11,8 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func MtHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
@@ -25,7 +25,7 @@ func MtHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}
 	return nil, "", nil, nil
 }
 
-func HandleProvideDomainSelectionInfoRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
 	logger.MtLog.Info("Handle Provide Domain Selection Info Request")
@@ -41,7 +41,7 @@ func HandleProvideDomainSelectionInfoRequest(request *http_wrapper.Request) *htt
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -59,9 +59,9 @@ func HandleProvideDomainSelectionInfoRequest(request *http_wrapper.Request) *htt
 	// ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
 	//	infoClassQuery, supportedFeaturesQuery)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, ueContextInfo)
+		return httpwrapper.NewResponse(http.StatusOK, nil, ueContextInfo)
 	}
 }
 

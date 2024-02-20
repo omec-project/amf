@@ -13,8 +13,8 @@ import (
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func UeContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
@@ -40,7 +40,7 @@ func UeContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 }
 
 // TS 29.518 5.2.2.2.3
-func HandleCreateUEContextRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Infof("Handle Create UE Context Request")
 
 	createUeContextRequest := request.Body.(models.CreateUeContextRequest)
@@ -54,7 +54,7 @@ func HandleCreateUEContextRequest(request *http_wrapper.Request) *http_wrapper.R
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -75,9 +75,9 @@ func HandleCreateUEContextRequest(request *http_wrapper.Request) *http_wrapper.R
 	}
 	// createUeContextResponse, ueContextCreateError := CreateUEContextProcedure(ueContextID, createUeContextRequest)
 	if ueContextCreateErr != nil {
-		return http_wrapper.NewResponse(int(ueContextCreateErr.Error.Status), nil, ueContextCreateErr)
+		return httpwrapper.NewResponse(int(ueContextCreateErr.Error.Status), nil, ueContextCreateErr)
 	} else {
-		return http_wrapper.NewResponse(http.StatusCreated, nil, createUeContextRspData)
+		return httpwrapper.NewResponse(http.StatusCreated, nil, createUeContextRspData)
 	}
 }
 
@@ -176,12 +176,12 @@ func CreateUEContextProcedure(ueContextID string, createUeContextRequest models.
 	//response.PcfReselectedInd = false // TODO:When  Target AMF selects a nw PCF for AM policy, set the flag to true.
 	//
 
-	// return http_wrapper.NewResponse(http.StatusCreated, nil, createUeContextResponse)
+	// return httpwrapper.NewResponse(http.StatusCreated, nil, createUeContextResponse)
 	return createUeContextResponse, nil
 }
 
 // TS 29.518 5.2.2.2.4
-func HandleReleaseUEContextRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleReleaseUEContextRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle Release UE Context Request")
 
 	ueContextRelease := request.Body.(models.UeContextRelease)
@@ -194,7 +194,7 @@ func HandleReleaseUEContextRequest(request *http_wrapper.Request) *http_wrapper.
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -208,9 +208,9 @@ func HandleReleaseUEContextRequest(request *http_wrapper.Request) *http_wrapper.
 
 	// problemDetails := ReleaseUEContextProcedure(ueContextID, ueContextRelease)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
@@ -251,7 +251,7 @@ func ReleaseUEContextProcedure(ueContextID string, ueContextRelease models.UeCon
 }
 
 // TS 29.518 5.2.2.2.1
-func HandleUEContextTransferRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleUEContextTransferRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle UE Context Transfer Request")
 
 	ueContextTransferRequest := request.Body.(models.UeContextTransferRequest)
@@ -265,7 +265,7 @@ func HandleUEContextTransferRequest(request *http_wrapper.Request) *http_wrapper
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -283,9 +283,9 @@ func HandleUEContextTransferRequest(request *http_wrapper.Request) *http_wrapper
 
 	// ueContextTransferResponse, problemDetails := UEContextTransferProcedure(ueContextID, ueContextTransferRequest)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, ueContextTransferResponse)
+		return httpwrapper.NewResponse(http.StatusOK, nil, ueContextTransferResponse)
 	}
 }
 
@@ -495,7 +495,7 @@ func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTrig
 }
 
 // TS 29.518 5.2.2.6
-func HandleAssignEbiDataRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleAssignEbiDataRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle Assign Ebi Data Request")
 
 	assignEbiData := request.Body.(models.AssignEbiData)
@@ -510,7 +510,7 @@ func HandleAssignEbiDataRequest(request *http_wrapper.Request) *http_wrapper.Res
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -531,11 +531,11 @@ func HandleAssignEbiDataRequest(request *http_wrapper.Request) *http_wrapper.Res
 	}
 
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else if assignEbiErr != nil {
-		return http_wrapper.NewResponse(int(assignEbiErr.Error.Status), nil, assignEbiErr)
+		return httpwrapper.NewResponse(int(assignEbiErr.Error.Status), nil, assignEbiErr)
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, assignEbiRspData)
+		return httpwrapper.NewResponse(http.StatusOK, nil, assignEbiRspData)
 	}
 }
 
@@ -565,7 +565,7 @@ func AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 }
 
 // TS 29.518 5.2.2.2.2
-func HandleRegistrationStatusUpdateRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle Registration Status Update Request")
 
 	ueRegStatusUpdateReqData := request.Body.(models.UeRegStatusUpdateReqData)
@@ -579,7 +579,7 @@ func HandleRegistrationStatusUpdateRequest(request *http_wrapper.Request) *http_
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -596,9 +596,9 @@ func HandleRegistrationStatusUpdateRequest(request *http_wrapper.Request) *http_
 	}
 	// ueRegStatusUpdateRspData, problemDetails := RegistrationStatusUpdateProcedure(ueContextID, ueRegStatusUpdateReqData)
 	if msg.ProblemDetails != nil {
-		return http_wrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
+		return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 	}
 }
 

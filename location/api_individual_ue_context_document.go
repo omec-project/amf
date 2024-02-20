@@ -21,7 +21,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -56,7 +56,7 @@ func HTTPProvideLocationInfo(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, requestLocInfo)
+	req := httpwrapper.NewRequest(c.Request, requestLocInfo)
 	req.Params["ueContextId"] = c.Params.ByName("ueContextId")
 
 	rsp := producer.HandleProvideLocationInfoRequest(req)

@@ -11,25 +11,25 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 // TS 29.518 5.2.2.5.1
-func HandleAMFStatusChangeSubscribeRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleAMFStatusChangeSubscribeRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Request")
 
 	subscriptionDataReq := request.Body.(models.SubscriptionData)
 
 	subscriptionDataRsp, locationHeader, problemDetails := AMFStatusChangeSubscribeProcedure(subscriptionDataReq)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 
 	headers := http.Header{
 		"Location": {locationHeader},
 	}
-	return http_wrapper.NewResponse(http.StatusCreated, headers, subscriptionDataRsp)
+	return httpwrapper.NewResponse(http.StatusCreated, headers, subscriptionDataRsp)
 }
 
 func AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.SubscriptionData) (
@@ -61,16 +61,16 @@ func AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.SubscriptionDa
 }
 
 // TS 29.518 5.2.2.5.2
-func HandleAMFStatusChangeUnSubscribeRequest(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleAMFStatusChangeUnSubscribeRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle AMF Status Change UnSubscribe Request")
 
 	subscriptionID := request.Params["subscriptionId"]
 
 	problemDetails := AMFStatusChangeUnSubscribeProcedure(subscriptionID)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusNoContent, nil, nil)
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
@@ -90,7 +90,7 @@ func AMFStatusChangeUnSubscribeProcedure(subscriptionID string) (problemDetails 
 }
 
 // TS 29.518 5.2.2.5.1.3
-func HandleAMFStatusChangeSubscribeModify(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleAMFStatusChangeSubscribeModify(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Modify Request")
 
 	updateSubscriptionData := request.Body.(models.SubscriptionData)
@@ -99,9 +99,9 @@ func HandleAMFStatusChangeSubscribeModify(request *http_wrapper.Request) *http_w
 	updatedSubscriptionData, problemDetails := AMFStatusChangeSubscribeModifyProcedure(subscriptionID,
 		updateSubscriptionData)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusAccepted, nil, updatedSubscriptionData)
+		return httpwrapper.NewResponse(http.StatusAccepted, nil, updatedSubscriptionData)
 	}
 }
 

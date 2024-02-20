@@ -13,7 +13,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 
 	"github.com/omec-project/openapi/models"
 )
@@ -22,7 +22,7 @@ func HTTPPurgeUEContext(c *gin.Context) {
 	setCorsHeader(c)
 
 	amfSelf := context.AMF_Self()
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	if supi, exists := c.Params.Get("supi"); exists {
 		req.Params["supi"] = supi
 		reqUri := req.URL.RequestURI()
@@ -53,7 +53,7 @@ func HTTPAmfInstanceDown(c *gin.Context) {
 
 	nfId, _ := c.Params.Get("nfid")
 	logger.ProducerLog.Infof("AMF Instance Down Notification from NRF: %v", nfId)
-	req := http_wrapper.NewRequest(c.Request, nil)
+	req := httpwrapper.NewRequest(c.Request, nil)
 	if nfInstanceId, exists := c.Params.Get("nfid"); exists {
 		req.Params["nfid"] = nfInstanceId
 		self := context.AMF_Self()

@@ -13,9 +13,9 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/http_wrapper"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 type PduSession struct {
@@ -88,20 +88,20 @@ func HandleOAMPurgeUEContextRequest(supi, reqUri string, msg interface{}) (inter
 	return nil, "", nil, nil
 }
 
-func HandleOAMRegisteredUEContext(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleOAMRegisteredUEContext(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ProducerLog.Infof("[OAM] Handle Registered UE Context")
 
 	supi := request.Params["supi"]
 
 	ueContexts, problemDetails := OAMRegisteredUEContextProcedure(supi)
 	if problemDetails != nil {
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
-		return http_wrapper.NewResponse(http.StatusOK, nil, ueContexts)
+		return httpwrapper.NewResponse(http.StatusOK, nil, ueContexts)
 	}
 }
 
-func HandleOAMActiveUEContextsFromDB(request *http_wrapper.Request) *http_wrapper.Response {
+func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ProducerLog.Infof("[OAM] Handle Active UE Contexts Request")
 	var ueContexts []ActiveUeContext
 	ueList := context.DbFetchAllEntries()
@@ -150,10 +150,10 @@ func HandleOAMActiveUEContextsFromDB(request *http_wrapper.Request) *http_wrappe
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return http_wrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
 
-	return http_wrapper.NewResponse(http.StatusOK, nil, ueContexts)
+	return httpwrapper.NewResponse(http.StatusOK, nil, ueContexts)
 }
 
 func OAMRegisteredUEContextProcedure(supi string) (UEContexts, *models.ProblemDetails) {

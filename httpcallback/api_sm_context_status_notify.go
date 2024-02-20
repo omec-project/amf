@@ -12,7 +12,7 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/http_wrapper"
+	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 )
@@ -46,7 +46,7 @@ func HTTPSmContextStatusNotify(c *gin.Context) {
 		return
 	}
 
-	req := http_wrapper.NewRequest(c.Request, smContextStatusNotification)
+	req := httpwrapper.NewRequest(c.Request, smContextStatusNotification)
 	req.Params["guti"] = c.Params.ByName("guti")
 	req.Params["pduSessionId"] = c.Params.ByName("pduSessionId")
 
