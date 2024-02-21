@@ -12,17 +12,16 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/MongoDBLibrary v1.1.3
+	github.com/omec-project/MongoDBLibrary v1.1.4-0.20240220013953-4b2cb54754fb
 	github.com/omec-project/aper v1.1.0
-	github.com/omec-project/config5g v1.2.0
+	github.com/omec-project/config5g v1.2.1-0.20240216144508-a6c2195300d4
 	github.com/omec-project/http2_util v1.1.0
 	github.com/omec-project/logger_util v1.1.0
-	github.com/omec-project/nas v1.1.4
-	github.com/omec-project/ngap v1.1.0
-	github.com/omec-project/nrf v1.0.2-0.20240209194459-21f8e64ba367
+	github.com/omec-project/nas v1.1.5-0.20240220010435-2ab8bd499c0f
+	github.com/omec-project/ngap v1.1.1-0.20240127060744-31784065bc81
+	github.com/omec-project/nrf v1.0.2-0.20240220224623-4d4c57f4fb15
 	github.com/omec-project/openapi v1.1.0
-	github.com/omec-project/path_util v1.1.0
-	github.com/omec-project/util v1.0.12
+	github.com/omec-project/util v1.0.13-0.20240207024358-eb30f7e970e8
 	github.com/prometheus/client_golang v1.18.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
@@ -42,6 +41,7 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/omec-project/util_3gpp v1.0.2-0.20240219184455-324fc9a8fa73 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
@@ -65,7 +65,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/evanphx/json-patch v4.11.0+incompatible // indirect
+	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -87,9 +87,8 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.6.6 // indirect
-	github.com/omec-project/logger_conf v1.1.0 // indirect
+	github.com/omec-project/logger_conf v1.1.1-0.20240213150911-6ea2670f1fc0 // indirect
 	github.com/omec-project/metricfunc v1.1.1
-	github.com/omec-project/util_3gpp v1.1.1 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
