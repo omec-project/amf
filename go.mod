@@ -21,7 +21,7 @@ require (
 	github.com/omec-project/ngap v1.1.1-0.20240127060744-31784065bc81
 	github.com/omec-project/nrf v1.0.2-0.20240220224623-4d4c57f4fb15
 	github.com/omec-project/openapi v1.1.0
-	github.com/omec-project/util v1.0.13-0.20240207024358-eb30f7e970e8
+	github.com/omec-project/util v1.0.13
 	github.com/prometheus/client_golang v1.19.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2

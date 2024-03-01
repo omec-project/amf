@@ -308,8 +308,8 @@ github.com/omec-project/nrf v1.0.2-0.20240220224623-4d4c57f4fb15 h1:aYfRF5AFnlqB
 github.com/omec-project/nrf v1.0.2-0.20240220224623-4d4c57f4fb15/go.mod h1:yebs4dyvBcd8Zx1MI8iKh7ROweg7QXUn10WlyVpRLDg=
 github.com/omec-project/openapi v1.1.0 h1:N3v59+FM2V/eCv2Au10kbyeTf1DsScJkEdkDEcCdKE8=
 github.com/omec-project/openapi v1.1.0/go.mod h1:Fv9ajWROYypcNER+ZwWXPhLCdV4pBz75KqFp/R/2gCw=
-github.com/omec-project/util v1.0.13-0.20240207024358-eb30f7e970e8 h1:xjfHzmCE5l0JrSPJ56YEeGH9ZP+u6z6zV0atnQn/MEI=
-github.com/omec-project/util v1.0.13-0.20240207024358-eb30f7e970e8/go.mod h1:Cn9P57qYFiEu0ZXti8imODsJIXVGqnqhP40MwbVbo3g=
+github.com/omec-project/util v1.0.13 h1:50ghFbWo7aqhqIknC6KDPWmkht0tP1v2wjpIdcWVXKg=
+github.com/omec-project/util v1.0.13/go.mod h1:Cn9P57qYFiEu0ZXti8imODsJIXVGqnqhP40MwbVbo3g=
 github.com/omec-project/util_3gpp v1.0.2-0.20240219184455-324fc9a8fa73 h1:1Cu1Bg/gUUVIPeyAgq8UEktRU+tiWsKJiE2rNo5hllM=
 github.com/omec-project/util_3gpp v1.0.2-0.20240219184455-324fc9a8fa73/go.mod h1:3KqtuBdpdVSxp/dwDu2U6wiBKzPD5J0JFTLurEmqTG8=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
