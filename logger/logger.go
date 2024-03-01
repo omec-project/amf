@@ -19,6 +19,7 @@ var (
 	InitLog     *logrus.Entry
 	CfgLog      *logrus.Entry
 	ContextLog  *logrus.Entry
+	DataRepoLog *logrus.Entry
 	NgapLog     *logrus.Entry
 	HandlerLog  *logrus.Entry
 	HttpLog     *logrus.Entry
@@ -61,6 +62,7 @@ func init() {
 	InitLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "Init"})
 	CfgLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "CFG"})
 	ContextLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "Context"})
+	DataRepoLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "DRepo"})
 	NgapLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "NGAP"})
 	HandlerLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "Handler"})
 	HttpLog = log.WithFields(logrus.Fields{"component": "AMF", "category": "HTTP"})

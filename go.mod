@@ -12,7 +12,6 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/MongoDBLibrary v1.1.4-0.20240220013953-4b2cb54754fb
 	github.com/omec-project/aper v1.1.0
 	github.com/omec-project/config5g v1.2.1-0.20240216144508-a6c2195300d4
 	github.com/omec-project/http2_util v1.1.0
@@ -21,7 +20,7 @@ require (
 	github.com/omec-project/ngap v1.1.1-0.20240127060744-31784065bc81
 	github.com/omec-project/nrf v1.0.2-0.20240220224623-4d4c57f4fb15
 	github.com/omec-project/openapi v1.1.0
-	github.com/omec-project/util v1.0.13-0.20240207024358-eb30f7e970e8
+	github.com/omec-project/util v1.0.13
 	github.com/prometheus/client_golang v1.19.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
@@ -110,7 +109,7 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.10 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	go.uber.org/zap v1.23.0 // indirect
+	go.uber.org/zap v1.24.0 // indirect
 	go4.org/intern v0.0.0-20220617035311-6925f38cc365 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/crypto v0.18.0 // indirect

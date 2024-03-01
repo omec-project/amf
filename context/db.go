@@ -11,11 +11,11 @@ import (
 	"os"
 	"sync"
 
-	"github.com/omec-project/MongoDBLibrary"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/idgenerator"
+	"github.com/omec-project/util/mongoapi"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -43,8 +43,8 @@ func AllocateUniqueID(generator **idgenerator.IDGenerator, idName string) (int64
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if *generator == nil {
-		logger.ContextLog.Infof("generator null. fetch offset from db")
-		val := MongoDBLibrary.GetUniqueIdentity(idName)
+		logger.DataRepoLog.Infof("generator null. fetch offset from db")
+		val := mongoapi.CommonDBClient.GetUniqueIdentity(idName)
 		// Mongodb returns value starting from 1.
 		// Limiting users to 8192(2^13) per instance.
 		// TODO : Make this value configurable.
@@ -57,7 +57,7 @@ func AllocateUniqueID(generator **idgenerator.IDGenerator, idName string) (int64
 
 	val, err := (*generator).Allocate()
 	if err != nil {
-		logger.ContextLog.Warnf("Max IDs generated for Instance")
+		logger.DataRepoLog.Warnf("Max IDs generated for Instance")
 		return -1, err
 	}
 
@@ -75,56 +75,56 @@ func SetupAmfCollection() {
 		mongoDbUrl = factory.AmfConfig.Configuration.Mongodb.Url
 	}
 
-	logger.ContextLog.Infof("MondbName: %v, Url: %v", factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
+	logger.DataRepoLog.Infof("MondbName: %v, Url: %v", factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
 
 	if Namespace != "" {
 		AmfUeDataColl = Namespace + "." + AmfUeDataColl
 	}
 	for {
-		MongoDBLibrary.SetMongoDB(factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
-		if MongoDBLibrary.Client == nil {
-			logger.ContextLog.Errorf("MongoDb Connection failed")
+		mongoapi.ConnectMongo(mongoDbUrl, factory.AmfConfig.Configuration.AmfDBName)
+		if mongoapi.CommonDBClient.(*mongoapi.MongoClient).Client == nil {
+			logger.DataRepoLog.Errorf("MongoDb Connection failed")
 		} else {
-			logger.ContextLog.Infof("Successfully connected to Mongodb")
+			logger.DataRepoLog.Infof("Successfully connected to Mongodb")
 			break
 		}
 	}
-	_, err := MongoDBLibrary.CreateIndex(AmfUeDataColl, "supi")
+	_, err := mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "supi")
 	if err != nil {
-		logger.ContextLog.Errorf("Create index failed on Supi field.")
+		logger.DataRepoLog.Errorf("Create index failed on Supi field.")
 	}
 
-	_, err = MongoDBLibrary.CreateIndex(AmfUeDataColl, "guti")
+	_, err = mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "guti")
 	if err != nil {
-		logger.ContextLog.Errorf("Create index failed on Guti field.")
+		logger.DataRepoLog.Errorf("Create index failed on Guti field.")
 	}
 
-	_, err = MongoDBLibrary.CreateIndex(AmfUeDataColl, "tmsi")
+	_, err = mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "tmsi")
 	if err != nil {
-		logger.ContextLog.Errorf("Create index failed on Tmsi field.")
+		logger.DataRepoLog.Errorf("Create index failed on Tmsi field.")
 	}
 
-	/*_, err = MongoDBLibrary.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.amfUeNgapId")
+	/*_, err = CommonDBClient.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.amfUeNgapId")
 	if err != nil {
-		logger.ContextLog.Errorf("Create index failed on AmfUeNgapID field.")
+		logger.DataRepoLog.Errorf("Create index failed on AmfUeNgapID field.")
 	}*/
 
 	// Indexing for ranUeNgapId would fail if we have multiple gnbs.
 	// TODO: We should create index with multiple fields (ranUeNgapId & ranIpAddr)
-	/*_, err = MongoDBLibrary.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.ranUeNgapId")
+	/*_, err = CommonDBClient.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.ranUeNgapId")
 	if err != nil {
-		logger.ContextLog.Errorf("Create index failed on RanUeNgapID field.")
+		logger.DataRepoLog.Errorf("Create index failed on RanUeNgapID field.")
 	}*/
 }
 
 func ToBsonM(data *AmfUe) (ret bson.M) {
 	tmp, err := json.Marshal(data)
 	if err != nil {
-		logger.ContextLog.Errorf("amfue marshall error: %v", err)
+		logger.DataRepoLog.Errorf("amfue marshall error: %v", err)
 	}
 	err = json.Unmarshal(tmp, &ret)
 	if err != nil {
-		logger.ContextLog.Errorf("amfue unmarshall error: %v", err)
+		logger.DataRepoLog.Errorf("amfue unmarshall error: %v", err)
 	}
 
 	return
@@ -136,7 +136,10 @@ func StoreContextInDB(ue *AmfUe) {
 		amfUeBsonA := ToBsonM(ue)
 		filter := bson.M{"supi": ue.Supi}
 
-		MongoDBLibrary.RestfulAPIPost(AmfUeDataColl, filter, amfUeBsonA)
+		_, postErr := mongoapi.CommonDBClient.RestfulAPIPost(AmfUeDataColl, filter, amfUeBsonA)
+		if postErr != nil {
+			logger.DataRepoLog.Warnln(postErr)
+		}
 	}
 }
 
@@ -145,21 +148,27 @@ func DeleteContextFromDB(ue *AmfUe) {
 	if self.EnableDbStore {
 		filter := bson.M{"supi": ue.Supi}
 
-		MongoDBLibrary.RestfulAPIDeleteOne(AmfUeDataColl, filter)
+		delErr := mongoapi.CommonDBClient.RestfulAPIDeleteOne(AmfUeDataColl, filter)
+		if delErr != nil {
+			logger.DataRepoLog.Warnln(delErr)
+		}
 	}
 }
 
 func DbFetch(collName string, filter bson.M) *AmfUe {
 	ue := &AmfUe{}
 	ue.init()
-	result := MongoDBLibrary.RestfulAPIGetOne(collName, filter)
+	result, getOneErr := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
+	if getOneErr != nil {
+		logger.DataRepoLog.Warnln(getOneErr)
+	}
 
 	if len(result) == 0 {
 		return nil
 	}
 	err := json.Unmarshal(mapToByte(result), ue)
 	if err != nil {
-		logger.ContextLog.Errorf("amfue unmarshall error: %v", err)
+		logger.DataRepoLog.Errorf("amfue unmarshall error: %v", err)
 		return nil
 	}
 
@@ -187,7 +196,7 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
+		logger.DataRepoLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
 		return nil
 	}
 
@@ -209,7 +218,7 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	filter["customFieldsAmfUe.amfUeNgapId"] = amfUeNgapID
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Errorln("DbFetchRanUeByAmfUeNgapID : no document found for amfUeNgapID ", amfUeNgapID)
+		logger.DataRepoLog.Errorln("DbFetchRanUeByAmfUeNgapID : no document found for amfUeNgapID ", amfUeNgapID)
 		return nil
 	}
 
@@ -232,7 +241,7 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 
 	ue = DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Warnln("FindByGuti : no document found for guti ", guti)
+		logger.DataRepoLog.Warnln("FindByGuti : no document found for guti ", guti)
 		return nil, false
 	} else {
 		ok = true
@@ -242,7 +251,7 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 	// fetched AmfUe. If so, then return the same.
 	// else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindByGutiLocal(guti); ret {
-		logger.ContextLog.Infoln("FindByGuti : found by local", guti)
+		logger.DataRepoLog.Infoln("FindByGuti : found by local", guti)
 		ue = amfUe
 		ok = ret
 	}
@@ -257,7 +266,7 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 
 	ue = DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.ContextLog.Warnln("FindBySupi : no document found for supi ", supi)
+		logger.DataRepoLog.Warnln("FindBySupi : no document found for supi ", supi)
 		return nil, false
 	} else {
 		ok = true
@@ -266,7 +275,7 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 	// fetched AmfUe. If so, then return the same.
 	// else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindBySupiLocal(supi); ret {
-		logger.ContextLog.Infoln("FindBySupi : found by local", supi)
+		logger.DataRepoLog.Infoln("FindBySupi : found by local", supi)
 		ue = amfUe
 		ok = ret
 	}
@@ -277,14 +286,17 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 func DbFetchAllEntries() (ueList []*AmfUe) {
 	ue := &AmfUe{}
 	filter := bson.M{}
-	results := MongoDBLibrary.RestfulAPIGetMany(AmfUeDataColl, filter)
+	results, getManyErr := mongoapi.CommonDBClient.RestfulAPIGetMany(AmfUeDataColl, filter)
+	if getManyErr != nil {
+		logger.DataRepoLog.Warnln(getManyErr)
+	}
 
 	for _, val := range results {
 		ue = &AmfUe{}
 		ue.init()
 		err := json.Unmarshal(mapToByte(val), ue)
 		if err != nil {
-			logger.ContextLog.Errorf("amfue unmarshall error: %v", err)
+			logger.DataRepoLog.Errorf("amfue unmarshall error: %v", err)
 			return nil
 		}
 		ueList = append(ueList, ue)
