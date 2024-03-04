@@ -7,7 +7,6 @@ FROM golang:1.22.0-bookworm AS builder
 
 LABEL maintainer="ONF <omec-dev@opennetworking.org>"
 
-RUN echo "deb http://archive.debian.org/debian stretch main" > /etc/apt/sources.list
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     apt-transport-https \
