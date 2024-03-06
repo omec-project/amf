@@ -5,7 +5,7 @@
 
 FROM golang:1.22.1-bookworm AS builder
 
-LABEL maintainer="ONF <omec-dev@opennetworking.org>"
+LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>"
 
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
