@@ -31,6 +31,9 @@ func InitConfigFactory(f string) error {
 		if yamlErr := yaml.Unmarshal(content, &AmfConfig); yamlErr != nil {
 			return yamlErr
 		}
+		if AmfConfig.Configuration.WebuiUri == "" {
+			AmfConfig.Configuration.WebuiUri = "webui:9876"
+		}
 	}
 
 	return nil
