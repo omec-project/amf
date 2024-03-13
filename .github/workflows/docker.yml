@@ -27,7 +27,7 @@ jobs:
       - run: echo GIT_SHA_SHORT=$(git rev-parse --short HEAD) >> $GITHUB_ENV
 
       - id: docker-login
-        uses: docker/login-action@v3.0.0
+        uses: docker/login-action@v3.1.0
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.AETHER_REGISTRY_USERNAME }}
