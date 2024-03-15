@@ -278,8 +278,8 @@ github.com/omec-project/aper v1.1.0 h1:4FkTkDNGBWnTtEgCDuEitFjww1CJWVQhGqMs91tri
 github.com/omec-project/aper v1.1.0/go.mod h1:oOkKRI2BIo8SHpCsEzNbo9qiowEtEy3q+wmO7TuDrx4=
 github.com/omec-project/config5g v1.3.0 h1:e/oMZlQsef8bOpHT56uAMKIag3epCOW0jpmyadFC+30=
 github.com/omec-project/config5g v1.3.0/go.mod h1:h6eaDdWEY7432L9rZAg1Za6HrvFvDWRNolAn5GK/5No=
-github.com/omec-project/http2_util v1.1.0 h1:8H2NME/V8iONth8TlyK/3w4pguAzaeUnEv9pmeAocwQ=
-github.com/omec-project/http2_util v1.1.0/go.mod h1:QwoZRaUyhEp/kTEqXvf0gCYtfQrNHBdkVw939vsMjZY=
+github.com/omec-project/http2_util v1.2.0 h1:ggQ1GjY2x6VRpKuRhZj0t9dh6eISY6LRBv4rlMD++8s=
+github.com/omec-project/http2_util v1.2.0/go.mod h1:KLgvU3o7qmG/i5XO/qITscFql2tWCAmjE6glX+dxe7M=
 github.com/omec-project/logger_conf v1.1.1-0.20240213150911-6ea2670f1fc0 h1:Ql+yMsnlHCsJH2ajXVymfoQqUtUPorIkWsZ1pdIAXSE=
 github.com/omec-project/logger_conf v1.1.1-0.20240213150911-6ea2670f1fc0/go.mod h1:2EwoAXjOcRTweseN+ogWifJvjocEKjz3kxRaIC4I88g=
 github.com/omec-project/logger_util v1.2.0 h1:Wtx6skInAPqSic0b97QtJcs+xHDh5798MY2WRrnUz3s=
@@ -507,7 +507,6 @@ golang.org/x/net v0.0.0-20200625001655-4c5254603344/go.mod h1:/O7V0waA8r7cgGh81R
 golang.org/x/net v0.0.0-20200707034311-ab3426394381/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
 golang.org/x/net v0.0.0-20200822124328-c89045814202/go.mod h1:/O7V0waA8r7cgGh81Ro3o1hOxt32SMVPicZroKQ2sZA=
 golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
-golang.org/x/net v0.0.0-20201209123823-ac852fbbde11/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
 golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
 golang.org/x/net v0.0.0-20210805182204-aaa1db679c0d/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
 golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
@@ -591,7 +590,6 @@ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.1-0.20180807135948-17ff2d5776d2/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
-golang.org/x/text v0.3.4/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/text v0.3.7/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
 golang.org/x/text v0.3.8/go.mod h1:E6s5w1FMmriuDzIBO73fBruAKo1PCIq6d2Q6DHfQ8WQ=
