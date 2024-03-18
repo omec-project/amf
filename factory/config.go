@@ -64,6 +64,7 @@ type Configuration struct {
 	PlmnSupportList                 []PlmnSupportItem         `yaml:"plmnSupportList,omitempty"`
 	SupportDnnList                  []string                  `yaml:"supportDnnList,omitempty"`
 	NrfUri                          string                    `yaml:"nrfUri,omitempty"`
+	WebuiUri                        string                    `yaml:"webuiUri"`
 	Security                        *Security                 `yaml:"security,omitempty"`
 	NetworkName                     NetworkName               `yaml:"networkName,omitempty"`
 	T3502Value                      int                       `yaml:"t3502Value,omitempty"`

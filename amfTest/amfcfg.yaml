@@ -45,6 +45,7 @@ configuration:
   supportDnnList:  # the DNN (Data Network Name) list supported by this AMF
     - internet
   nrfUri: http://127.0.0.10:8000 # a valid URI of NRF
+  webuiUri: webui:9876 # a valid URI of Webui
   security:  # NAS security parameters
     integrityOrder: # the priority of integrity algorithms
       - NIA2
