@@ -12,10 +12,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/aper v1.1.0
-	github.com/omec-project/config5g v1.2.1-0.20240216144508-a6c2195300d4
-	github.com/omec-project/http2_util v1.1.0
-	github.com/omec-project/logger_util v1.1.0
+	github.com/omec-project/aper v1.1.1
+	github.com/omec-project/config5g v1.3.0
+	github.com/omec-project/http2_util v1.2.0
+	github.com/omec-project/logger_util v1.2.0
 	github.com/omec-project/nas v1.1.5-0.20240220010435-2ab8bd499c0f
 	github.com/omec-project/ngap v1.1.1-0.20240127060744-31784065bc81
 	github.com/omec-project/nrf v1.0.2-0.20240220224623-4d4c57f4fb15
