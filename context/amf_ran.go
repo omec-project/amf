@@ -161,7 +161,6 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
 	if ranId.GNbId != nil {
 		ran.GnbId += ranId.GNbId.GNBValue
 	}
-	AMF_Self().AmfRanPool.Store(ran.GnbId, ran)
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
