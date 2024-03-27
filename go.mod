@@ -16,10 +16,10 @@ require (
 	github.com/omec-project/config5g v1.3.1
 	github.com/omec-project/http2_util v1.2.0
 	github.com/omec-project/logger_util v1.2.0
-	github.com/omec-project/metricfunc v1.2.0
+	github.com/omec-project/metricfunc v1.4.0
 	github.com/omec-project/nas v1.2.0
 	github.com/omec-project/ngap v1.2.0
-	github.com/omec-project/nrf v1.1.0
+	github.com/omec-project/nrf v1.4.0
 	github.com/omec-project/openapi v1.2.0
 	github.com/omec-project/util v1.0.13
 	github.com/prometheus/client_golang v1.19.0
