@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// Copyright 2024 Canonical Ltd.
+// SPDX-FileCopyrightText: 2024 Canonical Ltd.
 /*
  *  Tests for AMF Configuration Factory
  */
