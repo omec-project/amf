@@ -34,18 +34,15 @@ require (
 )
 
 require (
-	github.com/bytedance/sonic/loader v0.1.1 // indirect
-	github.com/cloudwego/base64x v0.1.4 // indirect
-	github.com/cloudwego/iasm v0.2.0 // indirect
-)
-
-require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/avast/retry-go/v4 v4.1.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
+	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cloudwego/base64x v0.1.4 // indirect
+	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
