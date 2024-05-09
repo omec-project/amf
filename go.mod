@@ -22,7 +22,7 @@ require (
 	github.com/omec-project/nrf v1.4.0
 	github.com/omec-project/openapi v1.2.0
 	github.com/omec-project/util v1.0.13
-	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
 	github.com/stretchr/testify v1.9.0
