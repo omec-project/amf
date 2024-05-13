@@ -357,7 +357,9 @@ func (amf *AMF) Start() {
 		go StartGrpcServer(self.SctpGrpcPort)
 	}
 
-	go context.SetupAmfCollection()
+	if self.EnableDbStore {
+		go self.SetupAmfCollection()
+	}
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
