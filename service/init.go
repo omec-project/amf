@@ -358,7 +358,7 @@ func (amf *AMF) Start() {
 	}
 
 	if self.EnableDbStore {
-		go self.SetupAmfCollection()
+		go context.SetupAmfCollection()
 	}
 
 	signalChannel := make(chan os.Signal, 1)
