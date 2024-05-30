@@ -175,12 +175,12 @@ github.com/omec-project/aper v1.1.2 h1:oRtfloQJQV5HXhOkPpOXbRW9Ay8TAe5kTcbMMkInm
 github.com/omec-project/aper v1.1.2/go.mod h1:jDWasZ2XLFL2uSEWhgGlT/ELyrpwCJd/2kE/VEGG8Ew=
 github.com/omec-project/config5g v1.4.0 h1:UxwF4bXqlXcAYx+euWJoVmuP+vsLXQr8Chq68QWYswM=
 github.com/omec-project/config5g v1.4.0/go.mod h1:/rF/hIDhZR+B2ytNe3bdLWASTI1wNMmC0QHdmaPVlNY=
-github.com/omec-project/metricfunc v1.4.0 h1:gOc8K6BIFw/NYBKeagb3MucNSDDqTgEt2mrdvXI/B60=
-github.com/omec-project/metricfunc v1.4.0/go.mod h1:S7+R12DJtKD8s4iTEjgJUb3jXlUklFj+9t8wTIeNx4A=
+github.com/omec-project/metricfunc v1.4.1 h1:n1EajFuGaHs9wouLL2GOBEt1oWj074dXei/NWLGNDaw=
+github.com/omec-project/metricfunc v1.4.1/go.mod h1:biEfEyPV0KdhwYMQEcDFwuju7vQfx7fAvgDdc8MvF84=
 github.com/omec-project/nas v1.3.0 h1:zNqEQSNTsupT3qP6keSuOusOHKrqEYoC5ghKR8TpKEQ=
 github.com/omec-project/nas v1.3.0/go.mod h1:So4hpY95XZTpX0Joco/axIH4MlO0o13UT1rWQWZEuLQ=
-github.com/omec-project/ngap v1.2.1 h1:YLgkfMYWetvIszqoMr7I5ZPJXxTiK23KLcjiYDawisc=
-github.com/omec-project/ngap v1.2.1/go.mod h1:sPvpU/ahwqoTvFi5IfnzHmJvIxQPnsVCmq7iU/L1lEo=
+github.com/omec-project/ngap v1.2.2 h1:TAeF2IvBL5FIBqJ/8HTRe63q9cAxjPBRhj3jodbxBhg=
+github.com/omec-project/ngap v1.2.2/go.mod h1:sPvpU/ahwqoTvFi5IfnzHmJvIxQPnsVCmq7iU/L1lEo=
 github.com/omec-project/nrf v1.4.0 h1:/JhSPHkUpWbx674Uo9BBL1hIO1Yx1Cl4YMse7CqMgeI=
 github.com/omec-project/nrf v1.4.0/go.mod h1:1vnIqQvUcAx6ugh0ZjdEqYP0MKdb1uHrURwy0z4GuQ8=
 github.com/omec-project/openapi v1.2.0 h1:7Wvi0HLvhvxMyQtqGcqtMCPC/0QCGAFP5htrXCfWxRc=
