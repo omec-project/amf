@@ -10,7 +10,7 @@ import (
 	"github.com/omec-project/CommonConsumerTestData/AMF/TestAmf"
 	"github.com/omec-project/CommonConsumerTestData/AMF/TestComm"
 	"github.com/omec-project/aper"
-	"github.com/omec-project/http2_util"
+	"github.com/omec-project/util/http2_util"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasTestpacket"
 	"github.com/omec-project/nas/nasType"

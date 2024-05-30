@@ -13,15 +13,13 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/aper v1.1.2
-	github.com/omec-project/config5g v1.3.5
-	github.com/omec-project/http2_util v1.2.0
-	github.com/omec-project/logger_util v1.2.0
+	github.com/omec-project/config5g v1.4.0
 	github.com/omec-project/metricfunc v1.4.0
-	github.com/omec-project/nas v1.2.2
+	github.com/omec-project/nas v1.3.0
 	github.com/omec-project/ngap v1.2.1
 	github.com/omec-project/nrf v1.4.0
 	github.com/omec-project/openapi v1.2.0
-	github.com/omec-project/util v1.0.13
+	github.com/omec-project/util v1.1.0
 	github.com/prometheus/client_golang v1.19.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.18.2
@@ -73,8 +71,6 @@ require (
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/montanaflynn/stats v0.6.6 // indirect
-	github.com/omec-project/logger_conf v1.1.1 // indirect
-	github.com/omec-project/util_3gpp v1.2.1 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
