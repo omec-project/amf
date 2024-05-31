@@ -22,7 +22,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/logger_util"
+	logger_util "github.com/omec-project/util/logger"
 )
 
 var HttpLog *logrus.Entry
