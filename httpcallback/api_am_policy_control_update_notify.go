@@ -12,9 +12,9 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/util/httpwrapper"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func HTTPAmPolicyControlUpdateNotifyUpdate(c *gin.Context) {
