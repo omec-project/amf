@@ -73,8 +73,10 @@ func (ran *AmfRan) Remove() {
 			NfStatus: mi.NfStatusDisconnected, NfName: ran.GnbId,
 		},
 	}
-	if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-		ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+	if metrics.Status() {
+		if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+			ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+		}
 	}
 
 	ran.SetRanStats(RanDisconnected)

@@ -1064,6 +1064,9 @@ func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
 
 // Collect Ctxt info and publish on Kafka stream
 func (ueContext *AmfUe) PublishUeCtxtInfo() {
+	if !metrics.Status() {
+		return
+	}
 	op := getPublishUeCtxtInfoOp(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
 	kafkaSmCtxt := mi.CoreSubscriber{}
 

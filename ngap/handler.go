@@ -642,8 +642,10 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				NfStatus: mi.NfStatusConnected, NfName: ran.GnbId,
 			},
 		}
-		if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-			ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+		if metrics.Status() {
+			if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+				ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+			}
 		}
 	} else {
 		ngap_message.SendNGSetupFailure(ran, cause)
