@@ -20,11 +20,20 @@ type Writer struct {
 	kafkaWriter *kafka.Writer
 }
 
-var StatWriter Writer
+var (
+	StatWriter Writer
+	Enabled    bool = true
+)
 
 func InitialiseKafkaStream(config *factory.Configuration) error {
-	brokerUrl := "sd-core-kafka-headless:9092"
+	brokerUrl := ""
 	topicName := "sdcore-data-source-amf"
+
+	if config.KafkaInfo.BrokerUri == "" {
+		logger.KafkaLog.Info("Kafka disabled")
+		Enabled = false
+		return nil
+	}
 
 	if config.KafkaInfo.BrokerUri != "" && config.KafkaInfo.BrokerPort != 0 {
 		brokerUrl = fmt.Sprintf("%s:%d", config.KafkaInfo.BrokerUri, config.KafkaInfo.BrokerPort)
@@ -53,6 +62,10 @@ func InitialiseKafkaStream(config *factory.Configuration) error {
 
 func GetWriter() Writer {
 	return StatWriter
+}
+
+func Status() bool {
+	return Enabled
 }
 
 func (writer Writer) SendMessage(message []byte) error {
