@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
@@ -1064,9 +1065,10 @@ func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
 
 // Collect Ctxt info and publish on Kafka stream
 func (ueContext *AmfUe) PublishUeCtxtInfo() {
-	if !metrics.Status() {
+	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 		return
 	}
+
 	op := getPublishUeCtxtInfoOp(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
 	kafkaSmCtxt := mi.CoreSubscriber{}
 
