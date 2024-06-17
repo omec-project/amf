@@ -34,6 +34,10 @@ func InitConfigFactory(f string) error {
 		if AmfConfig.Configuration.WebuiUri == "" {
 			AmfConfig.Configuration.WebuiUri = "webui:9876"
 		}
+		if AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
+			enableKafka := true
+			AmfConfig.Configuration.KafkaInfo.EnableKafka = &enableKafka
+		}
 	}
 
 	return nil

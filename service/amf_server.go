@@ -12,6 +12,7 @@ import (
 	"os"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/ngap"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
@@ -69,7 +70,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 							},
 						}
 
-						if metrics.Status() {
+						if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 							if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
 								log.Printf("Error publishing NfStatusEvent: %v", err)
 							}
@@ -91,7 +92,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						NfStatus: mi.NfStatusDisconnected, NfName: req.GnbId,
 					},
 				}
-				if metrics.Status() {
+				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 					if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
 						log.Printf("Error publishing NfStatusEvent: %v", err)
 					}
@@ -106,7 +107,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
 					},
 				}
-				if metrics.Status() {
+				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 					if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
 						log.Printf("Error publishing NfStatusEvent: %v", err)
 					}

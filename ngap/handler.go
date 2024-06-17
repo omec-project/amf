@@ -14,6 +14,7 @@ import (
 
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/factory"
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -642,7 +643,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				NfStatus: mi.NfStatusConnected, NfName: ran.GnbId,
 			},
 		}
-		if metrics.Status() {
+		if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 			if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
 				ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
 			}

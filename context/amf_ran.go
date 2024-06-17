@@ -12,6 +12,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
@@ -73,7 +74,7 @@ func (ran *AmfRan) Remove() {
 			NfStatus: mi.NfStatusDisconnected, NfName: ran.GnbId,
 		},
 	}
-	if metrics.Status() {
+	if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 		if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
 			ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
 		}
