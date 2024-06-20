@@ -5,6 +5,7 @@
 #
 #
 
+
 PROJECT_NAME             := sdcore
 DOCKER_VERSION           ?= $(shell cat ./VERSION)
 
