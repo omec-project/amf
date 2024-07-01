@@ -1525,28 +1525,30 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 			} else {
 				ranUe.Log.Tracef("find AmfUe [GUTI: %s]", guti)
 				/* checking the guti-ue belongs to this amf instance */
-				id, err := amfSelf.Drsm.FindOwnerInt32ID(amfUe.Tmsi)
-				if err != nil {
-					ranUe.Log.Errorf("Error checking the guti-ue in this instance: %v", err)
-				}
-				if id != nil && id.PodName != os.Getenv("HOSTNAME") && amfSelf.EnableSctpLb {
-					rsp := &sdcoreAmfServer.AmfMessage{}
-					rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
-					rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
-					rsp.AmfId = os.Getenv("HOSTNAME")
-					/* TODO for this release setting pod ip to simplify logic in sctplb */
-					rsp.RedirectId = id.PodIp
-					rsp.GnbId = ran.GnbId
-					rsp.Msg = sctplbMsg.Msg
-					if ranUe != nil && ranUe.AmfUe != nil {
-						ranUe.AmfUe.Remove()
-					} else if ranUe != nil {
-						if err := ranUe.Remove(); err != nil {
-							ranUe.Log.Errorf("Could not remove ranUe: %v", err)
-						}
+				if amfSelf.EnableDbStore {
+					id, err := amfSelf.Drsm.FindOwnerInt32ID(amfUe.Tmsi)
+					if err != nil {
+						ranUe.Log.Errorf("Error checking the guti-ue in this instance: %v", err)
 					}
-					ran.Amf2RanMsgChan <- rsp
-					return
+					if id != nil && id.PodName != os.Getenv("HOSTNAME") && amfSelf.EnableSctpLb {
+						rsp := &sdcoreAmfServer.AmfMessage{}
+						rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
+						rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
+						rsp.AmfId = os.Getenv("HOSTNAME")
+						/* TODO for this release setting pod ip to simplify logic in sctplb */
+						rsp.RedirectId = id.PodIp
+						rsp.GnbId = ran.GnbId
+						rsp.Msg = sctplbMsg.Msg
+						if ranUe != nil && ranUe.AmfUe != nil {
+							ranUe.AmfUe.Remove()
+						} else if ranUe != nil {
+							if err := ranUe.Remove(); err != nil {
+								ranUe.Log.Errorf("Could not remove ranUe: %v", err)
+							}
+						}
+						ran.Amf2RanMsgChan <- rsp
+						return
+					}
 				}
 
 				if amfUe.CmConnect(ran.AnType) {
