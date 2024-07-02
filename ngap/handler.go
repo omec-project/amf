@@ -3875,6 +3875,24 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 	var pagingDRX *ngapType.PagingDRX
 
 	var cause ngapType.Cause
+	amfSelf := context.AMF_Self()
+
+	supportedTAI := context.NewSupportedTAI()
+
+	var gnbplmnlist []interface{}
+	var coreplmnlist []interface{}
+	// var coreplmnlist1 []interface{}
+	// var coreplmnlist2 []interface{}
+
+	var mccgnb string
+	var mncgnb string
+	var mcccore string
+	var mnccore string
+	// var tac_core string
+	var tac_gnb string
+	// var flag_tac bool
+	// var first_tac_core string
+	// var second_tac_core string
 
 	if ran == nil {
 		logger.NgapLog.Error("ran is nil")
@@ -3924,12 +3942,14 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 		}
 	}
 
+	// ran.Log.Info("supported TA list: ", supportedTAList.List)
+
 	for i := 0; i < len(supportedTAList.List); i++ {
 		supportedTAItem := supportedTAList.List[i]
 		tac := hex.EncodeToString(supportedTAItem.TAC.Value)
 		capOfSupportTai := cap(ran.SupportedTAList)
 		for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
-			supportedTAI := context.NewSupportedTAI()
+			/// supportedTAI := context.NewSupportedTAI()
 			supportedTAI.Tai.Tac = tac
 			broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
 			plmnId := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
@@ -3943,11 +3963,34 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 					break
 				}
 			}
+			// ran.Log.Info("---values in supportedtai.snssailist: ", supportedTAI.SNssaiList)
 			ran.Log.Tracef("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
+			ran.Log.Infof("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
+			mccgnb = plmnId.Mcc
+			mncgnb = plmnId.Mnc
+			ran.Log.Info("---mcc from gnb: ", mccgnb)
+			ran.Log.Info("---mnc from gnb: ", mncgnb)
 			if len(ran.SupportedTAList) < capOfSupportTai {
 				ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
 			} else {
 				break
+			}
+			for _, guami := range amfSelf.ServedGuamiList {
+				plmnid := guami.PlmnId
+				mcccore = plmnid.Mcc
+				mnccore = plmnid.Mnc
+				ran.Log.Info("---mcc from core: ", mcccore)
+				ran.Log.Info("---mnc from core: ", mnccore)
+				if mcccore == mccgnb {
+					ran.Log.Info("MCC values are equal")
+				} else {
+					ran.Log.Info("MCC values are Not equal")
+				}
+				if mnccore == mncgnb {
+					ran.Log.Info("MNC values are equal")
+				} else {
+					ran.Log.Info("MNC values are Not equal")
+				}
 			}
 		}
 	}
@@ -3960,21 +4003,79 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 		}
 	} else {
 		var found bool
+		var tac_list []string
 		taiList := make([]models.Tai, len(context.AMF_Self().SupportTaiLists))
 		copy(taiList, context.AMF_Self().SupportTaiLists)
 		for i := range taiList {
 			taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
 			ran.Log.Infof("Supported Tai List in AMF Plmn: %v, Tac: %v", taiList[i].PlmnId, taiList[i].Tac)
+			//  plmnid_core = taiList[i].PlmnId
+			tac_list = append(tac_list, taiList[i].Tac)
+			ran.Log.Info("---taclist from core: ", tac_list)
+			// tac_core = taiList[i].Tac
 		}
 		for i, tai := range ran.SupportedTAList {
+			tac_gnb = tai.Tai.Tac
 			if context.InTaiList(tai.Tai, taiList) {
 				ran.Log.Tracef("SERVED_TAI_INDEX[%d]", i)
 				found = true
 				break
 			}
 		}
+
+		gnbplmnlist = append(gnbplmnlist, mccgnb, mncgnb)
+		coreplmnlist = append(coreplmnlist, mcccore, mnccore)
+		ran.Log.Info("gnbplmnlist: ", gnbplmnlist)
+		ran.Log.Info("coreplmnlist: ", coreplmnlist)
+		ran.Log.Info("tac gnb: ", tac_gnb)
+
+		flag_tac := false
+		for _, tac_core := range tac_list {
+			if tac_core == tac_gnb {
+				flag_tac = true
+			}
+		}
+
+		// first_tac_core = tac_list[0]
+		// second_tac_core = tac_list[1]
+		// ran.Log.Infof("tac core: %s\t%s\n", first_tac_core, second_tac_core)
+		// coreplmnlist1 = append(coreplmnlist1, mcccore, mnccore, first_tac_core)
+		// coreplmnlist2 = append(coreplmnlist2, mcccore, mnccore, second_tac_core)
+		// ran.Log.Info("coreplmnlist1: ", coreplmnlist1)
+		// ran.Log.Info("coreplmnlist2: ", coreplmnlist2)
+
+		flags := true
+		flag1 := true
+		if context.Inplmnlist(gnbplmnlist, coreplmnlist) {
+			ran.Log.Info("plmn lists are equal")
+			if flag_tac {
+				ran.Log.Info("tac values are equal")
+				flags = true
+			} else {
+				ran.Log.Info("tac values are not equal")
+				flags = false
+			}
+		} else {
+			ran.Log.Info("plmn lists are not equal")
+			flag1 = false
+		}
+
 		if !found {
 			ran.Log.Warn("RanConfigurationUpdate failure: Cannot find Served TAI in AMF")
+			cause.Present = ngapType.CausePresentMisc
+			cause.Misc = &ngapType.CauseMisc{
+				Value: ngapType.CauseMiscPresentUnknownPLMN,
+			}
+		}
+		if !flags {
+			ran.Log.Warn("RanConfigurationUpdate failure: Wrong TAC values")
+			cause.Present = ngapType.CausePresentMisc
+			cause.Misc = &ngapType.CauseMisc{
+				Value: ngapType.CauseMiscPresentUnknownPLMN,
+			}
+		}
+		if !flag1 {
+			ran.Log.Warn("RanConfigurationUpdate failure: Wrong plmn values")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{
 				Value: ngapType.CauseMiscPresentUnknownPLMN,

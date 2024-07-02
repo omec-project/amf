@@ -44,6 +44,10 @@ func InTaiList(servedTai models.Tai, taiList []models.Tai) bool {
 	return false
 }
 
+func Inplmnlist(gnbplmnlist []interface{}, amfplmnlist []interface{}) bool {
+	return reflect.DeepEqual(gnbplmnlist, amfplmnlist)
+}
+
 func TacInAreas(targetTac string, areas []models.Area) bool {
 	for _, area := range areas {
 		for _, tac := range area.Tacs {
