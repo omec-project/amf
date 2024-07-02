@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2023 Canonical Ltd.
+# Copyright 2024 Intel Corporation
+
+name: Release Push Image Workflow
+
+on:
+  workflow_dispatch:
+
+jobs:
+  docker-build-push-images:
+    runs-on: ubuntu-latest
+
+    env:
+      REGISTRY: docker.io
+      DOCKER_REGISTRY: docker.io/
+      DOCKER_REPOSITORY: cdac5gc/
+      RELEASE_VERSION: 0.0.4
+      
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - run: echo GIT_SHA_SHORT=$(git rev-parse --short HEAD) >> $GITHUB_ENV
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DCKRUSER }}
+          password: ${{ secrets.DCKRPASS }}
+      - name: Clean Checksum
+        run: go mod tidy
+      - name: Build Docker image
+        env:
+          DOCKER_TAG: release-${{ env.RELEASE_VERSION }}
+        run: |
+            make docker-build
+      - name: Push Docker image latest to Github
+        env:
+          DOCKER_TAG: release-${{ env.RELEASE_VERSION }} 
+        run: |
+          make docker-push 

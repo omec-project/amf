@@ -27,11 +27,44 @@ jobs:
 
   docker-build:
     runs-on: ubuntu-latest
+    needs: unit-tests
+
+    env:
+      REGISTRY: docker.io
+      DOCKER_REGISTRY: docker.io/
+      DOCKER_REPOSITORY: cdac5gc/
+      
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: make docker-build
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+      
+      - name: Clean Checksum
+        run: go mod tidy
+
+      - run: echo GIT_SHA_SHORT=$(git rev-parse --short HEAD) >> $GITHUB_ENV
+
+      - uses: docker/login-action@v3.1.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DCKRUSER }}
+          password: ${{ secrets.DCKRPASS }}
+
+      - name: Build and push "master-latest" Docker image
+        env:
+          DOCKER_TAG: master-latest
+        run: |
+          make docker-build
+          make docker-push
+
+      - name: Build and push "master-GIT_SHA" Docker image
+        env:
+          DOCKER_TAG: master-${{ env.GIT_SHA_SHORT }}
+        run: |
+          make docker-build
+          make docker-push
 
   lint:
     runs-on: ubuntu-latest
@@ -46,7 +79,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6.0.1
         with:
           version: latest
-          args: -v --config ./.golangci.yml
+          args: -v --config ./.golangci.yml --timeout=5m
 
   hadolint:
     name: hadolint
