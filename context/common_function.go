@@ -70,7 +70,7 @@ func AttachSourceUeTargetUe(sourceUe, targetUe *RanUe) {
 	}
 	amfUe := sourceUe.AmfUe
 	if amfUe == nil {
-		logger.ContextLog.Error("AmfUe is Nil")
+		logger.ContextLog.Error("AmfUe is  Nil")
 		return
 	}
 	targetUe.AmfUe = amfUe

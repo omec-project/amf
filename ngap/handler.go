@@ -4036,14 +4036,6 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 			}
 		}
 
-		// first_tac_core = tac_list[0]
-		// second_tac_core = tac_list[1]
-		// ran.Log.Infof("tac core: %s\t%s\n", first_tac_core, second_tac_core)
-		// coreplmnlist1 = append(coreplmnlist1, mcccore, mnccore, first_tac_core)
-		// coreplmnlist2 = append(coreplmnlist2, mcccore, mnccore, second_tac_core)
-		// ran.Log.Info("coreplmnlist1: ", coreplmnlist1)
-		// ran.Log.Info("coreplmnlist2: ", coreplmnlist2)
-
 		flags := true
 		flag1 := true
 		if context.Inplmnlist(gnbplmnlist, coreplmnlist) {
