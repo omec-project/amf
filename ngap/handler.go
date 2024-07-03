@@ -4036,20 +4036,20 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 			}
 		}
 
-		flags := true
-		flag1 := true
+		// flags := true
+		// flag1 := true
 		if context.Inplmnlist(gnbplmnlist, coreplmnlist) {
 			ran.Log.Info("plmn lists are equal")
 			if flag_tac {
 				ran.Log.Info("tac values are equal")
-				flags = true
+				// flags = true
 			} else {
 				ran.Log.Info("tac values are not equal")
-				flags = false
+				// flags = false
 			}
 		} else {
 			ran.Log.Info("plmn lists are not equal")
-			flag1 = false
+			// flag1 = false
 		}
 
 		if !found {
@@ -4059,20 +4059,20 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				Value: ngapType.CauseMiscPresentUnknownPLMN,
 			}
 		}
-		if !flags {
-			ran.Log.Warn("RanConfigurationUpdate failure: Wrong TAC values")
-			cause.Present = ngapType.CausePresentMisc
-			cause.Misc = &ngapType.CauseMisc{
-				Value: ngapType.CauseMiscPresentUnknownPLMN,
-			}
-		}
-		if !flag1 {
-			ran.Log.Warn("RanConfigurationUpdate failure: Wrong plmn values")
-			cause.Present = ngapType.CausePresentMisc
-			cause.Misc = &ngapType.CauseMisc{
-				Value: ngapType.CauseMiscPresentUnknownPLMN,
-			}
-		}
+		// if !flags {
+		// 	ran.Log.Warn("RanConfigurationUpdate failure: Wrong TAC values")
+		// 	cause.Present = ngapType.CausePresentMisc
+		// 	cause.Misc = &ngapType.CauseMisc{
+		// 		Value: ngapType.CauseMiscPresentUnknownPLMN,
+		// 	}
+		// }
+		// if !flag1 {
+		// 	ran.Log.Warn("RanConfigurationUpdate failure: Wrong plmn values")
+		// 	cause.Present = ngapType.CausePresentMisc
+		// 	cause.Misc = &ngapType.CauseMisc{
+		// 		Value: ngapType.CauseMiscPresentUnknownPLMN,
+		// 	}
+		// }
 	}
 
 	if cause.Present == ngapType.CausePresentNothing {
