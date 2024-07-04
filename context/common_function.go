@@ -44,6 +44,7 @@ func InTaiList(servedTai models.Tai, taiList []models.Tai) bool {
 	return false
 }
 
+// To compare PLMN list from gnb and core - by CDAC TVM
 func Inplmnlist(gnbplmnlist []interface{}, amfplmnlist []interface{}) bool {
 	return reflect.DeepEqual(gnbplmnlist, amfplmnlist)
 }
