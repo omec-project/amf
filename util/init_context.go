@@ -71,6 +71,10 @@ func InitAmfContext(context *context.AMFContext) {
 		if sbi.Port != 0 {
 			context.SBIPort = sbi.Port
 		}
+		if tls := sbi.TLS; tls != nil {
+			context.Key = tls.Key
+			context.PEM = tls.PEM
+		}
 		context.BindingIPv4 = os.Getenv(sbi.BindingIPv4)
 		if context.BindingIPv4 != "" {
 			logger.UtilLog.Info("Parsing ServerIPv4 address from ENV Variable.")

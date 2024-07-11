@@ -381,10 +381,12 @@ func (amf *AMF) Start() {
 	}
 
 	serverScheme := factory.AmfConfig.Configuration.Sbi.Scheme
+	amfPemPath := path_util.Free5gcPath(factory.AmfConfig.Configuration.Sbi.TLS.PEM)
+	amfKeyPath := path_util.Free5gcPath(factory.AmfConfig.Configuration.Sbi.TLS.Key)
 	if serverScheme == "http" {
 		err = server.ListenAndServe()
 	} else if serverScheme == "https" {
-		err = server.ListenAndServeTLS(util.AmfPemPath, util.AmfKeyPath)
+		err = server.ListenAndServeTLS(amfPemPath, amfKeyPath)
 	}
 
 	if err != nil {
