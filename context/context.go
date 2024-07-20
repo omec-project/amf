@@ -68,6 +68,8 @@ type AMFContext struct {
 	UriScheme                       models.UriScheme
 	BindingIPv4                     string
 	SBIPort                         int
+	Key                             string
+	PEM                             string
 	NgapPort                        int
 	SctpGrpcPort                    int
 	RegisterIPv4                    string
