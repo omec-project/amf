@@ -25,7 +25,7 @@ WORKDIR $GOPATH/src/amf
 COPY . .
 RUN make all
 
-FROM alpine:3.20 as amf
+FROM alpine:3.20 AS amf
 
 LABEL description="Aether open source 5G Core Network" \
     version="Stage 3"
