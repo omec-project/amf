@@ -121,13 +121,9 @@ func (context *AMFContext) TmsiAllocate() int32 {
 	if context.EnableDbStore {
 		val, err = context.Drsm.AllocateInt32ID()
 	} else {
-		var tmp interface{}
-		var ok bool
+		var tmp int64
 		tmp, err = AllocateUniqueID(&tmsiGenerator, "tmsi")
-		if val, ok = tmp.(int32); !ok {
-			logger.ContextLog.Errorf("Allocate TMSI error: %+v", err)
-			return -1
-		}
+		val = int32(tmp)
 	}
 	if err != nil {
 		logger.ContextLog.Errorf("Allocate TMSI error: %+v", err)
@@ -141,13 +137,9 @@ func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
 	var val int64
 	var err error
 	if context.EnableDbStore {
-		var tmp interface{}
-		var ok bool
+		var tmp int32
 		tmp, err = context.Drsm.AllocateInt32ID()
-		if val, ok = tmp.(int64); !ok {
-			logger.ContextLog.Errorf("Allocate NgapID error: %+v", err)
-			return -1, err
-		}
+		val = int64(tmp)
 	} else {
 		val, err = AllocateUniqueID(&amfUeNGAPIDGenerator, "amfUeNgapID")
 	}
@@ -220,13 +212,9 @@ func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.Subs
 	if context.EnableDbStore {
 		id, err = context.Drsm.AllocateInt32ID()
 	} else {
-		var tmp interface{}
-		var ok bool
+		var tmp int64
 		tmp, err = amfStatusSubscriptionIDGenerator.Allocate()
-		if id, ok = tmp.(int32); !ok {
-			logger.ContextLog.Errorf("Allocate subscriptionID error: %+v", err)
-			return ""
-		}
+		id = int32(tmp)
 	}
 	if err != nil {
 		logger.ContextLog.Errorf("Allocate subscriptionID error: %+v", err)
