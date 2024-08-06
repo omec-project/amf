@@ -485,7 +485,7 @@ func (ue *AmfUe) Remove() {
 
 	if AMF_Self().EnableDbStore {
 		if err := AMF_Self().Drsm.ReleaseInt32ID(ue.Tmsi); err != nil {
-			logger.ContextLog.Errorf("Error releasing RanUe: %v", err)
+			logger.ContextLog.Errorf("error releasing RanUe: %v", err)
 		}
 	} else {
 		tmsiGenerator.FreeID(int64(ue.Tmsi))

@@ -1528,7 +1528,7 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 				if amfSelf.EnableDbStore {
 					id, err := amfSelf.Drsm.FindOwnerInt32ID(amfUe.Tmsi)
 					if err != nil {
-						ranUe.Log.Errorf("Error checking the guti-ue in this instance: %v", err)
+						ranUe.Log.Errorf("error checking the guti-ue in this instance: %v", err)
 					}
 					if id != nil && id.PodName != os.Getenv("HOSTNAME") && amfSelf.EnableSctpLb {
 						rsp := &sdcoreAmfServer.AmfMessage{}
@@ -1543,7 +1543,7 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 							ranUe.AmfUe.Remove()
 						} else if ranUe != nil {
 							if err := ranUe.Remove(); err != nil {
-								ranUe.Log.Errorf("Could not remove ranUe: %v", err)
+								ranUe.Log.Errorf("could not remove ranUe: %v", err)
 							}
 						}
 						ran.Amf2RanMsgChan <- rsp

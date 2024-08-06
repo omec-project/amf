@@ -34,32 +34,30 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		if ue.AmfUe == nil {
 			ue.AmfUe = amfSelf.NewAmfUe("")
 		} else {
-			if amfSelf.EnableSctpLb {
+			if amfSelf.EnableSctpLb && amfSelf.EnableDbStore {
 				/* checking the guti-ue belongs to this amf instance */
-				if amfSelf.EnableDbStore {
-					id, err := amfSelf.Drsm.FindOwnerInt32ID(ue.AmfUe.Tmsi)
-					if err != nil {
-						logger.NasLog.Errorf("Error checking guti-ue: %v", err)
-					}
-					if id != nil && id.PodName != os.Getenv("HOSTNAME") {
-						rsp := &sdcoreAmfServer.AmfMessage{}
-						rsp.VerboseMsg = "Redirecting Msg From AMF Pod !"
-						rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
-						rsp.AmfId = os.Getenv("HOSTNAME")
-						/* TODO for this release setting pod ip to simplify logic in sctplb */
-						rsp.RedirectId = id.PodIp
-						rsp.GnbId = ue.Ran.GnbId
-						rsp.Msg = ue.SctplbMsg
-						if ue.AmfUe != nil {
-							ue.AmfUe.Remove()
-						} else {
-							if err := ue.Remove(); err != nil {
-								logger.NasLog.Errorf("Error removing ue: %v", err)
-							}
+				id, err := amfSelf.Drsm.FindOwnerInt32ID(ue.AmfUe.Tmsi)
+				if err != nil {
+					logger.NasLog.Errorf("error checking guti-ue: %v", err)
+				}
+				if id != nil && id.PodName != os.Getenv("HOSTNAME") {
+					rsp := &sdcoreAmfServer.AmfMessage{}
+					rsp.VerboseMsg = "Redirecting Msg From AMF Pod !"
+					rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
+					rsp.AmfId = os.Getenv("HOSTNAME")
+					/* TODO for this release setting pod ip to simplify logic in sctplb */
+					rsp.RedirectId = id.PodIp
+					rsp.GnbId = ue.Ran.GnbId
+					rsp.Msg = ue.SctplbMsg
+					if ue.AmfUe != nil {
+						ue.AmfUe.Remove()
+					} else {
+						if err := ue.Remove(); err != nil {
+							logger.NasLog.Errorf("error removing ue: %v", err)
 						}
-						ue.Ran.Amf2RanMsgChan <- rsp
-						return
 					}
+					ue.Ran.Amf2RanMsgChan <- rsp
+					return
 				}
 			}
 		}

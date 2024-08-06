@@ -107,7 +107,7 @@ func (ranUe *RanUe) Remove() error {
 	self.RanUePool.Delete(ranUe.AmfUeNgapId)
 	if self.EnableDbStore {
 		if err := self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId)); err != nil {
-			logger.ContextLog.Errorf("Error releasing UE: %v", err)
+			logger.ContextLog.Errorf("error releasing UE: %v", err)
 		}
 	} else {
 		amfUeNGAPIDGenerator.FreeID(ranUe.AmfUeNgapId)
