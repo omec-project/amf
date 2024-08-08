@@ -66,33 +66,35 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 		//ranUe.Log.Debugln("RanUe RanNgapId AmfNgapId: ", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
 		/* checking whether same AMF instance can handle this message */
 		/* redirect it to correct owner if required */
-		id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
-		if id == nil || err != nil {
-			ran.Log.Warningf("DispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
-		} else if id.PodName != os.Getenv("HOSTNAME") {
-			rsp := &sdcoreAmfServer.AmfMessage{}
-			rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
-			rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
-			rsp.AmfId = os.Getenv("HOSTNAME")
-			/* TODO set only pod name, for this release setting pod ip to simplify logic in sctplb */
-			fmt.Printf("DispatchLb, amfNgapId: %v is not for this amf instance, rediret to amf instance: %v %v", ngapId.Value, id.PodName, id.PodIp)
-			rsp.RedirectId = id.PodIp
-			rsp.GnbId = ran.GnbId
-			rsp.Msg = make([]byte, len(sctplbMsg.Msg))
-			copy(rsp.Msg, sctplbMsg.Msg)
-			ran.Amf2RanMsgChan = Amf2RanMsgChan
-			ran.Amf2RanMsgChan <- rsp
-			if ranUe != nil && ranUe.AmfUe != nil {
-				ranUe.AmfUe.Remove()
-			}
-			if ranUe != nil {
-				if err := ranUe.Remove(); err != nil {
-					ran.Log.Errorf("Could not remove ranUe: %v", err)
+		if amfSelf.EnableDbStore {
+			id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
+			if id == nil || err != nil {
+				ran.Log.Warningf("dispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
+			} else if id.PodName != os.Getenv("HOSTNAME") {
+				rsp := &sdcoreAmfServer.AmfMessage{}
+				rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
+				rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
+				rsp.AmfId = os.Getenv("HOSTNAME")
+				/* TODO set only pod name, for this release setting pod ip to simplify logic in sctplb */
+				fmt.Printf("dispatchLb, amfNgapId: %v is not for this amf instance, redirect to amf instance: %v %v", ngapId.Value, id.PodName, id.PodIp)
+				rsp.RedirectId = id.PodIp
+				rsp.GnbId = ran.GnbId
+				rsp.Msg = make([]byte, len(sctplbMsg.Msg))
+				copy(rsp.Msg, sctplbMsg.Msg)
+				ran.Amf2RanMsgChan = Amf2RanMsgChan
+				ran.Amf2RanMsgChan <- rsp
+				if ranUe != nil && ranUe.AmfUe != nil {
+					ranUe.AmfUe.Remove()
 				}
+				if ranUe != nil {
+					if err := ranUe.Remove(); err != nil {
+						ran.Log.Errorf("could not remove ranUe: %v", err)
+					}
+				}
+				return
+			} else {
+				ran.Log.Debugf("DispatchLb, amfNgapId: %v for this amf instance", ngapId.Value)
 			}
-			return
-		} else {
-			ran.Log.Debugf("DispatchLb, amfNgapId: %v for this amf instance", ngapId.Value)
 		}
 	}
 
