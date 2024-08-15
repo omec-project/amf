@@ -726,7 +726,7 @@ func HandleUplinkNasTransport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	if amfUe == nil {
 		err := ranUe.Remove()
 		if err != nil {
-			ran.Log.Errorf(err.Error())
+			ran.Log.Errorln(err.Error())
 		}
 		ran.Log.Errorf("No UE Context of RanUe with RANUENGAPID[%d] AMFUENGAPID[%d] ",
 			rANUENGAPID.Value, aMFUENGAPID.Value)

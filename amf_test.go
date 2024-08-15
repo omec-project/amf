@@ -111,8 +111,7 @@ func TestUpdateConfig(t *testing.T) {
 	}()
 
 	time.Sleep(2 * time.Second)
-	if factory.AmfConfig.Configuration.SupportTAIList != nil &&
-		len(factory.AmfConfig.Configuration.SupportTAIList) == 2 {
+	if len(factory.AmfConfig.Configuration.SupportTAIList) == 2 {
 		fmt.Printf("test passed")
 	} else {
 		t.Errorf("test failed")

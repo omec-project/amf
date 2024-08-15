@@ -1542,7 +1542,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 	}
 	if ausfUri == "" {
 		err = fmt.Errorf("AMF can not select an AUSF by NRF")
-		ue.GmmLog.Errorf(err.Error())
+		ue.GmmLog.Errorln(err.Error())
 		return false, err
 	}
 	ue.AusfUri = ausfUri
