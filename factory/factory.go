@@ -128,7 +128,7 @@ func CheckConfigVersion() error {
 	currentVersion := AmfConfig.GetVersion()
 
 	if currentVersion != AMF_EXPECTED_CONFIG_VERSION {
-		return fmt.Errorf("config version is [%s], but expected is [%s].",
+		return fmt.Errorf("config version is [%s], but expected is [%s]",
 			currentVersion, AMF_EXPECTED_CONFIG_VERSION)
 	}
 
