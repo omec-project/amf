@@ -54,7 +54,7 @@ func HTTPN1N2MessageTransfer(c *gin.Context) {
 	case "multipart/related":
 		err = openapi.Deserialize(&n1n2MessageTransferRequest, requestBody, contentType)
 	default:
-		err = fmt.Errorf("Wrong content type")
+		err = fmt.Errorf("wrong content type")
 	}
 
 	if err != nil {

@@ -15,7 +15,6 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
-	amf_context "github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas"
@@ -471,11 +470,11 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	// If nrf caching is enabled, go ahead and delete the entry from the cache.
 	// This will force the amf to do nf discovery and get the updated nf profile from the nrf.
 	if notificationData.Event == models.NotificationEventType_DEREGISTERED {
-		if amf_context.AMF_Self().EnableNrfCaching {
+		if context.AMF_Self().EnableNrfCaching {
 			ok := nrfCache.RemoveNfProfileFromNrfCache(nfInstanceId)
 			logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
 		}
-		if subscriptionId, ok := amf_context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
+		if subscriptionId, ok := context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v", nfInstanceId, subscriptionId.(string))
 			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
 			if problemDetails != nil {
@@ -484,7 +483,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 				logger.ConsumerLog.Errorf("Remove NF Subscription Error[%+v]", err)
 			} else {
 				logger.ConsumerLog.Infoln("[AMF] Remove NF Subscription successful")
-				amf_context.AMF_Self().NfStatusSubscriptions.Delete(nfInstanceId)
+				context.AMF_Self().NfStatusSubscriptions.Delete(nfInstanceId)
 			}
 		} else {
 			logger.ProducerLog.Infof("nfinstance %v not found in map", nfInstanceId)
