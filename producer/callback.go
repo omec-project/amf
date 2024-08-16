@@ -24,8 +24,8 @@ import (
 	"github.com/omec-project/nas/nasConvert"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/ngap/ngapType"
-	nrf_cache "github.com/omec-project/nrf/nrfcache"
 	"github.com/omec-project/openapi/models"
+	nrfCache "github.com/omec-project/openapi/nrfcache"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -472,7 +472,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	// This will force the amf to do nf discovery and get the updated nf profile from the nrf.
 	if notificationData.Event == models.NotificationEventType_DEREGISTERED {
 		if amf_context.AMF_Self().EnableNrfCaching {
-			ok := nrf_cache.RemoveNfProfileFromNrfCache(nfInstanceId)
+			ok := nrfCache.RemoveNfProfileFromNrfCache(nfInstanceId)
 			logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
 		}
 		if subscriptionId, ok := amf_context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
