@@ -57,7 +57,9 @@ func HTTPAmfInstanceDown(c *gin.Context) {
 	if nfInstanceId, exists := c.Params.Get("nfid"); exists {
 		req.Params["nfid"] = nfInstanceId
 		self := context.AMF_Self()
-		self.Drsm.DeletePod(nfInstanceId)
+		if self.EnableDbStore {
+			self.Drsm.DeletePod(nfInstanceId)
+		}
 		c.JSON(http.StatusOK, nil)
 	}
 }
