@@ -54,7 +54,7 @@ func HTTPCreateUEContext(c *gin.Context) {
 	case "multipart/related":
 		err = openapi.Deserialize(&createUeContextRequest, requestBody, contentType)
 	default:
-		err = fmt.Errorf("Wrong content type")
+		err = fmt.Errorf("wrong content type")
 	}
 
 	if err != nil {

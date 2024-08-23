@@ -98,7 +98,7 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	amfUeNgapID, err := self.AllocateAmfUeNgapID()
 	if err != nil {
 		ran.Log.Errorln("Alloc Amf ue ngap id failed", err)
-		return nil, fmt.Errorf("Allocate AMF UE NGAP ID error: %+v", err)
+		return nil, fmt.Errorf("allocate AMF UE NGAP ID error: %+v", err)
 	}
 	ranUe.AmfUeNgapId = amfUeNgapID
 	ranUe.RanUeNgapId = ranUeNgapID
