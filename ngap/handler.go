@@ -1717,22 +1717,24 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 
 			for _, item := range pDUSessionResourceFailedToSetupList.List {
 				pduSessionID := int32(item.PDUSessionID.Value)
-				transfer := item.PDUSessionResourceSetupUnsuccessfulTransfer
-				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
-				if !ok {
-					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
-				}
-				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-					models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer)
-				if err != nil {
-					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupUnsuccessfulTransfer] Error: %+v", err)
-				}
+				if pduSessionID != 0 {
+					transfer := item.PDUSessionResourceSetupUnsuccessfulTransfer
+					smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
+					if !ok {
+						ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					}
+					_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
+						models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer)
+					if err != nil {
+						ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupUnsuccessfulTransfer] Error: %+v", err)
+					}
 
-				// if response != nil && response.BinaryDataN2SmInformation != nil {
-				// TODO: n2SmInfo send to RAN
-				// } else if response == nil {
-				// TODO: error handling
-				// }
+					// if response != nil && response.BinaryDataN2SmInformation != nil {
+					// TODO: n2SmInfo send to RAN
+					// } else if response == nil {
+					// TODO: error handling
+					// }
+				}
 			}
 		}
 
