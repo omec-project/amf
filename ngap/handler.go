@@ -1721,6 +1721,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
 					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					continue
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
 					models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer)
