@@ -23,36 +23,42 @@ import (
 	"github.com/omec-project/ngap/ngapType"
 )
 
-func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage) {
-	fmt.Printf("DispatchLb GnbId:%v GnbIp: %v %T", sctplbMsg.GnbId, sctplbMsg.GnbIpAddr, Amf2RanMsgChan)
-	var ran *context.AmfRan
+func DispatchLb(ran *context.AmfRan, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+	logger.ConsumerLog.Infoln("DispatchLb GnbId:%v GnbIp: ", sctplbMsg.GnbId, " sctplbMsg.GnbIpAddr: ", sctplbMsg.GnbIpAddr)
+	// var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
 
-	if sctplbMsg.GnbId != "" {
-		var ok bool
-		ran, ok = amfSelf.AmfRanFindByGnbId(sctplbMsg.GnbId)
-		if !ok {
-			logger.NgapLog.Infof("Create a new NG connection for: %s", sctplbMsg.GnbId)
-			ran = amfSelf.NewAmfRanId(sctplbMsg.GnbId)
-			ran.Amf2RanMsgChan = Amf2RanMsgChan
-			fmt.Println("DispatchLb, Create new Amf RAN ", sctplbMsg.GnbId)
-		}
-	} else if sctplbMsg.GnbIpAddr != "" {
-		fmt.Printf("GnbIpAddress received but no GnbId")
-		ran = &context.AmfRan{}
-		ran.SupportedTAList = context.NewSupportedTAIList()
-		ran.Amf2RanMsgChan = Amf2RanMsgChan
-		ran.Log = logger.NgapLog.WithField(logger.FieldRanAddr, sctplbMsg.GnbIpAddr)
-		ran.GnbIp = sctplbMsg.GnbIpAddr
-		fmt.Println("DispatchLb, Create new Amf RAN with GnbIpAddress ", sctplbMsg.GnbIpAddr)
-	}
+	// if sctplbMsg.GnbId != "" {
+	// 	var ok bool
+	// 	ran, ok = amfSelf.AmfRanFindByGnbId(sctplbMsg.GnbId)
+	// 	if !ok {
+	// 		logger.NgapLog.Infof("Create a new NG connection for: %s", sctplbMsg.GnbId)
+	// 		ran = amfSelf.NewAmfRanId(sctplbMsg.GnbId)
+	// 		ran.Amf2RanMsgChan = Amf2RanMsgChan
+	// 		logger.ConsumerLog.Infoln("DispatchLb, Create new Amf RAN ", sctplbMsg.GnbId)
+	// 	}
+	// } else if sctplbMsg.GnbIpAddr != "" {
+	// 	// it comes only for the first time/ NGSetup request
+	// 	fmt.Printf("GnbIpAddress received but no GnbId\n")
+	// 	ran = &context.AmfRan{}
+	// 	ran.SupportedTAList = context.NewSupportedTAIList()
+	// 	ran.Amf2RanMsgChan = Amf2RanMsgChan
+	// 	ran.Log = logger.NgapLog.WithField(logger.FieldRanAddr, sctplbMsg.GnbIpAddr)
+	// 	ran.GnbIp = sctplbMsg.GnbIpAddr
+	// 	// context.AmfRanPool.Store(ran.GnbIp, ran)
+	// 	logger.ConsumerLog.Infoln("DispatchLb, Create new Amf RAN with GnbIpAddress ", sctplbMsg.GnbIpAddr)
+	// }
 
-	if len(sctplbMsg.Msg) == 0 {
-		fmt.Println("DispatchLb, Messgae of size 0 -  ", sctplbMsg.GnbId)
-		ran.Log.Infof("RAN close the connection.")
-		ran.Remove()
-		return
-	}
+	// if len(sctplbMsg.Msg) == 0 {
+	// 	ran.Log.Infoln("DispatchLb, Messgae of size 0 -  ", sctplbMsg.GnbId)
+	// 	ran.Log.Infof("RAN close the connection.")
+	// 	ran.Remove()
+	// 	return
+	// }
+
+	// if ran.Ran2AmfMsgChan == nil {
+	// 	ran.Ran2AmfMsgChan = make(chan *sdcoreAmfServer.SctplbMessage)
+	// }
 
 	pdu, err := ngap.Decoder(sctplbMsg.Msg)
 	if err != nil {
@@ -66,35 +72,33 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 		//ranUe.Log.Debugln("RanUe RanNgapId AmfNgapId: ", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
 		/* checking whether same AMF instance can handle this message */
 		/* redirect it to correct owner if required */
-		if amfSelf.EnableDbStore {
-			id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
-			if id == nil || err != nil {
-				ran.Log.Warningf("dispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
-			} else if id.PodName != os.Getenv("HOSTNAME") {
-				rsp := &sdcoreAmfServer.AmfMessage{}
-				rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
-				rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
-				rsp.AmfId = os.Getenv("HOSTNAME")
-				/* TODO set only pod name, for this release setting pod ip to simplify logic in sctplb */
-				fmt.Printf("dispatchLb, amfNgapId: %v is not for this amf instance, redirect to amf instance: %v %v", ngapId.Value, id.PodName, id.PodIp)
-				rsp.RedirectId = id.PodIp
-				rsp.GnbId = ran.GnbId
-				rsp.Msg = make([]byte, len(sctplbMsg.Msg))
-				copy(rsp.Msg, sctplbMsg.Msg)
-				ran.Amf2RanMsgChan = Amf2RanMsgChan
-				ran.Amf2RanMsgChan <- rsp
-				if ranUe != nil && ranUe.AmfUe != nil {
-					ranUe.AmfUe.Remove()
-				}
-				if ranUe != nil {
-					if err := ranUe.Remove(); err != nil {
-						ran.Log.Errorf("could not remove ranUe: %v", err)
-					}
-				}
-				return
-			} else {
-				ran.Log.Debugf("DispatchLb, amfNgapId: %v for this amf instance", ngapId.Value)
+		id, err := amfSelf.Drsm.FindOwnerInt32ID(int32(ngapId.Value))
+		if id == nil || err != nil {
+			ran.Log.Warningf("DispatchLb, Couldn't find owner for amfUeNgapid: %v", ngapId.Value)
+		} else if id.PodName != os.Getenv("HOSTNAME") {
+			rsp := &sdcoreAmfServer.AmfMessage{}
+			rsp.VerboseMsg = "Redirect Msg From AMF Pod !"
+			rsp.Msgtype = sdcoreAmfServer.MsgType_REDIRECT_MSG
+			rsp.AmfId = os.Getenv("HOSTNAME")
+			/* TODO set only pod name, for this release setting pod ip to simplify logic in sctplb */
+			ran.Log.Infoln("DispatchLb, amfNgapId:", ngapId.Value, " is not for this amf instance, rediret to amf instance: ", id.PodName, " ", id.PodIp)
+			rsp.RedirectId = id.PodIp
+			rsp.GnbId = ran.GnbId
+			rsp.Msg = make([]byte, len(sctplbMsg.Msg))
+			copy(rsp.Msg, sctplbMsg.Msg)
+			// ran.Amf2RanMsgChan = Amf2RanMsgChan
+			ran.Amf2RanMsgChan <- rsp
+			if ranUe != nil && ranUe.AmfUe != nil {
+				ranUe.AmfUe.Remove()
 			}
+			if ranUe != nil {
+				if err := ranUe.Remove(); err != nil {
+					ran.Log.Errorf("Could not remove ranUe: %v", err)
+				}
+			}
+			return
+		} else {
+			ran.Log.Infoln("DispatchLb, amfNgapId: ", ngapId.Value, " for this amf instance")
 		}
 	}
 
@@ -158,6 +162,8 @@ func Dispatch(conn net.Conn, msg []byte) {
 }
 
 func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
+	ue.UeMutex.Lock()
+	defer ue.UeMutex.Unlock()
 	DispatchNgapMsg(msg.Ran, msg.NgapMsg, msg.SctplbMsg)
 }
 

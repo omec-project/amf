@@ -77,28 +77,27 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					ran.Log.Trace("Decode IE 5G-S-TMSI")
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
-			if ranUe == nil {
+
+			if fiveGSTMSI != nil {
+				servedGuami := amfSelf.ServedGuamiList[0]
 				var err error
+				// <5G-S-TMSI> := <AMF Set ID><AMF Pointer><5G-TMSI>
+				// GUAMI := <MCC><MNC><AMF Region ID><AMF Set ID><AMF Pointer>
+				// 5G-GUTI := <GUAMI><5G-TMSI>
+				tmpReginID, _, _ := ngapConvert.AmfIdToNgap(servedGuami.AmfId)
+				amfID := ngapConvert.AmfIdToModels(tmpReginID, fiveGSTMSI.AMFSetID.Value, fiveGSTMSI.AMFPointer.Value)
 
-				if fiveGSTMSI != nil {
-					servedGuami := amfSelf.ServedGuamiList[0]
+				tmsi := hex.EncodeToString(fiveGSTMSI.FiveGTMSI.Value)
 
-					// <5G-S-TMSI> := <AMF Set ID><AMF Pointer><5G-TMSI>
-					// GUAMI := <MCC><MNC><AMF Region ID><AMF Set ID><AMF Pointer>
-					// 5G-GUTI := <GUAMI><5G-TMSI>
-					tmpReginID, _, _ := ngapConvert.AmfIdToNgap(servedGuami.AmfId)
-					amfID := ngapConvert.AmfIdToModels(tmpReginID, fiveGSTMSI.AMFSetID.Value, fiveGSTMSI.AMFPointer.Value)
+				guti := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc + amfID + tmsi
 
-					tmsi := hex.EncodeToString(fiveGSTMSI.FiveGTMSI.Value)
+				// TODO: invoke Namf_Communication_UEContextTransfer if serving AMF has changed since
+				// last Registration Request procedure
+				// Described in TS 23.502 4.2.2.2.2 step 4 (without UDSF deployment)
 
-					guti := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc + amfID + tmsi
-
-					// TODO: invoke Namf_Communication_UEContextTransfer if serving AMF has changed since
-					// last Registration Request procedure
-					// Described in TS 23.502 4.2.2.2.2 step 4 (without UDSF deployment)
-
-					if amfUe, ok := amfSelf.AmfUeFindByGuti(guti); ok {
+				if amfUe, ok := amfSelf.AmfUeFindByGuti(guti); ok {
+					ranUe = ran.RanUeFindByRanUeNgapIDLocal(rANUENGAPID.Value)
+					if ranUe == nil {
 						ranUe, err = ran.NewRanUe(rANUENGAPID.Value)
 						if err != nil {
 							ran.Log.Errorf("NewRanUe Error: %+v", err)
@@ -107,6 +106,8 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 						amfUe.AttachRanUe(ranUe)
 					}
 				}
+			} else {
+				ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 			}
 
 		case ngapType.ProcedureCodeUplinkNASTransport:
@@ -647,6 +648,10 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
 				ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
 			}
+		}
+
+		if context.AMF_Self().EnableScaling == true {
+			context.AMF_Self().AmfRanPool.Store(ran.GnbId, ran)
 		}
 	} else {
 		ngap_message.SendNGSetupFailure(ran, cause)
@@ -1484,6 +1489,8 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 			&iesCriticalityDiagnostics)
 		ngap_message.SendErrorIndication(ran, nil, nil, nil, &criticalityDiagnostics)
 	}
+
+	ran.Log.Infoln("HandleInitialUEMessage rANUENGAPID.Value ", rANUENGAPID.Value)
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe != nil && ranUe.AmfUe == nil {

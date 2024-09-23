@@ -128,6 +128,8 @@ func InitAmfContext(context *context.AMFContext) {
 	context.EnableSctpLb = configuration.EnableSctpLb
 	context.EnableDbStore = configuration.EnableDbStore
 	context.EnableNrfCaching = configuration.EnableNrfCaching
+	context.EnableScaling = configuration.EnableScaling
+	context.MinLbSMF = configuration.MinLbSMF
 	if configuration.EnableNrfCaching {
 		if configuration.NrfCacheEvictionInterval == 0 {
 			context.NrfCacheEvictionInterval = time.Duration(900) // 15 mins

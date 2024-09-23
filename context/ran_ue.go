@@ -84,7 +84,7 @@ type RanUe struct {
 }
 
 func (ranUe *RanUe) Remove() error {
-	fmt.Printf("RanUe has been deleted")
+	logger.ContextLog.Infof("RanUe has been deleted\n")
 	if ranUe == nil {
 		return fmt.Errorf("RanUe not found in RemoveRanUe")
 	}

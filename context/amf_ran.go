@@ -46,7 +46,8 @@ type AmfRan struct {
 	/* RAN UE List */
 	RanUeList []*RanUe `json:"-"` // RanUeNgapId as key
 
-	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
+	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage    `json:"-"`
+	Ran2AmfMsgChan chan *sdcoreAmfServer.SctplbMessage `json:"-"`
 	/* logger */
 	Log *logrus.Entry `json:"-"`
 }
@@ -120,7 +121,7 @@ func (ran *AmfRan) RemoveAllUeInRan() {
 func (ran *AmfRan) RanUeFindByRanUeNgapIDLocal(ranUeNgapID int64) *RanUe {
 	// TODO - need fix..Make this map so search is fast
 	for _, ranUe := range ran.RanUeList {
-		if ranUe.RanUeNgapId == ranUeNgapID {
+		if ranUe != nil && ranUe.RanUeNgapId == ranUeNgapID {
 			return ranUe
 		}
 	}

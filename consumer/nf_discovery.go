@@ -9,6 +9,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
+	"strconv"
+	"strings"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
@@ -74,17 +77,46 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 func SearchUdmSdmInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, requestNfType models.NfType,
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
 ) error {
+	if ue.NudmSDMUri != "" {
+		return nil
+	}
+
 	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
 	if localErr != nil {
 		return localErr
 	}
 
 	// select the first UDM_SDM, TODO: select base on other info
+	nfInstanceIds := make([]string, 0, len(resp.NfInstances))
+	for _, nfProfile := range resp.NfInstances {
+		nfInstanceIds = append(nfInstanceIds, nfProfile.NfInstanceId)
+	}
+	sort.Strings(nfInstanceIds)
+	nfInstanceIdIndexMap := make(map[string]int)
+	for index, value := range nfInstanceIds {
+		nfInstanceIdIndexMap[value] = index
+	}
+
+	nfInstanceIndex := 0
+	if amf_context.AMF_Self().EnableScaling == true {
+		// h := fnv.New32a()
+		// h.Write([]byte(ue.Supi))
+		// // logger.ConsumerLog.Warnln("SearchUdmSdmInstance: ue.Supi: ", ue.Supi)
+		// key := int(h.Sum32())
+		// nfInstanceIndex = int(key % len(resp.NfInstances))
+		parts := strings.Split(ue.Supi, "-")
+		imsiNumber, _ := strconv.Atoi(parts[1])
+		nfInstanceIndex = imsiNumber % len(resp.NfInstances)
+	}
 	var sdmUri string
 	for _, nfProfile := range resp.NfInstances {
+		if nfInstanceIndex != nfInstanceIdIndexMap[nfProfile.NfInstanceId] {
+			continue
+		}
 		ue.UdmId = nfProfile.NfInstanceId
 		sdmUri = util.SearchNFServiceUri(nfProfile, models.ServiceName_NUDM_SDM, models.NfServiceStatus_REGISTERED)
 		if sdmUri != "" {
+			logger.ConsumerLog.Warnln("for Ue: ", ue.Supi, " nfInstanceIndex: ", nfInstanceIndex, " for targetNfType ", string(targetNfType), " NF is: ", nfProfile.Ipv4Addresses)
 			break
 		}
 	}
@@ -107,10 +139,28 @@ func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetN
 
 	// select the first NSSF, TODO: select base on other info
 	var nssfUri string
+	nfInstanceIds := make([]string, 0, len(resp.NfInstances))
+	for _, nfProfile := range resp.NfInstances {
+		nfInstanceIds = append(nfInstanceIds, nfProfile.NfInstanceId)
+	}
+	sort.Strings(nfInstanceIds)
+	nfInstanceIdIndexMap := make(map[string]int)
+	for index, value := range nfInstanceIds {
+		nfInstanceIdIndexMap[value] = index
+	}
+
+	nfInstanceIndex := 0
+	if amf_context.AMF_Self().EnableScaling == true {
+
+		parts := strings.Split(ue.Supi, "-")
+		imsiNumber, _ := strconv.Atoi(parts[1])
+		nfInstanceIndex = imsiNumber % len(resp.NfInstances)
+	}
 	for _, nfProfile := range resp.NfInstances {
 		ue.NssfId = nfProfile.NfInstanceId
 		nssfUri = util.SearchNFServiceUri(nfProfile, models.ServiceName_NNSSF_NSSELECTION, models.NfServiceStatus_REGISTERED)
 		if nssfUri != "" {
+			logger.ConsumerLog.Warnln("for Ue: ", ue.Supi, " nfInstanceIndex: ", nfInstanceIndex, " for targetNfType ", string(targetNfType), " nssfUri:", nssfUri, " NF is: ", nfProfile)
 			break
 		}
 	}

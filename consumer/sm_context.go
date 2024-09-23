@@ -9,9 +9,13 @@ package consumer
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/antihax/optional"
@@ -26,6 +30,8 @@ import (
 )
 
 const N2SMINFO_ID = "N2SmInfo"
+
+var responseMap sync.Map
 
 func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
 	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
@@ -58,8 +64,100 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 		smCtxt.SetSmfID(nfProfile.NfInstanceId)
 		smCtxt.SetSmfUri(smfUri)
 		return nil
+	} else {
+		nrfUri := amf_context.AMF_Self().NrfUri
+		// fmt.Println("Get NEW SMFS")
+		param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
+			ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
+			Dnn:          optional.NewString(smCtxt.Dnn()),
+			Snssais:      optional.NewInterface(util.MarshToJsonString([]models.Snssai{smCtxt.Snssai()})),
+		}
+
+		result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
+		if err != nil {
+			// fmt.Println("setAltSmfProfile: Error while getting New SMF Profiles")
+			return fmt.Errorf("setAltSmfProfile: Error while getting New SMF Profiles")
+		}
+		var altSmfInst []models.NfProfile
+		//iterate over nf instances to ignore failed NF
+		for _, inst := range result.NfInstances {
+			if inst.NfInstanceId != ignoreSmfId {
+				altSmfInst = append(altSmfInst, inst)
+			}
+		}
+
+		if len(altSmfInst) == 0 {
+			fmt.Println("setAltSmfProfile: No New SMF avaiable, try with old one!")
+			return nil
+		}
+
+		// select the first SMF, TODO: select base on other info
+		smCtxt.SmfProfiles = result.NfInstances
+		// fmt.Println("setAltSmfProfile: MinLbSMF", amf_context.AMF_Self().MinLbSMF)
+		if amf_context.AMF_Self().MinLbSMF == true {
+			// fmt.Println("setAltSmfProfile: Selecting from minLbSMF")
+			min := math.MaxInt32
+			nf := models.NfProfile{}
+			for _, nfProfile := range altSmfInst {
+				if nfProfile.NfInstanceId != ignoreSmfId {
+					// fmt.Println("setAltSmfProfile: nfProfile Load: ", nfProfile.Load, nfProfile)
+					if int(nfProfile.Load) < min {
+						nf = nfProfile
+						min = int(nfProfile.Load)
+					}
+				}
+			}
+			smfUri := util.SearchNFServiceUri(nf, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
+			smCtxt.SetSmfID(nf.NfInstanceId)
+			smCtxt.SetSmfUri(smfUri)
+			//TODO: update ue smf uri
+			// ue.SmfUri = smfUri
+			// ue.SmfNfId = nf.NfInstanceId
+			logger.ConsumerLog.Error("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Count: ", min)
+			return nil
+		} else {
+
+			for _, nfProfile := range altSmfInst {
+				if nfProfile.NfInstanceId != ignoreSmfId {
+					continue
+				}
+				smfUri := util.SearchNFServiceUri(nfProfile, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
+				smCtxt.SetSmfID(nfProfile.NfInstanceId)
+				smCtxt.SetSmfUri(smfUri)
+				//TODO: update ue smf uri
+				// ue.SmfUri = smfUri
+				// ue.SmfNfId = nfProfile.NfInstanceId
+				logger.ConsumerLog.Warnln("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nfProfile.Ipv4Addresses)
+				return nil
+
+			}
+		}
+
 	}
-	return fmt.Errorf("no alternate profiles available")
+	return fmt.Errorf("setAltSmfProfile: no alternate profiles available")
+}
+
+func refreshSmfProfiles(ue *amf_context.AmfUe, smCtxt *amf_context.SmContext, ignoreSmfId string) *[]models.NfProfile {
+
+	nrfUri := ue.ServingAMF.NrfUri
+	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
+		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
+		Dnn:          optional.NewString(smCtxt.Dnn()),
+		Snssais:      optional.NewInterface(util.MarshToJsonString([]models.Snssai{smCtxt.Snssai()})),
+	}
+
+	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
+	if err != nil {
+		return nil
+	}
+	var altSmfInst []models.NfProfile
+	//iterate over nf instances to ignore failed NF
+	for _, inst := range result.NfInstances {
+		if inst.NfInstanceId != ignoreSmfId {
+			altSmfInst = append(altSmfInst, inst)
+		}
+	}
+	return &altSmfInst
 }
 
 func SelectSmf(
@@ -77,14 +175,16 @@ func SelectSmf(
 
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
-		// TODO: Set a timeout of NSSF Selection or will starvation here
-		for {
-			if err := SearchNssfNSSelectionInstance(ue, nrfUri, models.NfType_NSSF,
-				models.NfType_AMF, nil); err != nil {
-				ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
-				time.Sleep(2 * time.Second)
-			} else {
-				break
+		if ue.NssfUri == "" {
+			// TODO: Set a timeout of NSSF Selection or will starvation here
+			for {
+				if err := SearchNssfNSSelectionInstance(ue, nrfUri, models.NfType_NSSF,
+					models.NfType_AMF, nil); err != nil {
+					ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
+					time.Sleep(2 * time.Second)
+				} else {
+					break
+				}
 			}
 		}
 
@@ -126,25 +226,77 @@ func SelectSmf(
 	}
 
 	ue.GmmLog.Debugf("Search SMF from NRF[%s]", nrfUri)
+	if ue.SmfUri == "" {
+		result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
+		if err != nil {
+			return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+		}
+		if len(result.NfInstances) == 0 {
+			err = fmt.Errorf("DNN[%s] is not supported or not subscribed in the slice[Snssai: %+v]", dnn, snssai)
+			return nil, nasMessage.Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice, err
+		}
 
-	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
-	if err != nil {
-		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+		// select the first SMF, TODO: select base on other info
+		smContext.SmfProfiles = result.NfInstances
+		if amf_context.AMF_Self().MinLbSMF == true {
+			// fmt.Println("Selecting from minLbSMF")
+			min := math.MaxInt32
+			nf := models.NfProfile{}
+			amf_context.AMF_Self().SmfNfProfileListMutex.Lock()
+			if amf_context.AMF_Self().SmfNfProfileList == nil {
+				amf_context.AMF_Self().SmfNfProfileList = make(map[string]int)
+			}
+			for _, nfProfile := range result.NfInstances {
+				// fmt.Println("nfProfile Load: ", nfProfile.Load, nfProfile)
+				if int(nfProfile.Load) < min {
+					nf = nfProfile
+					min = int(nfProfile.Load)
+				}
+			}
+			smfUri = util.SearchNFServiceUri(nf, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
+			smContext.SetSmfID(nf.NfInstanceId)
+			smContext.SetSmfUri(smfUri)
+			ue.SmfUri = smfUri
+			ue.SmfNfId = nf.NfInstanceId
+			logger.ConsumerLog.Error("for Ue: ", ue.Supi, " for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Count: ", min)
+			amf_context.AMF_Self().SmfNfProfileListMutex.Unlock()
+		} else {
+
+			nfInstanceIds := make([]string, 0, len(result.NfInstances))
+			for _, nfProfile := range result.NfInstances {
+				nfInstanceIds = append(nfInstanceIds, nfProfile.NfInstanceId)
+			}
+			sort.Strings(nfInstanceIds)
+			nfInstanceIdIndexMap := make(map[string]int)
+			for index, value := range nfInstanceIds {
+				nfInstanceIdIndexMap[value] = index
+			}
+
+			nfInstanceIndex := 0
+			if amf_context.AMF_Self().EnableScaling == true {
+				parts := strings.Split(ue.Supi, "-")
+				imsiNumber, _ := strconv.Atoi(parts[1])
+				nfInstanceIndex = imsiNumber % len(result.NfInstances)
+			}
+			for _, nfProfile := range result.NfInstances {
+				if nfInstanceIndex != nfInstanceIdIndexMap[nfProfile.NfInstanceId] {
+					continue
+				}
+				smfUri = util.SearchNFServiceUri(nfProfile, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
+				smContext.SetSmfID(nfProfile.NfInstanceId)
+				smContext.SetSmfUri(smfUri)
+				ue.SmfUri = smfUri
+				ue.SmfNfId = nfProfile.NfInstanceId
+				logger.ConsumerLog.Warnln("for Ue: ", ue.Supi, " nfInstanceIndex: ", nfInstanceIndex, " for targetNfType ", string(models.NfType_SMF), " NF is: ", nfProfile.Ipv4Addresses)
+				break
+			}
+		}
+
+	} else {
+		smContext.SetSmfID(ue.SmfNfId)
+		smContext.SetSmfUri(ue.SmfUri)
 	}
 
-	if len(result.NfInstances) == 0 {
-		err = fmt.Errorf("DNN[%s] is not supported or not subscribed in the slice[Snssai: %+v]", dnn, snssai)
-		return nil, nasMessage.Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice, err
-	}
-
-	// select the first SMF, TODO: select base on other info
-	smContext.SmfProfiles = result.NfInstances
-	smfNum := len(result.NfInstances)
-	servingSmfIndex := getServingSmfIndex(smfNum)
-	nfProfile := result.NfInstances[servingSmfIndex]
-	smfUri = util.SearchNFServiceUri(nfProfile, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
-	smContext.SetSmfID(nfProfile.NfInstanceId)
-	smContext.SetSmfUri(smfUri)
 	return smContext, 0, nil
 }
 
@@ -465,7 +617,7 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 	client := Nsmf_PDUSession.NewAPIClient(configuration)
 
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
+	// defer cancel()
 
 	var updateSmContextRequest models.UpdateSmContextRequest
 	updateSmContextRequest.JsonData = &updateData
@@ -474,20 +626,30 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 
 	updateSmContextReponse, httpResponse, err := client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
 		updateSmContextRequest)
-	// retry on alternate SMF
-	if err != nil {
-		if errProfile := setAltSmfProfile(smContext); errProfile == nil {
-			configuration := Nsmf_PDUSession.NewConfiguration()
-			configuration.SetBasePath(smContext.SmfUri())
-			client := Nsmf_PDUSession.NewAPIClient(configuration)
+	//retry on alternate SMF
+	retry := 10
+	for retry > 0 {
+		if err != nil || httpResponse == nil || httpResponse.StatusCode != 200 {
+			cancel()
+			retry--
+			if errProfile := setAltSmfProfile(smContext); errProfile == nil {
+				configuration := Nsmf_PDUSession.NewConfiguration()
+				fmt.Println("smContext.SmfUri():", smContext.SmfUri(), "retry: ", retry)
+				configuration.SetBasePath(smContext.SmfUri())
+				client := Nsmf_PDUSession.NewAPIClient(configuration)
+				ctx, cancel = context.WithTimeout(context.TODO(), 30*time.Second)
 
-			ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-			defer cancel()
-
-			updateSmContextReponse, httpResponse, err = client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
-				updateSmContextRequest)
+				updateSmContextReponse, httpResponse, err =
+					client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
+						updateSmContextRequest)
+				fmt.Println("Get Alternate SMF 2 after Request: httpResponse", httpResponse, " err: ", err, " updateSmContextReponse: ", updateSmContextReponse)
+			}
+			time.Sleep(3 * time.Second)
+		} else {
+			break
 		}
 	}
+	cancel()
 
 	if err == nil {
 		response = &updateSmContextReponse

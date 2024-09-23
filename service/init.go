@@ -22,6 +22,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/gin-contrib/cors"
+	"github.com/go-redis/redis"
 	"github.com/omec-project/amf/communication"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
@@ -362,6 +363,13 @@ func (amf *AMF) Start() {
 	if self.EnableDbStore {
 		go context.SetupAmfCollection()
 	}
+
+	// TODO: Add check for the configuration of the AMF to start Redis the server
+	self.RedisClient = redis.NewClient(&redis.Options{
+		Addr:     "redis:6379",
+		Password: "",
+		DB:       factory.AmfConfig.Configuration.RedisDb,
+	})
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)

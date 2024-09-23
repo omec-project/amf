@@ -160,9 +160,11 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 				newSmContext, cause, err := consumer.SelectSmf(ue, smContext.AccessType(), pduSessionID, snssai, dnn)
 				if err != nil {
 					logger.CallbackLog.Error(err)
+					ue.RanUeLock.RLock()
 					gmm_message.SendDLNASTransport(ue.RanUe[smContext.AccessType()],
 						nasMessage.PayloadContainerTypeN1SMInfo,
 						smContext.ULNASTransport().GetPayloadContainerContents(), pduSessionID, cause, nil, 0)
+					ue.RanUeLock.RUnlock()
 					return
 				}
 
@@ -176,8 +178,10 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 					// TODO: handle response(response N2SmInfo to RAN if exists)
 				} else if errResponse != nil {
 					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]\n", pduSessionID)
+					ue.RanUeLock.RLock()
 					gmm_message.SendDLNASTransport(ue.RanUe[smContext.AccessType()],
 						nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
+					ue.RanUeLock.RUnlock()
 				} else if err != nil {
 					ue.ProducerLog.Errorf("Failed to Create smContext[pduSessionID: %d], Error[%s]\n", pduSessionID, err.Error())
 				} else {

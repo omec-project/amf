@@ -85,6 +85,10 @@ type Configuration struct {
 	NrfCacheEvictionInterval int                     `yaml:"nrfCacheEvictionInterval,omitempty"`
 	KafkaInfo                KafkaInfo               `yaml:"kafkaInfo,omitempty"`
 	DebugProfilePort         int                     `yaml:"debugProfilePort,omitempty"`
+	EnableScaling            bool                    `yaml:"enableScaling,omitempty"`
+	MinLbSMF                 bool                    `yaml:"minLbSMF,omitempty"`
+	DrsmPunchLiveTime        int                     `yaml:"drsmPunchLiveTime,omitempty"`
+	RedisDb                  int                     `yaml:"redisDb,omitempty"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

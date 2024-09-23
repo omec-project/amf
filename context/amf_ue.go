@@ -146,9 +146,12 @@ type AmfUe struct {
 	N1N2MessageSubscription sync.Map `json:"n1n2MessageSubscription,omitempty"`
 	/* Pdu Sesseion context */
 	SmContextList sync.Map `json:"-"` // map[int32]*SmContext, pdu session id as key
+	SmfUri        string   `json:"smfUri,omitempty"`
+	SmfNfId       string   `json:"smfNfId,omitempty"`
 	/* Related Context*/
 	//RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty" yaml:"ranUe" bson:"ranUe,omitempty"`
-	RanUe map[models.AccessType]*RanUe `json:"ranUe,omitempty"`
+	RanUe     map[models.AccessType]*RanUe `json:"ranUe, omitEmpty"`
+	RanUeLock sync.RWMutex                 `json:"-"` // mutex for RanUe
 	/* other */
 	OnGoing                       map[models.AccessType]*OnGoingProcedureWithPrio `json:"onGoing,omitempty"`
 	UeRadioCapability             string                                          `json:"ueRadioCapability,omitempty"` // OCTET string
@@ -215,6 +218,7 @@ type AmfUe struct {
 	GmmLog      *logrus.Entry `json:"-"`
 	TxLog       *logrus.Entry `json:"-"`
 	ProducerLog *logrus.Entry `json:"-"`
+	UeMutex     sync.Mutex    `json:"-"`
 }
 
 func (ue *AmfUe) MarshalJSON() ([]byte, error) {
@@ -223,13 +227,18 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	smCtxListVal := make(map[string]SmContext)
 	var ranUeNgapIDVal, amfUeNgapIDVal int64
 	var gnbId string
-	if ue.RanUe != nil && ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-		gnbId = ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
-		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-			ranUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
-			amfUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
+	ue.RanUeLock.RLock()
+	if ue.RanUe != nil {
+		ranUe := ue.RanUe[models.AccessType__3_GPP_ACCESS]
+		if ranUe != nil {
+			gnbId = ranUe.Ran.GnbId
+			// if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
+			ranUeNgapIDVal = ranUe.RanUeNgapId
+			amfUeNgapIDVal = ranUe.AmfUeNgapId
+			// }
 		}
 	}
+	ue.RanUeLock.RUnlock()
 
 	for access, state := range ue.State {
 		stateVal[access] = string(state.Current())
@@ -312,6 +321,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	}
 	for index, states := range aux.State {
 		ue.State[index] = fsm.NewState(fsm.StateType(states))
+		ue.RanUeLock.Lock()
 		if ue.RanUe[index] == nil {
 			ue.RanUe[index] = &RanUe{}
 		}
@@ -322,6 +332,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 			// ran.RanUeList = append(ran.RanUeList, ue.RanUe[index])
 			ue.RanUe[index].Ran = ran
 		}
+		ue.RanUeLock.Unlock()
 	}
 	for key, val := range aux.SmCtxList {
 		keyVal, err := strconv.ParseInt(key, 10, 32)
@@ -466,6 +477,8 @@ func (ue *AmfUe) init() {
 }
 
 func (ue *AmfUe) CmConnect(anType models.AccessType) bool {
+	ue.RanUeLock.RLock()
+	defer ue.RanUeLock.RUnlock()
 	if _, ok := ue.RanUe[anType]; !ok {
 		return false
 	}
@@ -477,11 +490,13 @@ func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 }
 
 func (ue *AmfUe) Remove() {
+	ue.RanUeLock.RLock()
 	for _, ranUe := range ue.RanUe {
 		if err := ranUe.Remove(); err != nil {
 			logger.ContextLog.Errorf("Remove RanUe error: %v", err)
 		}
 	}
+	ue.RanUeLock.RUnlock()
 
 	if AMF_Self().EnableDbStore {
 		if err := AMF_Self().Drsm.ReleaseInt32ID(ue.Tmsi); err != nil {
@@ -500,17 +515,21 @@ func (ue *AmfUe) Remove() {
 }
 
 func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
+	ue.RanUeLock.RLock()
 	delete(ue.RanUe, anType)
+	ue.RanUeLock.RUnlock()
 }
 
 func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	/* detach any RanUe associated to it */
+	ue.RanUeLock.Lock()
 	oldRanUe := ue.RanUe[ranUe.Ran.AnType]
 	ue.RanUe[ranUe.Ran.AnType] = ranUe
+	ue.RanUeLock.Unlock()
 	ranUe.AmfUe = ue
 
 	go func() {
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 5)
 		if oldRanUe != nil {
 			oldRanUe.Log.Infof("Detached UeContext from OldRanUe")
 			oldRanUe.AmfUe = nil
@@ -782,10 +801,12 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.AuthFailureCauseSynchFailureTimes = 0
 	ue.ServingAmfChanged = false
 	ue.RegistrationAcceptForNon3GPPAccess = nil
+	ue.RanUeLock.Lock()
 	if ue.RanUe != nil && ue.RanUe[accessType] != nil {
 		ue.RanUe[accessType].UeContextRequest = false
 		ue.RanUe[accessType].RecvdInitialContextSetupResponse = false
 	}
+	ue.RanUeLock.Unlock()
 	ue.RetransmissionOfInitialNASMsg = false
 	ue.OnGoing[accessType].Procedure = OnGoingProcedureNothing
 }
@@ -1081,12 +1102,15 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	kafkaSmCtxt.Guti = ueContext.Guti
 	kafkaSmCtxt.Tmsi = ueContext.Tmsi
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
+	ueContext.RanUeLock.RLock()
+
 	if ueContext.RanUe != nil && ueContext.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 		kafkaSmCtxt.AmfNgapId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
 		kafkaSmCtxt.RanNgapId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
 		kafkaSmCtxt.GnbId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
 		kafkaSmCtxt.TacId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].Tai.Tac
 	}
+	ueContext.RanUeLock.RUnlock()
 	kafkaSmCtxt.AmfSubState = string(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
 	ueState := ueContext.GetCmInfo()
 	kafkaSmCtxt.UeState = string(ueState[0].CmState)
