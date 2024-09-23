@@ -3801,6 +3801,20 @@ func HandleUplinkRanStatusTransfer(ran *context.AmfRan, message *ngapType.NGAPPD
 		return
 	}
 	// send to T-AMF using N1N2MessageTransfer (R16)
+
+	// Send Downlink RAN Status Transfer
+	targetUe := ranUe.TargetUe
+	if targetUe != nil {
+		logger.NgapLog.Info("Target AMF UE NGAP Id: ", targetUe.AmfUeNgapId)
+		logger.NgapLog.Info("Target RAN UE NGAP Id: ", targetUe.RanUeNgapId)
+	}
+
+	if rANStatusTransferTransparentContainer != nil {
+		ngap_message.SendDownlinkRanStatusTransfer(amfUe.RanUe[models.AccessType__3_GPP_ACCESS], *rANStatusTransferTransparentContainer)
+		ngap_message.SendDownlinkRanStatusTransfer(targetUe, *rANStatusTransferTransparentContainer)
+	} else {
+		ran.Log.Error("Cannot send downlink RAN status transfer: rANStatusTransferTransparentContainer is nil")
+	}
 }
 
 func HandleNasNonDeliveryIndication(ran *context.AmfRan, message *ngapType.NGAPPDU) {
