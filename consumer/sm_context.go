@@ -465,6 +465,10 @@ func SendUpdateSmContextXnHandover(
 	ue *amf_context.AmfUe, smContext *amf_context.SmContext, n2SmType models.N2SmInfoType, N2SmInfo []byte) (
 	*models.UpdateSmContextResponse, *models.UpdateSmContextErrorResponse, *models.ProblemDetails, error,
 ) {
+	// Check if the smContext is nil to prevent nil pointer dereference
+	if smContext == nil {
+		return nil, nil, nil, fmt.Errorf("smContext is nil")
+	}
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = n2SmType
