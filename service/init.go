@@ -269,7 +269,7 @@ func (amf *AMF) setLogLevel() {
 			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.OpenApi.DebugLevel); err != nil {
 				openapiLogger.OpenapiLog.Warnf("Openapi Log level [%s] is invalid, set to [info] level",
 					factory.AmfConfig.Logger.OpenApi.DebugLevel)
-					openapiLogger.SetLogLevel(zap.InfoLevel)
+				openapiLogger.SetLogLevel(zap.InfoLevel)
 			} else {
 				openapiLogger.SetLogLevel(level)
 			}
