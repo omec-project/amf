@@ -44,17 +44,20 @@ import (
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	nasLogger "github.com/omec-project/nas/logger"
 	ngapLogger "github.com/omec-project/ngap/logger"
+	openapiLogger "github.com/omec-project/openapi/logger"
 	"github.com/omec-project/openapi/models"
 	nrfCache "github.com/omec-project/openapi/nrfcache"
 	"github.com/omec-project/util/fsm"
 	fsmLogger "github.com/omec-project/util/fsm/logger"
 	"github.com/omec-project/util/http2_util"
-	logger_util "github.com/omec-project/util/logger"
+	utilLogger "github.com/omec-project/util/logger"
 	"github.com/omec-project/util/path_util"
 	pathUtilLogger "github.com/omec-project/util/path_util/logger"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type AMF struct{}
@@ -217,18 +220,17 @@ func (amf *AMF) setLogLevel() {
 
 	if factory.AmfConfig.Logger.NGAP != nil {
 		if factory.AmfConfig.Logger.NGAP.DebugLevel != "" {
-			if level, err := logrus.ParseLevel(factory.AmfConfig.Logger.NGAP.DebugLevel); err != nil {
+			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.NGAP.DebugLevel); err != nil {
 				ngapLogger.NgapLog.Warnf("NGAP Log level [%s] is invalid, set to [info] level",
 					factory.AmfConfig.Logger.NGAP.DebugLevel)
-				ngapLogger.SetLogLevel(logrus.InfoLevel)
+				ngapLogger.SetLogLevel(zap.InfoLevel)
 			} else {
 				ngapLogger.SetLogLevel(level)
 			}
 		} else {
 			ngapLogger.NgapLog.Warnln("NGAP Log level not set. Default set to [info] level")
-			ngapLogger.SetLogLevel(logrus.InfoLevel)
+			ngapLogger.SetLogLevel(zap.InfoLevel)
 		}
-		ngapLogger.SetReportCaller(factory.AmfConfig.Logger.NGAP.ReportCaller)
 	}
 
 	if factory.AmfConfig.Logger.FSM != nil {
@@ -249,18 +251,32 @@ func (amf *AMF) setLogLevel() {
 
 	if factory.AmfConfig.Logger.Aper != nil {
 		if factory.AmfConfig.Logger.Aper.DebugLevel != "" {
-			if level, err := logrus.ParseLevel(factory.AmfConfig.Logger.Aper.DebugLevel); err != nil {
+			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.Aper.DebugLevel); err != nil {
 				aperLogger.AperLog.Warnf("Aper Log level [%s] is invalid, set to [info] level",
 					factory.AmfConfig.Logger.Aper.DebugLevel)
-				aperLogger.SetLogLevel(logrus.InfoLevel)
+				aperLogger.SetLogLevel(zap.InfoLevel)
 			} else {
 				aperLogger.SetLogLevel(level)
 			}
 		} else {
 			aperLogger.AperLog.Warnln("Aper Log level not set. Default set to [info] level")
-			aperLogger.SetLogLevel(logrus.InfoLevel)
+			aperLogger.SetLogLevel(zap.InfoLevel)
 		}
-		aperLogger.SetReportCaller(factory.AmfConfig.Logger.Aper.ReportCaller)
+	}
+
+	if factory.AmfConfig.Logger.OpenApi != nil {
+		if factory.AmfConfig.Logger.OpenApi.DebugLevel != "" {
+			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.OpenApi.DebugLevel); err != nil {
+				openapiLogger.OpenapiLog.Warnf("Openapi Log level [%s] is invalid, set to [info] level",
+					factory.AmfConfig.Logger.OpenApi.DebugLevel)
+					openapiLogger.SetLogLevel(zap.InfoLevel)
+			} else {
+				openapiLogger.SetLogLevel(level)
+			}
+		} else {
+			openapiLogger.OpenapiLog.Warnln("Openapi Log level not set. Default set to [info] level")
+			openapiLogger.SetLogLevel(zap.InfoLevel)
+		}
 	}
 
 	if factory.AmfConfig.Logger.PathUtil != nil {
@@ -297,7 +313,7 @@ func (amf *AMF) Start() {
 	initLog.Infoln("Server started")
 	var err error
 
-	router := logger_util.NewGinWithLogrus(logger.GinLog)
+	router := utilLogger.NewGinWithLogrus(logger.GinLog)
 	router.Use(cors.New(cors.Config{
 		AllowMethods: []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
 		AllowHeaders: []string{
