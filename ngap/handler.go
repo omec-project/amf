@@ -39,6 +39,10 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 	var fiveGSTMSI *ngapType.FiveGSTMSI
 	var ranUe *context.RanUe
 
+	if !factory.AmfConfig.Rcvd {
+		logger.NgapLog.Error("AMF not ready to handle signalling traffic")
+		return nil, nil
+	}
 	if ran == nil {
 		logger.NgapLog.Error("ran is nil")
 		return nil, nil
@@ -1385,6 +1389,11 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 	// var allowedNSSAI *ngapType.AllowedNSSAI
 
 	var iesCriticalityDiagnostics ngapType.CriticalityDiagnosticsIEList
+
+	if !factory.AmfConfig.Rcvd {
+		logger.NgapLog.Error("AMF not ready to handle signalling traffic")
+		return
+	}
 
 	if message == nil {
 		ran.Log.Error("NGAP Message is nil")
