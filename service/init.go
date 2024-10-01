@@ -712,6 +712,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 		if len(factory.AmfConfig.Configuration.ServedGumaiList) > 0 {
 			RocUpdateConfigChannel <- true
 		}
+		factory.AmfConfig.Rcvd = true
 	}
 	return true
 }
