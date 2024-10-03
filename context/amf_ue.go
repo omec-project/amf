@@ -24,7 +24,6 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	mi "github.com/omec-project/util/metricinfo"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasType"
 	"github.com/omec-project/nas/security"
@@ -32,6 +31,7 @@ import (
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/idgenerator"
+	mi "github.com/omec-project/util/metricinfo"
 	"github.com/omec-project/util/ueauth"
 	"go.uber.org/zap"
 )
