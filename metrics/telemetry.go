@@ -12,7 +12,6 @@
 package metrics
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/omec-project/amf/logger"
@@ -58,7 +57,7 @@ func init() {
 	amfStats = initAmfStats()
 
 	if err := amfStats.register(); err != nil {
-		fmt.Println("AMF Stats register failed", err)
+		logger.AppLog.Errorln("AMF Stats register failed", err)
 	}
 }
 
@@ -66,7 +65,7 @@ func init() {
 func InitMetrics() {
 	http.Handle("/metrics", promhttp.Handler())
 	if err := http.ListenAndServe(":9089", nil); err != nil {
-		logger.InitLog.Errorf("Could not open metrics port: %v", err)
+		logger.InitLog.Errorf("could not open metrics port: %v", err)
 	}
 }
 

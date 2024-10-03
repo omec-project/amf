@@ -7,16 +7,16 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"os"
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/ngap"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
+	mi "github.com/omec-project/util/metricinfo"
 	"google.golang.org/grpc"
 )
 
@@ -30,9 +30,9 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 	go func() {
 		for {
 			msg1 := <-Amf2RanMsgChan
-			log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
+			logger.GrpcLog.Infof("send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
 			if err := srv.Send(msg1); err != nil {
-				log.Println("Error in sending response")
+				logger.GrpcLog.Errorln("error in sending response")
 			}
 		}
 	}()
@@ -40,16 +40,16 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 	for {
 		req, err := srv.Recv() /* TODO : handle errors */
 		if err != nil {
-			log.Println("Error in SCTPLB stream ", err)
+			logger.GrpcLog.Errorln("error in SCTPLB stream", err)
 			break
 		} else {
-			log.Printf("Receive message body from client (%s): GnbIp: %v, GnbId: %v, Verbose - %s, MsgType %v ", req.SctplbId, req.GnbIpAddr, req.GnbId, req.VerboseMsg, req.Msgtype)
+			logger.GrpcLog.Debugf("receive message body from client (%s): GnbIp: %v, GnbId: %v, Verbose - %s, MsgType %v", req.SctplbId, req.GnbIpAddr, req.GnbId, req.VerboseMsg, req.Msgtype)
 			if req.Msgtype == sdcoreAmfServer.MsgType_INIT_MSG {
 				rsp := &sdcoreAmfServer.AmfMessage{}
 				rsp.VerboseMsg = "Hello From AMF Pod !"
 				rsp.Msgtype = sdcoreAmfServer.MsgType_INIT_MSG
 				rsp.AmfId = os.Getenv("HOSTNAME")
-				log.Printf("Send Response message body from client (%s): Verbose - %s, MsgType %v ", rsp.AmfId, rsp.VerboseMsg, rsp.Msgtype)
+				logger.GrpcLog.Debugf("send Response message body from client (%s): Verbose - %s, MsgType %v", rsp.AmfId, rsp.VerboseMsg, rsp.Msgtype)
 				amfSelf := context.AMF_Self()
 				var ran *context.AmfRan
 				var ok bool
@@ -58,7 +58,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 					if req.GnbId != "" {
 						ran.GnbId = req.GnbId
 						ran.RanId = ran.ConvertGnbIdToRanId(ran.GnbId)
-						log.Printf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
+						logger.GrpcLog.Debugf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
 						rsp.GnbId = req.GnbId
 
 						// send nf(gnb) status notification
@@ -72,17 +72,17 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 
 						if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 							if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-								log.Printf("Error publishing NfStatusEvent: %v", err)
+								logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
 							}
 						}
 					}
 				}
 				ran.Amf2RanMsgChan = Amf2RanMsgChan
 				if err := srv.Send(rsp); err != nil {
-					log.Println("Error in sending response")
+					logger.GrpcLog.Errorln("error in sending response")
 				}
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_DISC {
-				log.Println("GNB disconnected")
+				logger.GrpcLog.Infoln("gNB disconnected")
 				ngap.HandleSCTPNotificationLb(req.GnbId)
 				// send nf(gnb) status notification
 				gnbStatus := mi.MetricEvent{
@@ -94,11 +94,11 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 				}
 				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 					if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-						log.Printf("Error publishing NfStatusEvent: %v", err)
+						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
 					}
 				}
 			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
-				log.Println("New GNB Connected ")
+				logger.GrpcLog.Infoln("new gNB Connected")
 				// send nf(gnb) status notification
 				gnbStatus := mi.MetricEvent{
 					EventType: mi.CNfStatusEvt,
@@ -109,7 +109,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 				}
 				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 					if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-						log.Printf("Error publishing NfStatusEvent: %v", err)
+						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
 					}
 				}
 			} else {
@@ -122,10 +122,10 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 
 func StartGrpcServer(port int) {
 	endpt := fmt.Sprintf(":%d", port)
-	fmt.Println("Listen - ", endpt)
+	fmt.Println("listen - ", endpt)
 	lis, err := net.Listen("tcp", endpt)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		logger.GrpcLog.Errorf("failed to listen: %v", err)
 	}
 
 	s := Server{}
@@ -135,6 +135,6 @@ func StartGrpcServer(port int) {
 	sdcoreAmfServer.RegisterNgapServiceServer(grpcServer, &s)
 
 	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %s", err)
+		logger.GrpcLog.Errorf("failed to serve: %v", err)
 	}
 }

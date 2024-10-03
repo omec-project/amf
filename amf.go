@@ -12,13 +12,13 @@ import (
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/service"
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
+	"go.uber.org/zap"
 )
 
 var AMF = &service.AMF{}
 
-var appLog *logrus.Entry
+var appLog *zap.SugaredLogger
 
 func init() {
 	appLog = logger.AppLog

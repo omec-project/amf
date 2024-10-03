@@ -6,12 +6,12 @@
 package producer
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/gmm"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
@@ -20,7 +20,7 @@ import (
 
 func init() {
 	if err := factory.InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {
-		fmt.Printf("Error in InitConfigFactory: %v\n", err)
+		logger.ProducerLog.Errorf("error in InitConfigFactory: %v", err)
 	}
 
 	self := context.AMF_Self()
@@ -34,7 +34,7 @@ func TestHandleOAMPurgeUEContextRequest_UEDeregistered(t *testing.T) {
 	var err error
 	self.Drsm, err = util.MockDrsmInit()
 	if err != nil {
-		fmt.Printf("Error in MockDrsmInit: %v\n", err)
+		logger.ProducerLog.Errorf("error in MockDrsmInit: %v", err)
 	}
 	amfUe := self.NewAmfUe("imsi-208930100007497")
 

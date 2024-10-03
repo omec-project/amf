@@ -10,7 +10,7 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -27,10 +27,10 @@ var AMFTest = &service.AMF{}
 
 func init() {
 	if err := os.Setenv("POD_IP", "127.0.0.1"); err != nil {
-		fmt.Printf("Could not set env POD_IP: %+v\n", err)
+		log.Printf("Could not set env POD_IP: %+v", err)
 	}
 	if err := factory.InitConfigFactory("amfTest/amfcfg.yaml"); err != nil {
-		fmt.Printf("Could not InitConfigFactory: %+v\n", err)
+		log.Printf("Could not InitConfigFactory: %+v", err)
 	}
 }
 
@@ -72,7 +72,7 @@ func TestInitialConfig(t *testing.T) {
 	if factory.AmfConfig.Configuration.PlmnSupportList != nil &&
 		factory.AmfConfig.Configuration.ServedGumaiList != nil &&
 		factory.AmfConfig.Configuration.SupportTAIList != nil {
-		fmt.Printf("test passed")
+		t.Logf("test passed")
 	} else {
 		t.Errorf("test failed")
 	}
@@ -88,7 +88,7 @@ var Data = []byte(`{
 		 "Site": {
 			"SiteName": "siteOne",
 			"Gnb": [
-				{"Name": "gnb1", "Tac": 1}, 
+				{"Name": "gnb1", "Tac": 1},
 				{"Name": "gnb2", "Tac": 2}
 			],
 			"Plmn": {"mcc": "208", "mnc": "93"}
@@ -112,7 +112,7 @@ func TestUpdateConfig(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	if len(factory.AmfConfig.Configuration.SupportTAIList) == 2 {
-		fmt.Printf("test passed")
+		t.Logf("test passed")
 	} else {
 		t.Errorf("test failed")
 	}
@@ -128,12 +128,12 @@ func TestRegisterNF(t *testing.T) {
 		// consumer.SendSearchNFInstances = origSearchNFInstances
 		consumer.SendUpdateNFInstance = origUpdateNFInstance
 	}()
-	fmt.Printf("test case TestRegisterNF \n")
+	t.Logf("test case TestRegisterNF")
 	var prof models.NfProfile
 	consumer.SendRegisterNFInstance = func(nrfUri string, nfInstanceId string, profile models.NfProfile) (models.NfProfile, string, string, error) {
 		prof = profile
 		prof.HeartBeatTimer = 1
-		fmt.Printf("Test RegisterNFInstance called\n")
+		t.Logf("Test RegisterNFInstance called")
 		return prof, "", "", nil
 	}
 	/*consumer.SendSearchNFInstances = func(nrfUri string, targetNfType, requestNfType models.NfType, param Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (*models.SearchResult, error) {
