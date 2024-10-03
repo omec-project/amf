@@ -24,7 +24,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
+	mi "github.com/omec-project/util/metricinfo"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasType"
 	"github.com/omec-project/nas/security"
@@ -33,7 +33,7 @@ import (
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/idgenerator"
 	"github.com/omec-project/util/ueauth"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type OnGoingProcedure string
@@ -211,10 +211,10 @@ type AmfUe struct {
 	// GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
 	// TxLog       *logrus.Entry `json:"txLog,omitempty" yaml:"txLog" bson:"txLog,omitempty"`
 	// ProducerLog *logrus.Entry `json:"producerLog,omitempty" yaml:"producerLog" bson:"producerLog,omitempty"`
-	NASLog      *logrus.Entry `json:"-"`
-	GmmLog      *logrus.Entry `json:"-"`
-	TxLog       *logrus.Entry `json:"-"`
-	ProducerLog *logrus.Entry `json:"-"`
+	NASLog      *zap.SugaredLogger `json:"-"`
+	GmmLog      *zap.SugaredLogger `json:"-"`
+	TxLog       *zap.SugaredLogger `json:"-"`
+	ProducerLog *zap.SugaredLogger `json:"-"`
 }
 
 func (ue *AmfUe) MarshalJSON() ([]byte, error) {
@@ -317,7 +317,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 		}
 		ue.RanUe[index].RanUeNgapId = aux.RanUeNgapId
 		ue.RanUe[index].AmfUeNgapId = aux.AmfUeNgapId
-		ue.RanUe[index].Log = logger.NgapLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
+		ue.RanUe[index].Log = logger.NgapLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
 		if ran != nil {
 			// ran.RanUeList = append(ran.RanUeList, ue.RanUe[index])
 			ue.RanUe[index].Ran = ran
@@ -518,9 +518,9 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	}()
 
 	// set log information
-	ue.NASLog = logger.NasLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
-	ue.GmmLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
-	ue.TxLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
+	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
+	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
+	ue.TxLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 }
 
 func (ue *AmfUe) GetAnType() models.AccessType {

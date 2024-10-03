@@ -12,7 +12,7 @@ import (
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
+	mi "github.com/omec-project/util/metricinfo"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -77,7 +77,7 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 	} else {
 		logger.KafkaLog.Debugf("publishing ue context event[%s] ", msg)
 		if err := StatWriter.SendMessage(msg); err != nil {
-			logger.KafkaLog.Errorf("Could not publish ue context event, error [%v]", err.Error())
+			logger.KafkaLog.Errorf("could not publish ue context event, error [%v]", err.Error())
 		}
 	}
 	return nil
@@ -89,7 +89,7 @@ func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
 	} else {
 		logger.KafkaLog.Debugf("publishing nf status event[%s] ", msg)
 		if err := StatWriter.SendMessage(msg); err != nil {
-			logger.KafkaLog.Errorf("Error publishing nf status event: %v", err)
+			logger.KafkaLog.Errorf("error publishing nf status event: %v", err)
 		}
 	}
 	return nil

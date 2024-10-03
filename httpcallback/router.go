@@ -12,10 +12,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/amf/logger"
 	utilLogger "github.com/omec-project/util/logger"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
-var HttpLog *logrus.Entry
+var HttpLog *zap.SugaredLogger
 
 func init() {
 	HttpLog = logger.HttpLog
@@ -38,7 +38,7 @@ type Routes []Route
 
 // NewRouter returns a new router.
 func NewRouter() *gin.Engine {
-	router := utilLogger.NewGinWithLogrus(logger.GinLog)
+	router := utilLogger.NewGinWithZap(logger.GinLog)
 	AddService(router)
 	return router
 }
