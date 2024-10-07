@@ -1560,11 +1560,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 
 	if ue.NgKsi.Tsc == models.ScType_NATIVE && ue.NgKsi.Ksi != 7 {
 		// As per the Specification 24.501 - 5.4.1.3.2 Authentication initiation by the network
-		if ue.NgKsi.Ksi < 6 { // ksi is range from 0 to 6
-			ue.NgKsi.Ksi += 1
-		} else {
-			ue.NgKsi.Ksi = 0
-		}
+		ue.NgKsi.Ksi = (ue.NgKsi.Ksi + 1) % 7
 	}
 	ue.GmmLog.Info("ngKSI after 5G-AKA: ", ue.NgKsi.Ksi)
 
