@@ -53,7 +53,7 @@ func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
-	logger.ProducerLog.Infoln("[AMF] Handle SmContext Status Notify")
+	logger.ProducerLog.Infoln("[AMF] handle SmContext Status Notify")
 
 	guti := request.Params["guti"]
 	pduSessionIDString := request.Params["pduSessionId"]
@@ -208,7 +208,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 func HandleAmPolicyControlUpdateNotifyUpdate(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
 	var ok bool
-	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Policy update notification]")
+	logger.ProducerLog.Infoln("handle AM Policy Control Update Notify [Policy update notification]")
 
 	polAssoID := request.Params["polAssoId"]
 	policyUpdate := request.Body.(models.PolicyUpdate)
@@ -310,7 +310,7 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 // TS 29.507 4.2.4.3
 func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *httpwrapper.Response {
 	var ue *context.AmfUe
-	logger.ProducerLog.Infoln("Handle AM Policy Control Update Notify [Request for termination of the policy association]")
+	logger.ProducerLog.Infoln("handle AM Policy Control Update Notify [Request for termination of the policy association]")
 
 	polAssoID := request.Params["polAssoId"]
 	terminationNotification := request.Body.(models.TerminationNotification)
@@ -374,7 +374,7 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
 
 // TS 23.502 4.2.2.2.3 Registration with AMF re-allocation
 func HandleN1MessageNotify(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ProducerLog.Infoln("[AMF] Handle N1 Message Notify")
+	logger.ProducerLog.Infoln("[AMF] handle N1 Message Notify")
 
 	n1MessageNotify := request.Body.(models.N1MessageNotify)
 
@@ -445,7 +445,7 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 }
 
 func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ProducerLog.Traceln("[AMF] Handle NF Status Notify")
+	logger.ProducerLog.Debugln("[AMF] handle NF Status Notify")
 
 	notificationData := request.Body.(models.NotificationData)
 
@@ -476,7 +476,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	if notificationData.Event == models.NotificationEventType_DEREGISTERED {
 		if context.AMF_Self().EnableNrfCaching {
 			ok := nrfCache.RemoveNfProfileFromNrfCache(nfInstanceId)
-			logger.ProducerLog.Tracef("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
+			logger.ProducerLog.Debugf("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
 		}
 		if subscriptionId, ok := context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v", nfInstanceId, subscriptionId.(string))
@@ -498,7 +498,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 }
 
 func HandleDeregistrationNotification(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.ProducerLog.Infoln("Handle Deregistration Notification")
+	logger.ProducerLog.Infoln("handle Deregistration Notification")
 	deregistrationData := request.Body.(models.DeregistrationData)
 
 	switch deregistrationData.DeregReason {

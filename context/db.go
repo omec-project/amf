@@ -96,25 +96,25 @@ func SetupAmfCollection() {
 	for {
 		mongoapi.ConnectMongo(mongoDbUrl, factory.AmfConfig.Configuration.AmfDBName)
 		if mongoapi.CommonDBClient.(*mongoapi.MongoClient).Client == nil {
-			logger.DataRepoLog.Errorf("MongoDb Connection failed")
+			logger.DataRepoLog.Errorln("mongoDb Connection failed")
 		} else {
-			logger.DataRepoLog.Infof("Successfully connected to Mongodb")
+			logger.DataRepoLog.Infoln("successfully connected to Mongodb")
 			break
 		}
 	}
 	_, err := mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "supi")
 	if err != nil {
-		logger.DataRepoLog.Errorf("Create index failed on Supi field.")
+		logger.DataRepoLog.Errorln("create index failed on Supi field")
 	}
 
 	_, err = mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "guti")
 	if err != nil {
-		logger.DataRepoLog.Errorf("Create index failed on Guti field.")
+		logger.DataRepoLog.Errorln("create index failed on Guti field")
 	}
 
 	_, err = mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "tmsi")
 	if err != nil {
-		logger.DataRepoLog.Errorf("Create index failed on Tmsi field.")
+		logger.DataRepoLog.Errorln("create index failed on Tmsi field")
 	}
 
 	/*_, err = CommonDBClient.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.amfUeNgapId")
@@ -263,10 +263,10 @@ func DbFetch(key string) *AmfUe {
 	AMF_Self().RanUePool.Store(ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId, ue.RanUe[models.AccessType__3_GPP_ACCESS])
 	AMF_Self().UePool.Store(ue.Supi, ue)
 	ue.EventChannel = nil
-	ue.NASLog = logger.NasLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.GmmLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.TxLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
+	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.TxLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	ue.TxLog.Errorln("amfue fetched")
@@ -298,10 +298,10 @@ func DbFetchMongoDb(collName string, filter bson.M) *AmfUe {
 	AMF_Self().RanUePool.Store(ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId, ue.RanUe[models.AccessType__3_GPP_ACCESS])
 	AMF_Self().UePool.Store(ue.Supi, ue)
 	ue.EventChannel = nil
-	ue.NASLog = logger.NasLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.GmmLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.TxLog = logger.GmmLog.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
+	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.TxLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	ue.TxLog.Errorln("amfue fetched")
@@ -312,7 +312,7 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 	ranUeNgapIDstr := strconv.FormatInt(ranUeNgapID, 10)
 	ue := DbFetch(ranUeNgapIDstr)
 	if ue == nil {
-		logger.DataRepoLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID ", ranUeNgapID)
+		logger.DataRepoLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID", ranUeNgapID)
 		return nil
 	}
 
@@ -337,7 +337,7 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	amfUeNgapIDstr := strconv.FormatInt(amfUeNgapID, 10)
 	ue := DbFetch(amfUeNgapIDstr)
 	if ue == nil {
-		logger.DataRepoLog.Errorln("DbFetchRanUeByAmfUeNgapID : no document found for amfUeNgapID ", amfUeNgapID)
+		logger.DataRepoLog.Errorln("DbFetchRanUeByAmfUeNgapID: no document found for amfUeNgapID ", amfUeNgapID)
 		return nil
 	}
 
@@ -361,7 +361,7 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 
 	ue = DbFetch(guti)
 	if ue == nil {
-		logger.DataRepoLog.Warnln("FindByGuti : no document found for guti ", guti)
+		logger.DataRepoLog.Warnln("FindByGuti: no document found for guti", guti)
 		return nil, false
 	} else {
 		ok = true
@@ -371,7 +371,7 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 	// fetched AmfUe. If so, then return the same.
 	// else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindByGutiLocal(guti); ret {
-		logger.DataRepoLog.Infoln("FindByGuti : found by local", guti)
+		logger.DataRepoLog.Infoln("FindByGuti: found by local", guti)
 		ue = amfUe
 		ok = ret
 	}
@@ -384,7 +384,7 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 	self := AMF_Self()
 	ue = DbFetch(supi)
 	if ue == nil {
-		logger.DataRepoLog.Warnln("FindBySupi : no document found for supi ", supi)
+		logger.DataRepoLog.Warnln("FindBySupi: no document found for supi", supi)
 		return nil, false
 	} else {
 		ok = true
@@ -393,7 +393,7 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 	// fetched AmfUe. If so, then return the same.
 	// else return newly fetched AmfUe and store in context
 	if amfUe, ret := self.AmfUeFindBySupiLocal(supi); ret {
-		logger.DataRepoLog.Infoln("FindBySupi : found by local", supi)
+		logger.DataRepoLog.Infoln("FindBySupi: found by local", supi)
 		ue = amfUe
 		ok = ret
 	}

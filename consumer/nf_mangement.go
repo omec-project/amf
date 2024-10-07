@@ -86,8 +86,7 @@ var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.Nf
 	for {
 		prof, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(context.TODO(), nfInstanceId, profile)
 		if err != nil || res == nil {
-			// TODO : add log
-			fmt.Println(fmt.Errorf("AMF register to NRF Error[%s]", err.Error()))
+			logger.ConsumerLog.Errorf("AMF register to NRF Error[%s]", err.Error())
 			time.Sleep(2 * time.Second)
 			continue
 		}
@@ -107,8 +106,8 @@ var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.Nf
 			retrieveNfInstanceId = resourceUri[strings.LastIndex(resourceUri, "/")+1:]
 			break
 		} else {
-			fmt.Println(fmt.Errorf("handler returned wrong status code %d", status))
-			fmt.Println(fmt.Errorf("NRF return wrong status code %d", status))
+			logger.ConsumerLog.Errorf("handler returned wrong status code %d", status)
+			logger.ConsumerLog.Errorf("NRF return wrong status code %d", status)
 		}
 	}
 	return prof, resouceNrfUri, retrieveNfInstanceId, err

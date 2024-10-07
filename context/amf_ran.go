@@ -16,11 +16,11 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	mi "github.com/omec-project/metricfunc/pkg/metricinfo"
 	"github.com/omec-project/ngap/ngapConvert"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
-	"github.com/sirupsen/logrus"
+	mi "github.com/omec-project/util/metricinfo"
+	"go.uber.org/zap"
 )
 
 const (
@@ -49,7 +49,7 @@ type AmfRan struct {
 	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage    `json:"-"`
 	Ran2AmfMsgChan chan *sdcoreAmfServer.SctplbMessage `json:"-"`
 	/* logger */
-	Log *logrus.Entry `json:"-"`
+	Log *zap.SugaredLogger `json:"-"`
 }
 
 type SupportedTAI struct {
@@ -77,12 +77,12 @@ func (ran *AmfRan) Remove() {
 	}
 	if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 		if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-			ran.Log.Errorf("Could not publish NfStatusEvent: %v", err)
+			ran.Log.Errorf("could not publish NfStatusEvent: %v", err)
 		}
 	}
 
 	ran.SetRanStats(RanDisconnected)
-	ran.Log.Infof("Remove RAN Context[ID: %+v]", ran.RanID())
+	ran.Log.Infof("remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
 	if AMF_Self().EnableSctpLb {
 		if ran.GnbId != "" {
@@ -98,13 +98,13 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	self := AMF_Self()
 	amfUeNgapID, err := self.AllocateAmfUeNgapID()
 	if err != nil {
-		ran.Log.Errorln("Alloc Amf ue ngap id failed", err)
+		ran.Log.Errorln("alloc Amf ue ngap id failed", err)
 		return nil, fmt.Errorf("allocate AMF UE NGAP ID error: %+v", err)
 	}
 	ranUe.AmfUeNgapId = amfUeNgapID
 	ranUe.RanUeNgapId = ranUeNgapID
 	ranUe.Ran = ran
-	ranUe.Log = ran.Log.WithField(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
+	ranUe.Log = ran.Log.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 	ran.RanUeList = append(ran.RanUeList, &ranUe)
 	self.RanUePool.Store(ranUe.AmfUeNgapId, &ranUe)
 	return &ranUe, nil
@@ -125,7 +125,7 @@ func (ran *AmfRan) RanUeFindByRanUeNgapIDLocal(ranUeNgapID int64) *RanUe {
 			return ranUe
 		}
 	}
-	ran.Log.Infof("RanUe is not exist")
+	ran.Log.Infof("RanUe does not exist")
 	return nil
 }
 

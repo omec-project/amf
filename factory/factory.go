@@ -119,6 +119,7 @@ func UpdateAmfConfig(f string) error {
 			logger.CfgLog.Infoln("updated T3565 ", amfConfig.Configuration.T3565)
 		}
 
+		amfConfig.Rcvd = true
 		AmfConfig = amfConfig
 	}
 	return nil

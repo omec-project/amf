@@ -158,15 +158,15 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	switch event {
 	case fsm.EntryEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
-		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
-		amfUe.TxLog = amfUe.TxLog.WithField(logger.FieldSuci, fmt.Sprintf("SUCI:%s", amfUe.Suci))
-		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Authentication]")
+		amfUe.GmmLog = amfUe.GmmLog.With(logger.FieldSuci, amfUe.Suci)
+		amfUe.TxLog = amfUe.TxLog.With(logger.FieldSuci, amfUe.Suci)
+		amfUe.GmmLog.Debugln("entryEvent at GMM State[Authentication]")
 		amfUe.PublishUeCtxtInfo()
 		fallthrough
 	case AuthRestartEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
-		amfUe.GmmLog.Debugln("AuthRestartEvent at GMM State[Authentication]")
+		amfUe.GmmLog.Debugln("authRestartEvent at GMM State[Authentication]")
 
 		pass, err := AuthenticationProcedure(amfUe, accessType)
 		if err != nil {
@@ -221,7 +221,7 @@ func Authentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		logger.GmmLog.Debugln(event)
 	case AuthFailEvent:
 		logger.GmmLog.Debugln(event)
-		logger.GmmLog.Warnln("Reject authentication")
+		logger.GmmLog.Warnln("reject authentication")
 	case AuthErrorEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
@@ -252,10 +252,10 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		accessType := args[ArgAccessType].(models.AccessType)
 		// set log information
-		amfUe.NASLog = amfUe.NASLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
-		amfUe.TxLog = amfUe.NASLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
-		amfUe.GmmLog = amfUe.GmmLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
-		amfUe.ProducerLog = logger.ProducerLog.WithField(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
+		amfUe.NASLog = amfUe.NASLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
+		amfUe.TxLog = amfUe.NASLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
+		amfUe.GmmLog = amfUe.GmmLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
+		amfUe.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.Supi))
 		amfUe.PublishUeCtxtInfo()
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[SecurityMode]")
 		if amfUe.SecurityContextIsValid() {
@@ -362,7 +362,7 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		logger.GmmLog.Debugln(event)
 		return
 	default:
-		logger.GmmLog.Errorf("Unknown event [%+v]", event)
+		logger.GmmLog.Errorf("unknown event [%+v]", event)
 	}
 }
 
@@ -462,7 +462,7 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 	default:
-		logger.GmmLog.Errorf("Unknown event [%+v]", event)
+		logger.GmmLog.Errorf("unknown event [%+v]", event)
 	}
 }
 
@@ -505,7 +505,7 @@ func DeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsT
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 	default:
-		logger.GmmLog.Errorf("Unknown event [%+v]", event)
+		logger.GmmLog.Errorf("unknown event [%+v]", event)
 	}
 }
 

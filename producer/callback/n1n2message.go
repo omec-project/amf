@@ -13,10 +13,10 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/Namf_Communication"
 	"github.com/omec-project/openapi/models"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
-var HttpLog *logrus.Entry
+var HttpLog *zap.SugaredLogger
 
 func init() {
 	HttpLog = logger.HttpLog
