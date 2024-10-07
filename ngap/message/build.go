@@ -2343,7 +2343,9 @@ func BuildRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNg
 	ie.Value.RANUENGAPID = new(ngapType.RANUENGAPID)
 
 	rANUENGAPID := ie.Value.RANUENGAPID
+	ue.RanUeLock.RLock()
 	rANUENGAPID.Value = ue.RanUe[anType].RanUeNgapId
+	ue.RanUeLock.RUnlock()
 
 	rerouteNasRequestIEs.List = append(rerouteNasRequestIEs.List, ie)
 

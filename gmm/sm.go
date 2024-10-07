@@ -446,6 +446,7 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		}
 	case ContextSetupSuccessEvent:
 		logger.GmmLog.Debugln(event)
+		logger.GmmLog.Infoln("Registration_complete")
 	case NwInitiatedDeregistrationEvent:
 		logger.GmmLog.Debugln(event)
 		amfUe := args[ArgAmfUe].(*context.AmfUe)

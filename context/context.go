@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-redis/redis"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
@@ -95,6 +96,13 @@ type AMFContext struct {
 	EnableDbStore            bool
 	EnableNrfCaching         bool
 	NrfCacheEvictionInterval time.Duration
+	EnableScaling            bool
+	SmfNfProfileList         map[string]int
+	MinLbSMF                 bool
+	// NfProfileList            map[models.NfType]map[string]int
+	SmfNfProfileListMutex sync.RWMutex
+	RedisClient           *redis.Client
+	RedisDb               int
 }
 
 type AMFContextEventSubscription struct {
@@ -164,14 +172,16 @@ func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
 func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
 	var err error
 	servedGuami := context.ServedGuamiList[0]
-	if context.EnableDbStore {
-		err = context.Drsm.ReleaseInt32ID(ue.Tmsi)
-	} else {
-		tmsiGenerator.FreeID(int64(ue.Tmsi))
-	}
-	if err != nil {
-		logger.ContextLog.Errorf("Error releasing tmsi: %v", err)
-	}
+	go func() {
+		if context.EnableDbStore {
+			err = context.Drsm.ReleaseInt32ID(ue.Tmsi)
+		} else {
+			tmsiGenerator.FreeID(int64(ue.Tmsi))
+		}
+		if err != nil {
+			logger.ContextLog.Errorf("Error releasing tmsi: %v", err)
+		}
+	}()
 	ue.Tmsi = context.TmsiAllocate()
 
 	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
@@ -242,7 +252,7 @@ func (context *AMFContext) DeleteAMFStatusSubscription(subscriptionID string) {
 		logger.ContextLog.Error(err)
 	} else {
 		if context.EnableDbStore {
-			err = context.Drsm.ReleaseInt32ID(int32(id))
+			go context.Drsm.ReleaseInt32ID(int32(id))
 		} else {
 			amfStatusSubscriptionIDGenerator.FreeID(id)
 		}

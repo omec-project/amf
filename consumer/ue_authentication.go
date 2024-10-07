@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/antihax/optional"
@@ -43,7 +44,10 @@ func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
 	}
 
 	var authInfo models.AuthenticationInfo
-	authInfo.SupiOrSuci = ue.Suci
+	parts := strings.Split(ue.Suci, "-")
+	imsi := fmt.Sprintf("imsi-%s%s%s", parts[2], parts[3], parts[7])
+	authInfo.SupiOrSuci = imsi //ue.Suci
+
 	if mnc, err := strconv.Atoi(plmnId.Mnc); err != nil {
 		return nil, nil, err
 	} else {
@@ -91,8 +95,11 @@ func SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 	defer cancel()
 
+	parts := strings.Split(ue.Suci, "-")
+	imsi := fmt.Sprintf("imsi-%s%s%s", parts[2], parts[3], parts[7])
+
 	confirmResult, httpResponse, err := client.DefaultApi.UeAuthenticationsAuthCtxId5gAkaConfirmationPut(
-		ctx, ue.Suci, confirmData)
+		ctx, imsi, confirmData)
 	if err == nil {
 		return &confirmResult, nil, nil
 	} else if httpResponse != nil {
@@ -131,7 +138,10 @@ func SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage)
 	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
 	defer cancel()
 
-	eapSession, httpResponse, err := client.DefaultApi.EapAuthMethod(ctx, ue.Suci, eapSessionReq)
+	parts := strings.Split(ue.Suci, "-")
+	imsi := fmt.Sprintf("imsi-%s%s%s", parts[2], parts[3], parts[7])
+
+	eapSession, httpResponse, err := client.DefaultApi.EapAuthMethod(ctx, imsi, eapSessionReq)
 	if err == nil {
 		response = &eapSession
 	} else if httpResponse != nil {
