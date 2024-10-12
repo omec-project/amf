@@ -11,11 +11,9 @@ import (
 	"fmt"
 	"math"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/antihax/optional"
@@ -31,21 +29,19 @@ import (
 
 const N2SMINFO_ID = "N2SmInfo"
 
-var responseMap sync.Map
-
-func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
-	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
-	i, err := strconv.Atoi(servingSmfIndexStr)
-	if err != nil {
-		logger.ConsumerLog.Errorf("Could not convert %s to int: %v", servingSmfIndexStr, err)
-	}
-	servingSmfIndexInt := i + 1
-	servingSmfIndex = servingSmfIndexInt % smfNum
-	if err := os.Setenv("SERVING_SMF_INDEX", strconv.Itoa(servingSmfIndex)); err != nil {
-		logger.ConsumerLog.Errorf("Could not set env SERVING_SMF_INDEX: %v", err)
-	}
-	return
-}
+// func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
+// 	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
+// 	i, err := strconv.Atoi(servingSmfIndexStr)
+// 	if err != nil {
+// 		logger.ConsumerLog.Errorf("Could not convert %s to int: %v", servingSmfIndexStr, err)
+// 	}
+// 	servingSmfIndexInt := i + 1
+// 	servingSmfIndex = servingSmfIndexInt % smfNum
+// 	if err := os.Setenv("SERVING_SMF_INDEX", strconv.Itoa(servingSmfIndex)); err != nil {
+// 		logger.ConsumerLog.Errorf("Could not set env SERVING_SMF_INDEX: %v", err)
+// 	}
+// 	return
+// }
 
 func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 	ignoreSmfId := smCtxt.SmfID()
@@ -87,14 +83,14 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 		}
 
 		if len(altSmfInst) == 0 {
-			fmt.Println("setAltSmfProfile: No New SMF avaiable, try with old one!")
+			fmt.Println("setAltSmfProfile: No New SMF availabl, try with old one!")
 			return nil
 		}
 
 		// select the first SMF, TODO: select base on other info
 		smCtxt.SmfProfiles = result.NfInstances
 		// fmt.Println("setAltSmfProfile: MinLbSMF", amf_context.AMF_Self().MinLbSMF)
-		if amf_context.AMF_Self().MinLbSMF == true {
+		if amf_context.AMF_Self().MinLbSMF {
 			// fmt.Println("setAltSmfProfile: Selecting from minLbSMF")
 			min := math.MaxInt32
 			nf := models.NfProfile{}
@@ -137,28 +133,28 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 	return fmt.Errorf("setAltSmfProfile: no alternate profiles available")
 }
 
-func refreshSmfProfiles(ue *amf_context.AmfUe, smCtxt *amf_context.SmContext, ignoreSmfId string) *[]models.NfProfile {
+// func refreshSmfProfiles(ue *amf_context.AmfUe, smCtxt *amf_context.SmContext, ignoreSmfId string) *[]models.NfProfile {
 
-	nrfUri := ue.ServingAMF.NrfUri
-	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
-		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
-		Dnn:          optional.NewString(smCtxt.Dnn()),
-		Snssais:      optional.NewInterface(util.MarshToJsonString([]models.Snssai{smCtxt.Snssai()})),
-	}
+// 	nrfUri := ue.ServingAMF.NrfUri
+// 	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
+// 		ServiceNames: optional.NewInterface([]models.ServiceName{models.ServiceName_NSMF_PDUSESSION}),
+// 		Dnn:          optional.NewString(smCtxt.Dnn()),
+// 		Snssais:      optional.NewInterface(util.MarshToJsonString([]models.Snssai{smCtxt.Snssai()})),
+// 	}
 
-	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
-	if err != nil {
-		return nil
-	}
-	var altSmfInst []models.NfProfile
-	//iterate over nf instances to ignore failed NF
-	for _, inst := range result.NfInstances {
-		if inst.NfInstanceId != ignoreSmfId {
-			altSmfInst = append(altSmfInst, inst)
-		}
-	}
-	return &altSmfInst
-}
+// 	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
+// 	if err != nil {
+// 		return nil
+// 	}
+// 	var altSmfInst []models.NfProfile
+// 	//iterate over nf instances to ignore failed NF
+// 	for _, inst := range result.NfInstances {
+// 		if inst.NfInstanceId != ignoreSmfId {
+// 			altSmfInst = append(altSmfInst, inst)
+// 		}
+// 	}
+// 	return &altSmfInst
+// }
 
 func SelectSmf(
 	ue *amf_context.AmfUe,
@@ -238,7 +234,7 @@ func SelectSmf(
 
 		// select the first SMF, TODO: select base on other info
 		smContext.SmfProfiles = result.NfInstances
-		if amf_context.AMF_Self().MinLbSMF == true {
+		if amf_context.AMF_Self().MinLbSMF {
 			// fmt.Println("Selecting from minLbSMF")
 			min := math.MaxInt32
 			nf := models.NfProfile{}
@@ -273,9 +269,13 @@ func SelectSmf(
 			}
 
 			nfInstanceIndex := 0
-			if amf_context.AMF_Self().EnableScaling == true {
+			if amf_context.AMF_Self().EnableScaling {
 				parts := strings.Split(ue.Supi, "-")
-				imsiNumber, _ := strconv.Atoi(parts[1])
+				imsiNumber, err := strconv.Atoi(parts[1])
+				if err != nil {
+					logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
+					return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+				}
 				nfInstanceIndex = imsiNumber % len(result.NfInstances)
 			}
 			for _, nfProfile := range result.NfInstances {

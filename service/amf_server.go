@@ -128,7 +128,6 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						log.Printf("Create a new NG connection for: %s", req.GnbId)
 						ran = amfSelf.NewAmfRanId(req.GnbId)
 						ran.Amf2RanMsgChan = Amf2RanMsgChan
-						log.Printf("DispatchLb, Create new Amf RAN ", req.GnbId)
 						StartRan2AmfMsgChan(ran, req.GnbId)
 					}
 				} else if req.GnbIpAddr != "" {
@@ -141,7 +140,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 					ran.GnbIp = req.GnbIpAddr
 					// context.AMF_Self().AmfRanPool.Store(ran.GnbIp, ran)
 					StartRan2AmfMsgChan(ran, req.GnbIpAddr)
-					log.Printf("DispatchLb, Create new Amf RAN with GnbIpAddress ", req.GnbIpAddr)
+					log.Printf("DispatchLb, Create new Amf RAN with GnbIpAddress %s", req.GnbIpAddr)
 				}
 
 				if len(req.Msg) == 0 {

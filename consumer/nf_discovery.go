@@ -98,14 +98,18 @@ func SearchUdmSdmInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, re
 	}
 
 	nfInstanceIndex := 0
-	if amf_context.AMF_Self().EnableScaling == true {
+	if amf_context.AMF_Self().EnableScaling {
 		// h := fnv.New32a()
 		// h.Write([]byte(ue.Supi))
 		// // logger.ConsumerLog.Warnln("SearchUdmSdmInstance: ue.Supi: ", ue.Supi)
 		// key := int(h.Sum32())
 		// nfInstanceIndex = int(key % len(resp.NfInstances))
 		parts := strings.Split(ue.Supi, "-")
-		imsiNumber, _ := strconv.Atoi(parts[1])
+		imsiNumber, err := strconv.Atoi(parts[1])
+		if err != nil {
+			logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
+			return err
+		}
 		nfInstanceIndex = imsiNumber % len(resp.NfInstances)
 	}
 	var sdmUri string
@@ -150,10 +154,14 @@ func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetN
 	}
 
 	nfInstanceIndex := 0
-	if amf_context.AMF_Self().EnableScaling == true {
+	if amf_context.AMF_Self().EnableScaling {
 
 		parts := strings.Split(ue.Supi, "-")
-		imsiNumber, _ := strconv.Atoi(parts[1])
+		imsiNumber, err := strconv.Atoi(parts[1])
+		if err != nil {
+			logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
+			return err
+		}
 		nfInstanceIndex = imsiNumber % len(resp.NfInstances)
 	}
 	for _, nfProfile := range resp.NfInstances {

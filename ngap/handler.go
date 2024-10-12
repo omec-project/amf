@@ -654,7 +654,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			}
 		}
 
-		if context.AMF_Self().EnableScaling == true {
+		if context.AMF_Self().EnableScaling {
 			context.AMF_Self().AmfRanPool.Store(ran.GnbId, ran)
 		}
 	} else {

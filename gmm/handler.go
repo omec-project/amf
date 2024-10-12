@@ -730,14 +730,19 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 					}
 
 					nfInstanceIndex := 0
-					if amfSelf.EnableScaling == true {
+					if amfSelf.EnableScaling {
 						parts := strings.Split(ue.Supi, "-")
-						imsiNumber, _ := strconv.Atoi(parts[1])
+						imsiNumber, err := strconv.Atoi(parts[1])
+						if err != nil {
+							logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
+							return err
+						}
+
 						nfInstanceIndex = imsiNumber % len(resp.NfInstances)
 					}
 					var pcfUri string
 					for _, nfProfile := range resp.NfInstances {
-						if nfInstanceIndex != nfInstanceIdIndexMap[nfProfile.NfInstanceId] && amfSelf.EnableScaling == true {
+						if nfInstanceIndex != nfInstanceIdIndexMap[nfProfile.NfInstanceId] && amfSelf.EnableScaling {
 							continue
 						}
 						if ue.PcfId != "" && ue.PcfId == nfProfile.NfInstanceId {
@@ -1259,9 +1264,14 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType) error {
 		}
 
 		nfInstanceIndex := 0
-		if amfSelf.EnableScaling == true {
+		if amfSelf.EnableScaling {
 			parts := strings.Split(ue.Supi, "-")
-			imsiNumber, _ := strconv.Atoi(parts[1])
+			imsiNumber, err := strconv.Atoi(parts[1])
+			if err != nil {
+				logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
+				return err
+			}
+
 			nfInstanceIndex = imsiNumber % len(resp.NfInstances)
 		}
 		var uecmUri, sdmUri string
@@ -1722,8 +1732,13 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 		nfInstanceIndex := 0
 		parts := strings.Split(ue.Suci, "-")
 		imsi := fmt.Sprintf("%s%s%s", parts[2], parts[3], parts[7])
-		if amfSelf.EnableScaling == true {
-			imsiNumber, _ := strconv.Atoi(imsi)
+		if amfSelf.EnableScaling {
+			imsiNumber, err := strconv.Atoi(imsi)
+			if err != nil {
+				logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
+				return false, err
+			}
+
 			nfInstanceIndex = imsiNumber % len(resp.NfInstances)
 		}
 		var ausfUri string

@@ -139,7 +139,6 @@ func SetupAmfCollection() {
 		go ProcessStoreContextInDB()
 		go ProcessDeleteContextFromDB()
 	}
-
 }
 
 func ToBsonM(data *AmfUe) (ret bson.M) {
@@ -380,7 +379,6 @@ func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
 }
 
 func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
-
 	self := AMF_Self()
 	ue = DbFetch(supi)
 	if ue == nil {

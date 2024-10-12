@@ -252,12 +252,14 @@ func (context *AMFContext) DeleteAMFStatusSubscription(subscriptionID string) {
 		logger.ContextLog.Error(err)
 	} else {
 		if context.EnableDbStore {
-			go context.Drsm.ReleaseInt32ID(int32(id))
+			go func() {
+				err = context.Drsm.ReleaseInt32ID(int32(id))
+				if err != nil {
+					logger.ContextLog.Error(err)
+				}
+			}()
 		} else {
 			amfStatusSubscriptionIDGenerator.FreeID(id)
-		}
-		if err != nil {
-			logger.ContextLog.Error(err)
 		}
 	}
 }
