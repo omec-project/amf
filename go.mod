@@ -20,7 +20,7 @@ require (
 	github.com/prometheus/client_golang v1.20.4
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
-	github.com/urfave/cli v1.22.15
+	github.com/urfave/cli v1.22.16
 	go.mongodb.org/mongo-driver v1.17.1
 	google.golang.org/grpc v1.67.1
 	google.golang.org/protobuf v1.34.2
@@ -39,7 +39,7 @@ require (
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.3.2 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
