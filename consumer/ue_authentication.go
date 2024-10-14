@@ -46,7 +46,7 @@ func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
 	var authInfo models.AuthenticationInfo
 	parts := strings.Split(ue.Suci, "-")
 	imsi := fmt.Sprintf("imsi-%s%s%s", parts[2], parts[3], parts[7])
-	authInfo.SupiOrSuci = imsi //ue.Suci
+	authInfo.SupiOrSuci = imsi // ue.Suci
 
 	if mnc, err := strconv.Atoi(plmnId.Mnc); err != nil {
 		return nil, nil, err

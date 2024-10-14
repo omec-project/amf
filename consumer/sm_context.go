@@ -75,7 +75,7 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 			return fmt.Errorf("setAltSmfProfile: Error while getting New SMF Profiles")
 		}
 		var altSmfInst []models.NfProfile
-		//iterate over nf instances to ignore failed NF
+		// iterate over nf instances to ignore failed NF
 		for _, inst := range result.NfInstances {
 			if inst.NfInstanceId != ignoreSmfId {
 				altSmfInst = append(altSmfInst, inst)
@@ -106,7 +106,7 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 			smfUri := util.SearchNFServiceUri(nf, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
 			smCtxt.SetSmfID(nf.NfInstanceId)
 			smCtxt.SetSmfUri(smfUri)
-			//TODO: update ue smf uri
+			// TODO: update ue smf uri
 			// ue.SmfUri = smfUri
 			// ue.SmfNfId = nf.NfInstanceId
 			logger.ConsumerLog.Error("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Load Count: ", min_load)
@@ -119,7 +119,7 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 				smfUri := util.SearchNFServiceUri(nfProfile, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
 				smCtxt.SetSmfID(nfProfile.NfInstanceId)
 				smCtxt.SetSmfUri(smfUri)
-				//TODO: update ue smf uri
+				// TODO: update ue smf uri
 				// ue.SmfUri = smfUri
 				// ue.SmfNfId = nfProfile.NfInstanceId
 				logger.ConsumerLog.Warnln("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nfProfile.Ipv4Addresses)
@@ -625,7 +625,7 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 
 	updateSmContextReponse, httpResponse, err := client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
 		updateSmContextRequest)
-	//retry on alternate SMF
+	// retry on alternate SMF
 	retry := 10
 	for retry > 0 {
 		if err != nil || httpResponse == nil || httpResponse.StatusCode != 200 {
@@ -638,9 +638,8 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 				client := Nsmf_PDUSession.NewAPIClient(configuration)
 				ctx, cancel = context.WithTimeout(context.TODO(), 30*time.Second)
 
-				updateSmContextReponse, httpResponse, err =
-					client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
-						updateSmContextRequest)
+				updateSmContextReponse, httpResponse, err = client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
+					updateSmContextRequest)
 				fmt.Println("Get Alternate SMF 2 after Request: httpResponse", httpResponse, " err: ", err, " updateSmContextReponse: ", updateSmContextReponse)
 			}
 			time.Sleep(3 * time.Second)

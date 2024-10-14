@@ -155,7 +155,6 @@ func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetN
 
 	nfInstanceIndex := 0
 	if amf_context.AMF_Self().EnableScaling {
-
 		parts := strings.Split(ue.Supi, "-")
 		imsiNumber, err := strconv.Atoi(parts[1])
 		if err != nil {
