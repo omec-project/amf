@@ -700,10 +700,9 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 
 	var problemDetails *models.ProblemDetails
 	var err error
-	retryCount := 35
+	retryCount := 5
 	for retryCount > 0 {
 		if ue.PcfUri == "" {
-			retryCount := 5
 			for {
 				resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_PCF, models.NfType_AMF, &param)
 				if err != nil || len(resp.NfInstances) == 0 {

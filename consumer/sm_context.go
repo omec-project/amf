@@ -112,7 +112,6 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 			logger.ConsumerLog.Error("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Count: ", min)
 			return nil
 		} else {
-
 			for _, nfProfile := range altSmfInst {
 				if nfProfile.NfInstanceId != ignoreSmfId {
 					continue
@@ -125,10 +124,8 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 				// ue.SmfNfId = nfProfile.NfInstanceId
 				logger.ConsumerLog.Warnln("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nfProfile.Ipv4Addresses)
 				return nil
-
 			}
 		}
-
 	}
 	return fmt.Errorf("setAltSmfProfile: no alternate profiles available")
 }
@@ -257,7 +254,6 @@ func SelectSmf(
 			logger.ConsumerLog.Error("for Ue: ", ue.Supi, " for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Count: ", min)
 			amf_context.AMF_Self().SmfNfProfileListMutex.Unlock()
 		} else {
-
 			nfInstanceIds := make([]string, 0, len(result.NfInstances))
 			for _, nfProfile := range result.NfInstances {
 				nfInstanceIds = append(nfInstanceIds, nfProfile.NfInstanceId)
@@ -291,7 +287,6 @@ func SelectSmf(
 				break
 			}
 		}
-
 	} else {
 		smContext.SetSmfID(ue.SmfNfId)
 		smContext.SetSmfUri(ue.SmfUri)
