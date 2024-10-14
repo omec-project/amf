@@ -92,14 +92,14 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 		// fmt.Println("setAltSmfProfile: MinLbSMF", amf_context.AMF_Self().MinLbSMF)
 		if amf_context.AMF_Self().MinLbSMF {
 			// fmt.Println("setAltSmfProfile: Selecting from minLbSMF")
-			min := math.MaxInt32
+			min_load := math.MaxInt32
 			nf := models.NfProfile{}
 			for _, nfProfile := range altSmfInst {
 				if nfProfile.NfInstanceId != ignoreSmfId {
 					// fmt.Println("setAltSmfProfile: nfProfile Load: ", nfProfile.Load, nfProfile)
-					if int(nfProfile.Load) < min {
+					if int(nfProfile.Load) < min_load {
 						nf = nfProfile
-						min = int(nfProfile.Load)
+						min_load = int(nfProfile.Load)
 					}
 				}
 			}
@@ -109,7 +109,7 @@ func setAltSmfProfile(smCtxt *amf_context.SmContext) error {
 			//TODO: update ue smf uri
 			// ue.SmfUri = smfUri
 			// ue.SmfNfId = nf.NfInstanceId
-			logger.ConsumerLog.Error("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Count: ", min)
+			logger.ConsumerLog.Error("setAltSmfProfile: for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Load Count: ", min_load)
 			return nil
 		} else {
 			for _, nfProfile := range altSmfInst {
@@ -233,7 +233,7 @@ func SelectSmf(
 		smContext.SmfProfiles = result.NfInstances
 		if amf_context.AMF_Self().MinLbSMF {
 			// fmt.Println("Selecting from minLbSMF")
-			min := math.MaxInt32
+			min_load := math.MaxInt32
 			nf := models.NfProfile{}
 			amf_context.AMF_Self().SmfNfProfileListMutex.Lock()
 			if amf_context.AMF_Self().SmfNfProfileList == nil {
@@ -241,9 +241,9 @@ func SelectSmf(
 			}
 			for _, nfProfile := range result.NfInstances {
 				// fmt.Println("nfProfile Load: ", nfProfile.Load, nfProfile)
-				if int(nfProfile.Load) < min {
+				if int(nfProfile.Load) < min_load {
 					nf = nfProfile
-					min = int(nfProfile.Load)
+					min_load = int(nfProfile.Load)
 				}
 			}
 			smfUri = util.SearchNFServiceUri(nf, models.ServiceName_NSMF_PDUSESSION, models.NfServiceStatus_REGISTERED)
@@ -251,7 +251,7 @@ func SelectSmf(
 			smContext.SetSmfUri(smfUri)
 			ue.SmfUri = smfUri
 			ue.SmfNfId = nf.NfInstanceId
-			logger.ConsumerLog.Error("for Ue: ", ue.Supi, " for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Count: ", min)
+			logger.ConsumerLog.Error("for Ue: ", ue.Supi, " for targetNfType ", string(models.NfType_SMF), " NF is: ", nf.Ipv4Addresses, " Load Count: ", min_load)
 			amf_context.AMF_Self().SmfNfProfileListMutex.Unlock()
 		} else {
 			nfInstanceIds := make([]string, 0, len(result.NfInstances))

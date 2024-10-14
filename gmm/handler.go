@@ -171,7 +171,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
 					ue.RanUeLock.RUnlock()
-				} else if response != nil {
+				} else {
 					smContext.SetUserLocation(ue.Location)
 					responseData := response.JsonData
 					n2Info := response.BinaryDataN2SmInformation
@@ -704,8 +704,8 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 	for retryCount > 0 {
 		if ue.PcfUri == "" {
 			for {
-				resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_PCF, models.NfType_AMF, &param)
-				if err != nil || len(resp.NfInstances) == 0 {
+				resp, searchErr := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_PCF, models.NfType_AMF, &param)
+				if searchErr != nil || len(resp.NfInstances) == 0 {
 					ue.GmmLog.Error("AMF can not select an PCF by NRF 1")
 					time.Sleep(500 * time.Millisecond) // sleep a while when search NF Instance fail
 					retryCount--
@@ -731,10 +731,10 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType) erro
 					nfInstanceIndex := 0
 					if amfSelf.EnableScaling {
 						parts := strings.Split(ue.Supi, "-")
-						imsiNumber, err := strconv.Atoi(parts[1])
-						if err != nil {
-							logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
-							return err
+						imsiNumber, atoiErr := strconv.Atoi(parts[1])
+						if atoiErr != nil {
+							logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", atoiErr)
+							return atoiErr
 						}
 
 						nfInstanceIndex = imsiNumber % len(resp.NfInstances)
@@ -1732,10 +1732,10 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 		parts := strings.Split(ue.Suci, "-")
 		imsi := fmt.Sprintf("%s%s%s", parts[2], parts[3], parts[7])
 		if amfSelf.EnableScaling {
-			imsiNumber, err := strconv.Atoi(imsi)
-			if err != nil {
-				logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", err)
-				return false, err
+			imsiNumber, atoiErr := strconv.Atoi(imsi)
+			if atoiErr != nil {
+				logger.ConsumerLog.Errorf("strconv.Atoi error: %+v", atoiErr)
+				return false, atoiErr
 			}
 
 			nfInstanceIndex = imsiNumber % len(resp.NfInstances)

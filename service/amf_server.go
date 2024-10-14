@@ -30,15 +30,16 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 
 	go func() {
 		for {
-			select {
-			case msg1 := <-Amf2RanMsgChan:
-				logger.GrpcLog.Infof("send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
-				if err := srv.Send(msg1); err != nil {
-					logger.GrpcLog.Errorln("error in sending response")
-				}
-				// case <-ran.Exit:
-				// TBD how to clean in case sctplb crashed
+			// select {
+			//
+			msg1 := <-Amf2RanMsgChan
+			logger.GrpcLog.Infof("send Response message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
+			if err := srv.Send(msg1); err != nil {
+				logger.GrpcLog.Errorln("error in sending response")
 			}
+			// case <-ran.Exit:
+			// TBD how to clean in case sctplb crashed
+			// }
 		}
 	}()
 
@@ -162,13 +163,14 @@ func StartRan2AmfMsgChan(ran *context.AmfRan, GnbId string) {
 	log.Printf("Go routine created for GnbId/GnbIpAddr: %v", GnbId)
 	go func() {
 		for {
-			select {
-			case req := <-ran.Ran2AmfMsgChan:
-				// log.Printf("received Response sctplb message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
-				ngap.DispatchLb(ran, req)
-				// case <-ran.Exit:
-				// TBD how to clean in case ran is removed
-			}
+			// select {
+			// case req := <-ran.Ran2AmfMsgChan:
+			req := <-ran.Ran2AmfMsgChan
+			// log.Printf("received Response sctplb message body from client (%s): Verbose - %s, MsgType %v GnbId: %v", msg1.AmfId, msg1.VerboseMsg, msg1.Msgtype, msg1.GnbId)
+			ngap.DispatchLb(ran, req)
+			// case <-ran.Exit:
+			// TBD how to clean in case ran is removed
+			// }
 		}
 	}()
 }
