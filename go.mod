@@ -17,7 +17,7 @@ require (
 	github.com/omec-project/ngap v1.3.0
 	github.com/omec-project/openapi v1.3.1
 	github.com/omec-project/util v1.2.3
-	github.com/prometheus/client_golang v1.20.4
+	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli v1.22.16
