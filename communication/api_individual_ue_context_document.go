@@ -20,12 +20,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/httpwrapper"
+)
+
+var (
+	applicationJson  string = "application/json"
+	multipartRelated string = "multipart/related"
 )
 
 // CreateUEContext - Namf_Communication CreateUEContext service Operation
@@ -49,9 +53,9 @@ func HTTPCreateUEContext(c *gin.Context) {
 	contentType := c.GetHeader("Content-Type")
 	s := strings.Split(contentType, ";")
 	switch s[0] {
-	case "application/json":
+	case applicationJson:
 		err = openapi.Deserialize(createUeContextRequest.JsonData, requestBody, contentType)
-	case "multipart/related":
+	case multipartRelated:
 		err = openapi.Deserialize(&createUeContextRequest, requestBody, contentType)
 	default:
 		err = fmt.Errorf("wrong content type")
@@ -267,9 +271,9 @@ func HTTPUEContextTransfer(c *gin.Context) {
 	contentType := c.GetHeader("Content-Type")
 	s := strings.Split(contentType, ";")
 	switch s[0] {
-	case "application/json":
+	case applicationJson:
 		err = openapi.Deserialize(ueContextTransferRequest.JsonData, requestBody, contentType)
-	case "multipart/related":
+	case multipartRelated:
 		err = openapi.Deserialize(&ueContextTransferRequest, requestBody, contentType)
 	}
 

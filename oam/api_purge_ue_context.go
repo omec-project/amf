@@ -9,13 +9,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/util/httpwrapper"
-
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/util/httpwrapper"
 )
 
 func HTTPPurgeUEContext(c *gin.Context) {
