@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2024 Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -13,26 +14,19 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/service"
 	"github.com/urfave/cli"
-	"go.uber.org/zap"
 )
 
 var AMF = &service.AMF{}
 
-var appLog *zap.SugaredLogger
-
-func init() {
-	appLog = logger.AppLog
-}
-
 func main() {
 	app := cli.NewApp()
 	app.Name = "amf"
-	appLog.Infoln(app.Name)
+	logger.AppLog.Infoln(app.Name)
 	app.Usage = "-free5gccfg common configuration file -amfcfg amf configuration file"
 	app.Action = action
 	app.Flags = AMF.GetCliCmd()
 	if err := app.Run(os.Args); err != nil {
-		appLog.Errorf("AMF Run error: %v", err)
+		logger.AppLog.Errorf("AMF Run error: %v", err)
 		return
 	}
 }

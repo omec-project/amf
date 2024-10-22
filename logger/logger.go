@@ -100,6 +100,6 @@ func GetLogger() *zap.Logger {
 
 // SetLogLevel: set the log level (panic|fatal|error|warn|info|debug)
 func SetLogLevel(level zapcore.Level) {
-	NasLog.Infoln("set log level:", level)
+	CfgLog.Infoln("set log level:", level)
 	atomicLevel.SetLevel(level)
 }
