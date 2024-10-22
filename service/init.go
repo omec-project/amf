@@ -83,15 +83,12 @@ var amfCLi = []cli.Flag{
 	},
 }
 
-var initLog *zap.SugaredLogger
-
 var (
 	KeepAliveTimer      *time.Timer
 	KeepAliveTimerMutex sync.Mutex
 )
 
 func init() {
-	initLog = logger.InitLog
 	RocUpdateConfigChannel = make(chan bool)
 }
 
@@ -122,7 +119,7 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
 		go func() {
 			if err := http.ListenAndServe(addr, nil); err != nil {
-				initLog.Errorln(err)
+				logger.InitLog.Errorln(err)
 			}
 		}()
 	}
@@ -147,13 +144,13 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		factory.AmfConfig.Configuration.ServedGumaiList = nil
 		factory.AmfConfig.Configuration.SupportTAIList = nil
 		factory.AmfConfig.Configuration.PlmnSupportList = nil
-		initLog.Infoln("Reading Amf related configuration from ROC")
+		logger.InitLog.Infoln("reading Amf related configuration from ROC")
 		client := gClient.ConnectToConfigServer(factory.AmfConfig.Configuration.WebuiUri)
 		configChannel := client.PublishOnConfigChange(true)
 		go amf.UpdateConfig(configChannel)
 	} else {
 		go func() {
-			logger.GrpcLog.Infoln("Reading Amf Configuration from Helm")
+			logger.GrpcLog.Infoln("reading Amf Configuration from Helm")
 			// sending true to the channel for sending NFRegistration to NRF
 			RocUpdateConfigChannel <- true
 		}()
@@ -178,22 +175,22 @@ func (amf *AMF) WatchConfig() {
 
 func (amf *AMF) setLogLevel() {
 	if factory.AmfConfig.Logger == nil {
-		initLog.Warnln("AMF config without log level setting!!!")
+		logger.InitLog.Warnln("AMF config without log level setting")
 		return
 	}
 
 	if factory.AmfConfig.Logger.AMF != nil {
 		if factory.AmfConfig.Logger.AMF.DebugLevel != "" {
 			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.AMF.DebugLevel); err != nil {
-				initLog.Warnf("AMF Log level [%s] is invalid, set to [info] level",
+				logger.InitLog.Warnf("AMF Log level [%s] is invalid, set to [info] level",
 					factory.AmfConfig.Logger.AMF.DebugLevel)
 				logger.SetLogLevel(zap.InfoLevel)
 			} else {
-				initLog.Infof("AMF Log level is set to [%s] level", level)
+				logger.InitLog.Infof("AMF Log level is set to [%s] level", level)
 				logger.SetLogLevel(level)
 			}
 		} else {
-			initLog.Warnln("AMF Log level not set. Default set to [info] level")
+			logger.InitLog.Warnln("AMF Log level not set. Default set to [info] level")
 			logger.SetLogLevel(zap.InfoLevel)
 		}
 	}
@@ -273,7 +270,7 @@ func (amf *AMF) FilterCli(c *cli.Context) (args []string) {
 }
 
 func (amf *AMF) Start() {
-	initLog.Infoln("Server started")
+	logger.InitLog.Infoln("server started")
 	var err error
 
 	router := utilLogger.NewGinWithZap(logger.GinLog)
@@ -307,7 +304,7 @@ func (amf *AMF) Start() {
 	go metrics.InitMetrics()
 
 	if err = metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {
-		initLog.Errorf("initialise kafka stream failed, %v ", err.Error())
+		logger.InitLog.Errorf("initialise kafka stream failed, %v ", err.Error())
 	}
 
 	self := context.AMF_Self()
@@ -315,7 +312,7 @@ func (amf *AMF) Start() {
 	if self.EnableDbStore {
 		self.Drsm, err = util.InitDrsm()
 		if err != nil {
-			initLog.Errorf("initialise DRSM failed, %v", err.Error())
+			logger.InitLog.Errorf("initialise DRSM failed, %v", err.Error())
 		}
 	}
 
@@ -330,7 +327,7 @@ func (amf *AMF) Start() {
 	go amf.SendNFProfileUpdateToNrf()
 
 	if self.EnableNrfCaching {
-		initLog.Infoln("Enable NRF caching feature")
+		logger.InitLog.Infoln("enable NRF caching feature")
 		nrfCache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
 	}
 
@@ -353,12 +350,12 @@ func (amf *AMF) Start() {
 	server, err := http2_util.NewServer(addr, util.AmfLogPath, router)
 
 	if server == nil {
-		initLog.Errorf("Initialize HTTP server failed: %+v", err)
+		logger.InitLog.Errorf("initialize HTTP server failed: %+v", err)
 		return
 	}
 
 	if err != nil {
-		initLog.Warnf("Initialize HTTP server: %+v", err)
+		logger.InitLog.Warnf("initialize HTTP server: %+v", err)
 	}
 
 	serverScheme := factory.AmfConfig.Configuration.Sbi.Scheme
@@ -369,21 +366,21 @@ func (amf *AMF) Start() {
 	}
 
 	if err != nil {
-		initLog.Fatalf("HTTP server setup failed: %+v", err)
+		logger.InitLog.Fatalf("HTTP server setup failed: %+v", err)
 	}
 }
 
 func (amf *AMF) Exec(c *cli.Context) error {
 	// AMF.Initialize(cfgPath, c)
 
-	initLog.Debugln("args:", c.String("amfcfg"))
+	logger.InitLog.Debugln("args:", c.String("amfcfg"))
 	args := amf.FilterCli(c)
-	initLog.Debugln("filter:", args)
+	logger.InitLog.Debugln("filter:", args)
 	command := exec.Command("./amf", args...)
 
 	stdout, err := command.StdoutPipe()
 	if err != nil {
-		initLog.Fatalln(err)
+		logger.InitLog.Fatalln(err)
 	}
 	wg := sync.WaitGroup{}
 	wg.Add(3)
@@ -397,7 +394,7 @@ func (amf *AMF) Exec(c *cli.Context) error {
 
 	stderr, err := command.StderrPipe()
 	if err != nil {
-		initLog.Fatalln(err)
+		logger.InitLog.Fatalln(err)
 	}
 	go func() {
 		in := bufio.NewScanner(stderr)
@@ -409,7 +406,7 @@ func (amf *AMF) Exec(c *cli.Context) error {
 
 	go func() {
 		if err = command.Start(); err != nil {
-			initLog.Errorf("AMF Start error: %+v", err)
+			logger.InitLog.Errorf("AMF start error: %+v", err)
 		}
 		wg.Done()
 	}()
@@ -421,7 +418,7 @@ func (amf *AMF) Exec(c *cli.Context) error {
 
 // Used in AMF planned removal procedure
 func (amf *AMF) Terminate() {
-	logger.InitLog.Infof("Terminating AMF...")
+	logger.InitLog.Infoln("terminating AMF")
 	amfSelf := context.AMF_Self()
 
 	// TODO: forward registered UE contexts to target AMF in the same AMF set if there is one
@@ -429,15 +426,15 @@ func (amf *AMF) Terminate() {
 	// deregister with NRF
 	problemDetails, err := consumer.SendDeregisterNFInstance()
 	if problemDetails != nil {
-		logger.InitLog.Errorf("Deregister NF instance Failed Problem[%+v]", problemDetails)
+		logger.InitLog.Errorf("deregister NF instance Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
-		logger.InitLog.Errorf("Deregister NF instance Error[%+v]", err)
+		logger.InitLog.Errorf("deregister NF instance Error[%+v]", err)
 	} else {
-		logger.InitLog.Infof("[AMF] Deregister from NRF successfully")
+		logger.InitLog.Infoln("deregister from NRF successfully")
 	}
 
 	// send AMF status indication to ran to notify ran that this AMF will be unavailable
-	logger.InitLog.Infof("Send AMF Status Indication to Notify RANs due to AMF terminating")
+	logger.InitLog.Infoln("send AMF Status Indication to Notify RANs due to AMF terminating")
 	unavailableGuamiList := ngap_message.BuildUnavailableGUAMIList(amfSelf.ServedGuamiList)
 	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
 		ran := value.(*context.AmfRan)
@@ -454,17 +451,17 @@ func (amf *AMF) Terminate() {
 			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
 			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
 			if problemDetails != nil {
-				logger.InitLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
+				logger.InitLog.Errorf("remove NF Subscription Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
-				logger.InitLog.Errorf("Remove NF Subscription Error[%+v]", err)
+				logger.InitLog.Errorf("remove NF Subscription Error[%+v]", err)
 			} else {
-				logger.InitLog.Infoln("[AMF] Remove NF Subscription successful")
+				logger.InitLog.Infoln("remove NF Subscription successful")
 			}
 		}
 		return true
 	})
 
-	logger.InitLog.Infof("AMF terminated")
+	logger.InitLog.Infoln("AMF terminated")
 }
 
 func (amf *AMF) StartKeepAliveTimer(nfProfile models.NfProfile) {
@@ -474,14 +471,14 @@ func (amf *AMF) StartKeepAliveTimer(nfProfile models.NfProfile) {
 	if nfProfile.HeartBeatTimer == 0 {
 		nfProfile.HeartBeatTimer = 60
 	}
-	logger.InitLog.Infof("Started KeepAlive Timer: %v sec", nfProfile.HeartBeatTimer)
+	logger.InitLog.Infof("started KeepAlive Timer: %v sec", nfProfile.HeartBeatTimer)
 	// AfterFunc starts timer and waits for KeepAliveTimer to elapse and then calls amf.UpdateNF function
 	KeepAliveTimer = time.AfterFunc(time.Duration(nfProfile.HeartBeatTimer)*time.Second, amf.UpdateNF)
 }
 
 func (amf *AMF) StopKeepAliveTimer() {
 	if KeepAliveTimer != nil {
-		logger.InitLog.Infof("Stopped KeepAlive Timer.")
+		logger.InitLog.Infof("stopped KeepAlive Timer")
 		KeepAliveTimer.Stop()
 		KeepAliveTimer = nil
 	}
@@ -491,10 +488,10 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	self := context.AMF_Self()
 	profile, err := consumer.BuildNFInstance(self)
 	if err != nil {
-		initLog.Errorf("Build AMF Profile Error: %v", err)
+		logger.InitLog.Errorf("build AMF Profile Error: %v", err)
 		return profile, err
 	}
-	initLog.Infof("Pcf Profile Registering to NRF: %v", profile)
+	logger.InitLog.Infof("AMF Profile Registering to NRF: %v", profile)
 	// Indefinite attempt to register until success
 	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile)
 	return profile, err
@@ -505,7 +502,7 @@ func (amf *AMF) UpdateNF() {
 	KeepAliveTimerMutex.Lock()
 	defer KeepAliveTimerMutex.Unlock()
 	if KeepAliveTimer == nil {
-		initLog.Warnf("KeepAlive timer has been stopped.")
+		logger.InitLog.Warnf("KeepAlive timer has been stopped")
 		return
 	}
 	// setting default value 30 sec
@@ -519,21 +516,21 @@ func (amf *AMF) UpdateNF() {
 	patchItem = append(patchItem, pitem)
 	nfProfile, problemDetails, err := consumer.SendUpdateNFInstance(patchItem)
 	if problemDetails != nil {
-		initLog.Errorf("AMF update to NRF ProblemDetails[%v]", problemDetails)
+		logger.InitLog.Errorf("AMF update to NRF ProblemDetails[%v]", problemDetails)
 		// 5xx response from NRF, 404 Not Found, 400 Bad Request
 		if (problemDetails.Status/100) == 5 ||
 			problemDetails.Status == 404 || problemDetails.Status == 400 {
 			// register with NRF full profile
 			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
 			if err != nil {
-				initLog.Errorf("Could not register to NRF Error[%s]", err.Error())
+				logger.InitLog.Errorf("could not register to NRF Error[%s]", err.Error())
 			}
 		}
 	} else if err != nil {
-		initLog.Errorf("AMF update to NRF Error[%s]", err.Error())
+		logger.InitLog.Errorf("AMF update to NRF Error[%s]", err.Error())
 		nfProfile, err = amf.BuildAndSendRegisterNFInstance()
 		if err != nil {
-			initLog.Errorf("Could not register to NRF Error[%s]", err.Error())
+			logger.InitLog.Errorf("could not register to NRF Error[%s]", err.Error())
 		}
 	}
 
@@ -541,7 +538,7 @@ func (amf *AMF) UpdateNF() {
 		// use hearbeattimer value with received timer value from NRF
 		heartBeatTimer = nfProfile.HeartBeatTimer
 	}
-	logger.InitLog.Debugf("Restarted KeepAlive Timer: %v sec", heartBeatTimer)
+	logger.InitLog.Debugf("restarted KeepAlive Timer: %v sec", heartBeatTimer)
 	// restart timer with received HeartBeatTimer value
 	KeepAliveTimer = time.AfterFunc(time.Duration(heartBeatTimer)*time.Second, amf.UpdateNF)
 }
@@ -571,7 +568,7 @@ func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []m
 			}
 
 			if !found && opType != protos.OpType_SLICE_DELETE {
-				logger.GrpcLog.Infof("plmn found but slice not found in AMF Configuration")
+				logger.GrpcLog.Infoln("plmn found but slice not found in AMF Configuration")
 				factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList = append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList, nssai_r)
 			}
 			break
@@ -583,8 +580,8 @@ func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []m
 		factory.AmfConfig.Configuration.PlmnSupportList = append(factory.AmfConfig.Configuration.PlmnSupportList, plmn)
 		factory.AmfConfig.Configuration.ServedGumaiList = append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
 	}
-	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc\n", plmn, guami)
-	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v in AMF\n", factory.AmfConfig.Configuration.PlmnSupportList,
+	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc", plmn, guami)
+	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v in AMF", factory.AmfConfig.Configuration.PlmnSupportList,
 		factory.AmfConfig.Configuration.ServedGumaiList)
 	// same plmn received but Tacs in gnb updated
 	nssai_r := plmn.SNssaiList[0]
@@ -599,7 +596,7 @@ func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []m
 	}
 
 	amf.UpdateSupportedTaiList()
-	logger.GrpcLog.Infoln("Gnb Updated in existing Plmn, SupportTAILIst received from Roc: ", taiList)
+	logger.GrpcLog.Infoln("gnb updated in existing Plmn, SupportTAILIst received from Roc: ", taiList)
 	logger.GrpcLog.Infoln("SupportTAILIst in AMF", factory.AmfConfig.Configuration.SupportTAIList)
 }
 
@@ -615,11 +612,11 @@ func (amf *AMF) UpdateSupportedTaiList() {
 
 func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
-		logger.GrpcLog.Infof("Received updateConfig in the amf app : %v", rsp)
+		logger.GrpcLog.Infof("received updateConfig in the amf app: %v", rsp)
 		var tai []models.Tai
 		for _, ns := range rsp.NetworkSlice {
 			var snssai *models.Snssai
-			logger.GrpcLog.Infoln("Network Slice Name ", ns.Name)
+			logger.GrpcLog.Infoln("network Slice Name", ns.Name)
 			if ns.Nssai != nil {
 				snssai = new(models.Snssai)
 				val, err := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
@@ -640,11 +637,11 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 
 			if ns.Site != nil {
 				site := ns.Site
-				logger.GrpcLog.Infoln("Network Slice has site name: ", site.SiteName)
+				logger.GrpcLog.Infoln("network Slice has site name:", site.SiteName)
 				if site.Plmn != nil {
 					plmn := new(factory.PlmnSupportItem)
 
-					logger.GrpcLog.Infoln("Plmn mcc ", site.Plmn.Mcc)
+					logger.GrpcLog.Infoln("Plmn mcc", site.Plmn.Mcc)
 					plmn.PlmnId.Mnc = site.Plmn.Mnc
 					plmn.PlmnId.Mcc = site.Plmn.Mcc
 
@@ -664,7 +661,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 
 					amf.UpdateAmfConfiguration(*plmn, tai, ns.OperationType)
 				} else {
-					logger.GrpcLog.Infoln("Plmn not present in the message ")
+					logger.GrpcLog.Infoln("Plmn not present in the message")
 				}
 			}
 		}
@@ -690,19 +687,19 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 			// Register to NRF with Updated Profile
 			var profile models.NfProfile
 			if profileTmp, err := consumer.BuildNFInstance(self); err != nil {
-				logger.CfgLog.Errorf("Build AMF Profile Error: %v", err)
+				logger.CfgLog.Errorf("build AMF Profile Error: %v", err)
 				continue
 			} else {
 				profile = profileTmp
 			}
 
 			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
-				logger.CfgLog.Warnf("Send Register NF Instance with updated profile failed: %+v", err)
+				logger.CfgLog.Warnf("send Register NF Instance with updated profile failed: %+v", err)
 			} else {
 				// stop keepAliveTimer if its running and start the timer
 				amf.StartKeepAliveTimer(prof)
 				self.NfId = nfId
-				logger.CfgLog.Infof("Sent Register NF Instance with updated profile")
+				logger.CfgLog.Infoln("sent Register NF Instance with updated profile")
 			}
 		}
 	}
@@ -730,7 +727,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 				logger.CfgLog.Errorln(err)
 			}
 		} else {
-			logger.CfgLog.Infof("Deleted slice not matched with slice info in UEContext")
+			logger.CfgLog.Infoln("deleted slice not matched with slice info in UEContext")
 		}
 	} else {
 		var Nssai models.Snssai
@@ -776,7 +773,7 @@ func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 	var ue *context.AmfUe
 	var ok bool
-	logger.CfgLog.Infof("[AMF] Handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
+	logger.CfgLog.Infof("handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
 
 	for _, supi := range slice.DeletedImsis {
 		amfSelf := context.AMF_Self()
@@ -801,7 +798,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
 	var ue *context.AmfUe
 	var ok bool
-	logger.CfgLog.Infof("[AMF] Handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
+	logger.CfgLog.Infof("handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
 
 	for _, supi := range slice.AddUpdatedImsis {
 		amfSelf := context.AMF_Self()

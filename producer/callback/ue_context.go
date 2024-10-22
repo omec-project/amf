@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2024 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -10,6 +11,7 @@ import (
 	"fmt"
 
 	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/Namf_Communication"
 	"github.com/omec-project/openapi/models"
 )
@@ -34,9 +36,9 @@ func SendN2InfoNotifyN2Handover(ue *amf_context.AmfUe, releaseList []int32) erro
 		// TODO: handle Msg
 	} else {
 		if httpResponse == nil {
-			HttpLog.Errorln(err.Error())
+			logger.HttpLog.Errorln(err.Error())
 		} else if err.Error() != httpResponse.Status {
-			HttpLog.Errorln(err.Error())
+			logger.HttpLog.Errorln(err.Error())
 		}
 	}
 	return nil

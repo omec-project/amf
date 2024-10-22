@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2024 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -49,9 +50,9 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 			AmfStatusChangeNotify(context.Background(), uri, amfStatusNotification)
 		if err != nil {
 			if httpResponse == nil {
-				HttpLog.Errorln(err.Error())
+				logger.HttpLog.Errorln(err.Error())
 			} else if err.Error() != httpResponse.Status {
-				HttpLog.Errorln(err.Error())
+				logger.HttpLog.Errorln(err.Error())
 			}
 		}
 		return true

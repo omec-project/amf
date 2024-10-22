@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2024 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -12,14 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/amf/logger"
 	utilLogger "github.com/omec-project/util/logger"
-	"go.uber.org/zap"
 )
-
-var HttpLog *zap.SugaredLogger
-
-func init() {
-	HttpLog = logger.HttpLog
-}
 
 // Route is the information for every URI.
 type Route struct {

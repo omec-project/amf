@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2024 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -13,14 +14,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/Namf_Communication"
 	"github.com/omec-project/openapi/models"
-	"go.uber.org/zap"
 )
-
-var HttpLog *zap.SugaredLogger
-
-func init() {
-	HttpLog = logger.HttpLog
-}
 
 func SendN1N2TransferFailureNotification(ue *amf_context.AmfUe, cause models.N1N2MessageTransferCause) {
 	if ue.N1N2Message == nil {
@@ -42,9 +36,9 @@ func SendN1N2TransferFailureNotification(ue *amf_context.AmfUe, cause models.N1N
 
 		if err != nil {
 			if httpResponse == nil {
-				HttpLog.Errorln(err.Error())
+				logger.HttpLog.Errorln(err.Error())
 			} else if err.Error() != httpResponse.Status {
-				HttpLog.Errorln(err.Error())
+				logger.HttpLog.Errorln(err.Error())
 			}
 		} else {
 			ue.N1N2Message = nil
@@ -79,9 +73,9 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 				N1MessageNotify(context.Background(), subscription.N1NotifyCallbackUri, n1MessageNotify)
 			if err != nil {
 				if httpResponse == nil {
-					HttpLog.Errorln(err.Error())
+					logger.HttpLog.Errorln(err.Error())
 				} else if err.Error() != httpResponse.Status {
-					HttpLog.Errorln(err.Error())
+					logger.HttpLog.Errorln(err.Error())
 				}
 			}
 		}
@@ -122,9 +116,9 @@ func SendN1MessageNotifyAtAMFReAllocation(
 		N1MessageNotify(context.Background(), callbackUri, n1MessageNotify)
 	if err != nil {
 		if httpResp == nil {
-			HttpLog.Errorln(err.Error())
+			logger.HttpLog.Errorln(err.Error())
 		} else if err.Error() != httpResp.Status {
-			HttpLog.Errorln(err.Error())
+			logger.HttpLog.Errorln(err.Error())
 		}
 	}
 }
@@ -149,7 +143,7 @@ func SendN2InfoNotify(ue *amf_context.AmfUe, n2class models.N2InformationClass, 
 				BinaryDataN2Information: n2Msg,
 			}
 			if n2Msg == nil {
-				HttpLog.Errorln("Send N2 Info Notify Error(N2 Info does not exist)")
+				logger.HttpLog.Errorln("send N2 Info Notify Error(N2 Info does not exist)")
 			}
 			switch n2class {
 			case models.N2InformationClass_SM:
@@ -190,9 +184,9 @@ func SendN2InfoNotify(ue *amf_context.AmfUe, n2class models.N2InformationClass, 
 				N2InfoNotify(context.Background(), subscription.N2NotifyCallbackUri, n2InformationNotify)
 			if err != nil {
 				if httpResponse == nil {
-					HttpLog.Errorln(err.Error())
+					logger.HttpLog.Errorln(err.Error())
 				} else if err.Error() != httpResponse.Status {
-					HttpLog.Errorln(err.Error())
+					logger.HttpLog.Errorln(err.Error())
 				}
 			}
 		}
