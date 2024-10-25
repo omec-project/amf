@@ -145,11 +145,7 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		factory.AmfConfig.Configuration.SupportTAIList = nil
 		factory.AmfConfig.Configuration.PlmnSupportList = nil
 		logger.InitLog.Infoln("Reading Amf related configuration from ROC")
-		client, err := grpcClient.ConnectToConfigServer(factory.AmfConfig.Configuration.WebuiUri)
-		if err != nil {
-			go updateConfig(client, amf)
-		}
-		return err
+		go manageGrpcClient(factory.AmfConfig.Configuration.WebuiUri, amf)
 	} else {
 		go func() {
 			logger.GrpcLog.Infoln("reading Amf Configuration from Helm")
@@ -161,35 +157,50 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 	return nil
 }
 
-// updateConfig connects the config pod GRPC server and subscribes the config changes
-// then updates AMF configuration
-func updateConfig(client grpcClient.ConfClient, amf *AMF) {
+// manageGrpcClient connects the config pod GRPC server and subscribes the config changes.
+// Then it updates AMF configuration.
+func manageGrpcClient(webuiUri string, amf *AMF) {
+	var configChannel chan *protos.NetworkSliceResponse
+	var client grpcClient.ConfClient
 	var stream protos.ConfigService_NetworkSliceSubscribeClient
 	var err error
-	var configChannel chan *protos.NetworkSliceResponse
+	count := 0
 	for {
 		if client != nil {
-			stream, err = client.CheckGrpcConnectivity()
-			if err != nil {
-				logger.InitLog.Errorf("%v", err)
-				if stream != nil {
-					time.Sleep(time.Second * 30)
-					continue
-				} else {
+			if client.CheckGrpcConnectivity() != "ready" {
+				time.Sleep(time.Second * 30)
+				count++
+				if count > 5 {
 					err = client.GetConfigClientConn().Close()
 					if err != nil {
-						logger.InitLog.Debugf("failing ConfigClient is not closed properly: %+v", err)
+						logger.InitLog.Infof("failing ConfigClient is not closed properly: %+v", err)
 					}
 					client = nil
+					count = 0
+				}
+				logger.InitLog.Infoln("checking the connectivity readiness")
+				continue
+			}
+
+			if stream == nil {
+				stream, err = client.SubscribeToConfigServer()
+				if err != nil {
+					logger.InitLog.Infof("failing SubscribeToConfigServer: %+v", err)
 					continue
 				}
 			}
+
 			if configChannel == nil {
 				configChannel = client.PublishOnConfigChange(true, stream)
+				logger.InitLog.Infoln("PublishOnConfigChange is triggered.")
 				go amf.UpdateConfig(configChannel)
+				logger.InitLog.Infoln("AMF updateConfig is triggered.")
 			}
 		} else {
-			client, err = grpcClient.ConnectToConfigServer(factory.AmfConfig.Configuration.WebuiUri)
+			client, err = grpcClient.ConnectToConfigServer(webuiUri)
+			stream = nil
+			configChannel = nil
+			logger.InitLog.Infoln("Connecting to config server.")
 			if err != nil {
 				logger.InitLog.Errorf("%+v", err)
 			}

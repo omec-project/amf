@@ -1,5 +1,7 @@
 module github.com/omec-project/amf
 
+replace github.com/omec-project/config5g => /home/gatici/omec/config5g/
+
 go 1.21
 
 require (
