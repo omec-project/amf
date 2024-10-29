@@ -84,11 +84,11 @@ func InitAmfContext(context *context.AMFContext) {
 		}
 		context.BindingIPv4 = os.Getenv(sbi.BindingIPv4)
 		if context.BindingIPv4 != "" {
-			logger.UtilLog.Info("parsing ServerIPv4 address from ENV Variable")
+			logger.UtilLog.Infoln("parsing ServerIPv4 address from ENV Variable")
 		} else {
 			context.BindingIPv4 = sbi.BindingIPv4
 			if context.BindingIPv4 == "" {
-				logger.UtilLog.Warn("error parsing ServerIPv4 address from string. Using the 0.0.0.0 as default")
+				logger.UtilLog.Warnln("error parsing ServerIPv4 address from string. Using the 0.0.0.0 as default")
 				context.BindingIPv4 = "0.0.0.0"
 			}
 		}
