@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -50,7 +51,6 @@ import (
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
-	"github.com/omec-project/util/path_util"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli"
 	"go.uber.org/zap"
@@ -66,7 +66,7 @@ var RocUpdateConfigChannel chan bool
 type (
 	// Config information.
 	Config struct {
-		amfcfg string
+		cfg string
 	}
 )
 
@@ -74,12 +74,9 @@ var config Config
 
 var amfCLi = []cli.Flag{
 	cli.StringFlag{
-		Name:  "free5gccfg",
-		Usage: "common config file",
-	},
-	cli.StringFlag{
-		Name:  "amfcfg",
-		Usage: "amf config file",
+		Name:     "cfg",
+		Usage:    "amf config file",
+		Required: true,
 	},
 }
 
@@ -98,18 +95,17 @@ func (*AMF) GetCliCmd() (flags []cli.Flag) {
 
 func (amf *AMF) Initialize(c *cli.Context) error {
 	config = Config{
-		amfcfg: c.String("amfcfg"),
+		cfg: c.String("cfg"),
 	}
 
-	if config.amfcfg != "" {
-		if err := factory.InitConfigFactory(config.amfcfg); err != nil {
-			return err
-		}
-	} else {
-		DefaultAmfConfigPath := path_util.Free5gcPath("free5gc/config/amfcfg.yaml")
-		if err := factory.InitConfigFactory(DefaultAmfConfigPath); err != nil {
-			return err
-		}
+	absPath, err := filepath.Abs(config.cfg)
+	if err != nil {
+		logger.CfgLog.Errorln(err)
+		return err
+	}
+
+	if err := factory.InitConfigFactory(absPath); err != nil {
+		return err
 	}
 
 	amf.setLogLevel()
@@ -128,17 +124,19 @@ func (amf *AMF) Initialize(c *cli.Context) error {
 		return err
 	}
 
-	if _, err := os.Stat("/free5gc/config/amfcfg.conf"); err == nil {
-		viper.SetConfigName("amfcfg.conf")
+	if _, err := os.Stat(absPath); err == nil {
+		viper.SetConfigFile(absPath)
 		viper.SetConfigType("yaml")
-		viper.AddConfigPath("/free5gc/config")
 		err = viper.ReadInConfig() // Find and read the config file
 		if err != nil {            // Handle errors reading the config file
 			return err
 		}
 	} else if os.IsNotExist(err) {
-		logger.AppLog.Errorln("amfcfg does not exists in /free5gc/config")
+		logger.AppLog.Errorln("file %s does not exists", absPath)
+		return err
 	}
+
+	factory.AmfConfig.CfgLocation = absPath
 
 	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
 		factory.AmfConfig.Configuration.ServedGumaiList = nil
@@ -212,8 +210,8 @@ func manageGrpcClient(webuiUri string, amf *AMF) {
 func (amf *AMF) WatchConfig() {
 	viper.WatchConfig()
 	viper.OnConfigChange(func(e fsnotify.Event) {
-		logger.AppLog.Infoln("Config file changed:", e.Name)
-		if err := factory.UpdateAmfConfig("/free5gc/config/amfcfg.conf"); err != nil {
+		logger.AppLog.Infoln("config file changed:", e.Name)
+		if err := factory.UpdateConfig(factory.AmfConfig.CfgLocation); err != nil {
 			logger.AppLog.Errorln("error in loading updated configuration")
 		} else {
 			self := context.AMF_Self()
@@ -397,7 +395,8 @@ func (amf *AMF) Start() {
 		os.Exit(0)
 	}()
 
-	server, err := http2_util.NewServer(addr, util.AmfLogPath, router)
+	sslLog := filepath.Dir(factory.AmfConfig.CfgLocation) + "/sslkey.log"
+	server, err := http2_util.NewServer(addr, sslLog, router)
 
 	if server == nil {
 		logger.InitLog.Errorf("initialize HTTP server failed: %+v", err)
@@ -423,10 +422,10 @@ func (amf *AMF) Start() {
 func (amf *AMF) Exec(c *cli.Context) error {
 	// AMF.Initialize(cfgPath, c)
 
-	logger.InitLog.Debugln("args:", c.String("amfcfg"))
+	logger.InitLog.Debugln("args:", c.String("cfg"))
 	args := amf.FilterCli(c)
 	logger.InitLog.Debugln("filter:", args)
-	command := exec.Command("./amf", args...)
+	command := exec.Command("amf", args...)
 
 	stdout, err := command.StdoutPipe()
 	if err != nil {

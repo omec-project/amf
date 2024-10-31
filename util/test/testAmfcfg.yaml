@@ -1,7 +1,7 @@
 # Copyright 2019 free5GC.org
 #
 # SPDX-License-Identifier: Apache-2.0
-# 
+#
 
 info:
   version: 1.0.0
@@ -46,5 +46,4 @@ configuration:
     cipheringOrder:
       - NEA2
   networkName:
-    full: free5GC
-    short: free
+    full: aether
