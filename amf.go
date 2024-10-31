@@ -22,12 +22,12 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "amf"
 	logger.AppLog.Infoln(app.Name)
-	app.Usage = "-free5gccfg common configuration file -amfcfg amf configuration file"
+	app.Usage = "Access & Mobility Management function"
+	app.UsageText = "amf -cfg <amf_config_file.conf>"
 	app.Action = action
 	app.Flags = AMF.GetCliCmd()
 	if err := app.Run(os.Args); err != nil {
-		logger.AppLog.Errorf("AMF Run error: %v", err)
-		return
+		logger.AppLog.Fatalf("AMF run error: %v", err)
 	}
 }
 

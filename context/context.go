@@ -42,7 +42,7 @@ func init() {
 	AMF_Self().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
 	AMF_Self().PlmnSupportList = make([]factory.PlmnSupportItem, 0, MaxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
-	AMF_Self().NetworkName.Full = "free5GC"
+	AMF_Self().NetworkName.Full = "aether"
 	if !AMF_Self().EnableDbStore {
 		tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 		amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)

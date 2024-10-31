@@ -65,8 +65,6 @@ func InitAmfContext(context *context.AMFContext) {
 	}
 	context.RegisterIPv4 = factory.AMF_DEFAULT_IPV4 // default localhost
 	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
-	context.Key = AmfKeyPath                        // default key path
-	context.PEM = AmfPemPath                        // default PEM path
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
 			context.RegisterIPv4 = os.Getenv("POD_IP")
