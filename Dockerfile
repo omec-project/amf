@@ -25,8 +25,8 @@ RUN make all
 
 FROM alpine:3.20 AS amf
 
-LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>"
-LABEL description="Aether open source 5G Core Network" \
+LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>" \
+    description="Aether open source 5G Core Network" \
     version="Stage 3"
 
 ARG DEBUG_TOOLS
