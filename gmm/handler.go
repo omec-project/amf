@@ -1562,7 +1562,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 		// As per the Specification 33.501 - 6.2.3.2 Key identification
 		ue.NgKsi.Ksi = (ue.NgKsi.Ksi + 1) % 7
 	}
-	ue.GmmLog.Infoln("ngKSI after 5G-AKA: ", ue.NgKsi.Ksi)
+	ue.GmmLog.Infoln("ngKSI after 5G-AKA:", ue.NgKsi.Ksi)
 
 	gmm_message.SendAuthenticationRequest(ue.RanUe[accessType])
 	return false, nil
