@@ -15,7 +15,7 @@ require (
 	github.com/omec-project/config5g v1.5.4
 	github.com/omec-project/nas v1.4.2
 	github.com/omec-project/ngap v1.3.0
-	github.com/omec-project/openapi v1.3.1
+	github.com/omec-project/openapi v1.3.2
 	github.com/omec-project/util v1.2.6
 	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/viper v1.19.0
@@ -102,7 +102,7 @@ require (
 	golang.org/x/crypto v0.29.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/net v0.31.0 // indirect
-	golang.org/x/oauth2 v0.23.0 // indirect
+	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/text v0.20.0 // indirect
