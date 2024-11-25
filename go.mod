@@ -19,7 +19,7 @@ require (
 	github.com/omec-project/util v1.2.6
 	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/viper v1.19.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli v1.22.16
 	go.mongodb.org/mongo-driver v1.17.1
 	google.golang.org/grpc v1.68.0
