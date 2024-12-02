@@ -1,7 +1,8 @@
+# SPDX-FileCopyrightText: 2024 Intel Corporation
 # SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 #
 # SPDX-License-Identifier: Apache-2.0
-# 
+#
 
 info:
   version: 1.0.0
@@ -102,22 +103,13 @@ configuration:
 logger:
   AMF:
     debugLevel: info
-    ReportCaller: false
   NAS:
     debugLevel: info
-    ReportCaller: false
   FSM:
     debugLevel: info
-    ReportCaller: false
   NGAP:
     debugLevel: info
-    ReportCaller: false
   Aper:
     debugLevel: info
-    ReportCaller: false
-  PathUtil:
-    debugLevel: info
-    ReportCaller: false
   OpenApi:
     debugLevel: info
-    ReportCaller: false
