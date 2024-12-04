@@ -590,7 +590,10 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	var ueRegStatusUpdateRspData *models.UeRegStatusUpdateRspData
 	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg, read := <-sbiMsg.Result
+	if !read {
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
+	}
 	if msg.RespData != nil {
 		ueRegStatusUpdateRspData = msg.RespData.(*models.UeRegStatusUpdateRspData)
 	}
