@@ -618,7 +618,6 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 			Cause:  "UNEXPECTED_RESPONSE_TYPE",
 		}
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
-
 	}
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }
