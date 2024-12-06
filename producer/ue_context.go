@@ -611,14 +611,14 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 			if problemDetails, ok := msg.ProblemDetails.(*models.ProblemDetails); ok {
 				return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 			}
-		} else {
-			// Handle unexpected response data type
-			problemDetails := &models.ProblemDetails{
-				Status: http.StatusInternalServerError,
-				Cause:  "UNEXPECTED_RESPONSE_TYPE",
-			}
-			return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 		}
+		// Handle unexpected response data type
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "UNEXPECTED_RESPONSE_TYPE",
+		}
+		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+
 	}
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }
