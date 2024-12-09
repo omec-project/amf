@@ -371,13 +371,13 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case fsm.EntryEvent:
 		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgAmfUe")
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
 			return
 		}
 		gmmMessage := args[ArgNASMessage]
 		accessType, ok := args[ArgAccessType].(models.AccessType)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgAccessType")
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
 			return
 		}
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[ContextSetup]")
@@ -407,17 +407,17 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	case GmmMessageEvent:
 		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgAmfUe")
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
 			return
 		}
 		gmmMessage, ok := args[ArgNASMessage].(*nas.GmmMessage)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgNASMessage")
+			logger.GmmLog.Errorln("invalid type assertion for ArgNASMessage")
 			return
 		}
 		accessType, ok := args[ArgAccessType].(models.AccessType)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgAccessType")
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
 			return
 		}
 		amfUe.GmmLog.Debugln("GmmMessageEvent at GMM State[ContextSetup]")
@@ -470,12 +470,12 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		logger.GmmLog.Debugln(event)
 		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgAmfUe")
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
 			return
 		}
 		accessType, ok := args[ArgAccessType].(models.AccessType)
 		if !ok {
-			logger.GmmLog.Errorln("Invalid type assertion for ArgAccessType")
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
 			return
 		}
 		amfUe.T3550.Stop()
