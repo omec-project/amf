@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-FROM golang:1.23.3-bookworm AS builder
+FROM golang:1.23.4-bookworm AS builder
 
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
@@ -23,7 +23,7 @@ WORKDIR $GOPATH/src/amf
 COPY . .
 RUN make all
 
-FROM alpine:3.20 AS amf
+FROM alpine:3.21 AS amf
 
 LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>" \
     description="Aether open source 5G Core Network" \
