@@ -369,9 +369,17 @@ func SecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 	switch event {
 	case fsm.EntryEvent:
-		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
+			return
+		}
 		gmmMessage := args[ArgNASMessage]
-		accessType := args[ArgAccessType].(models.AccessType)
+		accessType, ok := args[ArgAccessType].(models.AccessType)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
+			return
+		}
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[ContextSetup]")
 		amfUe.PublishUeCtxtInfo()
 		switch message := gmmMessage.(type) {
@@ -397,9 +405,21 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 			logger.GmmLog.Errorf("UE state mismatch: receieve wrong gmm message")
 		}
 	case GmmMessageEvent:
-		amfUe := args[ArgAmfUe].(*context.AmfUe)
-		gmmMessage := args[ArgNASMessage].(*nas.GmmMessage)
-		accessType := args[ArgAccessType].(models.AccessType)
+		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
+			return
+		}
+		gmmMessage, ok := args[ArgNASMessage].(*nas.GmmMessage)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgNASMessage")
+			return
+		}
+		accessType, ok := args[ArgAccessType].(models.AccessType)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
+			return
+		}
 		amfUe.GmmLog.Debugln("GmmMessageEvent at GMM State[ContextSetup]")
 		switch gmmMessage.GetMessageType() {
 		case nas.MsgTypeIdentityResponse:
@@ -448,8 +468,16 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
 		logger.GmmLog.Debugln(event)
 	case NwInitiatedDeregistrationEvent:
 		logger.GmmLog.Debugln(event)
-		amfUe := args[ArgAmfUe].(*context.AmfUe)
-		accessType := args[ArgAccessType].(models.AccessType)
+		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
+			return
+		}
+		accessType, ok := args[ArgAccessType].(models.AccessType)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
+			return
+		}
 		amfUe.T3550.Stop()
 		amfUe.T3550 = nil
 		amfUe.State[accessType].Set(context.Registered)

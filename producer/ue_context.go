@@ -564,11 +564,18 @@ func AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 	}
 }
 
-// TS 29.518 5.2.2.2.2
+// HandleRegistrationStatusUpdateRequest TS 29.518 5.2.2.2.2
 func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle Registration Status Update Request")
 
-	ueRegStatusUpdateReqData := request.Body.(models.UeRegStatusUpdateReqData)
+	ueRegStatusUpdateReqData, ok := request.Body.(models.UeRegStatusUpdateReqData)
+	if !ok {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusBadRequest,
+			Cause:  "INVALID_BODY_FORMAT",
+		}
+		return httpwrapper.NewResponse(http.StatusBadRequest, nil, problemDetails)
+	}
 	ueContextID := request.Params["ueContextId"]
 
 	amfSelf := context.AMF_Self()
@@ -579,7 +586,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 			Status: http.StatusNotFound,
 			Cause:  "CONTEXT_NOT_FOUND",
 		}
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -590,16 +597,29 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	var ueRegStatusUpdateRspData *models.UeRegStatusUpdateRspData
 	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
-	if msg.RespData != nil {
-		ueRegStatusUpdateRspData = msg.RespData.(*models.UeRegStatusUpdateRspData)
+	msg, read := <-sbiMsg.Result
+	if !read {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusNoContent,
+			Cause:  "MESSAGE_NOT_RECEIVED",
+		}
+		return httpwrapper.NewResponse(http.StatusNoContent, nil, problemDetails)
 	}
-	// ueRegStatusUpdateRspData, problemDetails := RegistrationStatusUpdateProcedure(ueContextID, ueRegStatusUpdateReqData)
-	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
-	} else {
-		return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
+	ueRegStatusUpdateRspData, ok = msg.RespData.(*models.UeRegStatusUpdateRspData)
+	if !ok {
+		if msg.ProblemDetails != nil {
+			if problemDetails, ok := msg.ProblemDetails.(*models.ProblemDetails); ok {
+				return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+			}
+		}
+		// Handle unexpected response data type
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusInternalServerError,
+			Cause:  "UNEXPECTED_RESPONSE_TYPE",
+		}
+		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
+	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }
 
 func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
