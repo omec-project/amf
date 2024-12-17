@@ -5,7 +5,7 @@ name: GitHub release and Docker images
 on:
   push:
     branches:
-      - rel-1.5
+      - rel-*
     tags:
       - v*
 
