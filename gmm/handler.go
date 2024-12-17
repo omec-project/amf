@@ -1217,7 +1217,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 
 		needSliceSelection := false
 		for _, requestedSnssai := range requestedNssai {
-			if ue.InSubscribedNssai(*requestedSnssai.ServingSnssai) {
+			if ue.InSubscribedNssai(requestedSnssai.ServingSnssai) {
 				allowedSnssai := models.AllowedSnssai{
 					AllowedSnssai: &models.Snssai{
 						Sst: requestedSnssai.ServingSnssai.Sst,
@@ -1557,6 +1557,12 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 	}
 	ue.AuthenticationCtx = response
 	ue.ABBA = []uint8{0x00, 0x00} // set ABBA value as described at TS 33.501 Annex A.7.1
+
+	// As per the Specification 33.501 - 6.2.3.2 Key identification
+	if ue.NgKsi.Tsc == models.ScType_NATIVE {
+		ue.NgKsi.Ksi = (ue.NgKsi.Ksi + 1) % 7
+	}
+	ue.GmmLog.Infoln("ngKSI after 5G-AKA:", ue.NgKsi.Ksi)
 
 	gmm_message.SendAuthenticationRequest(ue.RanUe[accessType])
 	return false, nil
