@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: reuse lint
-        uses: fsfe/reuse-action@v4
+        uses: fsfe/reuse-action@v5
 
   fossa-scan:
     runs-on: ubuntu-latest
@@ -120,7 +120,7 @@ jobs:
           make run-aiab
       - name: Cleanup Docker image
         env:
-          DOCKER_TAG: ${{ env.VERSION }}
+          DOCKER_TAG: ${{ env.VERSION }}-testing
         run: |
           echo "Deleting Docker image tag: ${DOCKER_TAG}"
           curl -u omectesting:dckr_pat_Up1vh3lGEKIfGDJuEj7Qb7OfdEE -X "DELETE" https://hub.docker.com/v2/repositories/${DOCKER_REPOSITORY}/5gc-amf/tags/${{ env.DOCKER_TAG }}/
