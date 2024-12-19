@@ -117,5 +117,5 @@ run-aiab:
 	cd $(HOME) && \
 	git clone "https://github.com/gab-arrobo/aether-in-a-box" && \
 	cd aether-in-a-box && \
-	yq -i '.5g-control-plane.images |= {"amf": "omectesting/5gc-amf:$(VERSION)-dev-testing"}' sd-core-5g-values.yaml && \
+	yq -i '.5g-control-plane.images |= {"amf": "omectesting/5gc-amf:$(VERSION)-testing"}' sd-core-5g-values.yaml && \
     make 5g-test
