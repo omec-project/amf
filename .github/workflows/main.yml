@@ -98,23 +98,23 @@ jobs:
       - staticcheck
     runs-on: ubuntu-latest
     env:
-      REGISTRY: docker.io
-      DOCKER_REGISTRY: docker.io/
-      DOCKER_REPOSITORY: omecproject
+      REGISTRY: registry.aetherproject.org
+      DOCKER_REGISTRY: registry.aetherproject.org/
+      DOCKER_REPOSITORY: sdcore/
     steps:
       - uses: actions/checkout@v4
 
       - uses: docker/login-action@v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.AETHER_REGISTRY_USERNAME }}
+          password: ${{ secrets.AETHER_REGISTRY_PASSWORD }}
 
       - run: echo VERSION=$(cat VERSION) >> $GITHUB_ENV
 
       - name: Build and push Docker image to test
         env:
-          DOCKER_TAG: ${{ env.VERSION }}
+          DOCKER_TAG: ${{ env.VERSION }}-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           make docker-build
           make docker-push
@@ -128,7 +128,7 @@ jobs:
           DOCKER_TAG: ${{ env.VERSION }}
         run: |
           echo "Deleting Docker image tag: ${DOCKER_TAG}"
-          curl -u ${{ secrets.DOCKERHUB_LOGIN }}:${{ secrets.DOCKERHUB_PASSWORD }} -X "DELETE" https://hub.docker.com/v2/repositories/${DOCKER_REPOSITORY}/5gc-amf/tags/${DOCKER_TAG}/
+          curl -u ${{ secrets.AETHER_REGISTRY_USERNAME }}:${{ secrets.AETHER_REGISTRY_PASSWORD }} -X "DELETE" https:${{ env.DOCKER_REGISTRY }}/api/repositories/5gc-amf/tags/${{ env.DOCKER_TAG }}/
 
   tag-github:
     needs: e2e-tests
@@ -198,9 +198,9 @@ jobs:
     if: needs.tag-github.outputs.changed == 'true'
     runs-on: ubuntu-latest
     env:
-      REGISTRY: docker.io
-      DOCKER_REGISTRY: docker.io/
-      DOCKER_REPOSITORY: omecproject/
+      REGISTRY: registry.aetherproject.org
+      DOCKER_REGISTRY: registry.aetherproject.org/
+      DOCKER_REPOSITORY: sdcore/
     steps:
       - uses: actions/checkout@v4
         with:
@@ -213,8 +213,8 @@ jobs:
       - uses: docker/login-action@v3.3.0
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.AETHER_REGISTRY_USERNAME }}
+          password: ${{ secrets.AETHER_REGISTRY_PASSWORD }}
 
       - name: Push release Docker image
         env:
