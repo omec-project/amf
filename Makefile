@@ -109,3 +109,13 @@ golint:
 
 check-reuse:
 	@docker run --rm -v $(CURDIR):/amf -w /amf omecproject/reuse-verify:latest reuse lint
+
+run-aiab:
+	$(eval VERSION := $(shell cat VERSION))
+	@echo "version is $(VERSION)"
+	rm -rf $(HOME)/aether-in-a-box
+	cd $(HOME) && \
+	git clone "https://gerrit.opencord.org/aether-in-a-box" && \
+	cd aether-in-a-box && \
+	yq -i '.5g-control-plane.images |= {"amf": "omecproject/5gc-amf:$(VERSION)"}' sd-core-5g-values.yaml && \
+    make 5g-test
