@@ -111,7 +111,7 @@ jobs:
           make docker-build
           make docker-push
 
-      - name: Create k8s Kind Cluster
+      - name: Create Kind Cluster
         uses: helm/kind-action@v1
 
       - name: Run E2E test
