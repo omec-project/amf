@@ -103,17 +103,21 @@ jobs:
           username: "omectesting"
           password: "dckr_pat_Up1vh3lGEKIfGDJuEj7Qb7OfdEE"
       - run: echo VERSION=$(cat VERSION) >> $GITHUB_ENV
-      - name: Build and push Docker image to test
+
+      - name: Build and push Docker image for testing
         env:
           DOCKER_TAG: ${{ env.VERSION }}-testing
         run: |
           make docker-build
           make docker-push
+
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1
+
       - name: Run E2E test
         run: |
           make run-aiab
+
       - name: Cleanup Docker image
         env:
           DOCKER_TAG: ${{ env.VERSION }}-testing
@@ -121,7 +125,7 @@ jobs:
           echo "Deleting Docker image tag: ${DOCKER_TAG}"
           curl -u omectesting:dckr_pat_Up1vh3lGEKIfGDJuEj7Qb7OfdEE -X "DELETE" https://hub.docker.com/v2/repositories/${DOCKER_REPOSITORY}/5gc-amf/tags/${{ env.DOCKER_TAG }}/
 
-  tag-github:
+  create-github-release:
     needs: e2e-tests
     runs-on: ubuntu-latest
     if: ${{ github.repository_owner == 'omec-project'}}
@@ -184,8 +188,8 @@ jobs:
           generate_release_notes: true
 
   release-image:
-    needs: tag-github
-    if: needs.tag-github.outputs.changed == 'true'
+    needs: create-github-release
+    if: needs.create-github-release.outputs.changed == 'true'
     runs-on: ubuntu-latest
     env:
       REGISTRY: docker.io
@@ -206,15 +210,15 @@ jobs:
 
       - name: Push release Docker image
         env:
-          DOCKER_TAG: rel-${{ needs.tag-github.outputs.version }}
+          DOCKER_TAG: rel-${{ needs.create-github-release.outputs.version }}
         run: |
           make docker-build
           make docker-push
 
   update-version:
     runs-on: ubuntu-latest
-    needs: tag-github
-    if: needs.tag-github.outputs.changed == 'true'
+    needs: create-github-release
+    if: needs.create-github-release.outputs.changed == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -222,7 +226,7 @@ jobs:
 
       - name: Increment version
         run: |
-          version=${{ needs.tag-github.outputs.version }}
+          version=${{ needs.create-github-release.outputs.version }}
           IFS='.' read -r major minor patch <<< "$version"
           patch_update=$((patch+1))
           NEW_VERSION="$major.$minor.$patch_update-dev"
@@ -248,8 +252,8 @@ jobs:
 
   branch-release:
     runs-on: ubuntu-latest
-    needs: tag-github
-    if: (needs.tag-github.outputs.changed == 'true') && (needs.tag-github.outputs.release_branch == 'true')
+    needs: create-github-release
+    if: (needs.create-github-release.outputs.changed == 'true') && (needs.create-github-release.outputs.release_branch == 'true')
     env:
       GITHUB_TOKEN: ${{ secrets.GH_OMEC_PAT }}
     steps:
@@ -259,5 +263,5 @@ jobs:
 
       - uses: peterjgrainger/action-create-branch@v3.0.0
         with:
-          branch: "rel-${{ needs.tag-github.outputs.version_branch }}"
+          branch: "rel-${{ needs.create-github-release.outputs.version_branch }}"
           sha: '${{ github.event.pull_request.head.sha }}'
