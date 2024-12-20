@@ -42,7 +42,7 @@ jobs:
           args: -v --config ./.golangci.yml
 
   hadolint:
-    name: hadolint
+    name: Dockerfile linter
     runs-on: ubuntu-latest
 
     steps:
