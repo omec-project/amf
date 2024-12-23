@@ -16,7 +16,7 @@ require (
 	github.com/omec-project/nas v1.4.3
 	github.com/omec-project/ngap v1.3.1
 	github.com/omec-project/openapi v1.3.2
-	github.com/omec-project/util v1.2.7
+	github.com/omec-project/util v1.2.8
 	github.com/prometheus/client_golang v1.20.5
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
@@ -101,7 +101,7 @@ require (
 	golang.org/x/arch v0.8.0 // indirect
 	golang.org/x/crypto v0.31.0 // indirect
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
-	golang.org/x/net v0.32.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
