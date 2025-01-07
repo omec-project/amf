@@ -113,6 +113,7 @@ check-reuse:
 run-aiab:
 	$(eval VERSION := $(shell cat VERSION))
 	@echo "version is $(VERSION)"
+	alias kubectl=`microk8s.kubectl`
 	rm -rf $(HOME)/aether-in-a-box
 	cd $(HOME) && \
 	git clone https://github.com/gab-arrobo/aether-in-a-box && \
