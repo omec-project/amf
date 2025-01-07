@@ -104,7 +104,7 @@ jobs:
           provider: microk8s
           channel: 1.31-strict/stable
           lxd-channel: 5.21/stable
-          microk8s-addons: "hostpath-storage dns registry helm metallb"
+          microk8s-addons: "hostpath-storage dns registry helm"
 
       - name: Enable Multus addon
         continue-on-error: true
