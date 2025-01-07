@@ -91,17 +91,28 @@ jobs:
       - staticcheck
     runs-on: ubuntu-latest
     env:
-      REGISTRY: docker.io
-      DOCKER_REGISTRY: docker.io/
-      DOCKER_REPOSITORY: omectesting/
+      DOCKER_REGISTRY: localhost:32000
+      DOCKER_REPOSITORY: /
     steps:
+      - name: Check out code into the Go module directory
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3.3.0
+
+      - name: Setup operator environment
+        uses: charmed-kubernetes/actions-operator@main
         with:
-          registry: ${{ env.REGISTRY }}
-          username: "omectesting"
-          password: "dckr_pat_Up1vh3lGEKIfGDJuEj7Qb7OfdEE"
-      - run: echo VERSION=$(cat VERSION) >> $GITHUB_ENV
+          juju-channel: 3.6/stable
+          provider: microk8s
+          channel: 1.31-strict/stable
+          lxd-channel: 5.21/stable
+          microk8s-addons: "hostpath-storage dns registry helm metallb"
+
+      - name: Enable Multus addon
+        continue-on-error: true
+        run: |
+          sudo microk8s addons repo add community https://github.com/canonical/microk8s-community-addons --reference feat/strict-fix-multus
+          sudo microk8s enable multus
+          sudo microk8s kubectl -n kube-system rollout status daemonset/kube-multus-ds
+          sudo microk8s kubectl auth can-i create network-attachment-definitions
 
       - name: Build and push Docker image for testing
         env:
@@ -110,19 +121,9 @@ jobs:
           make docker-build
           make docker-push
 
-      - name: Create Kind Cluster
-        uses: helm/kind-action@v1
-
       - name: Run E2E test
         run: |
           make run-aiab
-
-      - name: Cleanup Docker image
-        env:
-          DOCKER_TAG: ${{ env.VERSION }}-testing
-        run: |
-          echo "Deleting Docker image tag: ${DOCKER_TAG}"
-          curl -u omectesting:dckr_pat_Up1vh3lGEKIfGDJuEj7Qb7OfdEE -X "DELETE" https://hub.docker.com/v2/repositories/${DOCKER_REPOSITORY}/5gc-amf/tags/${{ env.DOCKER_TAG }}/
 
   create-github-release:
     needs: e2e-tests
