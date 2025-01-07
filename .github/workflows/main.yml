@@ -95,7 +95,7 @@ jobs:
       DOCKER_REPOSITORY: /
     steps:
       - name: Check out code into the Go module directory
-      - uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Setup operator environment
         uses: charmed-kubernetes/actions-operator@main
