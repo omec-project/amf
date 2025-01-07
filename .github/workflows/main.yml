@@ -93,6 +93,7 @@ jobs:
     env:
       DOCKER_REGISTRY: localhost:32000
       DOCKER_REPOSITORY: /
+      APP_NAME: amf
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
@@ -116,7 +117,7 @@ jobs:
 
       - name: Build and push Docker image for testing
         env:
-          DOCKER_TAG: ${{ env.VERSION }}-testing
+          DOCKER_TAG: ${{ env.APP_NAME }}-testing
         run: |
           make docker-build
           make docker-push
