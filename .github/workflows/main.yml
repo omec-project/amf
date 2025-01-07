@@ -115,6 +115,10 @@ jobs:
           sudo microk8s kubectl -n kube-system rollout status daemonset/kube-multus-ds
           sudo microk8s kubectl auth can-i create network-attachment-definitions
 
+      - name: Export kubeconfig file
+        run: |
+          sudo microk8s kubectl config view --raw > $HOME/.kube/config
+
       - name: Build and push Docker image for testing
         env:
           DOCKER_TAG: ${{ env.APP_NAME }}-testing
