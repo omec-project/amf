@@ -41,6 +41,15 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 
 	createdEventSubscription := &models.AmfCreatedEventSubscription{}
 	subscription := createEventSubscription.Subscription
+
+	if subscription == nil {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusBadRequest,
+			Cause:  "SUBSCRIPTION_EMPTY",
+		}
+		return nil, problemDetails
+	}
+
 	contextEventSubscription := &context.AMFContextEventSubscription{}
 	contextEventSubscription.EventSubscription = *subscription
 	var isImmediate bool
@@ -66,6 +75,15 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		ueEventSubscription.RemainReports = new(int32)
 		*ueEventSubscription.RemainReports = subscription.Options.MaxReports
 	}
+
+	if subscription.EventList == nil {
+		problemDetails := &models.ProblemDetails{
+			Status: http.StatusBadRequest,
+			Cause:  "SUBSCRIPTION_EVENTLIST_EMPTY",
+		}
+		return nil, problemDetails
+	}
+
 	for _, events := range *subscription.EventList {
 		immediateFlags = append(immediateFlags, events.ImmediateFlag)
 		if events.ImmediateFlag {
