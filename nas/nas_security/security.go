@@ -241,6 +241,11 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			return msg, err
 		}
 	} else { // Security protected NAS message
+		// check payload lenth to prevent crash
+		if len(payload) < 7 {
+			return nil, fmt.Errorf("nas payload is too short")
+		}
+
 		securityHeader := payload[0:6]
 		ue.NASLog.Debugln("securityHeader is", securityHeader)
 		sequenceNumber := payload[6]
