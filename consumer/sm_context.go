@@ -72,19 +72,25 @@ func SelectSmf(
 	var smfUri string
 
 	ue.GmmLog.Infof("Select SMF [snssai: %+v, dnn: %+v]", snssai, dnn)
+	if snssai.Sst == 0 || dnn == "" {
+		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("invalid SNSSAI or DNN parameters")
+	}
 
 	nrfUri := ue.ServingAMF.NrfUri // default NRF URI is pre-configured by AMF
 
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
-		// TODO: Set a timeout of NSSF Selection or will starvation here
-		for {
+		const maxRetries = 10
+		for i := 0; i < maxRetries; i++ {
 			if err := SearchNssfNSSelectionInstance(ue, nrfUri, models.NfType_NSSF,
 				models.NfType_AMF, nil); err != nil {
 				ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
 				time.Sleep(2 * time.Second)
 			} else {
 				break
+			}
+			if i == maxRetries-1 {
+				return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("NSSF selection instance timed out")
 			}
 		}
 
@@ -110,7 +116,7 @@ func SelectSmf(
 		smContext.SetNsInstance(nsiInformation.NsiId)
 		nrfApiUri, err := url.Parse(nsiInformation.NrfId)
 		if err != nil {
-			ue.GmmLog.Errorf("Parse NRF URI error, use default NRF[%s]", nrfUri)
+			return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("failed to parse NRF URI: %v", err)
 		} else {
 			nrfUri = fmt.Sprintf("%s://%s", nrfApiUri.Scheme, nrfApiUri.Host)
 		}
@@ -129,12 +135,12 @@ func SelectSmf(
 
 	result, err := SendSearchNFInstances(nrfUri, models.NfType_SMF, models.NfType_AMF, &param)
 	if err != nil {
-		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
+		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("failed to search SMF instances: %v", err)
 	}
 
-	if len(result.NfInstances) == 0 {
-		err = fmt.Errorf("DNN[%s] is not supported or not subscribed in the slice[Snssai: %+v]", dnn, snssai)
-		return nil, nasMessage.Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice, err
+	if result.NfInstances == nil || len(result.NfInstances) == 0 {
+		return nil, nasMessage.Cause5GMMDNNNotSupportedOrNotSubscribedInTheSlice,
+			fmt.Errorf("no SMF instances found for DNN[%s] and SNSSAI[%+v]", dnn, snssai)
 	}
 
 	// select the first SMF, TODO: select base on other info
