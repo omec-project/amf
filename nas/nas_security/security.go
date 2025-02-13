@@ -35,17 +35,17 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 	if !ue.SecurityContextAvailable {
 		return msg.PlainNasEncode()
 	} else {
-		// Security protected NAS Message
+		// security protected NAS Message
 		// a security protected NAS message must be integrity protected, and ciphering is optional
 		needCiphering := false
 		switch msg.SecurityHeader.SecurityHeaderType {
 		case nas.SecurityHeaderTypeIntegrityProtected:
-			ue.NASLog.Debugln("Security header type: Integrity Protected")
+			ue.NASLog.Debugln("security header type: Integrity Protected")
 		case nas.SecurityHeaderTypeIntegrityProtectedAndCiphered:
-			ue.NASLog.Debugln("Security header type: Integrity Protected And Ciphered")
+			ue.NASLog.Debugln("security header type: Integrity Protected And Ciphered")
 			needCiphering = true
 		case nas.SecurityHeaderTypeIntegrityProtectedWithNew5gNasSecurityContext:
-			ue.NASLog.Debugln("Security header type: Integrity Protected With New 5G Security Context")
+			ue.NASLog.Debugln("security header type: Integrity Protected With New 5G Security Context")
 			ue.ULCount.Set(0, 0)
 			ue.DLCount.Set(0, 0)
 		default:
@@ -72,7 +72,7 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 		// add sequece number
 		payload = append([]byte{ue.DLCount.SQN()}, payload[:]...)
 
-		ue.NASLog.Debugf("Calculate NAS MAC (algorithm: %+v, DLCount: 0x%0x)", ue.IntegrityAlg, ue.DLCount.Get())
+		ue.NASLog.Debugf("calculate NAS MAC (algorithm: %+v, DLCount: 0x%0x)", ue.IntegrityAlg, ue.DLCount.Get())
 		ue.NASLog.Debugf("NAS integrity key: %0x", ue.KnasInt)
 		mutex.Lock()
 		defer mutex.Unlock()
@@ -121,18 +121,18 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	logger.CommLog.Debugf("securityHeaderType is %v", msg.SecurityHeaderType)
 	switch msg.SecurityHeaderType {
 	case nas.SecurityHeaderTypeIntegrityProtected:
-		logger.CommLog.Infoln("Security header type: Integrity Protected")
+		logger.CommLog.Infoln("security header type: Integrity Protected")
 		p := payload[7:]
 		if err := msg.PlainNasDecode(&p); err != nil {
 			return nil
 		}
 	case nas.SecurityHeaderTypePlainNas:
-		logger.CommLog.Infoln("Security header type: PlainNas Message")
+		logger.CommLog.Infoln("security header type: PlainNas Message")
 		if err := msg.PlainNasDecode(&payload); err != nil {
 			return nil
 		}
 	default:
-		logger.CommLog.Infoln("Security header type is not plain or integrity protected")
+		logger.CommLog.Infoln("security header type is not plain or integrity protected")
 		return nil
 	}
 	var ue *context.AmfUe = nil
@@ -144,9 +144,8 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
-			/* UeContext found based on SUCI which means context is exist in Network(AMF) but not
-			   present in UE. Hence, AMF clear the existing context
-			*/
+			// UeContext found based on SUCI which means context is exist in Network
+			// (AMF) but not present in UE. Hence, AMF clear the existing context
 			ue, _ = context.AMF_Self().AmfUeFindBySuci(suci)
 			if ue != nil {
 				ue.NASLog.Infof("UE Context derived from Suci: %v", suci)
@@ -177,7 +176,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			ue.NASLog.Infof("UE Context derived from Guti: %v", guti)
 			return ue
 		} else {
-			logger.CommLog.Warnf("UE Context not fround from Guti: %v", guti)
+			logger.CommLog.Warnf("UE Context not found from Guti: %v", guti)
 		}
 	}
 
@@ -259,12 +258,12 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 		ciphered := false
 		switch msg.SecurityHeaderType {
 		case nas.SecurityHeaderTypeIntegrityProtected:
-			ue.NASLog.Debugln("Security header type: Integrity Protected")
+			ue.NASLog.Debugln("security header type: Integrity Protected")
 		case nas.SecurityHeaderTypeIntegrityProtectedAndCiphered:
-			ue.NASLog.Debugln("Security header type: Integrity Protected And Ciphered")
+			ue.NASLog.Debugln("security header type: Integrity Protected And Ciphered")
 			ciphered = true
 		case nas.SecurityHeaderTypeIntegrityProtectedAndCipheredWithNew5gNasSecurityContext:
-			ue.NASLog.Debugln("Security header type: Integrity Protected And Ciphered With New 5G Security Context")
+			ue.NASLog.Debugln("security header type: Integrity Protected And Ciphered With New 5G Security Context")
 			ciphered = true
 			ue.ULCount.Set(0, 0)
 		default:
