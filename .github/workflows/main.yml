@@ -19,7 +19,6 @@ jobs:
       branch_name: ${{ github.ref }}
 
   docker-build:
-    needs: build
     uses: gatici/.github/.github/workflows/docker-build.yml@add-workflows
     with:
       branch_name: ${{ github.ref }}
