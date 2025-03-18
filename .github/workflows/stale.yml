@@ -12,5 +12,4 @@ jobs:
     with:
       days_before_stale: 120
       days_before_close: 15
-      cron_schedule: "0 0 * * *"
     secrets: inherit
