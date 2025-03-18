@@ -16,8 +16,8 @@ jobs:
     with:
       branch_name: ${{ github.ref }}
       registry: "registry.aetherproject.org"
-      docker-registry: "registry.aetherproject.org/"
-      docker-repository: "sdcore/"
+      docker_registry: "registry.aetherproject.org/"
+      docker_repository: "sdcore/"
     secrets: inherit
 
   tag-github:
