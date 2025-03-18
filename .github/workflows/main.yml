@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2024 Canonical Ltd.
+# Copyright 2023 Canonical Ltd.
 # Copyright 2024 Intel Corporation
+
 name: Main workflow
 
 on:
@@ -10,262 +11,45 @@ on:
   push:
     branches:
       - main
-    tags:
-      - v*
 
 jobs:
-  staticcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: WillAbides/setup-go-faster@v1.14.0
-        with:
-          go-version-file: 'go.mod'
+  build:
+    uses: gatici/.github/.github/workflows/build.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
 
-      - uses: dominikh/staticcheck-action@v1.3.1
-        with:
-          version: latest
-          install-go: false
+  docker-build:
+    needs: build
+    uses: gatici/.github/.github/workflows/docker-build.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
+
+  static-analysis:
+    uses: gatici/.github/.github/workflows/static-analysis.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
 
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6.1.1
-        with:
-          version: latest
-          args: -v --config ./.golangci.yml
+    uses: gatici/.github/.github/workflows/lint.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
 
   hadolint:
-    name: Dockerfile linter
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Dockerfile linter
-        uses: hadolint/hadolint-action@v3.1.0
-        # Ignoring:
-        # DL3008 warning: Pin versions in apt get install (e.g., apt-get install <package>=<version>)
-        # DL3018 warning: Pin versions in apk add (e.g., apk add <package>=<version>)
-        with:
-          dockerfile: Dockerfile
-          ignore: DL3008,DL3018
+    uses: gatici/.github/.github/workflows/hadolint.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
 
   license-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: reuse lint
-        uses: fsfe/reuse-action@v5
+    uses: gatici/.github/.github/workflows/license-check.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
 
   fossa-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: FOSSA scan
-        uses: fossa-contrib/fossa-action@v3
-        with:
-          fossa-api-key: 0c3bbcdf20e157bbd487dae173751b28
+    uses: gatici/.github/.github/workflows/fossa-scan.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
 
   unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-
-      - name: Unit tests
-        run: go test ./...
-
-  e2e-tests:
-    needs:
-      - unit-tests
-      - lint
-      - staticcheck
-    runs-on: ubuntu-latest
-    env:
-      DOCKER_REGISTRY: localhost:32000
-      DOCKER_REPOSITORY: /
-      APP_NAME: amf
-    steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
-
-      - name: Setup operator environment
-        uses: charmed-kubernetes/actions-operator@main
-        with:
-          juju-channel: 3.6/stable
-          provider: microk8s
-          channel: 1.31-strict/stable
-          lxd-channel: 5.21/stable
-          microk8s-addons: "hostpath-storage dns registry helm"
-
-      - name: Enable Multus addon
-        continue-on-error: true
-        run: |
-          sudo microk8s addons repo add community https://github.com/canonical/microk8s-community-addons --reference feat/strict-fix-multus
-          sudo microk8s enable multus
-          sudo microk8s kubectl -n kube-system rollout status daemonset/kube-multus-ds
-          sudo microk8s kubectl auth can-i create network-attachment-definitions
-
-      - name: Export kubeconfig file
-        run: |
-          sudo microk8s kubectl config view --raw > $HOME/.kube/config
-
-      - name: Build and push Docker image for testing
-        env:
-          DOCKER_TAG: ${{ env.APP_NAME }}-testing
-        run: |
-          make docker-build
-          make docker-push
-
-      - name: Run E2E test
-        run: |
-          make run-aiab
-
-  create-github-release:
-    needs: e2e-tests
-    runs-on: ubuntu-latest
-    if: ${{ github.repository_owner == 'omec-project'}}
-    outputs:
-      changed: ${{ steps.version-change.outputs.changed }}
-      version: ${{ steps.version-change.outputs.version }}
-      release_branch: ${{ steps.version-change.outputs.release_branch }}
-      version_branch: ${{ steps.version-change.outputs.version_branch }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Get changes
-        id: version-file
-        run: |
-          if git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | grep VERSION; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            version_before=$(git show ${{ github.event.before }}:VERSION)
-            echo "version_before=$version_before" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION file was not changed"
-          fi
-
-      - name: Validate change in version file
-        id: version-change
-        if: ${{ steps.version-file.outputs.changed == 'true' }}
-        run: |
-          version=$(cat VERSION)
-          version_before_full=${{ steps.version-file.outputs.version_before }}
-          version_before=${version_before_full::-4}
-          echo "version=$version"
-          echo "version_before=$version_before"
-          validate="^[0-9]+\.[0-9]+\.[0-9]+$"
-          if [[ $version =~ $validate ]]; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "version=$version" >> $GITHUB_OUTPUT
-          else
-            echo "Version change not for release"
-          fi
-          if [[ $version_before =~ $validate ]]; then
-            IFS='.' read -r major minor patch <<< "$version"
-            IFS='.' read -r major_b minor_b patch_b <<< "$version_before"
-            if [[ "$major" -ne "$major_b" ]] || [[ "$minor" -ne "$minor_b" ]]; then
-              version_branch="$major_b.$minor_b"
-              echo "release_branch=true" >> $GITHUB_OUTPUT
-              echo "version_branch=$version_branch" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "Version change not for branch release"
-          fi
-
-      - name: Create Release
-        if: steps.version-change.outputs.changed == 'true'
-        uses: comnoco/create-release@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_OMEC_PAT }}
-        with:
-          tag_name: "v${{ steps.version-change.outputs.version }}"
-          release_name: "v${{ steps.version-change.outputs.version }}"
-          draft: false
-          prerelease: false
-          generate_release_notes: true
-
-  release-image:
-    needs: create-github-release
-    if: needs.create-github-release.outputs.changed == 'true'
-    runs-on: ubuntu-latest
-    env:
-      REGISTRY: docker.io
-      DOCKER_REGISTRY: docker.io/
-      DOCKER_REPOSITORY: omecproject/
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
-      - uses: docker/login-action@v3.3.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-
-      - name: Push release Docker image
-        env:
-          DOCKER_TAG: rel-${{ needs.create-github-release.outputs.version }}
-        run: |
-          make docker-build
-          make docker-push
-
-  update-version:
-    runs-on: ubuntu-latest
-    needs: create-github-release
-    if: needs.create-github-release.outputs.changed == 'true'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Increment version
-        run: |
-          version=${{ needs.create-github-release.outputs.version }}
-          IFS='.' read -r major minor patch <<< "$version"
-          patch_update=$((patch+1))
-          NEW_VERSION="$major.$minor.$patch_update-dev"
-          echo $NEW_VERSION > VERSION
-          echo "Updated version: $NEW_VERSION"
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          base: ${{ github.ref_name }}
-          token: ${{ secrets.GH_OMEC_PAT }}
-          commit-message: Update version
-          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-          author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
-          signoff: true
-          branch: "chore/version-update"
-          delete-branch: true
-          title: Update version
-          body: |
-            Update VERSION file
-          add-paths: |
-            VERSION
-
-  branch-release:
-    runs-on: ubuntu-latest
-    needs: create-github-release
-    if: (needs.create-github-release.outputs.changed == 'true') && (needs.create-github-release.outputs.release_branch == 'true')
-    env:
-      GITHUB_TOKEN: ${{ secrets.GH_OMEC_PAT }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: peterjgrainger/action-create-branch@v3.0.0
-        with:
-          branch: "rel-${{ needs.create-github-release.outputs.version_branch }}"
-          sha: '${{ github.event.pull_request.head.sha }}'
+    uses: gatici/.github/.github/workflows/unit-test.yml@add-workflows
+    with:
+      branch_name: ${{ github.ref }}
