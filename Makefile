@@ -110,13 +110,3 @@ golint:
 check-reuse:
 	@docker run --rm -v $(CURDIR):/amf -w /amf omecproject/reuse-verify:latest reuse lint
 
-run-aiab:
-	$(eval VERSION := $(shell cat VERSION))
-	@echo "version is $(VERSION)"
-	alias kubectl=`sudo microk8s.kubectl`
-	rm -rf $(HOME)/aether-in-a-box
-	cd $(HOME) && \
-	git clone https://github.com/gab-arrobo/aether-in-a-box && \
-	cd aether-in-a-box && \
-	yq -i '.5g-control-plane.images |= {"amf": "localhost:32000/5gc-amf:amf-testing"}' sd-core-5g-values.yaml && \
-    CHARTS=latest make 5g-test
