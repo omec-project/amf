@@ -83,14 +83,16 @@ jobs:
 
       - name: Update files
         run: |
+          echo "Logging current IP address details:" >/dev/stdout
+          ip a >/dev/stdout
           IP_ADDR=$(hostname -I | awk '{print $1}')
           echo "[all]" > aether-onramp/hosts.ini
           echo "node1 ansible_host=${IP_ADDR} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
           echo "" >> aether-onramp/hosts.ini
           echo "[master_nodes]" >> aether-onramp/hosts.ini
           echo "node1" >> aether-onramp/hosts.ini
-          first_iface=$(ip -o link show | awk -F': ' '{print $2}' | head -n 1)
-          sed -i "s/ens18/$first_iface/" aether-onramp/vars/main.yml
+          iface=$(ip -o link show | awk -F': ' '{print $2}' | sed -n 2p)
+          sed -i "s/ens18/$iface/" aether-onramp/vars/main.yml
           sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
 
       - name: Test aether-pingall
