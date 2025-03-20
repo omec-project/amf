@@ -87,6 +87,8 @@ jobs:
           echo "Extracted IP: ${IP_ADDR}"
           ls -l ~/.ssh/id_rsa
           id
+          free -m
+          lscpu
           echo "[all]" > aether-onramp/hosts.ini
           echo "node1 ansible_host=${IP_ADDR} ansible_user=runner ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
           echo "" >> aether-onramp/hosts.ini
@@ -99,9 +101,24 @@ jobs:
         working-directory: aether-onramp
         run: make aether-pingall
 
-      - name: Install aether-k8s and 5G Core
+      - name: Install aether-k8s
         working-directory: aether-onramp
         run: |
           make aether-k8s-install
           make aether-5gc-install
           make aether-gnbsim-install
+
+      - name: Install 5G Core
+        working-directory: aether-onramp
+        run: |
+          make aether-k8s-install
+          make aether-5gc-install
+          make aether-gnbsim-install
+
+      - name: Install GNBSIM
+        working-directory: aether-onramp
+        run: |
+          make aether-k8s-install
+          make aether-5gc-install
+          make aether-gnbsim-install
+      
