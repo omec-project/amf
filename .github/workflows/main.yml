@@ -88,7 +88,7 @@ jobs:
           ls -l ~/.ssh/id_rsa
           id
           echo "[all]" > aether-onramp/hosts.ini
-          echo "node1 ansible_host=${IP_ADDR} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
+          echo "node1 ansible_host=${IP_ADDR} ansible_user=runner ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
           echo "" >> aether-onramp/hosts.ini
           echo "[master_nodes]" >> aether-onramp/hosts.ini
           echo "node1" >> aether-onramp/hosts.ini
