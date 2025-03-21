@@ -129,6 +129,8 @@ jobs:
         run: |
           make aether-5gc-install
           helm list -n aether-5gc
+          kubectl get all -A
+          kubectl get events -n aether-5gc
           df -h
           free -m
           vmstat
