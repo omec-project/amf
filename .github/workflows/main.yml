@@ -128,11 +128,12 @@ jobs:
         run: |
           make aether-5gc-install
           helm list -n aether-5gc
+          uptime
         continue-on-error: true
 
       - name: Install GNBSIM
         working-directory: aether-onramp
         run: |
           make aether-gnbsim-install
-        continue-on-error: true
+
 
