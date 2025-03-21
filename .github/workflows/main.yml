@@ -120,7 +120,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload files and output as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.2
         with:
           name: aether-onramp-logs
           path: ./aether-onramp/
