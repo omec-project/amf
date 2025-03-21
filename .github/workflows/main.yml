@@ -128,7 +128,9 @@ jobs:
         run: |
           make aether-5gc-install
           helm list -n aether-5gc
-          uptime
+          df -h
+          free -m
+          vmstat
         continue-on-error: true
 
       - name: Install GNBSIM
