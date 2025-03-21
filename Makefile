@@ -109,3 +109,4 @@ golint:
 
 check-reuse:
 	@docker run --rm -v $(CURDIR):/amf -w /amf omecproject/reuse-verify:latest reuse lint
+
