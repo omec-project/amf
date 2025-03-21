@@ -116,7 +116,7 @@ jobs:
       - name: Create Kubernetes cluster
         run: |
           kind create cluster --name gha-cluster
-          kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-crd.yml
+          kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/main/deployments/crds/k8s.cni.cncf.io_networkattachmentdefinitions.yaml
           kubectl get crd
 
       - name: Verify Kubernetes cluster
