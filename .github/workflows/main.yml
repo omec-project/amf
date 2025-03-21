@@ -96,6 +96,7 @@ jobs:
           echo "node1" >> aether-onramp/hosts.ini
           sed -i "s/ens18/eth0/" aether-onramp/vars/main.yml
           sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
+          sed -i 's/wait_timeout: "2m30s"/wait_timeout: "10m"/' aether-onramp/deps/5g/roles/core/tasks/install.yml
 
       - name: Test aether-pingall
         working-directory: aether-onramp
