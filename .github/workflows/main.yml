@@ -116,11 +116,12 @@ jobs:
       - name: Create Kubernetes cluster
         run: |
           kind create cluster --name gha-cluster
-          kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/main/deployments/crds/k8s.cni.cncf.io_networkattachmentdefinitions.yaml
-          kubectl get crd
 
-      - name: Verify Kubernetes cluster
-        run: kubectl get nodes
+      - name: Verify Kubernetes cluster and deploy multus
+        run: | 
+          kubectl get nodes
+          kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset.yml
+          kubectl get crd
 
       - name: Install 5G Core
         working-directory: aether-onramp
