@@ -114,7 +114,10 @@ jobs:
           sudo mv ./kubectl /usr/local/bin/kubectl
 
       - name: Create Kubernetes cluster
-        run: kind create cluster --name gha-cluster
+        run: |
+          kind create cluster --name gha-cluster
+          kubectl apply -f https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-crd.yml
+          kubectl get crd
 
       - name: Verify Kubernetes cluster
         run: kubectl get nodes
@@ -123,6 +126,7 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-5gc-install
+          helm list -n aether-5gc
         continue-on-error: true
 
       - name: Install GNBSIM
