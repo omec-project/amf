@@ -101,11 +101,23 @@ jobs:
         working-directory: aether-onramp
         run: make aether-pingall
 
-      - name: Install aether-k8s
-        working-directory: aether-onramp
+      - name: Install kind
         run: |
-          make aether-k8s-install
-        continue-on-error: true
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.20.0/kind-linux-amd64
+          chmod +x ./kind
+          sudo mv ./kind /usr/local/bin/kind
+
+      - name: Install kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x ./kubectl
+          sudo mv ./kubectl /usr/local/bin/kubectl
+
+      - name: Create Kubernetes cluster
+        run: kind create cluster --name gha-cluster
+
+      - name: Verify Kubernetes cluster
+        run: kubectl get nodes
 
       - name: Install 5G Core
         working-directory: aether-onramp
@@ -119,9 +131,3 @@ jobs:
           make aether-gnbsim-install
         continue-on-error: true
 
-      - name: Upload files and output as artifact
-        uses: actions/upload-artifact@v3.1.2
-        with:
-          name: aether-onramp-logs
-          path: ./aether-onramp/
-      
