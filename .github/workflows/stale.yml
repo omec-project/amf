@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2024 Intel Corporation
 # Copyright 2025 Canonical Ltd.
+
 on:
   schedule:
     - cron: "0 0 * * *"
