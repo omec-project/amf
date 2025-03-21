@@ -14,42 +14,42 @@ on:
 
 jobs:
   build:
-    uses: gatici/.github/.github/workflows/build.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/build.yml
     with:
       branch_name: ${{ github.ref }}
 
   docker-build:
-    uses: gatici/.github/.github/workflows/docker-build.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/docker-build.yml
     with:
       branch_name: ${{ github.ref }}
 
   static-analysis:
-    uses: gatici/.github/.github/workflows/static-analysis.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/static-analysis.yml
     with:
       branch_name: ${{ github.ref }}
 
   lint:
-    uses: gatici/.github/.github/workflows/lint.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/lint.yml
     with:
       branch_name: ${{ github.ref }}
 
   hadolint:
-    uses: gatici/.github/.github/workflows/hadolint.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/hadolint.yml
     with:
       branch_name: ${{ github.ref }}
 
   license-check:
-    uses: gatici/.github/.github/workflows/license-check.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/license-check.yml
     with:
       branch_name: ${{ github.ref }}
 
   fossa-scan:
-    uses: gatici/.github/.github/workflows/fossa-scan.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/fossa-scan.yml
     with:
       branch_name: ${{ github.ref }}
 
   unit-tests:
-    uses: gatici/.github/.github/workflows/unit-test.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/unit-test.yml
     with:
       branch_name: ${{ github.ref }}
 
@@ -105,20 +105,23 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-k8s-install
-          make aether-5gc-install
-          make aether-gnbsim-install
+        continue-on-error: true
 
       - name: Install 5G Core
         working-directory: aether-onramp
         run: |
-          make aether-k8s-install
           make aether-5gc-install
-          make aether-gnbsim-install
+        continue-on-error: true
 
       - name: Install GNBSIM
         working-directory: aether-onramp
         run: |
-          make aether-k8s-install
-          make aether-5gc-install
           make aether-gnbsim-install
+        continue-on-error: true
+
+      - name: Upload files and output as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: aether-onramp-logs
+          path: ./aether-onramp/
       

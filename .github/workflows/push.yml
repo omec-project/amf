@@ -9,29 +9,29 @@ on:
       - v*
 
 jobs:
-  push-images:
-    uses: gatici/.github/.github/workflows/push-images.yml@add-workflows
-    with:
-      branch_name: ${{ github.ref }}
-      registry: "registry.aetherproject.org"
-      docker_registry: "registry.aetherproject.org/"
-      docker_repository: "sdcore/"
-    secrets: inherit
-
-  tag-github:
-    uses: gatici/.github/.github/workflows/tag-github.yml@add-workflows
-
-  release-image:
-    needs: tag-github
-    uses: gatici/.github/.github/workflows/release-image.yml@add-workflows
-    secrets: inherit
-
-  update-version:
-    needs: tag-github
-    uses: gatici/.github/.github/workflows/update-version.yml@add-workflows
-    secrets: inherit
-
-  branch-release:
-    needs: tag-github
-    uses: gatici/.github/.github/workflows/update-version.yml@add-workflows
-    secrets: inherit
+  #push-images:
+  #  uses: gatici/.github/.github/workflows/push-images.yml@add-workflows
+  #  with:
+  #    branch_name: ${{ github.ref }}
+  #    registry: "registry.aetherproject.org"
+  #    docker_registry: "registry.aetherproject.org/"
+  #    docker_repository: "sdcore/"
+  #  secrets: inherit
+  #
+  #tag-github:
+  #  uses: gatici/.github/.github/workflows/tag-github.yml@add-workflows
+  #
+  #release-image:
+  #  needs: tag-github
+  #  uses: gatici/.github/.github/workflows/release-image.yml@add-workflows
+  #  secrets: inherit
+  #
+  #update-version:
+  #  needs: tag-github
+  #  uses: gatici/.github/.github/workflows/update-version.yml@add-workflows
+  #  secrets: inherit
+  #
+  #branch-release:
+  #  needs: tag-github
+  #  uses: gatici/.github/.github/workflows/update-version.yml@add-workflows
+  #  secrets: inherit

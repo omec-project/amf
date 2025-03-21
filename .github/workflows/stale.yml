@@ -8,7 +8,7 @@ on:
 
 jobs:
   stale:
-    uses: gatici/.github/.github/workflows/stale-issue.yml@add-workflows
+    uses: omec-project/.github/.github/workflows/stale-issue.yml
     with:
       days_before_stale: 120
       days_before_close: 15
