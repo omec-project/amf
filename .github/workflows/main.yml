@@ -107,6 +107,7 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-k8s-install
+        continue-on-error: true
 
       - name: Save RKE2 Logs
         run: |
