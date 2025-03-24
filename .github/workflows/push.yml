@@ -5,6 +5,8 @@ name: GitHub release and Docker images
 
 on:
   push:
+    branches:
+      - main
     tags:
       - v*
 
