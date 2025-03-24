@@ -51,3 +51,63 @@ jobs:
     with:
       branch_name: ${{ github.ref }}
 
+  e2e-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update and install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y sshpass python3-venv pipx make git
+          pipx install --include-deps ansible
+          pipx ensurepath
+          source ~/.bashrc
+
+      - name: Install Ansible Galaxy collections
+        run: |
+          ansible-galaxy collection install kubernetes.core ansible.utils community.docker
+
+      - name: Generate SSH Key
+        run: |
+          ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
+          cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+      - name: Clone aether-onramp repository
+        run: |
+          git clone --recursive https://github.com/opennetworkinglab/aether-onramp.git
+
+      - name: Update files
+        run: |
+          IP_ADDR=$(ip a show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+          echo "Extracted IP: ${IP_ADDR}"
+          echo "[all]" > aether-onramp/hosts.ini
+          echo "node1 ansible_host=${IP_ADDR} ansible_user=runner ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
+          echo "" >> aether-onramp/hosts.ini
+          echo "[master_nodes]" >> aether-onramp/hosts.ini
+          echo "node1" >> aether-onramp/hosts.ini
+          sed -i "s/ens18/ens3/" aether-onramp/vars/main.yml
+          sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
+
+      - name: Test aether-pingall
+        working-directory: aether-onramp
+        run: make aether-pingall
+
+      - name: Install aether-k8s
+        working-directory: aether-onramp
+        run: |
+          make aether-k8s-install
+
+      - name: Install 5G Core
+        working-directory: aether-onramp
+        run: |
+          make aether-5gc-install
+
+      - name: Install GNBSIM
+        working-directory: aether-onramp
+        run: |
+          make aether-gnbsim-install
+
+
