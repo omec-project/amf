@@ -26,6 +26,6 @@ jobs:
 
   branch-release:
     needs: tag-github
-    uses: omec-project/.github/.github/workflows/update-version.yml@main
+    uses: omec-project/.github/.github/workflows/branch-release.yml@main
     secrets: inherit
 
