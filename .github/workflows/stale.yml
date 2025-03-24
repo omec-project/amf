@@ -12,4 +12,3 @@ jobs:
       days_before_stale: 120
       days_before_close: 15
     secrets: inherit
-
