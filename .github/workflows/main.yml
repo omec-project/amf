@@ -53,7 +53,9 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
-
+    env:
+      ACTIONS_RUNNER_DEBUG: true
+      ACTIONS_STEP_DEBUG: true
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -105,6 +107,18 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-k8s-install
+
+      - name: Save RKE2 Logs
+        run: |
+          mkdir -p logs
+          journalctl -u rke2-server.service > logs/rke2-server.log || echo "rke2 logs not found"
+          journalctl > logs/system.log || echo "system logs not found"
+
+      - name: Upload logs as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rke2-logs
+          path: logs
 
       - name: Install 5G Core
         working-directory: aether-onramp
