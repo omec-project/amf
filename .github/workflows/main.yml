@@ -63,9 +63,10 @@ jobs:
       - name: Update and install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential git iptables libsctp1 openssh-server pipx
-          pipx install --include-deps 'ansible<2.16'
+          sudo apt install -y sshpass python3-venv pipx make git
+          pipx install --include-deps ansible
           pipx ensurepath
+          source ~/.bashrc
 
       - name: Install Ansible Galaxy collections
         run: |
@@ -89,7 +90,7 @@ jobs:
           echo "" >> aether-onramp/hosts.ini
           echo "[master_nodes]" >> aether-onramp/hosts.ini
           echo "node1" >> aether-onramp/hosts.ini
-          sed -i "s/ens18/eth0/" aether-onramp/vars/main.yml
+          sed -i "s/ens18/ens3/" aether-onramp/vars/main.yml
           sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
 
       - name: Test aether-pingall
@@ -100,23 +101,15 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-k8s-install
-        continue-on-error: true
 
       - name: Install 5G Core
         working-directory: aether-onramp
         run: |
           make aether-5gc-install
-        continue-on-error: true
 
       - name: Install GNBSIM
         working-directory: aether-onramp
         run: |
           make aether-gnbsim-install
-        continue-on-error: true
 
-      - name: Upload files and output as artifact
-        uses: actions/upload-artifact@v3.1.2
-        with:
-          name: aether-onramp-logs
-          path: ./aether-onramp/
       
