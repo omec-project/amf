@@ -95,7 +95,7 @@ jobs:
           echo "" >> aether-onramp/hosts.ini
           echo "[gnbsim_nodes]" >> aether-onramp/hosts.ini
           echo "node1" >> aether-onramp/hosts.ini
-          sed -i "s/ens18/ens3/" aether-onramp/vars/main.yml
+          sed -i "s/ens18/eth0/" aether-onramp/vars/main.yml
           sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
           sed -i "s/300s/600s/" aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
 
