@@ -116,10 +116,10 @@ jobs:
 
       - name: Patch K8s Deployment to attach local image
         run:
-          git clone --branch ${{ github.head_ref }} https://github.com/omec-project/amf
-          cd amf
-          docker build -t amf:testing .
-          kubectl set image deployment/amf amf=amf:testing -n aether-5gc
+          git clone --branch add-e2e-tests https://github.com/omec-project/amf && \
+          cd amf && \
+          docker build -t amf:testing . && \
+          kubectl set image deployment/amf amf=amf:testing -n aether-5gc && \
           kubectl patch deployment amf -p '{"spec":{"template":{"spec":{"containers":[{"name":"amf","imagePullPolicy":"Never"}]}}}}'
 
       - name: Install GNBSIM
