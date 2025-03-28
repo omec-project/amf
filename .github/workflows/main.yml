@@ -97,7 +97,7 @@ jobs:
           sed -i "s/ens18/eth0/" aether-onramp/vars/main.yml
           sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
           sed -i "s/300s/600s/" aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
-          sed -i '99d' aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
+          sed -i '99i sleep 200' aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
           sed -i "s/2m30s/10m/" aether-onramp/deps/5gc/roles/core/tasks/install.yml
 
       - name: Test aether-pingall
@@ -143,5 +143,5 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-gnbsim-run
-          docker exec -it gnbsim-1 cat summary.log
+          docker exec gnbsim-1 cat summary.log
 
