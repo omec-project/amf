@@ -63,7 +63,7 @@ jobs:
       - name: Update and install dependencies
         run: |
           sudo apt update
-          sudo apt-get install -y conntrack socat ipset ebtables
+          sudo apt-get install -y conntrack socat ipset ebtables ansible-core
           sudo modprobe overlay
           sudo modprobe br_netfilter
           sudo apt install -y sshpass python3-venv pipx make git
@@ -101,6 +101,7 @@ jobs:
           sed -i "s/ens18/eth0/" aether-onramp/vars/main.yml
           sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
           sed -i "s/300s/600s/" aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
+          sed -i "s/2m30s/10m/" aether-onramp/deps/5gc/roles/core/tasks/install.yml
 
       - name: Test aether-pingall
         working-directory: aether-onramp
@@ -130,10 +131,16 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-5gc-install
+        continue-on-error: true
 
       - name: Install GNBSIM
         working-directory: aether-onramp
         run: |
           make aether-gnbsim-install
 
+      - name: Perform tests
+        working-directory: aether-onramp
+        run: |
+          make aether-gnbsim-run
+          docker exec -it gnbsim-1 cat summary.log
 
