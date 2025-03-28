@@ -71,10 +71,6 @@ jobs:
           pipx ensurepath
           source ~/.bashrc
 
-      - name: Install Ansible Galaxy collections
-        run: |
-          ansible-galaxy collection install kubernetes.core ansible.utils community.docker
-
       - name: Generate SSH Key
         run: |
           ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
@@ -120,6 +116,9 @@ jobs:
           journalctl > logs/system.log || echo "system logs not found"
           journalctl -u rke2-etcd.service > logs/rke2-etcd.log
           sudo netstat -tulpn | grep 2379 > logs/etcd_port.log
+          kubectl get all -n aether-5gc > logs/kube_pods.log
+          kubectl get events -A > logs/kube_events.log
+          kubectl get all -n kube-system > logs/kube_system.log
 
       - name: Upload logs as artifact
         uses: actions/upload-artifact@v4
@@ -131,6 +130,7 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-5gc-install
+          helm list
         continue-on-error: true
 
       - name: Install GNBSIM
