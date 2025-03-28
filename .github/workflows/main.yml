@@ -108,31 +108,11 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-k8s-install
-        continue-on-error: true
-
-      - name: Save RKE2 Logs
-        run: |
-          mkdir -p logs
-          journalctl -u rke2-server.service > logs/rke2-server.log || echo "rke2 logs not found"
-          journalctl > logs/system.log || echo "system logs not found"
-          journalctl -u rke2-etcd.service > logs/rke2-etcd.log
-          sudo netstat -tulpn | grep 2379 > logs/etcd_port.log
-          free -m 
-          df -h
-          vmstat 
-
-      - name: Upload logs as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rke2-logs
-          path: logs
 
       - name: Install 5G Core
         working-directory: aether-onramp
         run: |
           make aether-5gc-install
-          helm list
-        continue-on-error: true
 
       - name: Install GNBSIM
         working-directory: aether-onramp
