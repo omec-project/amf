@@ -116,9 +116,9 @@ jobs:
           journalctl > logs/system.log || echo "system logs not found"
           journalctl -u rke2-etcd.service > logs/rke2-etcd.log
           sudo netstat -tulpn | grep 2379 > logs/etcd_port.log
-          kubectl get all -n aether-5gc > logs/kube_pods.log
-          kubectl get events -A > logs/kube_events.log
-          kubectl get all -n kube-system > logs/kube_system.log
+          free -m 
+          df -h
+          vmstat 
 
       - name: Upload logs as artifact
         uses: actions/upload-artifact@v4
