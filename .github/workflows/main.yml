@@ -116,7 +116,7 @@ jobs:
 
       - name: Patch K8s Deployment to attach local image
         run:
-          git clone --branch ${{ github.ref }} https://github.com/omec-project/amf
+          git clone --branch ${{ github.head_ref }} https://github.com/omec-project/amf
           cd amf
           docker build -t amf:testing .
           kubectl set image deployment/amf amf=amf:testing -n aether-5gc
