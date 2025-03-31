@@ -1,6 +1,6 @@
 module github.com/omec-project/amf
 
-go 1.23.0
+go 1.24.0
 
 require (
 	git.cs.nctu.edu.tw/calee/sctp v1.1.0
@@ -27,8 +27,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
-
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
@@ -51,6 +49,7 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.23.0 // indirect
 	github.com/go-redis/redis/v8 v8.11.5 // indirect
+	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/goccy/go-json v0.10.4 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
