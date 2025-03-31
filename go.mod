@@ -18,7 +18,7 @@ require (
 	github.com/omec-project/openapi v1.3.4
 	github.com/omec-project/util v1.2.14
 	github.com/prometheus/client_golang v1.21.1
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli v1.22.16
 	go.mongodb.org/mongo-driver v1.17.3
