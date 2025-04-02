@@ -64,8 +64,6 @@ jobs:
         run: |
           sudo apt update
           sudo apt-get install -y conntrack socat ipset ebtables ansible-core
-          sudo modprobe overlay
-          sudo modprobe br_netfilter
           sudo apt install -y sshpass python3-venv pipx make git
           pipx install --include-deps ansible
           pipx ensurepath
