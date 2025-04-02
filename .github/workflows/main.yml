@@ -80,7 +80,8 @@ jobs:
 
       - name: Update files
         run: |
-          IP_ADDR=$(ip a show eth0 | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+          INTERFACE=$(ip route | grep default | awk '{print $5}')
+          IP_ADDR=$(ip a show ${INTERFACE} | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
           echo "Extracted IP: ${IP_ADDR}"
           echo "[all]" > aether-onramp/hosts.ini
           echo "node1 ansible_host=${IP_ADDR} ansible_user=runner ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
@@ -121,9 +122,9 @@ jobs:
           git fetch origin pull/${PR_NUMBER}/merge:pr-${PR_NUMBER} && \
           git checkout pr-${PR_NUMBER}
           
-          docker build -t amf:testing . && \
-          kubectl set image deployment/amf amf=amf:testing -n aether-5gc && \
-          kubectl -n aether-5gc patch deployment amf -p '{"spec":{"template":{"spec":{"containers":[{"name":"amf","imagePullPolicy":"Never"}]}}}}'
+          docker build -t amf:testing . || exit 1
+          kubectl set image deployment/amf amf=amf:testing -n aether-5gc || exit 1
+          kubectl -n aether-5gc patch deployment amf -p '{"spec":{"template":{"spec":{"containers":[{"name":"amf","imagePullPolicy":"Never"}]}}}}' || exit 1
 
       - name: Install GNBSIM
         working-directory: aether-onramp
@@ -145,4 +146,5 @@ jobs:
           else
             echo "Profile Status is successful."
           fi
+
 
