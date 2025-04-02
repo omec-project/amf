@@ -136,5 +136,15 @@ jobs:
         working-directory: aether-onramp
         run: |
           make aether-gnbsim-run
-          docker exec gnbsim-1 cat summary.log
+
+      - name: Validate results
+        working-directory: aether-onramp
+        run: |
+          status=$(docker exec gnbsim-1 cat summary.log)
+          if echo "$status" | grep -q "Profile Status: FAIL"; then
+            echo "Profile Status indicates failure."
+            exit 1
+          else
+            echo "Profile Status is successful."
+          fi
 
