@@ -125,7 +125,7 @@ jobs:
           
           docker build -t amf:testing . && \
           kubectl set image deployment/amf amf=amf:testing -n aether-5gc && \
-          kubectl patch deployment amf -p '{"spec":{"template":{"spec":{"containers":[{"name":"amf","imagePullPolicy":"Never"}]}}}}'
+          kubectl -n aether-5gc patch deployment amf -p '{"spec":{"template":{"spec":{"containers":[{"name":"amf","imagePullPolicy":"Never"}]}}}}'
 
       - name: Install GNBSIM
         working-directory: aether-onramp
