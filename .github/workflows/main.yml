@@ -50,3 +50,7 @@ jobs:
     with:
       branch_name: ${{ github.ref }}
 
+  e2e-tests:
+    uses: gab-arrobo/.github/.github/workflows/e2e-test.yml@fix-e2e-gha
+    with:
+      branch_name: ${{ github.ref }}
