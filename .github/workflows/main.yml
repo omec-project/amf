@@ -135,7 +135,9 @@ jobs:
           fi
           docker build -t ${REPO_NAME}:testing .
           kubectl set image deployment/${REPO_NAME} ${REPO_NAME}=${REPO_NAME}:testing -n aether-5gc
-          kubectl -n aether-5gc patch deployment ${REPO_NAME} -p '{"spec":{"template":{"spec":{"containers":[{"name":"${REPO_NAME}","imagePullPolicy":"Never"}]}}}}'
+          kubectl -n aether-5gc patch deployment ${REPO_NAME} \
+          -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"${REPO_NAME}\",\"image\":\"${REPO_NAME}:testing\",\"imagePullPolicy\":\"Never\"}]}}}}"}'
+
       - name: Install GNBSIM
         working-directory: aether-onramp
         run: |
