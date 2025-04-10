@@ -139,7 +139,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 				}
 
 				if smContext.ULNASTransport().DNN != nil {
-					dnn = string(smContext.ULNASTransport().DNN.GetDNN())
+					dnn = string(smContext.ULNASTransport().GetDNN())
 				} else {
 					if ue.SmfSelectionData != nil {
 						snssaiStr := util.SnssaiModelsToHex(snssai)

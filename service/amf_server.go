@@ -44,7 +44,8 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 			break
 		} else {
 			logger.GrpcLog.Debugf("receive message body from client (%s): GnbIp: %v, GnbId: %v, Verbose - %s, MsgType %v", req.SctplbId, req.GnbIpAddr, req.GnbId, req.VerboseMsg, req.Msgtype)
-			if req.Msgtype == sdcoreAmfServer.MsgType_INIT_MSG {
+			switch req.Msgtype {
+			case sdcoreAmfServer.MsgType_INIT_MSG:
 				rsp := &sdcoreAmfServer.AmfMessage{}
 				rsp.VerboseMsg = "Hello From AMF Pod !"
 				rsp.Msgtype = sdcoreAmfServer.MsgType_INIT_MSG
@@ -81,7 +82,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 				if err := srv.Send(rsp); err != nil {
 					logger.GrpcLog.Errorln("error in sending response")
 				}
-			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_DISC {
+			case sdcoreAmfServer.MsgType_GNB_DISC:
 				logger.GrpcLog.Infoln("gNB disconnected")
 				ngap.HandleSCTPNotificationLb(req.GnbId)
 				// send nf(gnb) status notification
@@ -97,7 +98,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
 					}
 				}
-			} else if req.Msgtype == sdcoreAmfServer.MsgType_GNB_CONN {
+			case sdcoreAmfServer.MsgType_GNB_CONN:
 				logger.GrpcLog.Infoln("new gNB Connected")
 				// send nf(gnb) status notification
 				gnbStatus := mi.MetricEvent{
@@ -112,7 +113,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
 					}
 				}
-			} else {
+			default:
 				ngap.DispatchLb(req, Amf2RanMsgChan)
 			}
 		}

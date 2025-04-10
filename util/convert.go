@@ -69,9 +69,10 @@ func TACConfigToModels(intString string) (hexString string) {
 }
 
 func AnTypeToNas(anType models.AccessType) uint8 {
-	if anType == models.AccessType__3_GPP_ACCESS {
+	switch anType {
+	case models.AccessType__3_GPP_ACCESS:
 		return nasMessage.AccessType3GPP
-	} else if anType == models.AccessType_NON_3_GPP_ACCESS {
+	case models.AccessType_NON_3_GPP_ACCESS:
 		return nasMessage.AccessTypeNon3GPP
 	}
 
