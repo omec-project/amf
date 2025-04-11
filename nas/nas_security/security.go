@@ -38,7 +38,7 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 		// security protected NAS Message
 		// a security protected NAS message must be integrity protected, and ciphering is optional
 		needCiphering := false
-		switch msg.SecurityHeader.SecurityHeaderType {
+		switch msg.SecurityHeaderType {
 		case nas.SecurityHeaderTypeIntegrityProtected:
 			ue.NASLog.Debugln("security header type: Integrity Protected")
 		case nas.SecurityHeaderTypeIntegrityProtectedAndCiphered:
@@ -49,7 +49,7 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 			ue.ULCount.Set(0, 0)
 			ue.DLCount.Set(0, 0)
 		default:
-			return nil, fmt.Errorf("wrong security header type: 0x%0x", msg.SecurityHeader.SecurityHeaderType)
+			return nil, fmt.Errorf("wrong security header type: 0x%0x", msg.SecurityHeaderType)
 		}
 
 		// encode plain nas first
@@ -86,7 +86,7 @@ func Encode(ue *context.AmfUe, msg *nas.Message) ([]byte, error) {
 		payload = append(mac32, payload[:]...)
 
 		// Add EPD and Security Type
-		msgSecurityHeader := []byte{msg.SecurityHeader.ProtocolDiscriminator, msg.SecurityHeader.SecurityHeaderType}
+		msgSecurityHeader := []byte{msg.ProtocolDiscriminator, msg.SecurityHeaderType}
 		payload = append(msgSecurityHeader, payload[:]...)
 
 		// Increase DL Count
@@ -138,7 +138,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	var ue *context.AmfUe = nil
 	var guti string
 	if msg.GmmHeader.GetMessageType() == nas.MsgTypeRegistrationRequest {
-		mobileIdentity5GSContents := msg.RegistrationRequest.MobileIdentity5GS.GetMobileIdentity5GSContents()
+		mobileIdentity5GSContents := msg.RegistrationRequest.GetMobileIdentity5GSContents()
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)
@@ -154,13 +154,13 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			return ue
 		}
 	} else if msg.GmmHeader.GetMessageType() == nas.MsgTypeServiceRequest {
-		mobileIdentity5GSContents := msg.ServiceRequest.TMSI5GS.Octet
+		mobileIdentity5GSContents := msg.TMSI5GS.Octet
 		if nasMessage.MobileIdentity5GSType5gSTmsi == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			guti = StmsiToGuti(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti derived from Service Request Message: %v", guti)
 		}
 	} else if msg.GmmHeader.GetMessageType() == nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration {
-		mobileIdentity5GSContents := msg.DeregistrationRequestUEOriginatingDeregistration.MobileIdentity5GS.GetMobileIdentity5GSContents()
+		mobileIdentity5GSContents := msg.DeregistrationRequestUEOriginatingDeregistration.GetMobileIdentity5GSContents()
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Deregistraion Request Message: %v", guti)
@@ -267,7 +267,7 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			ciphered = true
 			ue.ULCount.Set(0, 0)
 		default:
-			return nil, fmt.Errorf("wrong security header type: 0x%0x", msg.SecurityHeader.SecurityHeaderType)
+			return nil, fmt.Errorf("wrong security header type: 0x%0x", msg.SecurityHeaderType)
 		}
 
 		if ue.ULCount.SQN() > sequenceNumber {

@@ -167,7 +167,7 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
-	var ranId *models.GlobalRanNodeId = &models.GlobalRanNodeId{}
+	ranId := &models.GlobalRanNodeId{}
 	val := strings.Split(gnbId, ":")
 	if len(val) != 3 {
 		return nil
