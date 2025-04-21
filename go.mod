@@ -13,10 +13,10 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/aper v1.2.3
 	github.com/omec-project/config5g v1.5.9
-	github.com/omec-project/nas v1.4.6
+	github.com/omec-project/nas v1.5.0
 	github.com/omec-project/ngap v1.3.2
-	github.com/omec-project/openapi v1.3.4
-	github.com/omec-project/util v1.2.14
+	github.com/omec-project/openapi v1.4.0
+	github.com/omec-project/util v1.3.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
@@ -97,12 +97,12 @@ require (
 	go4.org/intern v0.0.0-20220617035311-6925f38cc365 // indirect
 	go4.org/unsafe/assume-no-moving-gc v0.0.0-20230525183740-e7c30c78aeb2 // indirect
 	golang.org/x/arch v0.15.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/oauth2 v0.28.0 // indirect
-	golang.org/x/sync v0.12.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.23.0 // indirect
+	golang.org/x/crypto v0.37.0 // indirect
+	golang.org/x/net v0.39.0 // indirect
+	golang.org/x/oauth2 v0.29.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250106144421-5f5ef82da422 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
 	gopkg.in/h2non/gock.v1 v1.1.2 // indirect
