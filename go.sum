@@ -165,8 +165,8 @@ github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32 h1:W6apQkHrMkS0Muv8G/TipAy
 github.com/nbio/st v0.0.0-20140626010706-e9e8d9816f32/go.mod h1:9wM+0iRr9ahx58uYLpLIr5fm8diHn0JbqRycJi6w0Ms=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
-github.com/omec-project/aper v1.2.3 h1:OWgAQu5lCAKH89JoK28iYfv4ViRMSv14Y6QVL1bo10U=
-github.com/omec-project/aper v1.2.3/go.mod h1:aj8iiaytNt+UnY9+QXBRa+DJdgS1nSL71e5aMNMrWlc=
+github.com/omec-project/aper v1.3.0 h1:g7YYCImt9zjDKOFqGbnr/WCoMlk+pp661c9NaduWLEc=
+github.com/omec-project/aper v1.3.0/go.mod h1:DITqHfysnusm7tbQtPZZGajmuLoePaPV0x34oZWd/Yo=
 github.com/omec-project/config5g v1.6.0 h1:XIIBVJS5+mngJsPzcwqkaoZel/RqfzUQBJwPd5YYUdA=
 github.com/omec-project/config5g v1.6.0/go.mod h1:c7Hj8uuQ/H56Ut/1HE+w75TnpulhUZigP116Q6AJMuU=
 github.com/omec-project/nas v1.5.0 h1:2UchIZu45Wla/vbzIE0DP3GWe2imG9+7p2i1XgnDiE8=
