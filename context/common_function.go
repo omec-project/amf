@@ -44,7 +44,7 @@ func InTaiList(servedTai models.Tai, taiList []models.Tai) bool {
 	return false
 }
 
-func InTacList(servedTai models.Tai, targetTai models.Tai) bool {
+func InTAList(servedTai models.Tai, targetTai models.Tai) bool {
 	return reflect.DeepEqual(servedTai, targetTai)
 }
 
