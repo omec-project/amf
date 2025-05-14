@@ -1983,7 +1983,7 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 			ue.ConfigurationUpdateMessage = nil
 		}
 	case nasMessage.ServiceTypeData:
-		plmnAccept := context.InTAList(ue.Tai, ue.RanUe[anType].Tai)
+		plmnAccept := context.IsTaiEqual(ue.Tai, ue.RanUe[anType].Tai)
 		if !plmnAccept {
 			gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMTrackingAreaNotAllowed)
 			return nil
