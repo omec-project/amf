@@ -644,7 +644,8 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			EventType: mi.CNfStatusEvt,
 			NfStatusData: mi.CNfStatus{
 				NfType:   mi.NfTypeGnb,
-				NfStatus: mi.NfStatusConnected, NfName: ran.GnbId,
+				NfStatus: mi.NfStatusConnected,
+				NfName:   ran.GnbId,
 			},
 		}
 		if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
