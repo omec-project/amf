@@ -1983,6 +1983,11 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 			ue.ConfigurationUpdateMessage = nil
 		}
 	case nasMessage.ServiceTypeData:
+		plmnAccept := context.IsTaiEqual(ue.Tai, ue.RanUe[anType].Tai)
+		if !plmnAccept {
+			gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMTrackingAreaNotAllowed)
+			return nil
+		}
 		if anType == models.AccessType__3_GPP_ACCESS {
 			if ue.AmPolicyAssociation != nil && ue.AmPolicyAssociation.ServAreaRes != nil {
 				var accept bool
