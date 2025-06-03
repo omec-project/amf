@@ -11,10 +11,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/aper v1.3.0
-	github.com/omec-project/config5g v1.6.0
-	github.com/omec-project/nas v1.5.2
-	github.com/omec-project/ngap v1.4.0
+	github.com/omec-project/aper v1.3.1
+	github.com/omec-project/config5g v1.6.2
+	github.com/omec-project/nas v1.5.3
+	github.com/omec-project/ngap v1.4.2
 	github.com/omec-project/openapi v1.4.1
 	github.com/omec-project/util v1.3.2
 	github.com/prometheus/client_golang v1.22.0
@@ -104,7 +104,7 @@ require (
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250218202821-56aae31c358a // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
 	gopkg.in/h2non/gock.v1 v1.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20220811202034-502d2d690317 // indirect
