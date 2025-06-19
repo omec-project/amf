@@ -323,7 +323,7 @@ func (amf *AMF) setLogLevel() {
 
 func (amf *AMF) FilterCli(c *cli.Command) (args []string) {
 	for _, flag := range amf.GetCliCmd() {
-		name := flag.String()
+		name := flag.Names()[0]
 		value := fmt.Sprint(c.Generic(name))
 		if value == "" {
 			continue
