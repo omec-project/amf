@@ -52,7 +52,7 @@ import (
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/spf13/viper"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v3"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -73,7 +73,7 @@ type (
 var config Config
 
 var amfCLi = []cli.Flag{
-	cli.StringFlag{
+	&cli.StringFlag{
 		Name:     "cfg",
 		Usage:    "amf config file",
 		Required: true,
@@ -93,7 +93,7 @@ func (*AMF) GetCliCmd() (flags []cli.Flag) {
 	return amfCLi
 }
 
-func (amf *AMF) Initialize(c *cli.Context) error {
+func (amf *AMF) Initialize(c *cli.Command) error {
 	config = Config{
 		cfg: c.String("cfg"),
 	}
@@ -321,9 +321,9 @@ func (amf *AMF) setLogLevel() {
 	}
 }
 
-func (amf *AMF) FilterCli(c *cli.Context) (args []string) {
+func (amf *AMF) FilterCli(c *cli.Command) (args []string) {
 	for _, flag := range amf.GetCliCmd() {
-		name := flag.GetName()
+		name := flag.Names()[0]
 		value := fmt.Sprint(c.Generic(name))
 		if value == "" {
 			continue
@@ -440,7 +440,7 @@ func (amf *AMF) Start() {
 	}
 }
 
-func (amf *AMF) Exec(c *cli.Context) error {
+func (amf *AMF) Exec(c *cli.Command) error {
 	// AMF.Initialize(cfgPath, c)
 
 	logger.InitLog.Debugln("args:", c.String("cfg"))
