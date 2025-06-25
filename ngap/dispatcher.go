@@ -8,6 +8,8 @@
 package ngap
 
 import (
+	ctx "context"
+	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -20,7 +22,12 @@ import (
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/ngap"
 	"github.com/omec-project/ngap/ngapType"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
+
+var tracer = otel.Tracer("amf/ngap")
 
 func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage) {
 	logger.NgapLog.Infof("dispatchLb GnbId:%v GnbIp: %v %T", sctplbMsg.GnbId, sctplbMsg.GnbIpAddr, Amf2RanMsgChan)
@@ -161,6 +168,38 @@ func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
 }
 
 func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+	var code int64
+	switch pdu.Present {
+	case ngapType.NGAPPDUPresentInitiatingMessage:
+		if pdu.InitiatingMessage != nil {
+			code = pdu.InitiatingMessage.ProcedureCode.Value
+		}
+	case ngapType.NGAPPDUPresentSuccessfulOutcome:
+		if pdu.SuccessfulOutcome != nil {
+			code = pdu.SuccessfulOutcome.ProcedureCode.Value
+		}
+	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
+		if pdu.UnsuccessfulOutcome != nil {
+			code = pdu.UnsuccessfulOutcome.ProcedureCode.Value
+		}
+	}
+	procName := procedureName(code)
+
+	if procName == "" {
+		procName = "UnknownProcedure"
+	}
+
+	spanName := fmt.Sprintf("AMF NGAP %s", procName)
+	ctxt, span := tracer.Start(ctx.Background(), spanName,
+		trace.WithAttributes(
+			attribute.String("net.peer", ran.Conn.RemoteAddr().String()),
+			attribute.String("ngap.pdu_present", fmt.Sprintf("%d", pdu.Present)),
+			attribute.String("ngap.procedureCode", procName),
+		),
+		trace.WithSpanKind(trace.SpanKindServer),
+	)
+	defer span.End()
+
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
@@ -178,9 +217,9 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeNGSetup:
 			HandleNGSetupRequest(ran, pdu)
 		case ngapType.ProcedureCodeInitialUEMessage:
-			HandleInitialUEMessage(ran, pdu, sctplbMsg)
+			HandleInitialUEMessage(ctxt, ran, pdu, sctplbMsg)
 		case ngapType.ProcedureCodeUplinkNASTransport:
-			HandleUplinkNasTransport(ran, pdu)
+			HandleUplinkNasTransport(ctxt, ran, pdu)
 		case ngapType.ProcedureCodeNGReset:
 			HandleNGReset(ran, pdu)
 		case ngapType.ProcedureCodeHandoverCancel:
@@ -188,7 +227,7 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeUEContextReleaseRequest:
 			HandleUEContextReleaseRequest(ran, pdu)
 		case ngapType.ProcedureCodeNASNonDeliveryIndication:
-			HandleNasNonDeliveryIndication(ran, pdu)
+			HandleNasNonDeliveryIndication(ctxt, ran, pdu)
 		case ngapType.ProcedureCodeLocationReportingFailureIndication:
 			HandleLocationReportingFailureIndication(ran, pdu)
 		case ngapType.ProcedureCodeErrorIndication:
@@ -354,4 +393,117 @@ func HandleSCTPNotificationLb(gnbId string) {
 
 	ran.Log.Infoln("SCTP state is SCTP_SHUTDOWN_COMP, close the connection")
 	ran.Remove()
+}
+
+func procedureName(code int64) string {
+	switch code {
+	case ngapType.ProcedureCodeAMFConfigurationUpdate:
+		return "AMFConfigurationUpdate"
+	case ngapType.ProcedureCodeAMFStatusIndication:
+		return "AMFStatusIndication"
+	case ngapType.ProcedureCodeCellTrafficTrace:
+		return "CellTrafficTrace"
+	case ngapType.ProcedureCodeDeactivateTrace:
+		return "DeactivateTrace"
+	case ngapType.ProcedureCodeDownlinkNASTransport:
+		return "DownlinkNASTransport"
+	case ngapType.ProcedureCodeDownlinkNonUEAssociatedNRPPaTransport:
+		return "DownlinkNonUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeDownlinkRANConfigurationTransfer:
+		return "DownlinkRANConfigurationTransfer"
+	case ngapType.ProcedureCodeDownlinkRANStatusTransfer:
+		return "DownlinkRANStatusTransfer"
+	case ngapType.ProcedureCodeDownlinkUEAssociatedNRPPaTransport:
+		return "DownlinkUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeErrorIndication:
+		return "ErrorIndication"
+	case ngapType.ProcedureCodeHandoverCancel:
+		return "HandoverCancel"
+	case ngapType.ProcedureCodeHandoverNotification:
+		return "HandoverNotification"
+	case ngapType.ProcedureCodeHandoverPreparation:
+		return "HandoverPreparation"
+	case ngapType.ProcedureCodeHandoverResourceAllocation:
+		return "HandoverResourceAllocation"
+	case ngapType.ProcedureCodeInitialContextSetup:
+		return "InitialContextSetup"
+	case ngapType.ProcedureCodeInitialUEMessage:
+		return "InitialUEMessage"
+	case ngapType.ProcedureCodeLocationReportingControl:
+		return "LocationReportingControl"
+	case ngapType.ProcedureCodeLocationReportingFailureIndication:
+		return "LocationReportingFailureIndication"
+	case ngapType.ProcedureCodeLocationReport:
+		return "LocationReport"
+	case ngapType.ProcedureCodeNASNonDeliveryIndication:
+		return "NASNonDeliveryIndication"
+	case ngapType.ProcedureCodeNGReset:
+		return "NGReset"
+	case ngapType.ProcedureCodeNGSetup:
+		return "NGSetup"
+	case ngapType.ProcedureCodeOverloadStart:
+		return "OverloadStart"
+	case ngapType.ProcedureCodeOverloadStop:
+		return "OverloadStop"
+	case ngapType.ProcedureCodePaging:
+		return "Paging"
+	case ngapType.ProcedureCodePathSwitchRequest:
+		return "PathSwitchRequest"
+	case ngapType.ProcedureCodePDUSessionResourceModify:
+		return "PDUSessionResourceModify"
+	case ngapType.ProcedureCodePDUSessionResourceModifyIndication:
+		return "PDUSessionResourceModifyIndication"
+	case ngapType.ProcedureCodePDUSessionResourceRelease:
+		return "PDUSessionResourceRelease"
+	case ngapType.ProcedureCodePDUSessionResourceSetup:
+		return "PDUSessionResourceSetup"
+	case ngapType.ProcedureCodePDUSessionResourceNotify:
+		return "PDUSessionResourceNotify"
+	case ngapType.ProcedureCodePrivateMessage:
+		return "PrivateMessage"
+	case ngapType.ProcedureCodePWSCancel:
+		return "PWSCancel"
+	case ngapType.ProcedureCodePWSFailureIndication:
+		return "PWSFailureIndication"
+	case ngapType.ProcedureCodePWSRestartIndication:
+		return "PWSRestartIndication"
+	case ngapType.ProcedureCodeRANConfigurationUpdate:
+		return "RANConfigurationUpdate"
+	case ngapType.ProcedureCodeRerouteNASRequest:
+		return "RerouteNASRequest"
+	case ngapType.ProcedureCodeRRCInactiveTransitionReport:
+		return "RRCInactiveTransitionReport"
+	case ngapType.ProcedureCodeTraceFailureIndication:
+		return "TraceFailureIndication"
+	case ngapType.ProcedureCodeTraceStart:
+		return "TraceStart"
+	case ngapType.ProcedureCodeUEContextModification:
+		return "UEContextModification"
+	case ngapType.ProcedureCodeUEContextRelease:
+		return "UEContextRelease"
+	case ngapType.ProcedureCodeUEContextReleaseRequest:
+		return "UEContextReleaseRequest"
+	case ngapType.ProcedureCodeUERadioCapabilityCheck:
+		return "UERadioCapabilityCheck"
+	case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
+		return "UERadioCapabilityInfoIndication"
+	case ngapType.ProcedureCodeUETNLABindingRelease:
+		return "UETNLABindingRelease"
+	case ngapType.ProcedureCodeUplinkNASTransport:
+		return "UplinkNASTransport"
+	case ngapType.ProcedureCodeUplinkNonUEAssociatedNRPPaTransport:
+		return "UplinkNonUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeUplinkRANConfigurationTransfer:
+		return "UplinkRANConfigurationTransfer"
+	case ngapType.ProcedureCodeUplinkRANStatusTransfer:
+		return "UplinkRANStatusTransfer"
+	case ngapType.ProcedureCodeUplinkUEAssociatedNRPPaTransport:
+		return "UplinkUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeWriteReplaceWarning:
+		return "WriteReplaceWarning"
+	case ngapType.ProcedureCodeSecondaryRATDataUsageReport:
+		return "SecondaryRATDataUsageReport"
+	default:
+		return fmt.Sprintf("ProcedureCode%d", code)
+	}
 }

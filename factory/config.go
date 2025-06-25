@@ -52,6 +52,12 @@ type KafkaInfo struct {
 	Topic       string `yaml:"topicName,omitempty"`
 }
 
+type TelemetryConfig struct {
+	Enabled      bool    `yaml:"enabled,omitempty"`       // Optional; defaults to false
+	OtlpEndpoint string  `yaml:"otlp_endpoint,omitempty"` // Mandatory if enabled=true
+	Ratio        float64 `yaml:"ratio,omitempty"`         // Optional; defaults to 1.0
+}
+
 type Configuration struct {
 	AmfName                         string                    `yaml:"amfName,omitempty"`
 	AmfDBName                       string                    `yaml:"amfDBName,omitempty"`
@@ -78,6 +84,7 @@ type Configuration struct {
 	T3550                           TimerValue                `yaml:"t3550"`
 	T3560                           TimerValue                `yaml:"t3560"`
 	T3565                           TimerValue                `yaml:"t3565"`
+	Telemetry                       *TelemetryConfig          `yaml:"telemetry,omitempty"`
 
 	// Maintain TaiList per slice
 	SliceTaiList             map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`

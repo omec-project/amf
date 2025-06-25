@@ -9,6 +9,7 @@ package service
 
 import (
 	"bufio"
+	ctx "context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // Using package only for invoking initialization.
@@ -39,6 +40,7 @@ import (
 	ngap_service "github.com/omec-project/amf/ngap/service"
 	"github.com/omec-project/amf/oam"
 	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/tracing"
 	"github.com/omec-project/amf/util"
 	aperLogger "github.com/omec-project/aper/logger"
 	grpcClient "github.com/omec-project/config5g/proto/client"
@@ -109,6 +111,26 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 	}
 
 	amf.setLogLevel()
+
+	if factory.AmfConfig.Configuration.Telemetry.Enabled {
+		ctxt := ctx.Background()
+		tp, err := tracing.InitTracer(ctxt, tracing.TelemetryConfig{
+			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
+			ServiceName:    "amf",
+			ServiceVersion: factory.AmfConfig.Info.Version,
+		})
+		if err != nil {
+			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
+		}
+
+		defer func() {
+			err := tp.Shutdown(ctxt)
+			if err != nil {
+				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+
+			}
+		}()
+	}
 
 	// Initiating a server for profiling
 	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {

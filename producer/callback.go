@@ -7,6 +7,7 @@
 package producer
 
 import (
+	ctx "context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -435,7 +436,7 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 
 		amfUe.AttachRanUe(ranUe)
 
-		nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message)
+		nas.HandleNAS(ctx.Background(), ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message)
 	}()
 	return nil
 }

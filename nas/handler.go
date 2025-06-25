@@ -7,6 +7,7 @@
 package nas
 
 import (
+	ctx "context"
 	"os"
 
 	"github.com/omec-project/amf/context"
@@ -16,7 +17,7 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
-func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
+func HandleNAS(ctxt ctx.Context, ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 	amfSelf := context.AMF_Self()
 
 	if ue == nil {
@@ -83,6 +84,7 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		ue.AmfUe.EventChannel.UpdateNasHandler(DispatchMsg)
 
 		nasMsg := context.NasMsg{
+			Context:       ctxt,
 			AnType:        ue.Ran.AnType,
 			NasMsg:        nasPdu,
 			ProcedureCode: procedureCode,
@@ -100,7 +102,7 @@ func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte) {
 		ue.AmfUe.NASLog.Errorln(err)
 		return
 	}
-	if err := Dispatch(ue.AmfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
+	if err := Dispatch(ctxt, ue.AmfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
 		ue.AmfUe.NASLog.Errorf("handle NAS Error: %v", err)
 	}
 }
@@ -113,7 +115,7 @@ func DispatchMsg(amfUe *context.AmfUe, transInfo context.NasMsg) {
 		return
 	}
 
-	if err := Dispatch(amfUe, transInfo.AnType, transInfo.ProcedureCode, msg); err != nil {
+	if err := Dispatch(transInfo.Context, amfUe, transInfo.AnType, transInfo.ProcedureCode, msg); err != nil {
 		amfUe.NASLog.Errorf("handle NAS Error: %v", err)
 	}
 }

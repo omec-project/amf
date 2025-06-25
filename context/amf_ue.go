@@ -8,6 +8,7 @@
 package context
 
 import (
+	ctx "context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -364,6 +365,7 @@ type NasMsg struct {
 	AnType        models.AccessType
 	NasMsg        []byte
 	ProcedureCode int64
+	Context       ctx.Context
 }
 
 type NgapMsg struct {

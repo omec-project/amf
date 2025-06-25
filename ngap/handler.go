@@ -8,6 +8,7 @@
 package ngap
 
 import (
+	ctx "context"
 	"encoding/hex"
 	"os"
 	"strconv"
@@ -658,7 +659,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	}
 }
 
-func HandleUplinkNasTransport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleUplinkNasTransport(ctxt ctx.Context, ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var nASPDU *ngapType.NASPDU
@@ -744,7 +745,7 @@ func HandleUplinkNasTransport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ranUe.UpdateLocation(userLocationInformation)
 	}
 
-	nas.HandleNAS(ranUe, ngapType.ProcedureCodeUplinkNASTransport, nASPDU.Value)
+	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeUplinkNASTransport, nASPDU.Value)
 }
 
 func HandleNGReset(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -1378,7 +1379,7 @@ func HandleLocationReportingFailureIndication(ran *context.AmfRan, message *ngap
 	}
 }
 
-func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+func HandleInitialUEMessage(ctxt ctx.Context, ran *context.AmfRan, message *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
 	amfSelf := context.AMF_Self()
 
 	var rANUENGAPID *ngapType.RANUENGAPID
@@ -1614,7 +1615,7 @@ func HandleInitialUEMessage(ran *context.AmfRan, message *ngapType.NGAPPDU, sctp
 	if amfSelf.EnableSctpLb {
 		ranUe.SctplbMsg = sctplbMsg.Msg
 	}
-	nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, nASPDU.Value)
+	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeInitialUEMessage, nASPDU.Value)
 }
 
 func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -3828,7 +3829,7 @@ func HandleUplinkRanStatusTransfer(ran *context.AmfRan, message *ngapType.NGAPPD
 	}
 }
 
-func HandleNasNonDeliveryIndication(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleNasNonDeliveryIndication(ctxt ctx.Context, ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var nASPDU *ngapType.NASPDU
@@ -3894,7 +3895,7 @@ func HandleNasNonDeliveryIndication(ran *context.AmfRan, message *ngapType.NGAPP
 
 	printAndGetCause(ran, cause)
 
-	nas.HandleNAS(ranUe, ngapType.ProcedureCodeNASNonDeliveryIndication, nASPDU.Value)
+	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeNASNonDeliveryIndication, nASPDU.Value)
 }
 
 func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU) {
