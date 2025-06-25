@@ -31,6 +31,7 @@ connected gNodeB's and its status.
 - Transparent proxy for routing SM messages
 - Access Authentication
 - Access Authorization
+- Tracing with OpenTelemetry
 
 ## Supported Procedures:
 - Registration/Deregistration
