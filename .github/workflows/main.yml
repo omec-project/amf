@@ -51,6 +51,7 @@ jobs:
       branch_name: ${{ github.ref }}
 
   e2e-tests:
+    if: github.event_name == 'pull_request'
     uses: omec-project/.github/.github/workflows/e2e-test.yml@main
     with:
       branch_name: ${{ github.ref }}
