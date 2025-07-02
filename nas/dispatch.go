@@ -12,6 +12,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/gmm"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/nas"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
@@ -109,6 +110,9 @@ func Dispatch(ctext ctx.Context, ue *context.AmfUe, accessType models.AccessType
 		),
 	)
 	defer span.End()
+
+	logger.AppLog.Warnf("created span for %s, accessType: %s, procedureCode: %d, messageType: %s",
+		spanName, accessType, procedureCode, msgTypeName)
 
 	return gmm.GmmFSM.SendEvent(ue.State[accessType], gmm.GmmMessageEvent, fsm.ArgsType{
 		gmm.ArgAmfUe:         ue,

@@ -198,6 +198,8 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		),
 		trace.WithSpanKind(trace.SpanKindServer),
 	)
+	logger.AppLog.Infof("created span for %s, net.peer: %s, ngap.pdu_present: %d, ngap.procedureCode: %s",
+		spanName, ran.Conn.RemoteAddr().String(), pdu.Present, procName)
 	defer span.End()
 
 	switch pdu.Present {
