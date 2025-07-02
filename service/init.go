@@ -112,29 +112,6 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 
 	amf.setLogLevel()
 
-	logger.InitLog.Infoln("Telemetry configuration:", factory.AmfConfig.Configuration.Telemetry) // To delete
-
-	if factory.AmfConfig.Configuration.Telemetry.Enabled {
-		ctxt := ctx.Background()
-		tp, err := tracing.InitTracer(ctxt, tracing.TelemetryConfig{
-			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
-			ServiceName:    "amf",
-			ServiceVersion: factory.AmfConfig.Info.Version,
-		})
-		if err != nil {
-			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
-		}
-		logger.InitLog.Infoln("tracer initialized successfully")
-		defer func() {
-			err := tp.Shutdown(ctxt)
-			if err != nil {
-				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
-
-			}
-			logger.InitLog.Infoln("tracer shutdown successfully")
-		}()
-	}
-
 	// Initiating a server for profiling
 	if factory.AmfConfig.Configuration.DebugProfilePort != 0 {
 		addr := fmt.Sprintf(":%d", factory.AmfConfig.Configuration.DebugProfilePort)
@@ -436,6 +413,29 @@ func (amf *AMF) Start() {
 		amf.Terminate()
 		os.Exit(0)
 	}()
+
+	logger.InitLog.Infoln("Telemetry configuration:", factory.AmfConfig.Configuration.Telemetry) // To delete
+
+	if factory.AmfConfig.Configuration.Telemetry.Enabled {
+		ctxt := ctx.Background()
+		tp, err := tracing.InitTracer(ctxt, tracing.TelemetryConfig{
+			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
+			ServiceName:    "amf",
+			ServiceVersion: factory.AmfConfig.Info.Version,
+		})
+		if err != nil {
+			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
+		}
+		logger.InitLog.Infoln("tracer initialized successfully")
+		defer func() {
+			err := tp.Shutdown(ctxt)
+			if err != nil {
+				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+
+			}
+			logger.InitLog.Infoln("tracer shutdown successfully")
+		}()
+	}
 
 	sslLog := filepath.Dir(factory.AmfConfig.CfgLocation) + "/sslkey.log"
 	server, err := http2_util.NewServer(addr, sslLog, router)
