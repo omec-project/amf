@@ -131,6 +131,7 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
 
 			}
+			logger.InitLog.Infoln("tracer shutdown successfully")
 		}()
 	}
 
