@@ -55,6 +55,7 @@ import (
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v3"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -414,11 +415,10 @@ func (amf *AMF) Start() {
 		os.Exit(0)
 	}()
 
-	logger.InitLog.Infoln("Telemetry configuration:", factory.AmfConfig.Configuration.Telemetry) // To delete
-
 	if factory.AmfConfig.Configuration.Telemetry.Enabled {
 		ctxt := ctx.Background()
-		tp, err := tracing.InitTracer(ctxt, tracing.TelemetryConfig{
+		var tp *sdktrace.TracerProvider
+		tp, err = tracing.InitTracer(ctxt, tracing.TelemetryConfig{
 			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
 			ServiceName:    "amf",
 			ServiceVersion: factory.AmfConfig.Info.Version,
@@ -428,10 +428,9 @@ func (amf *AMF) Start() {
 		}
 		logger.InitLog.Infoln("tracer initialized successfully")
 		defer func() {
-			err := tp.Shutdown(ctxt)
+			err = tp.Shutdown(ctxt)
 			if err != nil {
 				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
-
 			}
 			logger.InitLog.Infoln("tracer shutdown successfully")
 		}()

@@ -99,7 +99,7 @@ func Dispatch(ctext ctx.Context, ue *context.AmfUe, accessType models.AccessType
 		return fmt.Errorf("UE State is empty (accessType=%q). Can't send GSM Message", accessType)
 	}
 
-	msgTypeName := messageTypeName(msg.GmmMessage.GmmHeader.GetMessageType())
+	msgTypeName := messageTypeName(msg.GmmHeader.GetMessageType())
 	spanName := fmt.Sprintf("AMF NAS %s", msgTypeName)
 
 	_, span := tracer.Start(ctext, spanName,

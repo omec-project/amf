@@ -38,8 +38,6 @@ func InitConfigFactory(f string) error {
 			enableKafka := true
 			AmfConfig.Configuration.KafkaInfo.EnableKafka = &enableKafka
 		}
-
-		logger.CfgLog.Infoln("Amf configuration: ", AmfConfig)
 	}
 
 	return nil
