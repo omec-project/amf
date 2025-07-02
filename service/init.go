@@ -112,6 +112,8 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 
 	amf.setLogLevel()
 
+	logger.InitLog.Infoln("Telemetry configuration:", factory.AmfConfig.Configuration.Telemetry) // To delete
+
 	if factory.AmfConfig.Configuration.Telemetry.Enabled {
 		ctxt := ctx.Background()
 		tp, err := tracing.InitTracer(ctxt, tracing.TelemetryConfig{
