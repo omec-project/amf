@@ -122,7 +122,7 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 		if err != nil {
 			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
 		}
-
+		logger.InitLog.Infoln("tracer initialized successfully")
 		defer func() {
 			err := tp.Shutdown(ctxt)
 			if err != nil {
