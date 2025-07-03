@@ -22,7 +22,6 @@ cscope.*
 # debug
 *.log
 *.pcap
-vendor*
 
 gmm/gmm.dot
 

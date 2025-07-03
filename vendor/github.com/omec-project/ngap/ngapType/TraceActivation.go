@@ -1,0 +1,15 @@
+// Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package ngapType
+
+// Need to import "github.com/omec-project/aper" if it uses "aper"
+
+type TraceActivation struct {
+	NGRANTraceID                   NGRANTraceID
+	InterfacesToTrace              InterfacesToTrace
+	TraceDepth                     TraceDepth
+	TraceCollectionEntityIPAddress TransportLayerAddress
+	IEExtensions                   *ProtocolExtensionContainerTraceActivationExtIEs `aper:"optional"`
+}

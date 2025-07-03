@@ -79,7 +79,7 @@ func HandleNAS(ctxt ctx.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		if ue.AmfUe.EventChannel == nil {
 			ue.AmfUe.EventChannel = ue.AmfUe.NewEventChannel()
 			ue.AmfUe.EventChannel.UpdateNasHandler(DispatchMsg)
-			go ue.AmfUe.EventChannel.Start()
+			go ue.AmfUe.EventChannel.Start(ctxt)
 		}
 		ue.AmfUe.EventChannel.UpdateNasHandler(DispatchMsg)
 

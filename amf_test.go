@@ -9,6 +9,7 @@
 package main
 
 import (
+	ctx "context"
 	"encoding/json"
 	"log"
 	"os"
@@ -62,7 +63,7 @@ func TestInitialConfig(t *testing.T) {
 	Rsp := make(chan *protos.NetworkSliceResponse, 1)
 
 	go func() {
-		AMFTest.UpdateConfig(Rsp)
+		AMFTest.UpdateConfig(Rsp, ctx.Background())
 	}()
 	Rsp <- GetNetworkSliceConfig()
 
@@ -107,7 +108,7 @@ func TestUpdateConfig(t *testing.T) {
 		Rsp <- &nrp
 	}()
 	go func() {
-		AMFTest.UpdateConfig(Rsp)
+		AMFTest.UpdateConfig(Rsp, ctx.Background())
 	}()
 
 	time.Sleep(2 * time.Second)

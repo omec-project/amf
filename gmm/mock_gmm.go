@@ -6,6 +6,8 @@
 package gmm
 
 import (
+	ctx "context"
+
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/util/fsm"
@@ -37,33 +39,33 @@ func Mockinit() {
 	}
 }
 
-func MockDeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+func MockDeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt ctx.Context) {
 	logger.GmmLog.Info("MockDeRegistered")
 	MockDeRegisteredCallCount++
 }
 
-func MockAuthentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+func MockAuthentication(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt ctx.Context) {
 	logger.GmmLog.Info("MockAuthentication")
 	MockAuthenticationCallCount++
 }
 
-func MockSecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+func MockSecurityMode(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt ctx.Context) {
 	logger.GmmLog.Info("MockSecurityMode")
 	MockSecurityModeCallCount++
 }
 
-func MockContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+func MockContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt ctx.Context) {
 	logger.GmmLog.Info("MockContextSetup")
 	MockContextSetupCallCount++
 }
 
-func MockRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+func MockRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt ctx.Context) {
 	logger.GmmLog.Info(event)
 	logger.GmmLog.Info("MockRegistered")
 	MockRegisteredCallCount++
 }
 
-func MockDeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsType) {
+func MockDeregisteredInitiated(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt ctx.Context) {
 	logger.GmmLog.Info("MockDeregisteredInitiated")
 	MockDeregisteredInitiatedCallCount++
 

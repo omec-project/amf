@@ -29,7 +29,7 @@ import (
 
 var tracer = otel.Tracer("amf/ngap")
 
-func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage) {
+func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage, ctxt ctx.Context) {
 	logger.NgapLog.Infof("dispatchLb GnbId:%v GnbIp: %v %T", sctplbMsg.GnbId, sctplbMsg.GnbIpAddr, Amf2RanMsgChan)
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
@@ -106,7 +106,7 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler, ctxt)
 		// ranUe.AmfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
@@ -117,13 +117,15 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		go DispatchNgapMsg(ran, pdu, sctplbMsg)
+		go DispatchNgapMsg(ran, pdu, sctplbMsg, ctxt)
 	}
 }
 
 func Dispatch(conn net.Conn, msg []byte) {
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
+
+	ctxt := ctx.Background()
 
 	ran, ok := amfSelf.AmfRanFindByConn(conn)
 	if !ok {
@@ -147,7 +149,7 @@ func Dispatch(conn net.Conn, msg []byte) {
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler, ctxt)
 		ranUe.AmfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
@@ -159,15 +161,15 @@ func Dispatch(conn net.Conn, msg []byte) {
 		ranUe.Ran.Conn = conn
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		go DispatchNgapMsg(ran, pdu, nil)
+		go DispatchNgapMsg(ran, pdu, nil, ctxt)
 	}
 }
 
 func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
-	DispatchNgapMsg(msg.Ran, msg.NgapMsg, msg.SctplbMsg)
+	DispatchNgapMsg(msg.Ran, msg.NgapMsg, msg.SctplbMsg, ctx.Background())
 }
 
-func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage, ctxt ctx.Context) {
 	var code int64
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
@@ -190,7 +192,7 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 	}
 
 	spanName := fmt.Sprintf("AMF NGAP %s", procName)
-	ctxt, span := tracer.Start(ctx.Background(), spanName,
+	ctxt, span := tracer.Start(ctxt, spanName,
 		trace.WithAttributes(
 			attribute.String("net.peer", ran.Conn.RemoteAddr().String()),
 			attribute.String("ngap.pdu_present", fmt.Sprintf("%d", pdu.Present)),

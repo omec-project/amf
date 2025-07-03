@@ -29,7 +29,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func SmContextHandler(s1, s2 string, msg interface{}, ctxt ctx.Context) (interface{}, string, interface{}, interface{}) {
 	switch msg := msg.(type) {
 	case models.SmContextStatusNotification:
 		var pduSessionID int
@@ -494,7 +494,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	return nil
 }
 
-func HandleDeregistrationNotification(request *httpwrapper.Request) *httpwrapper.Response {
+func HandleDeregistrationNotification(request *httpwrapper.Request, ctxt ctx.Context) *httpwrapper.Response {
 	logger.ProducerLog.Infoln("handle Deregistration Notification")
 	deregistrationData := request.Body.(models.DeregistrationData)
 

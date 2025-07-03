@@ -119,5 +119,5 @@ func Dispatch(ctext ctx.Context, ue *context.AmfUe, accessType models.AccessType
 		gmm.ArgAccessType:    accessType,
 		gmm.ArgNASMessage:    msg.GmmMessage,
 		gmm.ArgProcedureCode: procedureCode,
-	})
+	}, ctext)
 }

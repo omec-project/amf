@@ -96,7 +96,7 @@ func (*AMF) GetCliCmd() (flags []cli.Flag) {
 	return amfCLi
 }
 
-func (amf *AMF) Initialize(c *cli.Command) error {
+func (amf *AMF) Initialize(c *cli.Command, ctxt ctx.Context) error {
 	config = Config{
 		cfg: c.String("cfg"),
 	}
@@ -146,7 +146,7 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 		factory.AmfConfig.Configuration.SupportTAIList = nil
 		factory.AmfConfig.Configuration.PlmnSupportList = nil
 		logger.InitLog.Infoln("Reading Amf related configuration from ROC")
-		go manageGrpcClient(factory.AmfConfig.Configuration.WebuiUri, amf)
+		go manageGrpcClient(factory.AmfConfig.Configuration.WebuiUri, amf, ctxt)
 	} else {
 		go func() {
 			logger.GrpcLog.Infoln("reading Amf Configuration from Helm")
@@ -160,7 +160,7 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 
 // manageGrpcClient connects the config pod GRPC server and subscribes the config changes.
 // Then it updates AMF configuration.
-func manageGrpcClient(webuiUri string, amf *AMF) {
+func manageGrpcClient(webuiUri string, amf *AMF, ctxt ctx.Context) {
 	var configChannel chan *protos.NetworkSliceResponse
 	var client grpcClient.ConfClient
 	var stream protos.ConfigService_NetworkSliceSubscribeClient
@@ -194,7 +194,7 @@ func manageGrpcClient(webuiUri string, amf *AMF) {
 			if configChannel == nil {
 				configChannel = client.PublishOnConfigChange(true, stream)
 				logger.InitLog.Infoln("PublishOnConfigChange is triggered")
-				go amf.UpdateConfig(configChannel)
+				go amf.UpdateConfig(configChannel, ctxt)
 				logger.InitLog.Infoln("AMF updateConfig is triggered")
 			}
 
@@ -704,7 +704,7 @@ func (amf *AMF) UpdateSupportedTaiList() {
 	}
 }
 
-func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
+func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse, ctxt ctx.Context) bool {
 	for rsp := range commChannel {
 		logger.GrpcLog.Infof("received updateConfig in the amf app: %v", rsp)
 		var tai []models.Tai
@@ -722,7 +722,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 			}
 			// inform connected UEs with update slices
 			if len(ns.DeletedImsis) > 0 {
-				HandleImsiDeleteFromNetworkSlice(ns)
+				HandleImsiDeleteFromNetworkSlice(ns, ctxt)
 			}
 			//TODO Inform connected UEs with update Slice
 			/*if len(ns.AddUpdatedImsis) > 0 {
@@ -799,7 +799,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 	}
 }
 
-func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
+func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}, ctxt ctx.Context) {
 	amfSelf := context.AMF_Self()
 	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
@@ -816,7 +816,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 			err := gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
-			})
+			}, ctxt)
 			if err != nil {
 				logger.CfgLog.Errorln(err)
 			}
@@ -835,14 +835,14 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 			gmm.ArgAmfUe:      ue,
 			gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			gmm.ArgNssai:      Nssai,
-		})
+		}, ctxt)
 		if err != nil {
 			logger.CfgLog.Errorln(err)
 		}
 	}
 }
 
-func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
+func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}, ctxt ctx.Context) {
 	amfSelf := context.AMF_Self()
 	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
@@ -858,13 +858,13 @@ func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 		gmm.ArgAmfUe:      ue,
 		gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 		gmm.ArgNssai:      Nssai,
-	})
+	}, ctxt)
 	if err != nil {
 		logger.CfgLog.Errorln(err)
 	}
 }
 
-func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
+func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice, ctxt ctx.Context) {
 	var ue *context.AmfUe
 	var ok bool
 	logger.CfgLog.Infof("handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
@@ -883,13 +883,13 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 			Sst:  slice.Nssai.Sst,
 			Sd:   slice.Nssai.Sd,
 		}
-		ue.SetEventChannel(nil)
-		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
+		ue.SetEventChannel(nil, ctxt)
+		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler, ctxt)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }
 
-func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
+func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice, ctxt ctx.Context) {
 	var ue *context.AmfUe
 	var ok bool
 	logger.CfgLog.Infof("handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
@@ -909,7 +909,7 @@ func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
 			Sd:   slice.Nssai.Sd,
 		}
 
-		ue.EventChannel.UpdateConfigHandler(UeConfigSliceAddHandler)
+		ue.EventChannel.UpdateConfigHandler(UeConfigSliceAddHandler, ctxt)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }

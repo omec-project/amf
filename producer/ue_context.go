@@ -7,6 +7,7 @@
 package producer
 
 import (
+	ctx "context"
 	"net/http"
 	"strings"
 
@@ -17,7 +18,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func UeContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func UeContextHandler(s1, s2 string, msg interface{}, ctxt ctx.Context) (interface{}, string, interface{}, interface{}) {
 	switch msg := msg.(type) {
 	case models.CreateUeContextRequest:
 		r1, r2 := CreateUEContextProcedure(s1, msg)

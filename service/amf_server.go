@@ -6,6 +6,7 @@
 package service
 
 import (
+	ctx "context"
 	"fmt"
 	"net"
 	"os"
@@ -25,6 +26,7 @@ type Server struct {
 }
 
 func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServer) error {
+	ctxt := ctx.Background()
 	Amf2RanMsgChan := make(chan *sdcoreAmfServer.AmfMessage, 100)
 
 	go func() {
@@ -114,7 +116,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 					}
 				}
 			default:
-				ngap.DispatchLb(req, Amf2RanMsgChan)
+				ngap.DispatchLb(req, Amf2RanMsgChan, ctxt)
 			}
 		}
 	}

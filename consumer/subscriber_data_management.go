@@ -8,16 +8,31 @@ package consumer
 
 import (
 	"context"
-	"time"
 
 	"github.com/antihax/optional"
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nudm_SubscriberDataManagement"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func PutUpuAck(ue *amf_context.AmfUe, upuMacIue string) error {
+var tracer = otel.Tracer("amf/consumer")
+
+func PutUpuAck(ctxt context.Context, ue *amf_context.AmfUe, upuMacIue string) error {
+	ctx, span := tracer.Start(ctxt, "HTTP PUT UE Parameters Update Acknowledgement")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "PUT"),
+		attribute.String("nf.target", "udm"),
+		attribute.String("net.peer.name", ue.NudmSDMUri),
+		attribute.String("udm.supi", ue.Supi),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("upu.mac.iue", upuMacIue),
+	)
+
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
@@ -29,13 +44,22 @@ func PutUpuAck(ue *amf_context.AmfUe, upuMacIue string) error {
 		AcknowledgeInfo: optional.NewInterface(ackInfo),
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateApi.PutUpuAck(ctx, ue.Supi, &upuOpt)
 	return err
 }
 
-func SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+	_, span := tracer.Start(ctx, "HTTP GET AM Data")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "udm"),
+		attribute.String("net.peer.name", ue.NudmSDMUri),
+		attribute.String("udm.supi", ue.Supi),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
@@ -43,9 +67,6 @@ func SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails,
 	getAmDataParamOpt := Nudm_SubscriberDataManagement.GetAmDataParamOpts{
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 
 	data, httpResp, localErr := client.AccessAndMobilitySubscriptionDataRetrievalApi.GetAmData(
 		ctx, ue.Supi, &getAmDataParamOpt)
@@ -65,7 +86,18 @@ func SDMGetAmData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails,
 	return
 }
 
-func SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+	ctx, span := tracer.Start(ctx, "HTTP GET SMF Selection Subscription Data")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "udm"),
+		attribute.String("net.peer.name", ue.NudmSDMUri),
+		attribute.String("udm.supi", ue.Supi),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
@@ -73,8 +105,7 @@ func SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails *models.ProblemD
 	paramOpt := Nudm_SubscriberDataManagement.GetSmfSelectDataParamOpts{
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
+
 	data, httpResp, localErr := client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		ue.SmfSelectionData = &data
@@ -92,12 +123,21 @@ func SDMGetSmfSelectData(ue *amf_context.AmfUe) (problemDetails *models.ProblemD
 	return
 }
 
-func SDMGetUeContextInSmfData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetUeContextInSmfData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+	ctx, span := tracer.Start(ctx, "HTTP GET UE Context in SMF Data")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "udm"),
+		attribute.String("net.peer.name", ue.NudmSDMUri),
+		attribute.String("udm.supi", ue.Supi),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 
 	data, httpResp, localErr := client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(ctx, ue.Supi, nil)
 	if localErr == nil {
@@ -116,7 +156,18 @@ func SDMGetUeContextInSmfData(ue *amf_context.AmfUe) (problemDetails *models.Pro
 	return
 }
 
-func SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+	ctx, span := tracer.Start(ctx, "HTTP POST Subscribe")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "udm"),
+		attribute.String("net.peer.name", ue.NudmSDMUri),
+		attribute.String("udm.supi", ue.Supi),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
@@ -126,8 +177,6 @@ func SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails,
 		NfInstanceId: amfSelf.NfId,
 		PlmnId:       &ue.PlmnId,
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 
 	_, httpResp, localErr := client.SubscriptionCreationApi.Subscribe(ctx, ue.Supi, sdmSubscription)
 	if localErr == nil {
@@ -145,7 +194,18 @@ func SDMSubscribe(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails,
 	return
 }
 
-func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+	ctx, span := tracer.Start(ctx, "HTTP GET Slice Selection Subscription Data")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "udm"),
+		attribute.String("net.peer.name", ue.NudmSDMUri),
+		attribute.String("udm.supi", ue.Supi),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
@@ -153,8 +213,7 @@ func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe) (problemDetails
 	paramOpt := Nudm_SubscriberDataManagement.GetNssaiParamOpts{
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
+
 	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		for _, defaultSnssai := range nssai.DefaultSingleNssais {
