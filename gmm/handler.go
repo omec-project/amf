@@ -143,7 +143,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 		if smContextExist {
 			// case i) Request type IE is either not included
 			if requestType == nil {
-				return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage)
+				return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage, ctxt)
 			}
 
 			switch requestType.GetRequestTypeValue() {
@@ -159,7 +159,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 				}
 				ue.GmmLog.Warnf("duplicated PDU session ID[%d]", pduSessionID)
 				smContext.SetDuplicatedPduSessionID(true)
-				response, _, _, err := consumer.SendUpdateSmContextRequest(smContext, updateData, nil, nil)
+				response, _, _, err := consumer.SendUpdateSmContextRequest(smContext, updateData, nil, nil, ctxt)
 				if err != nil {
 					return err
 				}
@@ -186,7 +186,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 			// case ii) AMF has a PDU session routing context, and Request type is "existing PDU session"
 			case nasMessage.ULNASTransportRequestTypeExistingPduSession:
 				if ue.InAllowedNssai(smContext.Snssai(), anType) {
-					return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage)
+					return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage, ctxt)
 				} else {
 					ue.GmmLog.Errorf("S-NSSAI[%v] is not allowed for access type[%s] (PDU Session ID: %d)",
 						smContext.Snssai(), anType, pduSessionID)
@@ -196,7 +196,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 			// other requestType: AMF forward the 5GSM message, and the PDU session ID IE towards the SMF identified
 			// by the SMF ID of the PDU session routing context
 			default:
-				return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage)
+				return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage, ctxt)
 			}
 		} else { // AMF does not have a PDU session routing context for the PDU session ID and the UE
 			switch requestType.GetRequestTypeValue() {
@@ -245,7 +245,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, cause, nil, 0)
 				} else {
-					_, smContextRef, errResponse, problemDetail, err := consumer.SendCreateSmContextRequest(ue, newSmContext, nil, smMessage)
+					_, smContextRef, errResponse, problemDetail, err := consumer.SendCreateSmContextRequest(ue, newSmContext, nil, smMessage, ctxt)
 					if err != nil {
 						ue.GmmLog.Errorf("CreateSmContextRequest Error: %+v", err)
 						return nil
@@ -283,7 +283,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 						smContext.SetDnn(ueContextInSmf.Dnn)
 						smContext.SetPlmnID(*ueContextInSmf.PlmnId)
 						ue.StoreSmContext(pduSessionID, smContext)
-						return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage)
+						return forward5GSMMessageToSMF(ue, anType, pduSessionID, smContext, smMessage, ctxt)
 					}
 				} else {
 					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
@@ -305,6 +305,7 @@ func forward5GSMMessageToSMF(
 	pduSessionID int32,
 	smContext *context.SmContext,
 	smMessage []byte,
+	ctxt ctx.Context,
 ) error {
 	smContextUpdateData := models.SmContextUpdateData{
 		N1SmMsg: &models.RefToBinaryData{
@@ -322,7 +323,7 @@ func forward5GSMMessageToSMF(
 	}
 
 	response, errResponse, problemDetail, err := consumer.SendUpdateSmContextRequest(smContext,
-		smContextUpdateData, smMessage, nil)
+		smContextUpdateData, smMessage, nil, ctxt)
 
 	if err != nil {
 		// TODO: error handling
@@ -849,7 +850,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 					// uplink data are pending for the corresponding PDU session identity
 					if hasUplinkData && smContext.AccessType() == models.AccessType__3_GPP_ACCESS {
 						response, errResponse, problemDetail, err := consumer.SendUpdateSmContextActivateUpCnxState(
-							ue, smContext, anType)
+							ue, smContext, anType, ctxt)
 						if response == nil {
 							reactivationResult[pduSessionId] = true
 							errPduSessionId = append(errPduSessionId, uint8(pduSessionId))
@@ -963,7 +964,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 				}
 				if allowedPsis[requestData.PduSessionId] {
 					// TODO: error handling
-					response, errRes, _, err := consumer.SendUpdateSmContextChangeAccessType(ue, smContext, true)
+					response, errRes, _, err := consumer.SendUpdateSmContextChangeAccessType(ue, smContext, true, ctxt)
 					if err != nil {
 						return err
 					} else if response == nil {
@@ -1248,7 +1249,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType, ctxt ctx.
 			}
 
 			// Step 4
-			problemDetails, err := consumer.NSSelectionGetForRegistration(ue, requestedNssai)
+			problemDetails, err := consumer.NSSelectionGetForRegistration(ue, requestedNssai, ctxt)
 			if problemDetails != nil {
 				ue.GmmLog.Errorf("NSSelection Get Failed Problem[%+v]", problemDetails)
 				gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
@@ -1692,7 +1693,7 @@ func HandleUeSliceInfoAdd(ue *context.AmfUe, accessType models.AccessType, nssai
 
 // TS 24501 5.6.1
 func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
-	serviceRequest *nasMessage.ServiceRequest,
+	serviceRequest *nasMessage.ServiceRequest, ctxt ctx.Context,
 ) error {
 	if ue == nil {
 		return fmt.Errorf("AmfUe is nil")
@@ -1810,7 +1811,7 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 			if pduSessionID != targetPduSessionId {
 				if uplinkDataPsi[pduSessionID] && smContext.AccessType() == models.AccessType__3_GPP_ACCESS {
 					response, errRes, _, err := consumer.SendUpdateSmContextActivateUpCnxState(
-						ue, smContext, models.AccessType__3_GPP_ACCESS)
+						ue, smContext, models.AccessType__3_GPP_ACCESS, ctxt)
 					if err != nil {
 						ue.GmmLog.Errorf("SendUpdateSmContextActivateUpCnxState[pduSessionID:%d] Error: %+v",
 							pduSessionID, err)
@@ -1910,7 +1911,7 @@ func HandleServiceRequest(ue *context.AmfUe, anType models.AccessType,
 					}
 					if allowPduSessionPsi[requestData.PduSessionId] {
 						response, errRes, _, err := consumer.SendUpdateSmContextChangeAccessType(
-							ue, smContext, true)
+							ue, smContext, true, ctxt)
 						if err != nil {
 							return err
 						} else if response == nil {

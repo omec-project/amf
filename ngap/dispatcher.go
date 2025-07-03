@@ -227,9 +227,9 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeNGReset:
 			HandleNGReset(ran, pdu)
 		case ngapType.ProcedureCodeHandoverCancel:
-			HandleHandoverCancel(ran, pdu)
+			HandleHandoverCancel(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUEContextReleaseRequest:
-			HandleUEContextReleaseRequest(ran, pdu)
+			HandleUEContextReleaseRequest(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeNASNonDeliveryIndication:
 			HandleNasNonDeliveryIndication(ctxt, ran, pdu)
 		case ngapType.ProcedureCodeLocationReportingFailureIndication:
@@ -239,17 +239,17 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
 			HandleUERadioCapabilityInfoIndication(ran, pdu)
 		case ngapType.ProcedureCodeHandoverNotification:
-			HandleHandoverNotify(ran, pdu)
+			HandleHandoverNotify(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeHandoverPreparation:
-			HandleHandoverRequired(ran, pdu)
+			HandleHandoverRequired(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeRANConfigurationUpdate:
 			HandleRanConfigurationUpdate(ran, pdu)
 		case ngapType.ProcedureCodeRRCInactiveTransitionReport:
 			HandleRRCInactiveTransitionReport(ran, pdu)
 		case ngapType.ProcedureCodePDUSessionResourceNotify:
-			HandlePDUSessionResourceNotify(ran, pdu)
+			HandlePDUSessionResourceNotify(ran, pdu, ctxt)
 		case ngapType.ProcedureCodePathSwitchRequest:
-			HandlePathSwitchRequest(ran, pdu)
+			HandlePathSwitchRequest(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeLocationReport:
 			HandleLocationReport(ran, pdu)
 		case ngapType.ProcedureCodeUplinkUEAssociatedNRPPaTransport:
@@ -257,7 +257,7 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeUplinkRANConfigurationTransfer:
 			HandleUplinkRanConfigurationTransfer(ran, pdu)
 		case ngapType.ProcedureCodePDUSessionResourceModifyIndication:
-			HandlePDUSessionResourceModifyIndication(ran, pdu)
+			HandlePDUSessionResourceModifyIndication(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeCellTrafficTrace:
 			HandleCellTrafficTrace(ran, pdu)
 		case ngapType.ProcedureCodeUplinkRANStatusTransfer:
@@ -282,23 +282,23 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeNGReset:
 			HandleNGResetAcknowledge(ran, pdu)
 		case ngapType.ProcedureCodeUEContextRelease:
-			HandleUEContextReleaseComplete(ran, pdu)
+			HandleUEContextReleaseComplete(ran, pdu, ctxt)
 		case ngapType.ProcedureCodePDUSessionResourceRelease:
-			HandlePDUSessionResourceReleaseResponse(ran, pdu)
+			HandlePDUSessionResourceReleaseResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUERadioCapabilityCheck:
 			HandleUERadioCapabilityCheckResponse(ran, pdu)
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			HandleAMFconfigurationUpdateAcknowledge(ran, pdu)
 		case ngapType.ProcedureCodeInitialContextSetup:
-			HandleInitialContextSetupResponse(ran, pdu)
+			HandleInitialContextSetupResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUEContextModification:
 			HandleUEContextModificationResponse(ran, pdu)
 		case ngapType.ProcedureCodePDUSessionResourceSetup:
-			HandlePDUSessionResourceSetupResponse(ran, pdu)
+			HandlePDUSessionResourceSetupResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodePDUSessionResourceModify:
-			HandlePDUSessionResourceModifyResponse(ran, pdu)
+			HandlePDUSessionResourceModifyResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			HandleHandoverRequestAcknowledge(ran, pdu)
+			HandleHandoverRequestAcknowledge(ran, pdu, ctxt)
 		default:
 			ran.Log.Warnf("Not implemented(choice: %d, procedureCode: %d)", pdu.Present, successfulOutcome.ProcedureCode.Value)
 		}
@@ -317,11 +317,11 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			HandleAMFconfigurationUpdateFailure(ran, pdu)
 		case ngapType.ProcedureCodeInitialContextSetup:
-			HandleInitialContextSetupFailure(ran, pdu)
+			HandleInitialContextSetupFailure(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUEContextModification:
 			HandleUEContextModificationFailure(ran, pdu)
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			HandleHandoverFailure(ran, pdu)
+			HandleHandoverFailure(ran, pdu, ctxt)
 		default:
 			ran.Log.Warnf("Not implemented(choice: %d, procedureCode: %d)", pdu.Present, unsuccessfulOutcome.ProcedureCode.Value)
 		}

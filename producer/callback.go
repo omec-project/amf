@@ -169,7 +169,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 				}
 
 				response, smContextRef, errResponse, problemDetail, err := consumer.SendCreateSmContextRequest(
-					ue, newSmContext, nil, smMessage)
+					ue, newSmContext, nil, smMessage, ctxt)
 				if response != nil {
 					newSmContext.SetSmContextRef(smContextRef)
 					newSmContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))

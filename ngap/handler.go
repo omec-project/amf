@@ -897,7 +897,7 @@ func HandleNGResetAcknowledge(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	}
 }
 
-func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var userLocationInformation *ngapType.UserLocationInformation
@@ -1058,7 +1058,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 					continue
 				}
-				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause)
+				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause, ctxt)
 				if err != nil {
 					ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
 				} else if response == nil {
@@ -1069,7 +1069,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 			ranUe.Log.Infoln("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
 			amfUe.SmContextList.Range(func(key, value interface{}) bool {
 				smContext := value.(*context.SmContext)
-				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause)
+				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, cause, ctxt)
 				if err != nil {
 					ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
 				} else if response == nil {
@@ -1137,7 +1137,7 @@ func HandleUEContextReleaseComplete(ran *context.AmfRan, message *ngapType.NGAPP
 	}
 }
 
-func HandlePDUSessionResourceReleaseResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandlePDUSessionResourceReleaseResponse(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceReleasedList *ngapType.PDUSessionResourceReleasedListRelRes
@@ -1227,7 +1227,7 @@ func HandlePDUSessionResourceReleaseResponse(ran *context.AmfRan, message *ngapT
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 			}
 			_, responseErr, problemDetail, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-				models.N2SmInfoType_PDU_RES_REL_RSP, transfer)
+				models.N2SmInfoType_PDU_RES_REL_RSP, transfer, ctxt)
 			if err == nil && smContext != nil {
 				smContext.SetPduSessionInActive(true)
 			}
@@ -1618,7 +1618,7 @@ func HandleInitialUEMessage(ctxt ctx.Context, ran *context.AmfRan, message *ngap
 	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeInitialUEMessage, nASPDU.Value)
 }
 
-func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceSetupResponseList *ngapType.PDUSessionResourceSetupListSURes
@@ -1704,7 +1704,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 					continue
 				}
 				response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-					models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer)
+					models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer, ctxt)
 				if err != nil {
 					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: %+v", err)
 				}
@@ -1736,7 +1736,7 @@ func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapTyp
 					continue
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-					models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer)
+					models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer, ctxt)
 				if err != nil {
 					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupUnsuccessfulTransfer] Error: %+v", err)
 				}
@@ -1782,7 +1782,7 @@ func BuildAndSendN1N2Msg(ranUe *context.RanUe, n1Msg, n2Info []byte, N2SmInfoTyp
 	}
 }
 
-func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pduSessionResourceModifyResponseList *ngapType.PDUSessionResourceModifyListModRes
@@ -1871,7 +1871,7 @@ func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapTy
 					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-					models.N2SmInfoType_PDU_RES_MOD_RSP, transfer)
+					models.N2SmInfoType_PDU_RES_MOD_RSP, transfer, ctxt)
 				if err != nil {
 					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceModifyResponseTransfer] Error: %+v", err)
 				}
@@ -1895,7 +1895,7 @@ func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapTy
 				}
 				// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-					models.N2SmInfoType_PDU_RES_MOD_FAIL, transfer)
+					models.N2SmInfoType_PDU_RES_MOD_FAIL, transfer, ctxt)
 				if err != nil {
 					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceModifyUnsuccessfulTransfer] Error: %+v", err)
 				}
@@ -1917,7 +1917,7 @@ func HandlePDUSessionResourceModifyResponse(ran *context.AmfRan, message *ngapTy
 	}
 }
 
-func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceNotifyList *ngapType.PDUSessionResourceNotifyList
@@ -2007,7 +2007,7 @@ func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPP
 			ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 		}
 		response, errResponse, problemDetail, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-			models.N2SmInfoType_PDU_RES_NTY, transfer)
+			models.N2SmInfoType_PDU_RES_NTY, transfer, ctxt)
 		if err != nil {
 			ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceNotifyTransfer] Error: %+v", err)
 		}
@@ -2062,7 +2062,7 @@ func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPP
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 			}
 			response, errResponse, problemDetail, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-				models.N2SmInfoType_PDU_RES_NTY_REL, transfer)
+				models.N2SmInfoType_PDU_RES_NTY_REL, transfer, ctxt)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceNotifyReleasedTransfer] Error: %+v", err)
 			}
@@ -2091,7 +2091,7 @@ func HandlePDUSessionResourceNotify(ran *context.AmfRan, message *ngapType.NGAPP
 	}
 }
 
-func HandlePDUSessionResourceModifyIndication(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandlePDUSessionResourceModifyIndication(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pduSessionResourceModifyIndicationList *ngapType.PDUSessionResourceModifyListModInd
@@ -2212,7 +2212,7 @@ func HandlePDUSessionResourceModifyIndication(ran *context.AmfRan, message *ngap
 			ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 		}
 		response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-			models.N2SmInfoType_PDU_RES_MOD_IND, transfer)
+			models.N2SmInfoType_PDU_RES_MOD_IND, transfer, ctxt)
 		if err != nil {
 			ran.Log.Errorf("SendUpdateSmContextN2Info Error: %s", err.Error())
 		}
@@ -2231,7 +2231,7 @@ func HandlePDUSessionResourceModifyIndication(ran *context.AmfRan, message *ngap
 		pduSessionResourceFailedToModifyListModCfm, nil)
 }
 
-func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceSetupResponseList *ngapType.PDUSessionResourceSetupListCxtRes
@@ -2320,7 +2320,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 			response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-				models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer)
+				models.N2SmInfoType_PDU_RES_SETUP_RSP, transfer, ctxt)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: %+v", err)
 			}
@@ -2353,7 +2353,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 			_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-				models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer)
+				models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer, ctxt)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupUnsuccessfulTransfer] Error: %+v", err)
 			}
@@ -2378,7 +2378,7 @@ func HandleInitialContextSetupResponse(ran *context.AmfRan, message *ngapType.NG
 	context.StoreContextInDB(amfUe)
 }
 
-func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceFailedToSetupList *ngapType.PDUSessionResourceFailedToSetupListCxtFail
@@ -2475,7 +2475,7 @@ func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGA
 				continue
 			}
 			_, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, smContext,
-				models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer)
+				models.N2SmInfoType_PDU_RES_SETUP_FAIL, transfer, ctxt)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupUnsuccessfulTransfer] Error: %+v", err)
 			}
@@ -2489,7 +2489,7 @@ func HandleInitialContextSetupFailure(ran *context.AmfRan, message *ngapType.NGA
 	}
 }
 
-func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceList *ngapType.PDUSessionResourceListCxtRelReq
@@ -2587,7 +2587,7 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 						ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 						continue
 					}
-					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll)
+					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll, ctxt)
 					if err != nil {
 						ranUe.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
 					} else if response == nil {
@@ -2602,7 +2602,7 @@ func HandleUEContextReleaseRequest(ran *context.AmfRan, message *ngapType.NGAPPD
 						ranUe.Log.Infoln("Pdu Session is inactive so not sending deactivate to SMF")
 						return false
 					}
-					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll)
+					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(amfUe, smContext, causeAll, ctxt)
 					if err != nil {
 						ranUe.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
 					} else if response == nil {
@@ -2887,7 +2887,7 @@ func HandleRRCInactiveTransitionReport(ran *context.AmfRan, message *ngapType.NG
 	}
 }
 
-func HandleHandoverNotify(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleHandoverNotify(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var userLocationInformation *ngapType.UserLocationInformation
@@ -2975,7 +2975,7 @@ func HandleHandoverNotify(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			if !ok {
 				sourceUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionid)
 			}
-			_, _, _, err := consumer.SendUpdateSmContextN2HandoverComplete(amfUe, smContext, "", nil)
+			_, _, _, err := consumer.SendUpdateSmContextN2HandoverComplete(amfUe, smContext, "", nil, ctxt)
 			if err != nil {
 				ran.Log.Errorf("Send UpdateSmContextN2HandoverComplete Error[%s]", err.Error())
 			}
@@ -2990,7 +2990,7 @@ func HandleHandoverNotify(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 }
 
 // TS 23.502 4.9.1
-func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var sourceAMFUENGAPID *ngapType.AMFUENGAPID
 	var userLocationInformation *ngapType.UserLocationInformation
@@ -3114,7 +3114,7 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 			}
 			response, errResponse, _, err := consumer.SendUpdateSmContextXnHandover(amfUe, smContext,
-				models.N2SmInfoType_PATH_SWITCH_REQ, transfer)
+				models.N2SmInfoType_PATH_SWITCH_REQ, transfer, ctxt)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextXnHandover[PathSwitchRequestTransfer] Error:%s", err.Error())
 			}
@@ -3143,7 +3143,7 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
 			}
 			response, errResponse, _, err := consumer.SendUpdateSmContextXnHandoverFailed(amfUe, smContext,
-				models.N2SmInfoType_PATH_SWITCH_SETUP_FAIL, transfer)
+				models.N2SmInfoType_PATH_SWITCH_SETUP_FAIL, transfer, ctxt)
 			if err != nil {
 				ranUe.Log.Errorf("SendUpdateSmContextXnHandoverFailed[PathSwitchRequestSetupFailedTransfer] Error: %+v", err)
 			}
@@ -3184,7 +3184,7 @@ func HandlePathSwitchRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	}
 }
 
-func HandleHandoverRequestAcknowledge(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleHandoverRequestAcknowledge(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var pDUSessionResourceAdmittedList *ngapType.PDUSessionResourceAdmittedList
@@ -3288,7 +3288,7 @@ func HandleHandoverRequestAcknowledge(ran *context.AmfRan, message *ngapType.NGA
 			pduSessionId := int32(pduSessionID)
 			if smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId); exist {
 				response, errResponse, problemDetails, err := consumer.SendUpdateSmContextN2HandoverPrepared(amfUe,
-					smContext, models.N2SmInfoType_HANDOVER_REQ_ACK, transfer)
+					smContext, models.N2SmInfoType_HANDOVER_REQ_ACK, transfer, ctxt)
 				if err != nil {
 					targetUe.Log.Errorf("Send HandoverRequestAcknowledgeTransfer error: %v", err)
 				}
@@ -3319,7 +3319,7 @@ func HandleHandoverRequestAcknowledge(ran *context.AmfRan, message *ngapType.NGA
 			pduSessionId := int32(pduSessionID)
 			if smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId); exist {
 				_, _, problemDetails, err := consumer.SendUpdateSmContextN2HandoverPrepared(amfUe, smContext,
-					models.N2SmInfoType_HANDOVER_RES_ALLOC_FAIL, transfer)
+					models.N2SmInfoType_HANDOVER_RES_ALLOC_FAIL, transfer, ctxt)
 				if err != nil {
 					targetUe.Log.Errorf("Send HandoverResourceAllocationUnsuccessfulTransfer error: %v", err)
 				}
@@ -3353,7 +3353,7 @@ func HandleHandoverRequestAcknowledge(ran *context.AmfRan, message *ngapType.NGA
 	}
 }
 
-func HandleHandoverFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleHandoverFailure(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var cause *ngapType.Cause
 	var targetUe *context.RanUe
@@ -3435,7 +3435,7 @@ func HandleHandoverFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 						Value: int32(causeValue),
 					},
 				}
-				_, _, _, err := consumer.SendUpdateSmContextN2HandoverCanceled(amfUe, smContext, causeAll)
+				_, _, _, err := consumer.SendUpdateSmContextN2HandoverCanceled(amfUe, smContext, causeAll, ctxt)
 				if err != nil {
 					ran.Log.Errorf("Send UpdateSmContextN2HandoverCanceled Error for PduSessionId[%d]", pduSessionID)
 				}
@@ -3448,7 +3448,7 @@ func HandleHandoverFailure(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	ngap_message.SendUEContextReleaseCommand(targetUe, context.UeContextReleaseHandover, causePresent, causeValue)
 }
 
-func HandleHandoverRequired(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleHandoverRequired(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var handoverType *ngapType.HandoverType
@@ -3613,7 +3613,7 @@ func HandleHandoverRequired(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			pduSessionId := int32(pDUSessionResourceHoItem.PDUSessionID.Value)
 			if smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId); exist {
 				response, _, _, err := consumer.SendUpdateSmContextN2HandoverPreparing(amfUe, smContext,
-					models.N2SmInfoType_HANDOVER_REQUIRED, pDUSessionResourceHoItem.HandoverRequiredTransfer, "", &targetId)
+					models.N2SmInfoType_HANDOVER_REQUIRED, pDUSessionResourceHoItem.HandoverRequiredTransfer, "", &targetId, ctxt)
 				if err != nil {
 					sourceUe.Log.Errorf("consumer.SendUpdateSmContextN2HandoverPreparing Error: %+v", err)
 				}
@@ -3644,7 +3644,7 @@ func HandleHandoverRequired(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	}
 }
 
-func HandleHandoverCancel(ran *context.AmfRan, message *ngapType.NGAPPDU) {
+func HandleHandoverCancel(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
 	var aMFUENGAPID *ngapType.AMFUENGAPID
 	var rANUENGAPID *ngapType.RANUENGAPID
 	var cause *ngapType.Cause
@@ -3738,7 +3738,7 @@ func HandleHandoverCancel(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 						Value: int32(causeValue),
 					},
 				}
-				_, _, _, err := consumer.SendUpdateSmContextN2HandoverCanceled(amfUe, smContext, causeAll)
+				_, _, _, err := consumer.SendUpdateSmContextN2HandoverCanceled(amfUe, smContext, causeAll, ctxt)
 				if err != nil {
 					sourceUe.Log.Errorf("Send UpdateSmContextN2HandoverCanceled Error for PduSessionId[%d]", pduSessionID)
 				}

@@ -49,7 +49,7 @@ func DeRegistered(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt
 				}
 			}
 		case nas.MsgTypeServiceRequest:
-			if err := HandleServiceRequest(amfUe, accessType, gmmMessage.ServiceRequest); err != nil {
+			if err := HandleServiceRequest(amfUe, accessType, gmmMessage.ServiceRequest, ctxt); err != nil {
 				logger.GmmLog.Errorln(err)
 			}
 		default:
@@ -111,7 +111,7 @@ func Registered(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt c
 				logger.GmmLog.Errorln(err)
 			}
 		case nas.MsgTypeServiceRequest:
-			if err := HandleServiceRequest(amfUe, accessType, gmmMessage.ServiceRequest); err != nil {
+			if err := HandleServiceRequest(amfUe, accessType, gmmMessage.ServiceRequest, ctxt); err != nil {
 				logger.GmmLog.Errorln(err)
 			}
 		case nas.MsgTypeNotificationResponse:
@@ -419,7 +419,7 @@ func ContextSetup(state *fsm.State, event fsm.EventType, args fsm.ArgsType, ctxt
 				}
 			}
 		case *nasMessage.ServiceRequest:
-			if err := HandleServiceRequest(amfUe, accessType, message); err != nil {
+			if err := HandleServiceRequest(amfUe, accessType, message, ctxt); err != nil {
 				logger.GmmLog.Errorln(err)
 			}
 		default:

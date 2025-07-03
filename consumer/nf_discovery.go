@@ -33,14 +33,13 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
 	ctx context.Context,
 ) (models.SearchResult, error) {
-	ctx, span := tracer.Start(ctx, "HTTP Search NF Instances")
+	ctx, span := tracer.Start(ctx, "HTTP GET nrf/nf-instances")
 	defer span.End()
 	span.SetAttributes(
 		attribute.String("http.method", "GET"),
 		attribute.String("nf.target", "nrf"),
 		attribute.String("net.peer.name", nrfUri),
 		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
-		attribute.String("target.nf.type", string(targetNfType)),
 		attribute.String("request.nf.type", string(requestNfType)),
 	)
 
