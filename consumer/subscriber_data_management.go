@@ -20,7 +20,7 @@ import (
 
 var tracer = otel.Tracer("amf/consumer")
 
-func PutUpuAck(ctxt context.Context, ue *amf_context.AmfUe, upuMacIue string) error {
+func PutUpuAck(ue *amf_context.AmfUe, upuMacIue string, ctxt context.Context) error {
 	ctx, span := tracer.Start(ctxt, "HTTP PUT UE Parameters Update Acknowledgement")
 	defer span.End()
 
@@ -48,7 +48,7 @@ func PutUpuAck(ctxt context.Context, ue *amf_context.AmfUe, upuMacIue string) er
 	return err
 }
 
-func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetAmData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
 	_, span := tracer.Start(ctx, "HTTP GET AM Data")
 	defer span.End()
 
@@ -86,7 +86,7 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 	return
 }
 
-func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetSmfSelectData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET SMF Selection Subscription Data")
 	defer span.End()
 
@@ -123,7 +123,7 @@ func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDet
 	return
 }
 
-func SDMGetUeContextInSmfData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetUeContextInSmfData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET UE Context in SMF Data")
 	defer span.End()
 
@@ -156,7 +156,7 @@ func SDMGetUeContextInSmfData(ctx context.Context, ue *amf_context.AmfUe) (probl
 	return
 }
 
-func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMSubscribe(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
 	ctx, span := tracer.Start(ctx, "HTTP POST Subscribe")
 	defer span.End()
 
@@ -194,7 +194,7 @@ func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 	return
 }
 
-func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET Slice Selection Subscription Data")
 	defer span.End()
 

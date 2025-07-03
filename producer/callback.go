@@ -38,7 +38,7 @@ func SmContextHandler(s1, s2 string, msg interface{}, ctxt ctx.Context) (interfa
 		} else {
 			pduSessionID = pduSessionIDTmp
 		}
-		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg)
+		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg, ctxt)
 		return nil, "", r1, nil
 	case models.PolicyUpdate:
 		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg)
@@ -90,6 +90,7 @@ func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Resp
 
 func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 	smContextStatusNotification models.SmContextStatusNotification,
+	ctxt ctx.Context,
 ) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
@@ -158,7 +159,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 					}
 				}
 
-				newSmContext, cause, err := consumer.SelectSmf(ue, smContext.AccessType(), pduSessionID, snssai, dnn)
+				newSmContext, cause, err := consumer.SelectSmf(ue, smContext.AccessType(), pduSessionID, snssai, dnn, ctxt)
 				if err != nil {
 					logger.CallbackLog.Error(err)
 					gmm_message.SendDLNASTransport(ue.RanUe[smContext.AccessType()],

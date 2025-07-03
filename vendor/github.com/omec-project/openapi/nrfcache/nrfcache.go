@@ -9,6 +9,7 @@ package nrfcache
 
 import (
 	"container/heap"
+	"context"
 	"sync"
 	"time"
 
@@ -140,7 +141,7 @@ type NrfCache struct {
 // handleLookup - Checks if the cache has nf cache entry corresponding to the parameters specified.
 // If entry does not exist, perform nrf discovery query. To avoid concurrency issues,
 // nrf discovery query is mutex protected.
-func (c *NrfCache) handleLookup(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
+func (c *NrfCache) handleLookup(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts, ctx context.Context) (models.SearchResult, error) {
 	var searchResult models.SearchResult
 	var err error
 
@@ -154,7 +155,7 @@ func (c *NrfCache) handleLookup(nrfUri string, targetNfType, requestNfType model
 		defer c.mutex.Unlock()
 		searchResult.NfInstances = c.get(param)
 		if len(searchResult.NfInstances) == 0 {
-			searchResult, err = c.nrfDiscoveryQueryCb(nrfUri, targetNfType, requestNfType, param)
+			searchResult, err = c.nrfDiscoveryQueryCb(nrfUri, targetNfType, requestNfType, param, ctx)
 			if err != nil {
 				return searchResult, err
 			}
@@ -331,7 +332,7 @@ func (c *NrfMasterCache) removeNfProfile(nfInstanceId string) bool {
 
 var masterCache *NrfMasterCache
 
-type NrfDiscoveryQueryCb func(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error)
+type NrfDiscoveryQueryCb func(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts, ctx context.Context) (models.SearchResult, error)
 
 func InitNrfCaching(interval time.Duration, cb NrfDiscoveryQueryCb) {
 	m := &NrfMasterCache{
@@ -347,13 +348,13 @@ func disableNrfCaching() {
 	masterCache = nil
 }
 
-func SearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (models.SearchResult, error) {
+func SearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts, ctx context.Context) (models.SearchResult, error) {
 	var searchResult models.SearchResult
 	var err error
 
 	c := masterCache.GetNrfCacheInstance(targetNfType)
 	if c != nil {
-		searchResult, err = c.handleLookup(nrfUri, targetNfType, requestNfType, param)
+		searchResult, err = c.handleLookup(nrfUri, targetNfType, requestNfType, param, ctx)
 	} else {
 		logger.NrfcacheLog.Errorln("failed to find cache for nf type")
 	}

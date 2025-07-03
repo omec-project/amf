@@ -59,7 +59,7 @@ func HandleULNASTransport(ue *context.AmfUe, anType models.AccessType,
 	switch ulNasTransport.GetPayloadContainerType() {
 	// TS 24.501 5.4.5.2.3 case a)
 	case nasMessage.PayloadContainerTypeN1SMInfo:
-		return transport5GSMMessage(ue, anType, ulNasTransport)
+		return transport5GSMMessage(ue, anType, ulNasTransport, ctxt)
 	case nasMessage.PayloadContainerTypeSMS:
 		return fmt.Errorf("PayloadContainerTypeSMS has not been implemented yet in UL NAS TRANSPORT")
 	case nasMessage.PayloadContainerTypeLPP:
@@ -76,7 +76,7 @@ func HandleULNASTransport(ue *context.AmfUe, anType models.AccessType,
 		if err != nil {
 			return err
 		}
-		err = consumer.PutUpuAck(ctxt, ue, upuMac)
+		err = consumer.PutUpuAck(ue, upuMac, ctxt)
 		if err != nil {
 			return err
 		}
@@ -89,6 +89,7 @@ func HandleULNASTransport(ue *context.AmfUe, anType models.AccessType,
 
 func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 	ulNasTransport *nasMessage.ULNASTransport,
+	ctxt ctx.Context,
 ) error {
 	var pduSessionID int32
 
@@ -239,7 +240,7 @@ func transport5GSMMessage(ue *context.AmfUe, anType models.AccessType,
 					}
 				}
 
-				if newSmContext, cause, err := consumer.SelectSmf(ue, anType, pduSessionID, snssai, dnn); err != nil {
+				if newSmContext, cause, err := consumer.SelectSmf(ue, anType, pduSessionID, snssai, dnn, ctxt); err != nil {
 					ue.GmmLog.Errorf("Select SMF failed: %+v", err)
 					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, cause, nil, 0)
@@ -382,7 +383,7 @@ func forward5GSMMessageToSMF(
 
 // Handle cleartext IEs of Registration Request, which cleattext IEs defined in TS 24.501 4.4.6
 func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, procedureCode int64,
-	registrationRequest *nasMessage.RegistrationRequest,
+	registrationRequest *nasMessage.RegistrationRequest, ctxt ctx.Context,
 ) error {
 	var guamiFromUeGuti models.Guami
 	amfSelf := context.AMF_Self()
@@ -553,7 +554,7 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 		searchOpt := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
 			Guami: optional.NewInterface(util.MarshToJsonString(guamiFromUeGuti)),
 		}
-		err := consumer.SearchAmfCommunicationInstance(ue, amfSelf.NrfUri, models.NfType_AMF, models.NfType_AMF, &searchOpt)
+		err := consumer.SearchAmfCommunicationInstance(ue, amfSelf.NrfUri, models.NfType_AMF, models.NfType_AMF, &searchOpt, ctxt)
 		if err != nil {
 			ue.GmmLog.Errorf("[GMM] %+v", err)
 			return err
@@ -595,7 +596,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType, ctxt
 		getSubscribedNssai(ue, ctxt)
 	}
 
-	if err := handleRequestedNssai(ue, anType); err != nil {
+	if err := handleRequestedNssai(ue, anType, ctxt); err != nil {
 		return err
 	}
 
@@ -666,7 +667,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType, ctxt
 		Supi: optional.NewString(ue.Supi),
 	}
 	for {
-		resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_PCF, models.NfType_AMF, &param)
+		resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_PCF, models.NfType_AMF, &param, ctxt)
 		if err != nil {
 			ue.GmmLog.Error("AMF can not select an PCF by NRF")
 		} else {
@@ -771,7 +772,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 		getSubscribedNssai(ue, ctxt)
 	}
 
-	if err := handleRequestedNssai(ue, anType); err != nil {
+	if err := handleRequestedNssai(ue, anType, ctxt); err != nil {
 		return err
 	}
 
@@ -1123,7 +1124,7 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType, ctxt ct
 	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
 		Supi: optional.NewString(ue.Supi),
 	}
-	resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_UDM, models.NfType_AMF, &param)
+	resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_UDM, models.NfType_AMF, &param, ctxt)
 	if err != nil {
 		return fmt.Errorf("AMF can not select an UDM by NRF")
 	}
@@ -1150,28 +1151,28 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType, ctxt ct
 		ue.GmmLog.Errorf("UECM_Registration Error[%+v]", err)
 	}
 
-	problemDetails, err = consumer.SDMGetAmData(ctxt, ue)
+	problemDetails, err = consumer.SDMGetAmData(ue, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("SDM_Get AmData Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
 		return fmt.Errorf("SDM_Get AmData Error[%+v]", err)
 	}
 
-	problemDetails, err = consumer.SDMGetSmfSelectData(ctxt, ue)
+	problemDetails, err = consumer.SDMGetSmfSelectData(ue, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("SDM_Get SmfSelectData Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
 		return fmt.Errorf("SDM_Get SmfSelectData Error[%+v]", err)
 	}
 
-	problemDetails, err = consumer.SDMGetUeContextInSmfData(ctxt, ue)
+	problemDetails, err = consumer.SDMGetUeContextInSmfData(ue, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("SDM_Get UeContextInSmfData Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
 		return fmt.Errorf("SDM_Get UeContextInSmfData Error[%+v]", err)
 	}
 
-	problemDetails, err = consumer.SDMSubscribe(ctxt, ue)
+	problemDetails, err = consumer.SDMSubscribe(ue, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("SDM Subscribe Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
@@ -1188,7 +1189,7 @@ func getSubscribedNssai(ue *context.AmfUe, ctxt ctx.Context) {
 		Supi: optional.NewString(ue.Supi),
 	}
 	for {
-		err := consumer.SearchUdmSdmInstance(ue, amfSelf.NrfUri, models.NfType_UDM, models.NfType_AMF, &param)
+		err := consumer.SearchUdmSdmInstance(ue, amfSelf.NrfUri, models.NfType_UDM, models.NfType_AMF, &param, ctxt)
 		if err != nil {
 			ue.GmmLog.Errorf("AMF can not select an Nudm_SDM Instance by NRF[Error: %+v]", err)
 			time.Sleep(2 * time.Second)
@@ -1196,7 +1197,7 @@ func getSubscribedNssai(ue *context.AmfUe, ctxt ctx.Context) {
 			break
 		}
 	}
-	problemDetails, err := consumer.SDMGetSliceSelectionSubscriptionData(ctxt, ue)
+	problemDetails, err := consumer.SDMGetSliceSelectionSubscriptionData(ue, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
@@ -1205,7 +1206,7 @@ func getSubscribedNssai(ue *context.AmfUe, ctxt ctx.Context) {
 }
 
 // TS 23.502 4.2.2.2.3 Registration with AMF Re-allocation
-func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
+func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType, ctxt ctx.Context) error {
 	amfSelf := context.AMF_Self()
 
 	if ue.RegistrationRequest.RequestedNSSAI != nil {
@@ -1236,7 +1237,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 		if needSliceSelection {
 			if ue.NssfUri == "" {
 				for {
-					err := consumer.SearchNssfNSSelectionInstance(ue, amfSelf.NrfUri, models.NfType_NSSF, models.NfType_AMF, nil)
+					err := consumer.SearchNssfNSSelectionInstance(ue, amfSelf.NrfUri, models.NfType_NSSF, models.NfType_AMF, nil, ctxt)
 					if err != nil {
 						ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
 						time.Sleep(2 * time.Second)
@@ -1298,7 +1299,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType) error {
 			}
 
 			err = consumer.SearchAmfCommunicationInstance(ue, amfSelf.NrfUri,
-				models.NfType_AMF, models.NfType_AMF, &searchTargetAmfQueryParam)
+				models.NfType_AMF, models.NfType_AMF, &searchTargetAmfQueryParam, ctxt)
 			if err == nil {
 				// Condition (A) Step 7: initial AMF find Target AMF via NRF ->
 				// Send Namf_Communication_N1MessageNotify to Target AMF
@@ -1506,7 +1507,7 @@ func HandleConfigurationUpdateComplete(ue *context.AmfUe,
 	return nil
 }
 
-func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (bool, error) {
+func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType, ctxt ctx.Context) (bool, error) {
 	ue.GmmLog.Info("Authentication procedure")
 
 	// Check whether UE has SUCI and SUPI
@@ -1526,7 +1527,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType) (b
 
 	// TODO: consider ausf group id, Routing ID part of SUCI
 	param := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{}
-	resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_AUSF, models.NfType_AMF, &param)
+	resp, err := consumer.SendSearchNFInstances(amfSelf.NrfUri, models.NfType_AUSF, models.NfType_AMF, &param, ctxt)
 	if err != nil {
 		ue.GmmLog.Error("AMF can not select an AUSF by NRF")
 		return false, err

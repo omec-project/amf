@@ -16,27 +16,40 @@ import (
 	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/models"
 	nrfCache "github.com/omec-project/openapi/nrfcache"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts, ctx context.Context,
 ) (models.SearchResult, error) {
 	if amf_context.AMF_Self().EnableNrfCaching {
-		return nrfCache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+		return nrfCache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param, ctx)
 	} else {
-		return SendNfDiscoveryToNrf(nrfUri, targetNfType, requestNfType, param)
+		return SendNfDiscoveryToNrf(nrfUri, targetNfType, requestNfType, param, ctx)
 	}
 }
 
 func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfType,
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+	ctx context.Context,
 ) (models.SearchResult, error) {
+	ctx, span := tracer.Start(ctx, "HTTP Search NF Instances")
+	defer span.End()
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "nrf"),
+		attribute.String("net.peer.name", nrfUri),
+		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
+		attribute.String("target.nf.type", string(targetNfType)),
+		attribute.String("request.nf.type", string(requestNfType)),
+	)
+
 	// Set client and set url
 	configuration := Nnrf_NFDiscovery.NewConfiguration()
 	configuration.SetBasePath(nrfUri)
 	client := Nnrf_NFDiscovery.NewAPIClient(configuration)
 
-	result, res, err := client.NFInstancesStoreApi.SearchNFInstances(context.TODO(), targetNfType, requestNfType, param)
+	result, res, err := client.NFInstancesStoreApi.SearchNFInstances(ctx, targetNfType, requestNfType, param)
 	if res != nil && res.StatusCode == http.StatusTemporaryRedirect {
 		err = fmt.Errorf("temporary Redirect For Non NRF Consumer")
 	}
@@ -72,9 +85,9 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 }
 
 func SearchUdmSdmInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts, ctx context.Context,
 ) error {
-	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param, ctx)
 	if localErr != nil {
 		return localErr
 	}
@@ -98,9 +111,9 @@ func SearchUdmSdmInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, re
 }
 
 func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType, requestNfType models.NfType,
-	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts, ctx context.Context,
 ) error {
-	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param, ctx)
 	if localErr != nil {
 		return localErr
 	}
@@ -123,8 +136,9 @@ func SearchNssfNSSelectionInstance(ue *amf_context.AmfUe, nrfUri string, targetN
 
 func SearchAmfCommunicationInstance(ue *amf_context.AmfUe, nrfUri string, targetNfType,
 	requestNfType models.NfType, param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
+	ctx context.Context,
 ) (err error) {
-	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+	resp, localErr := SendSearchNFInstances(nrfUri, targetNfType, requestNfType, param, ctx)
 	if localErr != nil {
 		err = localErr
 		return
