@@ -256,7 +256,7 @@ func SendRemoveSubscription(subscriptionId string, ctx context.Context) (problem
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 	var res *http.Response
 
-	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(context.Background(), subscriptionId)
+	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(ctx, subscriptionId)
 	if err == nil {
 		return
 	} else if res != nil {
