@@ -23,6 +23,7 @@ cscope.*
 *.log
 *.pcap
 vendor*
+
 gmm/gmm.dot
 
 # coverage
