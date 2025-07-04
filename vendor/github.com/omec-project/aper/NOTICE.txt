@@ -1,8 +1,0 @@
-Copyright 2021 Open Networking Foundation
-SPDX-License-Identifier: Apache-2.0
-
-
-The Initial Developer of the work is free5GC (https://www.free5gc.org/).
-At the time of forking, no copyright statements were found
-in the free5GC files or directories.
-Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)

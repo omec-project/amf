@@ -108,6 +108,10 @@ github.com/gopherjs/gopherjs v1.17.2 h1:fQnZVsXk8uxXIStYb0N4bGk7jeyTalG/wsZjQ25d
 github.com/gopherjs/gopherjs v1.17.2/go.mod h1:pRRIvn/QzFLrKfvEz3qUuEhtE/zLCWfreZ6J5gM2i+k=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1 h1:X5VWvz21y3gzm9Nw/kaUeku/1+uBhcekkmy4IkffJww=
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1/go.mod h1:Zanoh4+gvIgluNqcfMVTJueD4wSS5hT7zTt4Mrutd90=
+github.com/gruyaume/openapi v0.0.0-20250704171214-6a8d09c4e020 h1:XTU5jCFbWnQ2QVSU7NoqHAxWDQBLbfO2jujcLEtxe/M=
+github.com/gruyaume/openapi v0.0.0-20250704171214-6a8d09c4e020/go.mod h1:4nwAVKA4GUXw5OnjxYOU8LAoRrpGTG/ruJLgKiE/Ccs=
+github.com/gruyaume/util v0.0.0-20250704170010-e50a2676c3b0 h1:lYQehLcdx2LuB0Xys6oJD0BCLbQQX5PRMlu1W95mB7I=
+github.com/gruyaume/util v0.0.0-20250704170010-e50a2676c3b0/go.mod h1:+To3rTo1Mt8h1Yl5p+7dG9Bo8SbJItyJ7316gr1gkqg=
 github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 h1:2VTzZjLZBgl62/EtslCrtky5vbi9dd7HrQPQIx6wqiw=
 github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542/go.mod h1:Ow0tF8D4Kplbc8s8sSb3V2oUCygFHVp8gC3Dn6U4MNI=
 github.com/jmoiron/sqlx v1.3.5 h1:vFFPA71p1o5gAeqtEAwLU4dnX2napprKtHr7PYIcN3g=
@@ -175,10 +179,6 @@ github.com/omec-project/nas v1.5.3 h1:xX/Mdc1DQWxxN82NCexPGlxaaPleQp1bnmN4uTmIVM
 github.com/omec-project/nas v1.5.3/go.mod h1:am1sKsRpNblkjGbM6I2dtdjFooYqqeL1ZgV4HSd+wUo=
 github.com/omec-project/ngap v1.4.2 h1:1p4tozYxmgD+fqBT+i4DAL0GNd0+/rFgpUKxcxKoyYw=
 github.com/omec-project/ngap v1.4.2/go.mod h1:xYB2+a2t1dAq6F2YTDUGHLuhWESBbOJQ3L1OJvcL0b8=
-github.com/omec-project/openapi v1.5.0 h1:WV3JjYwqio1xRTb1Nvc6kpSGgf+/VzrScU9WS9PBNwE=
-github.com/omec-project/openapi v1.5.0/go.mod h1:4nwAVKA4GUXw5OnjxYOU8LAoRrpGTG/ruJLgKiE/Ccs=
-github.com/omec-project/util v1.3.2 h1:5JP4ZYqMPPESSYrgc6LQNlcvJ/Xhrq8u5jSV405iuX8=
-github.com/omec-project/util v1.3.2/go.mod h1:Q5hNzZ0VSIbYzi+FRaJrvVD12BxK0n5uoNvvV3qn+ro=
 github.com/onsi/ginkgo v1.16.5 h1:8xi0RTUf59SOSfEtZMvwTvXYMzG4gV23XVHOZiXNtnE=
 github.com/onsi/ginkgo v1.16.5/go.mod h1:+E8gABHa3K6zRBolWtd+ROzc/U5bkGt0FwiG042wbpU=
 github.com/onsi/gomega v1.18.1 h1:M1GfJqGRrBrrGGsbxzV5dqM2U2ApXefZCQpkukxYRLE=

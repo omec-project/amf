@@ -122,3 +122,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20220811202034-502d2d690317 // indirect
 )
+
+replace github.com/omec-project/util => github.com/gruyaume/util v0.0.0-20250704170010-e50a2676c3b0
+
+replace github.com/omec-project/openapi => github.com/gruyaume/openapi v0.0.0-20250704171214-6a8d09c4e020
