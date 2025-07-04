@@ -33,7 +33,7 @@ func UeContextHandler(s1, s2 string, msg interface{}, ctxt ctx.Context) (interfa
 		r1, r2, r3 := AssignEbiDataProcedure(s1, msg)
 		return r1, "", r3, r2
 	case models.UeRegStatusUpdateReqData:
-		r1, r2 := RegistrationStatusUpdateProcedure(s1, msg)
+		r1, r2 := RegistrationStatusUpdateProcedure(s1, msg, ctxt)
 		return r1, "", r2, nil
 	}
 
@@ -623,7 +623,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }
 
-func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
+func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData, ctxt ctx.Context) (
 	*models.UeRegStatusUpdateRspData, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
@@ -668,7 +668,7 @@ func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqD
 		}
 
 		if ueRegStatusUpdateReqData.PcfReselectedInd {
-			problem, err := consumer.AMPolicyControlDelete(ue)
+			problem, err := consumer.AMPolicyControlDelete(ue, ctxt)
 			if problem != nil {
 				logger.GmmLog.Errorf("AM Policy Control Delete Failed Problem[%+v]", problem)
 			} else if err != nil {

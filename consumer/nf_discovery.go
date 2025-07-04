@@ -35,6 +35,7 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 ) (models.SearchResult, error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET nrf/nf-instances")
 	defer span.End()
+
 	span.SetAttributes(
 		attribute.String("http.method", "GET"),
 		attribute.String("nf.target", "nrf"),
@@ -70,7 +71,7 @@ func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfTy
 				SubscrCond:              &models.NfInstanceIdCond{NfInstanceId: nfProfile.NfInstanceId},
 				ReqNfType:               requestNfType,
 			}
-			nrfSubData, problemDetails, err = SendCreateSubscription(nrfUri, nrfSubscriptionData)
+			nrfSubData, problemDetails, err = SendCreateSubscription(nrfUri, nrfSubscriptionData, ctx)
 			if problemDetails != nil {
 				logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
 			} else if err != nil {

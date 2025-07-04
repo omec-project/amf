@@ -508,8 +508,14 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 			configuration.SetBasePath(smContext.SmfUri())
 			client := Nsmf_PDUSession.NewAPIClient(configuration)
 
-			ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-			defer cancel()
+			ctx, span := tracer.Start(ctx, "HTTP PUT smf/sm-contexts/{smContextRef}/modify")
+			defer span.End()
+
+			span.SetAttributes(
+				attribute.String("http.method", "PUT"),
+				attribute.String("nf.target", "smf"),
+				attribute.String("net.peer.name", smContext.SmfUri()),
+			)
 
 			updateSmContextReponse, httpResponse, err = client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
 				updateSmContextRequest)
@@ -552,8 +558,14 @@ func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 		JsonData: &releaseData,
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
+	ctx, span := tracer.Start(context.Background(), "HTTP POST smf/sm-contexts/{smContextRef}/release")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "smf"),
+		attribute.String("net.peer.name", smContext.SmfUri()),
+	)
 
 	response, err1 := client.IndividualSMContextApi.ReleaseSmContext(
 		ctx, smContext.SmContextRef(), releaseSmContextRequest)

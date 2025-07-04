@@ -44,7 +44,7 @@ func SmContextHandler(s1, s2 string, msg interface{}, ctxt ctx.Context) (interfa
 		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg)
 		return nil, "", r1, nil
 	case models.TerminationNotification:
-		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg)
+		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg, ctxt)
 		return nil, "", r1, nil
 	}
 
@@ -343,6 +343,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *h
 
 func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
 	terminationNotification models.TerminationNotification,
+	ctxt ctx.Context,
 ) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
@@ -360,7 +361,7 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
 
 	// use go routine to write response first to ensure the order of the procedure
 	go func() {
-		problem, err := consumer.AMPolicyControlDelete(ue)
+		problem, err := consumer.AMPolicyControlDelete(ue, ctxt)
 		if problem != nil {
 			logger.ProducerLog.Errorf("AM Policy Control Delete Failed Problem[%+v]", problem)
 		} else if err != nil {

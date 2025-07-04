@@ -561,7 +561,7 @@ func HandleRegistrationRequest(ue *context.AmfUe, anType models.AccessType, proc
 			return err
 		}
 
-		ueContextTransferRspData, problemDetails, err := consumer.UEContextTransferRequest(ue, anType, transferReason)
+		ueContextTransferRspData, problemDetails, err := consumer.UEContextTransferRequest(ue, anType, transferReason, ctxt)
 		if problemDetails != nil {
 			if problemDetails.Cause == "INTEGRITY_CHECK_FAIL" || problemDetails.Cause == "CONTEXT_NOT_FOUND" {
 				ue.GmmLog.Warnf("Can not retrieve UE Context from old AMF[Cause: %s]", problemDetails.Cause)
@@ -636,7 +636,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType, ctxt
 			TransferStatus: models.UeContextTransferStatus_TRANSFERRED,
 		}
 		// TODO: based on locol policy, decide if need to change serving PCF for UE
-		regStatusTransferComplete, problemDetails, err := consumer.RegistrationStatusUpdate(ue, req)
+		regStatusTransferComplete, problemDetails, err := consumer.RegistrationStatusUpdate(ue, req, ctxt)
 		if problemDetails != nil {
 			ue.GmmLog.Errorf("Registration Status Update Failed Problem[%+v]", problemDetails)
 		} else if err != nil {
@@ -691,7 +691,7 @@ func HandleInitialRegistration(ue *context.AmfUe, anType models.AccessType, ctxt
 		time.Sleep(500 * time.Millisecond) // sleep a while when search NF Instance fail
 	}
 
-	problemDetails, err := consumer.AMPolicyControlCreate(ue, anType)
+	problemDetails, err := consumer.AMPolicyControlCreate(ue, anType, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
 		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
@@ -1017,7 +1017,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ue *context.AmfUe, anType mod
 		updateReq := models.PolicyAssociationUpdateRequest{}
 		updateReq.Triggers = append(updateReq.Triggers, models.RequestTrigger_LOC_CH)
 		updateReq.UserLoc = &ue.Location
-		problemDetails, err := consumer.AMPolicyControlUpdate(ue, updateReq)
+		problemDetails, err := consumer.AMPolicyControlUpdate(ue, updateReq, ctxt)
 		if problemDetails != nil {
 			ue.GmmLog.Errorf("AM Policy Control Update Failed Problem[%+v]", problemDetails)
 		} else if err != nil {
@@ -1145,7 +1145,7 @@ func communicateWithUDM(ue *context.AmfUe, accessType models.AccessType, ctxt ct
 		return fmt.Errorf("AMF can not select an UDM by NRF")
 	}
 
-	problemDetails, err := consumer.UeCmRegistration(ue, accessType, true)
+	problemDetails, err := consumer.UeCmRegistration(ue, accessType, true, ctxt)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("UECM_Registration Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
@@ -1264,7 +1264,7 @@ func handleRequestedNssai(ue *context.AmfUe, anType models.AccessType, ctxt ctx.
 			req := models.UeRegStatusUpdateReqData{
 				TransferStatus: models.UeContextTransferStatus_NOT_TRANSFERRED,
 			}
-			_, problemDetails, err = consumer.RegistrationStatusUpdate(ue, req)
+			_, problemDetails, err = consumer.RegistrationStatusUpdate(ue, req, ctxt)
 			if problemDetails != nil {
 				ue.GmmLog.Errorf("Registration Status Update Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
@@ -1550,7 +1550,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType, ct
 	}
 	ue.AusfUri = ausfUri
 
-	response, problemDetails, err := consumer.SendUEAuthenticationAuthenticateRequest(ue, nil)
+	response, problemDetails, err := consumer.SendUEAuthenticationAuthenticateRequest(ue, nil, ctxt)
 	if err != nil {
 		ue.GmmLog.Errorf("Nausf_UEAU Authenticate Request Error: %+v", err)
 		return false, errors.New("Authentication procedure failed")
@@ -1571,7 +1571,7 @@ func AuthenticationProcedure(ue *context.AmfUe, accessType models.AccessType, ct
 	return false, nil
 }
 
-func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType models.AccessType) (err error) {
+func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType models.AccessType, ctxt ctx.Context) (err error) {
 	anType := util.AnTypeToNas(accessType)
 	if ue.CmConnect(accessType) && ue.State[accessType].Is(context.Registered) {
 		// setting reregistration required flag to true
@@ -1608,7 +1608,7 @@ func NetworkInitiatedDeregistrationProcedure(ue *context.AmfUe, accessType model
 
 		if terminateAmPolicyAssocaition {
 			ue.GmmLog.Infof("Sending AmPolicyControlDelete to AMF")
-			problemDetails, err = consumer.AMPolicyControlDelete(ue)
+			problemDetails, err = consumer.AMPolicyControlDelete(ue, ctxt)
 			if problemDetails != nil {
 				err = fmt.Errorf("AM Policy Control Delete Failed Problem[%+v]", problemDetails)
 				// Should error be logged here ?
@@ -2061,7 +2061,7 @@ func sendServiceAccept(ue *context.AmfUe, anType models.AccessType, ctxList ngap
 
 // TS 24.501 5.4.1
 func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessType,
-	authenticationResponse *nasMessage.AuthenticationResponse, ctext ctx.Context,
+	authenticationResponse *nasMessage.AuthenticationResponse, ctxt ctx.Context,
 ) error {
 	ue.GmmLog.Info("Handle Authentication Response")
 
@@ -2104,11 +2104,11 @@ func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessTyp
 					ArgAmfUe:      ue,
 					ArgAccessType: accessType,
 				},
-					ctext)
+					ctxt)
 			}
 		}
 
-		response, problemDetails, err := consumer.SendAuth5gAkaConfirmRequest(ue, hex.EncodeToString(resStar[:]))
+		response, problemDetails, err := consumer.SendAuth5gAkaConfirmRequest(ue, hex.EncodeToString(resStar[:]), ctxt)
 		if err != nil {
 			return err
 		} else if problemDetails != nil {
@@ -2127,7 +2127,7 @@ func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessTyp
 				ArgAccessType: accessType,
 				ArgEAPSuccess: false,
 				ArgEAPMessage: "",
-			}, ctext)
+			}, ctxt)
 		case models.AuthResult_FAILURE:
 			if ue.IdentityTypeUsedForRegistration == nasMessage.MobileIdentity5GSType5gGuti {
 				gmm_message.SendIdentityRequest(ue.RanUe[accessType], nasMessage.MobileIdentity5GSTypeSuci)
@@ -2137,11 +2137,11 @@ func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessTyp
 				return GmmFSM.SendEvent(ue.State[accessType], AuthFailEvent, fsm.ArgsType{
 					ArgAmfUe:      ue,
 					ArgAccessType: accessType,
-				}, ctext)
+				}, ctxt)
 			}
 		}
 	case models.AuthType_EAP_AKA_PRIME:
-		response, problemDetails, err := consumer.SendEapAuthConfirmRequest(ue, *authenticationResponse.EAPMessage)
+		response, problemDetails, err := consumer.SendEapAuthConfirmRequest(ue, *authenticationResponse.EAPMessage, ctxt)
 		if err != nil {
 			return err
 		} else if problemDetails != nil {
@@ -2162,7 +2162,7 @@ func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessTyp
 				ArgAccessType: accessType,
 				ArgEAPSuccess: true,
 				ArgEAPMessage: response.EapPayload,
-			}, ctext)
+			}, ctxt)
 		case models.AuthResult_FAILURE:
 			if ue.IdentityTypeUsedForRegistration == nasMessage.MobileIdentity5GSType5gGuti {
 				gmm_message.SendAuthenticationResult(ue.RanUe[accessType], false, response.EapPayload)
@@ -2173,7 +2173,7 @@ func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessTyp
 				return GmmFSM.SendEvent(ue.State[accessType], AuthFailEvent, fsm.ArgsType{
 					ArgAmfUe:      ue,
 					ArgAccessType: accessType,
-				}, ctext)
+				}, ctxt)
 			}
 		case models.AuthResult_ONGOING:
 			ue.AuthenticationCtx.Var5gAuthData = response.EapPayload
@@ -2188,7 +2188,7 @@ func HandleAuthenticationResponse(ue *context.AmfUe, accessType models.AccessTyp
 }
 
 func HandleAuthenticationFailure(ue *context.AmfUe, anType models.AccessType,
-	authenticationFailure *nasMessage.AuthenticationFailure, ctext ctx.Context,
+	authenticationFailure *nasMessage.AuthenticationFailure, ctxt ctx.Context,
 ) error {
 	ue.GmmLog.Info("Handle Authentication Failure")
 
@@ -2205,11 +2205,11 @@ func HandleAuthenticationFailure(ue *context.AmfUe, anType models.AccessType,
 		case nasMessage.Cause5GMMMACFailure:
 			ue.GmmLog.Warnln("Authentication Failure Cause: Mac Failure")
 			gmm_message.SendAuthenticationReject(ue.RanUe[anType], "")
-			return GmmFSM.SendEvent(ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType}, ctext)
+			return GmmFSM.SendEvent(ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType}, ctxt)
 		case nasMessage.Cause5GMMNon5GAuthenticationUnacceptable:
 			ue.GmmLog.Warnln("Authentication Failure Cause: Non-5G Authentication Unacceptable")
 			gmm_message.SendAuthenticationReject(ue.RanUe[anType], "")
-			return GmmFSM.SendEvent(ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType}, ctext)
+			return GmmFSM.SendEvent(ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType}, ctxt)
 		case nasMessage.Cause5GMMngKSIAlreadyInUse:
 			ue.GmmLog.Warnln("Authentication Failure Cause: NgKSI Already In Use")
 			ue.AuthFailureCauseSynchFailureTimes = 0
@@ -2228,7 +2228,7 @@ func HandleAuthenticationFailure(ue *context.AmfUe, anType models.AccessType,
 			if ue.AuthFailureCauseSynchFailureTimes >= 2 {
 				ue.GmmLog.Warnf("2 consecutive Synch Failure, terminate authentication procedure")
 				gmm_message.SendAuthenticationReject(ue.RanUe[anType], "")
-				return GmmFSM.SendEvent(ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType}, ctext)
+				return GmmFSM.SendEvent(ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType}, ctxt)
 			}
 
 			auts := authenticationFailure.GetAuthenticationFailureParameter()
@@ -2236,7 +2236,7 @@ func HandleAuthenticationFailure(ue *context.AmfUe, anType models.AccessType,
 				Auts: hex.EncodeToString(auts[:]),
 			}
 
-			response, problemDetails, err := consumer.SendUEAuthenticationAuthenticateRequest(ue, resynchronizationInfo)
+			response, problemDetails, err := consumer.SendUEAuthenticationAuthenticateRequest(ue, resynchronizationInfo, ctxt)
 			if err != nil {
 				return err
 			} else if problemDetails != nil {
@@ -2265,7 +2265,7 @@ func HandleAuthenticationFailure(ue *context.AmfUe, anType models.AccessType,
 }
 
 func HandleRegistrationComplete(ue *context.AmfUe, accessType models.AccessType,
-	registrationComplete *nasMessage.RegistrationComplete, ctext ctx.Context,
+	registrationComplete *nasMessage.RegistrationComplete, ctxt ctx.Context,
 ) error {
 	ue.GmmLog.Info("Handle Registration Complete")
 
@@ -2293,12 +2293,12 @@ func HandleRegistrationComplete(ue *context.AmfUe, accessType models.AccessType,
 	return GmmFSM.SendEvent(ue.State[accessType], ContextSetupSuccessEvent, fsm.ArgsType{
 		ArgAmfUe:      ue,
 		ArgAccessType: accessType,
-	}, ctext)
+	}, ctxt)
 }
 
 // TS 33.501 6.7.2
 func HandleSecurityModeComplete(ue *context.AmfUe, anType models.AccessType, procedureCode int64,
-	securityModeComplete *nasMessage.SecurityModeComplete, ctext ctx.Context,
+	securityModeComplete *nasMessage.SecurityModeComplete, ctxt ctx.Context,
 ) error {
 	ue.GmmLog.Info("Handle Security Mode Complete")
 
@@ -2339,7 +2339,7 @@ func HandleSecurityModeComplete(ue *context.AmfUe, anType models.AccessType, pro
 				ArgAccessType:    anType,
 				ArgProcedureCode: procedureCode,
 				ArgNASMessage:    m.RegistrationRequest,
-			}, ctext)
+			}, ctxt)
 		}
 	}
 	return GmmFSM.SendEvent(ue.State[anType], SecurityModeSuccessEvent, fsm.ArgsType{
@@ -2347,7 +2347,7 @@ func HandleSecurityModeComplete(ue *context.AmfUe, anType models.AccessType, pro
 		ArgAccessType:    anType,
 		ArgProcedureCode: procedureCode,
 		ArgNASMessage:    ue.RegistrationRequest,
-	}, ctext)
+	}, ctxt)
 }
 
 func HandleSecurityModeReject(ue *context.AmfUe, anType models.AccessType,
@@ -2374,7 +2374,7 @@ func HandleSecurityModeReject(ue *context.AmfUe, anType models.AccessType,
 
 // TS 23.502 4.2.2.3
 func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
-	deregistrationRequest *nasMessage.DeregistrationRequestUEOriginatingDeregistration, ctext ctx.Context,
+	deregistrationRequest *nasMessage.DeregistrationRequestUEOriginatingDeregistration, ctxt ctx.Context,
 ) error {
 	ue.GmmLog.Info("Handle Deregistration Request(UE Originating)")
 
@@ -2404,7 +2404,7 @@ func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
 		}
 
 		if terminateAmPolicyAssocaition {
-			problemDetails, err := consumer.AMPolicyControlDelete(ue)
+			problemDetails, err := consumer.AMPolicyControlDelete(ue, ctxt)
 			if problemDetails != nil {
 				ue.GmmLog.Errorf("AM Policy Control Delete Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
@@ -2428,7 +2428,7 @@ func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
 		return GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 			ArgAmfUe:      ue,
 			ArgAccessType: anType,
-		}, ctext)
+		}, ctxt)
 	case nasMessage.AccessTypeNon3GPP:
 		if ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType_NON_3_GPP_ACCESS],
@@ -2437,7 +2437,7 @@ func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
 		return GmmFSM.SendEvent(ue.State[models.AccessType_NON_3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 			ArgAmfUe:      ue,
 			ArgAccessType: anType,
-		}, ctext)
+		}, ctxt)
 	case nasMessage.AccessTypeBoth:
 		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
 			ngap_message.SendUEContextReleaseCommand(ue.RanUe[models.AccessType__3_GPP_ACCESS],
@@ -2451,14 +2451,14 @@ func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
 		err := GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 			ArgAmfUe:      ue,
 			ArgAccessType: anType,
-		}, ctext)
+		}, ctxt)
 		if err != nil {
 			ue.GmmLog.Errorln(err)
 		}
 		return GmmFSM.SendEvent(ue.State[models.AccessType_NON_3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 			ArgAmfUe:      ue,
 			ArgAccessType: anType,
-		}, ctext)
+		}, ctxt)
 	}
 
 	return nil
@@ -2466,7 +2466,7 @@ func HandleDeregistrationRequest(ue *context.AmfUe, anType models.AccessType,
 
 // TS 23.502 4.2.2.3
 func HandleDeregistrationAccept(ue *context.AmfUe, anType models.AccessType,
-	deregistrationAccept *nasMessage.DeregistrationAcceptUETerminatedDeregistration, ctext ctx.Context,
+	deregistrationAccept *nasMessage.DeregistrationAcceptUETerminatedDeregistration, ctxt ctx.Context,
 ) error {
 	ue.GmmLog.Info("Handle Deregistration Accept(UE Terminated)")
 
@@ -2502,7 +2502,7 @@ func HandleDeregistrationAccept(ue *context.AmfUe, anType models.AccessType,
 	return GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 		ArgAmfUe:      ue,
 		ArgAccessType: anType,
-	}, ctext)
+	}, ctxt)
 }
 
 func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *nasMessage.Status5GMM) error {

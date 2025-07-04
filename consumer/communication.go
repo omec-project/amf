@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"time"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
@@ -17,6 +16,7 @@ import (
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Namf_Communication"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func BuildUeContextCreateData(ue *amf_context.AmfUe, targetRanId models.NgRanTargetId,
@@ -121,15 +121,23 @@ func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTrig
 	return
 }
 
-func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.UeContextCreateData) (
+func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.UeContextCreateData, ctx context.Context) (
 	ueContextCreatedData *models.UeContextCreatedData, problemDetails *models.ProblemDetails, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP PUT amf/ue-contexts/{ueContextId}")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "PUT"),
+		attribute.String("nf.target", "amf"),
+		attribute.String("net.peer.name", ue.TargetAmfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 
 	req := models.CreateUeContextRequest{
 		JsonData: &ueContextCreateData,
@@ -151,9 +159,20 @@ func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.Ue
 	return
 }
 
-func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause) (
+func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause, ctx context.Context) (
 	problemDetails *models.ProblemDetails, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP POST amf/ue-contexts/{ueContextId}/release")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "amf"),
+		attribute.String("net.peer.name", ue.TargetAmfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
@@ -173,9 +192,6 @@ func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause) 
 		ueContextRelease.UnauthenticatedSupi = true
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
-
 	httpResp, localErr := client.IndividualUeContextDocumentApi.ReleaseUEContext(
 		ctx, ueContextId, ueContextRelease)
 	if localErr == nil {
@@ -194,9 +210,20 @@ func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause) 
 }
 
 func UEContextTransferRequest(
-	ue *amf_context.AmfUe, accessType models.AccessType, transferReason models.TransferReason) (
+	ue *amf_context.AmfUe, accessType models.AccessType, transferReason models.TransferReason, ctx context.Context) (
 	ueContextTransferRspData *models.UeContextTransferRspData, problemDetails *models.ProblemDetails, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP POST amf/ue-contexts/{ueContextId}/transfer")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "amf"),
+		attribute.String("net.peer.name", ue.TargetAmfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
@@ -224,8 +251,6 @@ func UEContextTransferRequest(
 	// guti format is defined at TS 29.518 Table 6.1.3.2.2-1 5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 	res, httpResp, localErr := client.IndividualUeContextDocumentApi.UEContextTransfer(ctx, ueContextId, req)
 	if localErr == nil {
 		ueContextTransferRspData = res.JsonData
@@ -244,15 +269,24 @@ func UEContextTransferRequest(
 }
 
 // This operation is called "RegistrationCompleteNotify" at TS 23.502
-func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusUpdateReqData) (
+func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusUpdateReqData, ctx context.Context) (
 	regStatusTransferComplete bool, problemDetails *models.ProblemDetails, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP POST amf/ue-contexts/{ueContextId}/transfer-update")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "amf"),
+		attribute.String("net.peer.name", ue.TargetAmfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Namf_Communication.NewConfiguration()
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
 	res, httpResp, localErr := client.IndividualUeContextDocumentApi.RegistrationStatusUpdate(ctx, ueContextId, request)
 	if localErr == nil {

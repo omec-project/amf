@@ -8,15 +8,15 @@ package consumer
 
 import (
 	"context"
-	"time"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nudm_UEContextManagement"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initialRegistrationInd bool) (
+func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initialRegistrationInd bool, ctx context.Context) (
 	*models.ProblemDetails, error,
 ) {
 	configuration := Nudm_UEContextManagement.NewConfiguration()
@@ -35,8 +35,17 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			// TODO: not support Homogenous Support of IMS Voice over PS Sessions this stage
 			ImsVoPs: models.ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
 		}
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-		defer cancel()
+
+		ctx, span := tracer.Start(ctx, "HTTP PUT udm/{ueId}/registrations/amf-3gpp-access")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("http.method", "PUT"),
+			attribute.String("nf.target", "udm"),
+			attribute.String("net.peer.name", ue.NudmUECMUri),
+			attribute.String("udm.supi", ue.Supi),
+			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		)
 
 		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessApi.Registration(ctx,
 			ue.Supi, registrationData)
@@ -57,8 +66,16 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			Guami:         &amfSelf.ServedGuamiList[0],
 			RatType:       ue.RatType,
 		}
-		ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-		defer cancel()
+		ctx, span := tracer.Start(ctx, "HTTP PUT udm/{ueId}/registrations/amf-non-3gpp-access")
+		defer span.End()
+
+		span.SetAttributes(
+			attribute.String("http.method", "PUT"),
+			attribute.String("nf.target", "udm"),
+			attribute.String("net.peer.name", ue.NudmUECMUri),
+			attribute.String("udm.supi", ue.Supi),
+			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		)
 
 		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessApi.Register(ctx, ue.Supi, registrationData)
 		if localErr == nil {

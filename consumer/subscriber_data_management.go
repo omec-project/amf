@@ -49,7 +49,7 @@ func PutUpuAck(ue *amf_context.AmfUe, upuMacIue string, ctxt context.Context) er
 }
 
 func SDMGetAmData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
-	_, span := tracer.Start(ctx, "HTTP GET udm/{supi}/am-data")
+	ctx, span := tracer.Start(ctx, "HTTP GET udm/{supi}/am-data")
 	defer span.End()
 
 	span.SetAttributes(
