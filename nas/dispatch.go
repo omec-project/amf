@@ -86,7 +86,7 @@ func messageTypeName(code uint8) string {
 	}
 }
 
-func Dispatch(ctext ctx.Context, ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message) error {
+func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message, ctxt ctx.Context) error {
 	if msg.GmmMessage == nil {
 		return errors.New("gmm message is nil")
 	}
@@ -102,7 +102,7 @@ func Dispatch(ctext ctx.Context, ue *context.AmfUe, accessType models.AccessType
 	msgTypeName := messageTypeName(msg.GmmHeader.GetMessageType())
 	spanName := fmt.Sprintf("AMF NAS %s", msgTypeName)
 
-	_, span := tracer.Start(ctext, spanName,
+	_, span := tracer.Start(ctxt, spanName,
 		trace.WithAttributes(
 			attribute.String("nas.accessType", string(accessType)),
 			attribute.Int64("nas.procedureCode", procedureCode),
@@ -119,5 +119,5 @@ func Dispatch(ctext ctx.Context, ue *context.AmfUe, accessType models.AccessType
 		gmm.ArgAccessType:    accessType,
 		gmm.ArgNASMessage:    msg.GmmMessage,
 		gmm.ArgProcedureCode: procedureCode,
-	}, ctext)
+	}, ctxt)
 }

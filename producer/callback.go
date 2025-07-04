@@ -438,7 +438,7 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 
 		amfUe.AttachRanUe(ranUe)
 
-		nas.HandleNAS(ctx.Background(), ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message)
+		nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message, ctx.Background())
 	}()
 	return nil
 }

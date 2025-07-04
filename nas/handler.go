@@ -17,7 +17,7 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
-func HandleNAS(ctxt ctx.Context, ue *context.RanUe, procedureCode int64, nasPdu []byte) {
+func HandleNAS(ue *context.RanUe, procedureCode int64, nasPdu []byte, ctxt ctx.Context) {
 	amfSelf := context.AMF_Self()
 
 	if ue == nil {
@@ -102,7 +102,7 @@ func HandleNAS(ctxt ctx.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		ue.AmfUe.NASLog.Errorln(err)
 		return
 	}
-	if err := Dispatch(ctxt, ue.AmfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
+	if err := Dispatch(ue.AmfUe, ue.Ran.AnType, procedureCode, msg, ctxt); err != nil {
 		ue.AmfUe.NASLog.Errorf("handle NAS Error: %v", err)
 	}
 }
@@ -115,7 +115,7 @@ func DispatchMsg(amfUe *context.AmfUe, transInfo context.NasMsg) {
 		return
 	}
 
-	if err := Dispatch(transInfo.Context, amfUe, transInfo.AnType, transInfo.ProcedureCode, msg); err != nil {
+	if err := Dispatch(amfUe, transInfo.AnType, transInfo.ProcedureCode, msg, transInfo.Context); err != nil {
 		amfUe.NASLog.Errorf("handle NAS Error: %v", err)
 	}
 }

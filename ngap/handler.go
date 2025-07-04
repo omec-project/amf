@@ -745,7 +745,7 @@ func HandleUplinkNasTransport(ctxt ctx.Context, ran *context.AmfRan, message *ng
 		ranUe.UpdateLocation(userLocationInformation)
 	}
 
-	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeUplinkNASTransport, nASPDU.Value)
+	nas.HandleNAS(ranUe, ngapType.ProcedureCodeUplinkNASTransport, nASPDU.Value, ctxt)
 }
 
 func HandleNGReset(ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -1615,7 +1615,7 @@ func HandleInitialUEMessage(ctxt ctx.Context, ran *context.AmfRan, message *ngap
 	if amfSelf.EnableSctpLb {
 		ranUe.SctplbMsg = sctplbMsg.Msg
 	}
-	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeInitialUEMessage, nASPDU.Value)
+	nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, nASPDU.Value, ctxt)
 }
 
 func HandlePDUSessionResourceSetupResponse(ran *context.AmfRan, message *ngapType.NGAPPDU, ctxt ctx.Context) {
@@ -3895,7 +3895,7 @@ func HandleNasNonDeliveryIndication(ctxt ctx.Context, ran *context.AmfRan, messa
 
 	printAndGetCause(ran, cause)
 
-	nas.HandleNAS(ctxt, ranUe, ngapType.ProcedureCodeNASNonDeliveryIndication, nASPDU.Value)
+	nas.HandleNAS(ranUe, ngapType.ProcedureCodeNASNonDeliveryIndication, nASPDU.Value, ctxt)
 }
 
 func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU) {
