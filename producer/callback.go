@@ -443,12 +443,12 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 	return nil
 }
 
-func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request) *httpwrapper.Response {
+func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request, ctxt ctx.Context) *httpwrapper.Response {
 	logger.ProducerLog.Debugln("[AMF] handle NF Status Notify")
 
 	notificationData := request.Body.(models.NotificationData)
 
-	problemDetails := NfSubscriptionStatusNotifyProcedure(notificationData)
+	problemDetails := NfSubscriptionStatusNotifyProcedure(notificationData, ctxt)
 	if problemDetails != nil {
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
@@ -456,7 +456,7 @@ func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request) *httpwrapper
 	}
 }
 
-func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationData) *models.ProblemDetails {
+func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationData, ctxt ctx.Context) *models.ProblemDetails {
 	logger.ProducerLog.Debugf("NfSubscriptionStatusNotify: %+v", notificationData)
 
 	if notificationData.Event == "" || notificationData.NfInstanceUri == "" {
@@ -479,7 +479,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 		}
 		if subscriptionId, ok := context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v", nfInstanceId, subscriptionId.(string))
-			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string), ctxt)
 			if problemDetails != nil {
 				logger.ConsumerLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
 			} else if err != nil {

@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	ctx "context"
 	"encoding/json"
 	"log"
@@ -131,7 +132,7 @@ func TestRegisterNF(t *testing.T) {
 	}()
 	t.Logf("test case TestRegisterNF")
 	var prof models.NfProfile
-	consumer.SendRegisterNFInstance = func(nrfUri string, nfInstanceId string, profile models.NfProfile) (models.NfProfile, string, string, error) {
+	consumer.SendRegisterNFInstance = func(nrfUri string, nfInstanceId string, profile models.NfProfile, ctx context.Context) (models.NfProfile, string, string, error) {
 		prof = profile
 		prof.HeartBeatTimer = 1
 		t.Logf("Test RegisterNFInstance called")
@@ -144,7 +145,7 @@ func TestRegisterNF(t *testing.T) {
 	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
 		return prof, nil, nil
 	}
-	go AMFTest.SendNFProfileUpdateToNrf()
+	go AMFTest.SendNFProfileUpdateToNrf(context.Background())
 	service.RocUpdateConfigChannel <- true
 	time.Sleep(5 * time.Second)
 	require.Equal(t, service.KeepAliveTimer != nil, true)

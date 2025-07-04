@@ -391,8 +391,8 @@ func (amf *AMF) Start() {
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
-
-	go amf.SendNFProfileUpdateToNrf()
+	ctxt := ctx.Background()
+	go amf.SendNFProfileUpdateToNrf(ctxt)
 
 	if self.EnableNrfCaching {
 		logger.InitLog.Infoln("enable NRF caching feature")
@@ -416,7 +416,6 @@ func (amf *AMF) Start() {
 	}()
 
 	if factory.AmfConfig.Configuration.Telemetry.Enabled {
-		ctxt := ctx.Background()
 		var tp *sdktrace.TracerProvider
 		tp, err = tracing.InitTracer(ctxt, tracing.TelemetryConfig{
 			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
@@ -515,10 +514,12 @@ func (amf *AMF) Terminate() {
 	logger.InitLog.Infoln("terminating AMF")
 	amfSelf := context.AMF_Self()
 
+	ctxt := ctx.Background()
+
 	// TODO: forward registered UE contexts to target AMF in the same AMF set if there is one
 
 	// deregister with NRF
-	problemDetails, err := consumer.SendDeregisterNFInstance()
+	problemDetails, err := consumer.SendDeregisterNFInstance(ctxt)
 	if problemDetails != nil {
 		logger.InitLog.Errorf("deregister NF instance Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
@@ -543,7 +544,7 @@ func (amf *AMF) Terminate() {
 	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
 		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
-			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string), ctxt)
 			if problemDetails != nil {
 				logger.InitLog.Errorf("remove NF Subscription Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
@@ -578,7 +579,7 @@ func (amf *AMF) StopKeepAliveTimer() {
 	}
 }
 
-func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
+func (amf *AMF) BuildAndSendRegisterNFInstance(ctxt ctx.Context) (models.NfProfile, error) {
 	self := context.AMF_Self()
 	profile, err := consumer.BuildNFInstance(self)
 	if err != nil {
@@ -587,12 +588,13 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	}
 	logger.InitLog.Infof("AMF Profile Registering to NRF: %v", profile)
 	// Indefinite attempt to register until success
-	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile)
+	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile, ctxt)
 	return profile, err
 }
 
 // UpdateNF is the callback function, this is called when keepalivetimer elapsed
 func (amf *AMF) UpdateNF() {
+	ctxt := ctx.Background()
 	KeepAliveTimerMutex.Lock()
 	defer KeepAliveTimerMutex.Unlock()
 	if KeepAliveTimer == nil {
@@ -615,14 +617,14 @@ func (amf *AMF) UpdateNF() {
 		if (problemDetails.Status/100) == 5 ||
 			problemDetails.Status == 404 || problemDetails.Status == 400 {
 			// register with NRF full profile
-			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+			nfProfile, err = amf.BuildAndSendRegisterNFInstance(ctxt)
 			if err != nil {
 				logger.InitLog.Errorf("could not register to NRF Error[%s]", err.Error())
 			}
 		}
 	} else if err != nil {
 		logger.InitLog.Errorf("AMF update to NRF Error[%s]", err.Error())
-		nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+		nfProfile, err = amf.BuildAndSendRegisterNFInstance(ctxt)
 		if err != nil {
 			logger.InitLog.Errorf("could not register to NRF Error[%s]", err.Error())
 		}
@@ -771,7 +773,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse, ctxt
 	return true
 }
 
-func (amf *AMF) SendNFProfileUpdateToNrf() {
+func (amf *AMF) SendNFProfileUpdateToNrf(ctxt ctx.Context) {
 	// for rocUpdateConfig := range RocUpdateConfigChannel {
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
@@ -787,7 +789,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 				profile = profileTmp
 			}
 
-			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
+			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile, ctxt); err != nil {
 				logger.CfgLog.Warnf("send Register NF Instance with updated profile failed: %+v", err)
 			} else {
 				// stop keepAliveTimer if its running and start the timer
