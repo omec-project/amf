@@ -221,7 +221,7 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeNGSetup:
 			HandleNGSetupRequest(ran, pdu)
 		case ngapType.ProcedureCodeInitialUEMessage:
-			HandleInitialUEMessage(ctxt, ran, pdu, sctplbMsg)
+			HandleInitialUEMessage(ran, pdu, sctplbMsg, ctxt)
 		case ngapType.ProcedureCodeUplinkNASTransport:
 			HandleUplinkNasTransport(ctxt, ran, pdu)
 		case ngapType.ProcedureCodeNGReset:

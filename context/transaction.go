@@ -35,7 +35,7 @@ func (tx *EventChannel) UpdateSbiHandler(handler func(s1, s2 string, msg interfa
 	tx.SbiHandler = handler
 }
 
-func (tx *EventChannel) UpdateConfigHandler(handler func(s1, s2, s3 string, msg interface{}, ctx context.Context), ctx context.Context) {
+func (tx *EventChannel) UpdateConfigHandler(handler func(s1, s2, s3 string, msg interface{}, ctx context.Context)) {
 	tx.AmfUe.TxLog.Infof("updated confighandler")
 	tx.ConfigHandler = handler
 }

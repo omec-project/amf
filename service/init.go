@@ -886,7 +886,7 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice, ctxt ctx.Conte
 			Sd:   slice.Nssai.Sd,
 		}
 		ue.SetEventChannel(nil, ctxt)
-		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler, ctxt)
+		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }
@@ -911,7 +911,7 @@ func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice, ctxt ctx.Context) {
 			Sd:   slice.Nssai.Sd,
 		}
 
-		ue.EventChannel.UpdateConfigHandler(UeConfigSliceAddHandler, ctxt)
+		ue.EventChannel.UpdateConfigHandler(UeConfigSliceAddHandler)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }
