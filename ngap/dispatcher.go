@@ -8,6 +8,8 @@
 package ngap
 
 import (
+	ctx "context"
+	"fmt"
 	"net"
 	"os"
 	"reflect"
@@ -20,9 +22,14 @@ import (
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/ngap"
 	"github.com/omec-project/ngap/ngapType"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage) {
+var tracer = otel.Tracer("amf/ngap")
+
+func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage, ctxt ctx.Context) {
 	logger.NgapLog.Infof("dispatchLb GnbId:%v GnbIp: %v %T", sctplbMsg.GnbId, sctplbMsg.GnbIpAddr, Amf2RanMsgChan)
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
@@ -99,7 +106,7 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler, ctxt)
 		// ranUe.AmfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
@@ -110,13 +117,15 @@ func DispatchLb(sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *s
 
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		go DispatchNgapMsg(ran, pdu, sctplbMsg)
+		go DispatchNgapMsg(ran, pdu, sctplbMsg, ctxt)
 	}
 }
 
 func Dispatch(conn net.Conn, msg []byte) {
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
+
+	ctxt := ctx.Background()
 
 	ran, ok := amfSelf.AmfRanFindByConn(conn)
 	if !ok {
@@ -140,7 +149,7 @@ func Dispatch(conn net.Conn, msg []byte) {
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if ranUe != nil && ranUe.AmfUe != nil {
-		ranUe.AmfUe.SetEventChannel(NgapMsgHandler)
+		ranUe.AmfUe.SetEventChannel(NgapMsgHandler, ctxt)
 		ranUe.AmfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
 		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
@@ -152,15 +161,49 @@ func Dispatch(conn net.Conn, msg []byte) {
 		ranUe.Ran.Conn = conn
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
-		go DispatchNgapMsg(ran, pdu, nil)
+		go DispatchNgapMsg(ran, pdu, nil, ctxt)
 	}
 }
 
 func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
-	DispatchNgapMsg(msg.Ran, msg.NgapMsg, msg.SctplbMsg)
+	DispatchNgapMsg(msg.Ran, msg.NgapMsg, msg.SctplbMsg, ctx.Background())
 }
 
-func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage, ctxt ctx.Context) {
+	var code int64
+	switch pdu.Present {
+	case ngapType.NGAPPDUPresentInitiatingMessage:
+		if pdu.InitiatingMessage != nil {
+			code = pdu.InitiatingMessage.ProcedureCode.Value
+		}
+	case ngapType.NGAPPDUPresentSuccessfulOutcome:
+		if pdu.SuccessfulOutcome != nil {
+			code = pdu.SuccessfulOutcome.ProcedureCode.Value
+		}
+	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
+		if pdu.UnsuccessfulOutcome != nil {
+			code = pdu.UnsuccessfulOutcome.ProcedureCode.Value
+		}
+	}
+	procName := procedureName(code)
+
+	if procName == "" {
+		procName = "UnknownProcedure"
+	}
+
+	spanName := fmt.Sprintf("AMF NGAP %s", procName)
+	ctxt, span := tracer.Start(ctxt, spanName,
+		trace.WithAttributes(
+			attribute.String("net.peer", ran.Conn.RemoteAddr().String()),
+			attribute.String("ngap.pdu_present", fmt.Sprintf("%d", pdu.Present)),
+			attribute.String("ngap.procedureCode", procName),
+		),
+		trace.WithSpanKind(trace.SpanKindServer),
+	)
+	logger.AppLog.Infof("created span for %s, net.peer: %s, ngap.pdu_present: %d, ngap.procedureCode: %s",
+		spanName, ran.Conn.RemoteAddr().String(), pdu.Present, procName)
+	defer span.End()
+
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
@@ -178,17 +221,17 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeNGSetup:
 			HandleNGSetupRequest(ran, pdu)
 		case ngapType.ProcedureCodeInitialUEMessage:
-			HandleInitialUEMessage(ran, pdu, sctplbMsg)
+			HandleInitialUEMessage(ran, pdu, sctplbMsg, ctxt)
 		case ngapType.ProcedureCodeUplinkNASTransport:
-			HandleUplinkNasTransport(ran, pdu)
+			HandleUplinkNasTransport(ctxt, ran, pdu)
 		case ngapType.ProcedureCodeNGReset:
 			HandleNGReset(ran, pdu)
 		case ngapType.ProcedureCodeHandoverCancel:
-			HandleHandoverCancel(ran, pdu)
+			HandleHandoverCancel(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUEContextReleaseRequest:
-			HandleUEContextReleaseRequest(ran, pdu)
+			HandleUEContextReleaseRequest(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeNASNonDeliveryIndication:
-			HandleNasNonDeliveryIndication(ran, pdu)
+			HandleNasNonDeliveryIndication(ctxt, ran, pdu)
 		case ngapType.ProcedureCodeLocationReportingFailureIndication:
 			HandleLocationReportingFailureIndication(ran, pdu)
 		case ngapType.ProcedureCodeErrorIndication:
@@ -196,17 +239,17 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
 			HandleUERadioCapabilityInfoIndication(ran, pdu)
 		case ngapType.ProcedureCodeHandoverNotification:
-			HandleHandoverNotify(ran, pdu)
+			HandleHandoverNotify(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeHandoverPreparation:
-			HandleHandoverRequired(ran, pdu)
+			HandleHandoverRequired(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeRANConfigurationUpdate:
 			HandleRanConfigurationUpdate(ran, pdu)
 		case ngapType.ProcedureCodeRRCInactiveTransitionReport:
 			HandleRRCInactiveTransitionReport(ran, pdu)
 		case ngapType.ProcedureCodePDUSessionResourceNotify:
-			HandlePDUSessionResourceNotify(ran, pdu)
+			HandlePDUSessionResourceNotify(ran, pdu, ctxt)
 		case ngapType.ProcedureCodePathSwitchRequest:
-			HandlePathSwitchRequest(ran, pdu)
+			HandlePathSwitchRequest(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeLocationReport:
 			HandleLocationReport(ran, pdu)
 		case ngapType.ProcedureCodeUplinkUEAssociatedNRPPaTransport:
@@ -214,7 +257,7 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeUplinkRANConfigurationTransfer:
 			HandleUplinkRanConfigurationTransfer(ran, pdu)
 		case ngapType.ProcedureCodePDUSessionResourceModifyIndication:
-			HandlePDUSessionResourceModifyIndication(ran, pdu)
+			HandlePDUSessionResourceModifyIndication(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeCellTrafficTrace:
 			HandleCellTrafficTrace(ran, pdu)
 		case ngapType.ProcedureCodeUplinkRANStatusTransfer:
@@ -239,23 +282,23 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeNGReset:
 			HandleNGResetAcknowledge(ran, pdu)
 		case ngapType.ProcedureCodeUEContextRelease:
-			HandleUEContextReleaseComplete(ran, pdu)
+			HandleUEContextReleaseComplete(ran, pdu, ctxt)
 		case ngapType.ProcedureCodePDUSessionResourceRelease:
-			HandlePDUSessionResourceReleaseResponse(ran, pdu)
+			HandlePDUSessionResourceReleaseResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUERadioCapabilityCheck:
 			HandleUERadioCapabilityCheckResponse(ran, pdu)
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			HandleAMFconfigurationUpdateAcknowledge(ran, pdu)
 		case ngapType.ProcedureCodeInitialContextSetup:
-			HandleInitialContextSetupResponse(ran, pdu)
+			HandleInitialContextSetupResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUEContextModification:
 			HandleUEContextModificationResponse(ran, pdu)
 		case ngapType.ProcedureCodePDUSessionResourceSetup:
-			HandlePDUSessionResourceSetupResponse(ran, pdu)
+			HandlePDUSessionResourceSetupResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodePDUSessionResourceModify:
-			HandlePDUSessionResourceModifyResponse(ran, pdu)
+			HandlePDUSessionResourceModifyResponse(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			HandleHandoverRequestAcknowledge(ran, pdu)
+			HandleHandoverRequestAcknowledge(ran, pdu, ctxt)
 		default:
 			ran.Log.Warnf("Not implemented(choice: %d, procedureCode: %d)", pdu.Present, successfulOutcome.ProcedureCode.Value)
 		}
@@ -274,11 +317,11 @@ func DispatchNgapMsg(ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdco
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 			HandleAMFconfigurationUpdateFailure(ran, pdu)
 		case ngapType.ProcedureCodeInitialContextSetup:
-			HandleInitialContextSetupFailure(ran, pdu)
+			HandleInitialContextSetupFailure(ran, pdu, ctxt)
 		case ngapType.ProcedureCodeUEContextModification:
 			HandleUEContextModificationFailure(ran, pdu)
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			HandleHandoverFailure(ran, pdu)
+			HandleHandoverFailure(ran, pdu, ctxt)
 		default:
 			ran.Log.Warnf("Not implemented(choice: %d, procedureCode: %d)", pdu.Present, unsuccessfulOutcome.ProcedureCode.Value)
 		}
@@ -354,4 +397,117 @@ func HandleSCTPNotificationLb(gnbId string) {
 
 	ran.Log.Infoln("SCTP state is SCTP_SHUTDOWN_COMP, close the connection")
 	ran.Remove()
+}
+
+func procedureName(code int64) string {
+	switch code {
+	case ngapType.ProcedureCodeAMFConfigurationUpdate:
+		return "AMFConfigurationUpdate"
+	case ngapType.ProcedureCodeAMFStatusIndication:
+		return "AMFStatusIndication"
+	case ngapType.ProcedureCodeCellTrafficTrace:
+		return "CellTrafficTrace"
+	case ngapType.ProcedureCodeDeactivateTrace:
+		return "DeactivateTrace"
+	case ngapType.ProcedureCodeDownlinkNASTransport:
+		return "DownlinkNASTransport"
+	case ngapType.ProcedureCodeDownlinkNonUEAssociatedNRPPaTransport:
+		return "DownlinkNonUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeDownlinkRANConfigurationTransfer:
+		return "DownlinkRANConfigurationTransfer"
+	case ngapType.ProcedureCodeDownlinkRANStatusTransfer:
+		return "DownlinkRANStatusTransfer"
+	case ngapType.ProcedureCodeDownlinkUEAssociatedNRPPaTransport:
+		return "DownlinkUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeErrorIndication:
+		return "ErrorIndication"
+	case ngapType.ProcedureCodeHandoverCancel:
+		return "HandoverCancel"
+	case ngapType.ProcedureCodeHandoverNotification:
+		return "HandoverNotification"
+	case ngapType.ProcedureCodeHandoverPreparation:
+		return "HandoverPreparation"
+	case ngapType.ProcedureCodeHandoverResourceAllocation:
+		return "HandoverResourceAllocation"
+	case ngapType.ProcedureCodeInitialContextSetup:
+		return "InitialContextSetup"
+	case ngapType.ProcedureCodeInitialUEMessage:
+		return "InitialUEMessage"
+	case ngapType.ProcedureCodeLocationReportingControl:
+		return "LocationReportingControl"
+	case ngapType.ProcedureCodeLocationReportingFailureIndication:
+		return "LocationReportingFailureIndication"
+	case ngapType.ProcedureCodeLocationReport:
+		return "LocationReport"
+	case ngapType.ProcedureCodeNASNonDeliveryIndication:
+		return "NASNonDeliveryIndication"
+	case ngapType.ProcedureCodeNGReset:
+		return "NGReset"
+	case ngapType.ProcedureCodeNGSetup:
+		return "NGSetup"
+	case ngapType.ProcedureCodeOverloadStart:
+		return "OverloadStart"
+	case ngapType.ProcedureCodeOverloadStop:
+		return "OverloadStop"
+	case ngapType.ProcedureCodePaging:
+		return "Paging"
+	case ngapType.ProcedureCodePathSwitchRequest:
+		return "PathSwitchRequest"
+	case ngapType.ProcedureCodePDUSessionResourceModify:
+		return "PDUSessionResourceModify"
+	case ngapType.ProcedureCodePDUSessionResourceModifyIndication:
+		return "PDUSessionResourceModifyIndication"
+	case ngapType.ProcedureCodePDUSessionResourceRelease:
+		return "PDUSessionResourceRelease"
+	case ngapType.ProcedureCodePDUSessionResourceSetup:
+		return "PDUSessionResourceSetup"
+	case ngapType.ProcedureCodePDUSessionResourceNotify:
+		return "PDUSessionResourceNotify"
+	case ngapType.ProcedureCodePrivateMessage:
+		return "PrivateMessage"
+	case ngapType.ProcedureCodePWSCancel:
+		return "PWSCancel"
+	case ngapType.ProcedureCodePWSFailureIndication:
+		return "PWSFailureIndication"
+	case ngapType.ProcedureCodePWSRestartIndication:
+		return "PWSRestartIndication"
+	case ngapType.ProcedureCodeRANConfigurationUpdate:
+		return "RANConfigurationUpdate"
+	case ngapType.ProcedureCodeRerouteNASRequest:
+		return "RerouteNASRequest"
+	case ngapType.ProcedureCodeRRCInactiveTransitionReport:
+		return "RRCInactiveTransitionReport"
+	case ngapType.ProcedureCodeTraceFailureIndication:
+		return "TraceFailureIndication"
+	case ngapType.ProcedureCodeTraceStart:
+		return "TraceStart"
+	case ngapType.ProcedureCodeUEContextModification:
+		return "UEContextModification"
+	case ngapType.ProcedureCodeUEContextRelease:
+		return "UEContextRelease"
+	case ngapType.ProcedureCodeUEContextReleaseRequest:
+		return "UEContextReleaseRequest"
+	case ngapType.ProcedureCodeUERadioCapabilityCheck:
+		return "UERadioCapabilityCheck"
+	case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
+		return "UERadioCapabilityInfoIndication"
+	case ngapType.ProcedureCodeUETNLABindingRelease:
+		return "UETNLABindingRelease"
+	case ngapType.ProcedureCodeUplinkNASTransport:
+		return "UplinkNASTransport"
+	case ngapType.ProcedureCodeUplinkNonUEAssociatedNRPPaTransport:
+		return "UplinkNonUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeUplinkRANConfigurationTransfer:
+		return "UplinkRANConfigurationTransfer"
+	case ngapType.ProcedureCodeUplinkRANStatusTransfer:
+		return "UplinkRANStatusTransfer"
+	case ngapType.ProcedureCodeUplinkUEAssociatedNRPPaTransport:
+		return "UplinkUEAssociatedNRPPaTransport"
+	case ngapType.ProcedureCodeWriteReplaceWarning:
+		return "WriteReplaceWarning"
+	case ngapType.ProcedureCodeSecondaryRATDataUsageReport:
+		return "SecondaryRATDataUsageReport"
+	default:
+		return fmt.Sprintf("ProcedureCode%d", code)
+	}
 }

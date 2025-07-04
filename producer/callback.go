@@ -7,6 +7,7 @@
 package producer
 
 import (
+	ctx "context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -28,7 +29,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func SmContextHandler(s1, s2 string, msg interface{}, ctxt ctx.Context) (interface{}, string, interface{}, interface{}) {
 	switch msg := msg.(type) {
 	case models.SmContextStatusNotification:
 		var pduSessionID int
@@ -37,13 +38,13 @@ func SmContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 		} else {
 			pduSessionID = pduSessionIDTmp
 		}
-		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg)
+		r1 := SmContextStatusNotifyProcedure(s1, int32(pduSessionID), msg, ctxt)
 		return nil, "", r1, nil
 	case models.PolicyUpdate:
 		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg)
 		return nil, "", r1, nil
 	case models.TerminationNotification:
-		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg)
+		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(s1, msg, ctxt)
 		return nil, "", r1, nil
 	}
 
@@ -89,6 +90,7 @@ func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Resp
 
 func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 	smContextStatusNotification models.SmContextStatusNotification,
+	ctxt ctx.Context,
 ) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
@@ -157,7 +159,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 					}
 				}
 
-				newSmContext, cause, err := consumer.SelectSmf(ue, smContext.AccessType(), pduSessionID, snssai, dnn)
+				newSmContext, cause, err := consumer.SelectSmf(ue, smContext.AccessType(), pduSessionID, snssai, dnn, ctxt)
 				if err != nil {
 					logger.CallbackLog.Error(err)
 					gmm_message.SendDLNASTransport(ue.RanUe[smContext.AccessType()],
@@ -167,7 +169,7 @@ func SmContextStatusNotifyProcedure(guti string, pduSessionID int32,
 				}
 
 				response, smContextRef, errResponse, problemDetail, err := consumer.SendCreateSmContextRequest(
-					ue, newSmContext, nil, smMessage)
+					ue, newSmContext, nil, smMessage, ctxt)
 				if response != nil {
 					newSmContext.SetSmContextRef(smContextRef)
 					newSmContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
@@ -341,6 +343,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *h
 
 func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
 	terminationNotification models.TerminationNotification,
+	ctxt ctx.Context,
 ) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
@@ -358,7 +361,7 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID string,
 
 	// use go routine to write response first to ensure the order of the procedure
 	go func() {
-		problem, err := consumer.AMPolicyControlDelete(ue)
+		problem, err := consumer.AMPolicyControlDelete(ue, ctxt)
 		if problem != nil {
 			logger.ProducerLog.Errorf("AM Policy Control Delete Failed Problem[%+v]", problem)
 		} else if err != nil {
@@ -435,17 +438,17 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 
 		amfUe.AttachRanUe(ranUe)
 
-		nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message)
+		nas.HandleNAS(ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message, ctx.Background())
 	}()
 	return nil
 }
 
-func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request) *httpwrapper.Response {
+func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request, ctxt ctx.Context) *httpwrapper.Response {
 	logger.ProducerLog.Debugln("[AMF] handle NF Status Notify")
 
 	notificationData := request.Body.(models.NotificationData)
 
-	problemDetails := NfSubscriptionStatusNotifyProcedure(notificationData)
+	problemDetails := NfSubscriptionStatusNotifyProcedure(notificationData, ctxt)
 	if problemDetails != nil {
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	} else {
@@ -453,7 +456,7 @@ func HandleNfSubscriptionStatusNotify(request *httpwrapper.Request) *httpwrapper
 	}
 }
 
-func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationData) *models.ProblemDetails {
+func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationData, ctxt ctx.Context) *models.ProblemDetails {
 	logger.ProducerLog.Debugf("NfSubscriptionStatusNotify: %+v", notificationData)
 
 	if notificationData.Event == "" || notificationData.NfInstanceUri == "" {
@@ -476,7 +479,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 		}
 		if subscriptionId, ok := context.AMF_Self().NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.ConsumerLog.Debugf("SubscriptionId of nfInstance %v is %v", nfInstanceId, subscriptionId.(string))
-			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string), ctxt)
 			if problemDetails != nil {
 				logger.ConsumerLog.Errorf("Remove NF Subscription Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
@@ -493,7 +496,7 @@ func NfSubscriptionStatusNotifyProcedure(notificationData models.NotificationDat
 	return nil
 }
 
-func HandleDeregistrationNotification(request *httpwrapper.Request) *httpwrapper.Response {
+func HandleDeregistrationNotification(request *httpwrapper.Request, ctxt ctx.Context) *httpwrapper.Response {
 	logger.ProducerLog.Infoln("handle Deregistration Notification")
 	deregistrationData := request.Body.(models.DeregistrationData)
 

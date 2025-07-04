@@ -8,6 +8,7 @@
 package context
 
 import (
+	ctx "context"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -364,6 +365,7 @@ type NasMsg struct {
 	AnType        models.AccessType
 	NasMsg        []byte
 	ProcedureCode int64
+	Context       ctx.Context
 }
 
 type NgapMsg struct {
@@ -1028,7 +1030,7 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	}
 }
 
-func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg)) {
+func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg), ctxt ctx.Context) {
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
 	if ue.EventChannel == nil {
@@ -1036,7 +1038,7 @@ func (ue *AmfUe) SetEventChannel(handler func(*AmfUe, NgapMsg)) {
 		ue.EventChannel = ue.NewEventChannel()
 		ue.EventChannel.AmfUe = ue
 		ue.EventChannel.UpdateNgapHandler(handler)
-		go ue.EventChannel.Start()
+		go ue.EventChannel.Start(ctxt)
 	}
 }
 

@@ -8,16 +8,27 @@ package consumer
 import (
 	"context"
 	"regexp"
-	"time"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Npcf_AMPolicy"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*models.ProblemDetails, error) {
+func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType, ctx context.Context) (*models.ProblemDetails, error) {
+	ctx, span := tracer.Start(ctx, "HTTP POST pcf/policies")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "pcf"),
+		attribute.String("net.peer.name", ue.PcfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
@@ -40,9 +51,6 @@ func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*mo
 	if ue.AccessAndMobilitySubscriptionData != nil {
 		policyAssociationRequest.Rfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
 	}
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 
 	res, httpResp, localErr := client.DefaultApi.PoliciesPost(ctx, policyAssociationRequest)
 	if localErr == nil {
@@ -81,15 +89,23 @@ func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*mo
 	return nil, nil
 }
 
-func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAssociationUpdateRequest) (
+func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAssociationUpdateRequest, ctx context.Context) (
 	problemDetails *models.ProblemDetails, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP POST pcf/policies/{polAssoId}/update")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "pcf"),
+		attribute.String("net.peer.name", ue.PcfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
-
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
 
 	res, httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdUpdatePost(
 		ctx, ue.PolicyAssociationId, updateRequest)
@@ -124,12 +140,24 @@ func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAss
 	return problemDetails, err
 }
 
-func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func AMPolicyControlDelete(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
+	ctx, span := tracer.Start(ctx, "HTTP DELETE pcf/policies/{polAssoId}")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "DELETE"),
+		attribute.String("nf.target", "pcf"),
+		attribute.String("net.peer.name", ue.PcfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
-	defer cancel()
+
+	var problemDetails *models.ProblemDetails
+	var err error
 
 	httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdDelete(ctx, ue.PolicyAssociationId)
 	if localErr == nil {
@@ -137,7 +165,7 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.Proble
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return nil, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
@@ -145,5 +173,5 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.Proble
 		err = openapi.ReportError("server no response")
 	}
 
-	return
+	return problemDetails, err
 }
