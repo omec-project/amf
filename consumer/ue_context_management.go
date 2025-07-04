@@ -32,11 +32,10 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			InitialRegistrationInd: initialRegistrationInd,
 			Guami:                  &amfSelf.ServedGuamiList[0],
 			RatType:                ue.RatType,
-			// TODO: not support Homogenous Support of IMS Voice over PS Sessions this stage
-			ImsVoPs: models.ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
+			ImsVoPs:                models.ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
 		}
 
-		ctx, span := tracer.Start(ctx, "HTTP PUT udm/{ueId}/registrations/amf-3gpp-access")
+		tracedCtx, span := tracer.Start(ctx, "HTTP PUT udm/{ueId}/registrations/amf-3gpp-access")
 		defer span.End()
 
 		span.SetAttributes(
@@ -47,8 +46,7 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 		)
 
-		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessApi.Registration(ctx,
-			ue.Supi, registrationData)
+		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessApi.Registration(tracedCtx, ue.Supi, registrationData)
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {
@@ -60,13 +58,15 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 		} else {
 			return nil, openapi.ReportError("server no response")
 		}
+
 	case models.AccessType_NON_3_GPP_ACCESS:
 		registrationData := models.AmfNon3GppAccessRegistration{
 			AmfInstanceId: amfSelf.NfId,
 			Guami:         &amfSelf.ServedGuamiList[0],
 			RatType:       ue.RatType,
 		}
-		ctx, span := tracer.Start(ctx, "HTTP PUT udm/{ueId}/registrations/amf-non-3gpp-access")
+
+		tracedCtx, span := tracer.Start(ctx, "HTTP PUT udm/{ueId}/registrations/amf-non-3gpp-access")
 		defer span.End()
 
 		span.SetAttributes(
@@ -77,7 +77,7 @@ func UeCmRegistration(ue *amf_context.AmfUe, accessType models.AccessType, initi
 			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 		)
 
-		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessApi.Register(ctx, ue.Supi, registrationData)
+		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessApi.Register(tracedCtx, ue.Supi, registrationData)
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {

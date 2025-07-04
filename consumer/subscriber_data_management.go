@@ -48,7 +48,7 @@ func PutUpuAck(ue *amf_context.AmfUe, upuMacIue string, ctxt context.Context) er
 	return err
 }
 
-func SDMGetAmData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetAmData(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET udm/{supi}/am-data")
 	defer span.End()
 
@@ -68,6 +68,9 @@ func SDMGetAmData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *m
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
 
+	var err error
+	var problemDetails *models.ProblemDetails
+
 	data, httpResp, localErr := client.AccessAndMobilitySubscriptionDataRetrievalApi.GetAmData(
 		ctx, ue.Supi, &getAmDataParamOpt)
 	if localErr == nil {
@@ -76,17 +79,17 @@ func SDMGetAmData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *m
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return nil, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return problemDetails, err
 }
 
-func SDMGetSmfSelectData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetSmfSelectData(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET udm/{supi}/smf-select-data")
 	defer span.End()
 
@@ -106,13 +109,16 @@ func SDMGetSmfSelectData(ue *amf_context.AmfUe, ctx context.Context) (problemDet
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
 
+	var err error
+	var problemDetails *models.ProblemDetails
+
 	data, httpResp, localErr := client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {
 		ue.SmfSelectionData = &data
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return nil, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
@@ -120,10 +126,10 @@ func SDMGetSmfSelectData(ue *amf_context.AmfUe, ctx context.Context) (problemDet
 		err = openapi.ReportError("server no response")
 	}
 
-	return
+	return problemDetails, err
 }
 
-func SDMGetUeContextInSmfData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetUeContextInSmfData(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET udm/{supi}/ue-context-in-smf-data")
 	defer span.End()
 
@@ -139,13 +145,16 @@ func SDMGetUeContextInSmfData(ue *amf_context.AmfUe, ctx context.Context) (probl
 	configuration.SetBasePath(ue.NudmSDMUri)
 	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
 
+	var err error
+	var problemDetails *models.ProblemDetails
+
 	data, httpResp, localErr := client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(ctx, ue.Supi, nil)
 	if localErr == nil {
 		ue.UeContextInSmfData = &data
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return nil, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
@@ -153,10 +162,10 @@ func SDMGetUeContextInSmfData(ue *amf_context.AmfUe, ctx context.Context) (probl
 		err = openapi.ReportError("server no response")
 	}
 
-	return
+	return problemDetails, err
 }
 
-func SDMSubscribe(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SDMSubscribe(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
 	ctx, span := tracer.Start(ctx, "HTTP POST udm/{supi}/sdm-subscriptions")
 	defer span.End()
 
@@ -178,23 +187,25 @@ func SDMSubscribe(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *m
 		PlmnId:       &ue.PlmnId,
 	}
 
+	var err error
+	var problemDetails *models.ProblemDetails
+
 	_, httpResp, localErr := client.SubscriptionCreationApi.Subscribe(ctx, ue.Supi, sdmSubscription)
 	if localErr == nil {
-		return
+		return nil, nil
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
-			err = localErr
-			return
+			return nil, localErr
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return problemDetails, err
 }
 
-func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
 	ctx, span := tracer.Start(ctx, "HTTP GET udm/{supi}/nssai")
 	defer span.End()
 
@@ -213,6 +224,9 @@ func SDMGetSliceSelectionSubscriptionData(ue *amf_context.AmfUe, ctx context.Con
 	paramOpt := Nudm_SubscriberDataManagement.GetNssaiParamOpts{
 		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
 	}
+
+	var err error
+	var problemDetails *models.ProblemDetails
 
 	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(ctx, ue.Supi, &paramOpt)
 	if localErr == nil {

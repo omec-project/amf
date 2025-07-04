@@ -125,7 +125,7 @@ var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.Nf
 	return prof, resouceNrfUri, retrieveNfInstanceId, err
 }
 
-func SendDeregisterNFInstance(ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SendDeregisterNFInstance(ctx context.Context) (*models.ProblemDetails, error) {
 	logger.ConsumerLog.Infof("[AMF] Send Deregister NFInstance")
 
 	ctx, span := tracer.Start(ctx, "HTTP DELETE nrf/nf-instances/{nfInstanceID}")
@@ -146,9 +146,11 @@ func SendDeregisterNFInstance(ctx context.Context) (problemDetails *models.Probl
 
 	var res *http.Response
 
-	res, err = client.NFInstanceIDDocumentApi.DeregisterNFInstance(ctx, amfSelf.NfId)
+	res, err := client.NFInstanceIDDocumentApi.DeregisterNFInstance(ctx, amfSelf.NfId)
+
+	var problemDetails *models.ProblemDetails
 	if err == nil {
-		return
+		return nil, err
 	} else if res != nil {
 		defer func() {
 			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
@@ -156,14 +158,14 @@ func SendDeregisterNFInstance(ctx context.Context) (problemDetails *models.Probl
 			}
 		}()
 		if res.Status != err.Error() {
-			return
+			return nil, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return problemDetails, err
 }
 
 var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
@@ -196,7 +198,7 @@ var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.
 	return
 }
 
-func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscriptionData, ctx context.Context) (nrfSubData models.NrfSubscriptionData, problemDetails *models.ProblemDetails, err error) {
+func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscriptionData, ctx context.Context) (models.NrfSubscriptionData, *models.ProblemDetails, error) {
 	logger.ConsumerLog.Debugf("Send Create Subscription")
 
 	ctx, span := tracer.Start(ctx, "HTTP POST nrf/subscriptions")
@@ -214,10 +216,14 @@ func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscri
 	configuration.SetBasePath(nrfUri)
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 
+	var problemDetails *models.ProblemDetails
+	var err error
+	var nrfSubData models.NrfSubscriptionData
+
 	var res *http.Response
 	nrfSubData, res, err = client.SubscriptionsCollectionApi.CreateSubscription(ctx, nrfSubscriptionData)
 	if err == nil {
-		return
+		return nrfSubData, nil, nil
 	} else if res != nil {
 		defer func() {
 			if resCloseErr := res.Body.Close(); resCloseErr != nil {
@@ -226,17 +232,17 @@ func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscri
 		}()
 		if res.Status != err.Error() {
 			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %v", res.Status)
-			return
+			return models.NrfSubscriptionData{}, nil, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return models.NrfSubscriptionData{}, problemDetails, err
 }
 
-func SendRemoveSubscription(subscriptionId string, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func SendRemoveSubscription(subscriptionId string, ctx context.Context) (*models.ProblemDetails, error) {
 	logger.ConsumerLog.Infoln("[AMF] Send Remove Subscription")
 
 	ctx, span := tracer.Start(ctx, "HTTP DELETE nrf/subscriptions/{subscriptionID}")
@@ -256,9 +262,12 @@ func SendRemoveSubscription(subscriptionId string, ctx context.Context) (problem
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 	var res *http.Response
 
+	var problemDetails *models.ProblemDetails
+	var err error
+
 	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(ctx, subscriptionId)
 	if err == nil {
-		return
+		return nil, nil
 	} else if res != nil {
 		defer func() {
 			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
@@ -266,12 +275,12 @@ func SendRemoveSubscription(subscriptionId string, ctx context.Context) (problem
 			}
 		}()
 		if res.Status != err.Error() {
-			return
+			return nil, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return problemDetails, err
 }

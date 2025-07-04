@@ -508,7 +508,7 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 			configuration.SetBasePath(smContext.SmfUri())
 			client := Nsmf_PDUSession.NewAPIClient(configuration)
 
-			ctx, span := tracer.Start(ctx, "HTTP PUT smf/sm-contexts/{smContextRef}/modify")
+			retryCtx, span := tracer.Start(ctx, "HTTP PUT smf/sm-contexts/{smContextRef}/modify")
 			defer span.End()
 
 			span.SetAttributes(
@@ -517,8 +517,8 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 				attribute.String("net.peer.name", smContext.SmfUri()),
 			)
 
-			updateSmContextReponse, httpResponse, err = client.IndividualSMContextApi.UpdateSmContext(ctx, smContext.SmContextRef(),
-				updateSmContextRequest)
+			updateSmContextReponse, httpResponse, err = client.IndividualSMContextApi.UpdateSmContext(
+				retryCtx, smContext.SmContextRef(), updateSmContextRequest)
 		}
 	}
 
@@ -548,7 +548,7 @@ func SendUpdateSmContextRequest(smContext *amf_context.SmContext,
 func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.SmContext,
 	cause *amf_context.CauseAll, n2SmInfoType models.N2SmInfoType,
 	n2Info []byte,
-) (detail *models.ProblemDetails, err error) {
+) (*models.ProblemDetails, error) {
 	configuration := Nsmf_PDUSession.NewConfiguration()
 	configuration.SetBasePath(smContext.SmfUri())
 	client := Nsmf_PDUSession.NewAPIClient(configuration)
@@ -570,6 +570,9 @@ func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	response, err1 := client.IndividualSMContextApi.ReleaseSmContext(
 		ctx, smContext.SmContextRef(), releaseSmContextRequest)
 
+	var detail *models.ProblemDetails
+	var err error
+
 	if err1 == nil {
 		ue.SmContextList.Delete(smContext.PduSessionID())
 	} else if response != nil && response.Status == err1.Error() {
@@ -578,7 +581,7 @@ func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	} else {
 		err = err1
 	}
-	return
+	return detail, err
 }
 
 func buildReleaseSmContextRequest(

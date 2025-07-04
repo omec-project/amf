@@ -122,7 +122,7 @@ func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTrig
 }
 
 func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.UeContextCreateData, ctx context.Context) (
-	ueContextCreatedData *models.UeContextCreatedData, problemDetails *models.ProblemDetails, err error,
+	*models.UeContextCreatedData, *models.ProblemDetails, error,
 ) {
 	ctx, span := tracer.Start(ctx, "HTTP PUT amf/ue-contexts/{ueContextId}")
 	defer span.End()
@@ -139,6 +139,10 @@ func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.Ue
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
 
+	var err error
+	var ueContextCreatedData *models.UeContextCreatedData
+	var problemDetails *models.ProblemDetails
+
 	req := models.CreateUeContextRequest{
 		JsonData: &ueContextCreateData,
 	}
@@ -149,14 +153,14 @@ func CreateUEContextRequest(ue *amf_context.AmfUe, ueContextCreateData models.Ue
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return ueContextCreatedData, problemDetails, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
 	}
-	return
+	return ueContextCreatedData, problemDetails, err
 }
 
 func ReleaseUEContextRequest(ue *amf_context.AmfUe, ngapCause models.NgApCause, ctx context.Context) (
@@ -270,7 +274,7 @@ func UEContextTransferRequest(
 
 // This operation is called "RegistrationCompleteNotify" at TS 23.502
 func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusUpdateReqData, ctx context.Context) (
-	regStatusTransferComplete bool, problemDetails *models.ProblemDetails, err error,
+	bool, *models.ProblemDetails, error,
 ) {
 	ctx, span := tracer.Start(ctx, "HTTP POST amf/ue-contexts/{ueContextId}/transfer-update")
 	defer span.End()
@@ -287,6 +291,10 @@ func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusU
 	configuration.SetBasePath(ue.TargetAmfUri)
 	client := Namf_Communication.NewAPIClient(configuration)
 
+	var problemDetails *models.ProblemDetails
+	var err error
+	var regStatusTransferComplete bool
+
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
 	res, httpResp, localErr := client.IndividualUeContextDocumentApi.RegistrationStatusUpdate(ctx, ueContextId, request)
 	if localErr == nil {
@@ -294,12 +302,12 @@ func RegistrationStatusUpdate(ue *amf_context.AmfUe, request models.UeRegStatusU
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return regStatusTransferComplete, problemDetails, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
 	}
-	return
+	return regStatusTransferComplete, problemDetails, err
 }

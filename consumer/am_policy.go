@@ -140,7 +140,7 @@ func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAss
 	return problemDetails, err
 }
 
-func AMPolicyControlDelete(ue *amf_context.AmfUe, ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
+func AMPolicyControlDelete(ue *amf_context.AmfUe, ctx context.Context) (*models.ProblemDetails, error) {
 	ctx, span := tracer.Start(ctx, "HTTP DELETE pcf/policies/{polAssoId}")
 	defer span.End()
 
@@ -156,13 +156,16 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe, ctx context.Context) (problemD
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
 
+	var problemDetails *models.ProblemDetails
+	var err error
+
 	httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdDelete(ctx, ue.PolicyAssociationId)
 	if localErr == nil {
 		ue.RemoveAmPolicyAssociation()
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return nil, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
@@ -170,5 +173,5 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe, ctx context.Context) (problemD
 		err = openapi.ReportError("server no response")
 	}
 
-	return
+	return problemDetails, err
 }
