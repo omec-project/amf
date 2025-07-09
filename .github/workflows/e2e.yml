@@ -1,0 +1,175 @@
+# Copyright 2025 Canonical Ltd.
+# SPDX-FileCopyrightText: 2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+name: E2E tests
+
+on:
+  workflow_call:
+    inputs:
+      branch_name:
+        description: "Name of the branch to checkout"
+        required: false
+        type: string
+        default: ${{ github.ref }}
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    env:
+      NAMESPACE: aether-5gc
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update and install dependencies
+        run: |
+          set -e
+          sudo apt update
+          sudo apt-get install -y conntrack socat ipset ebtables ansible-core
+          sudo apt install -y sshpass python3-venv pipx make git
+          pipx install --include-deps ansible
+          export PATH=$PATH:~/.local/bin
+
+      - name: Generate SSH Key
+        run: |
+          set -e
+          ssh-keygen -t rsa -b 2048 -f ~/.ssh/id_rsa -N "" -q
+          cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+
+      - name: Clone aether-onramp repository
+        run: |
+          set -e
+          REPO_URL="https://github.com/opennetworkinglab/aether-onramp.git"
+          git clone --recursive ${REPO_URL}
+
+      - name: Update files
+        run: |
+          set -e
+          INTERFACE=$(ip route | awk '/default/ {print $5}')
+          IP_ADDR=$(ip -4 addr show ${INTERFACE} | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+          echo "Extracted IP: ${IP_ADDR}"
+          echo "[all]" > aether-onramp/hosts.ini
+          echo "node1 ansible_host=${IP_ADDR} ansible_user=runner ansible_ssh_private_key_file=~/.ssh/id_rsa" >> aether-onramp/hosts.ini
+          echo "" >> aether-onramp/hosts.ini
+          echo "[master_nodes]" >> aether-onramp/hosts.ini
+          echo "node1" >> aether-onramp/hosts.ini
+          echo "" >> aether-onramp/hosts.ini
+          echo "[worker_nodes]" >> aether-onramp/hosts.ini
+          echo "" >> aether-onramp/hosts.ini
+          echo "[gnbsim_nodes]" >> aether-onramp/hosts.ini
+          echo "node1" >> aether-onramp/hosts.ini
+          sed -i "s/ens18/eth0/" aether-onramp/vars/main.yml
+          sed -i "s/10.76.28.113/${IP_ADDR}/" aether-onramp/vars/main.yml
+          sed -i "s/300s/600s/" aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
+          sed -i '99d' aether-onramp/deps/k8s/roles/rke2/tasks/install.yml
+          sed -i "s/2m30s/10m/" aether-onramp/deps/5gc/roles/core/tasks/install.yml
+
+      - name: Test aether-pingall
+        working-directory: aether-onramp
+        run: |
+          set -e
+          make aether-pingall
+
+      - name: Install aether-k8s
+        working-directory: aether-onramp
+        run: |
+          set -e
+          make aether-k8s-install
+
+      - name: Install 5G Core
+        working-directory: aether-onramp
+        run: |
+          set -e
+          make aether-5gc-install
+
+      - name: Patch K8s Deployment to attach local image
+        run: |
+          set -ex
+          REPO_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
+          REPO_URL="https://github.com/omec-project/${REPO_NAME}"
+
+          git clone ${REPO_URL} ${REPO_NAME} && cd ${REPO_NAME}
+
+          if [[ "${GITHUB_REF}" == refs/pull/* ]]; then
+            PR_NUMBER=$(echo "${GITHUB_REF}" | awk -F'/' '{print $3}')
+            git fetch origin pull/${PR_NUMBER}/merge:pr-${PR_NUMBER}
+            git checkout pr-${PR_NUMBER}
+          else
+            BRANCH_NAME=$(basename "${GITHUB_REF}")
+            git checkout "${BRANCH_NAME}"
+          fi
+
+          if [ "${REPO_NAME}" = "webconsole" ]; then
+            IMAGE_NAME="webui"
+          else
+            IMAGE_NAME="${REPO_NAME}"
+          fi
+
+          docker build -t "${IMAGE_NAME}:testing" .
+
+          # Save and import Docker image into containerd (used by RKE2) because RKE2 does not use Docker runtime.
+          TMP_DIR="${RUNNER_TEMP:-/tmp}"
+          docker save "${IMAGE_NAME}:testing" -o "${TMP_DIR}/${IMAGE_NAME}.tar"
+          sudo ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io images import "${TMP_DIR}/${IMAGE_NAME}.tar"
+          sudo ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io images ls | grep "${IMAGE_NAME}:testing"
+
+          # Patch K8s deployment with imagePullPolicy Never
+          kubectl -n "$NAMESPACE" patch deployment "${REPO_NAME}" --type='merge' -p "$(cat <<EOF
+          {
+            "spec": {
+              "template": {
+                "spec": {
+                  "containers": [
+                    {
+                      "name": "${IMAGE_NAME}",
+                      "image": "docker.io/library/${IMAGE_NAME}:testing",
+                      "imagePullPolicy": "Never"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+          EOF
+          )"
+
+      - name: Install GNBSIM
+        working-directory: aether-onramp
+        run: |
+          set -e
+          make aether-gnbsim-install
+
+      - name: Perform tests
+        working-directory: aether-onramp
+        run: |
+          set -e
+          make aether-gnbsim-run
+
+      - name: Validate results
+        working-directory: aether-onramp
+        run: |
+          set -e
+          status=$(docker exec gnbsim-1 cat summary.log)
+          if echo "$status" | grep -q "Profile Status: FAIL"; then
+            echo "Profile Status indicates failure."
+            exit 1
+          fi
+          echo "Profile Status is successful."
+
+      - name: Dump all pod logs in aether-5gc namespace
+        if: always()
+        run: |
+          set -ex
+          mkdir -p logs
+          kubectl get events -A --sort-by='.lastTimestamp' > logs/events.txt
+          kubectl get pods -n "$NAMESPACE" -o wide > logs/pods-summary.txt
+          for pod in $(kubectl get pods -n "$NAMESPACE" -o jsonpath='{.items[*].metadata.name}'); do
+            kubectl logs --all-containers -n "$NAMESPACE" "$pod" > "logs/${pod}.log" 2>&1 || true
+          done
+
+      - name: Upload pod logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aether-5gc-logs
+          path: logs/
