@@ -76,10 +76,13 @@ func InitAmfContext(context *context.AMFContext) {
 	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			logger.UtilLog.Infoln("Usando POD_IP para RegisterIPv4: ", os.Getenv("POD_IP"))
+			logger.UtilLog.Infoln("Asignando RegisterIPv4 desde configuración: ", sbi.RegisterIPv4)
+			context.RegisterIPv4 = sbi.RegisterIPv4
+		} else if os.Getenv("POD_IP") != "" {
+			logger.UtilLog.Infoln("sbi.RegisterIPv4 vacío, usando POD_IP: ", os.Getenv("POD_IP"))
 			context.RegisterIPv4 = os.Getenv("POD_IP")
 		} else {
-			logger.UtilLog.Warnln("sbi.RegisterIPv4 vacío, usando valor por defecto")
+			logger.UtilLog.Warnln("sbi.RegisterIPv4 vacío y POD_IP no definido, usando valor por defecto")
 		}
 		if sbi.Port != 0 {
 			logger.UtilLog.Infoln("Asignando SBIPort desde configuración: ", sbi.Port)
