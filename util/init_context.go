@@ -43,21 +43,30 @@ func InitAmfContext(context *context.AMFContext) {
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 	if context.NfId == "" {
+		logger.UtilLog.Infoln("context.NfId vacío, generando uno nuevo")
 		context.NfId = uuid.New().String()
+	} else {
+		logger.UtilLog.Infoln("context.NfId ya presente: ", context.NfId)
 	}
 
 	if configuration.AmfName != "" {
+		logger.UtilLog.Infoln("Asignando AmfName desde configuración: ", configuration.AmfName)
 		context.Name = configuration.AmfName
+	} else {
+		logger.UtilLog.Warnln("AmfName no definido en configuración")
 	}
 	if configuration.NgapIpList != nil {
+		logger.UtilLog.Infoln("Asignando NgapIpList desde configuración: ", configuration.NgapIpList)
 		context.NgapIpList = configuration.NgapIpList
 	} else {
+		logger.UtilLog.Warnln("NgapIpList no definido, usando localhost por defecto")
 		context.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
 	context.NgapPort = configuration.NgapPort
 	context.SctpGrpcPort = configuration.SctpGrpcPort
 	sbi := configuration.Sbi
 	if sbi.Scheme != "" {
+		logger.UtilLog.Infoln("Asignando scheme desde configuración: ", sbi.Scheme)
 		context.UriScheme = models.UriScheme(sbi.Scheme)
 	} else {
 		logger.UtilLog.Warnln("SBI scheme has not been set. Using http as default")
@@ -67,29 +76,47 @@ func InitAmfContext(context *context.AMFContext) {
 	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
+			logger.UtilLog.Infoln("Usando POD_IP para RegisterIPv4: ", os.Getenv("POD_IP"))
 			context.RegisterIPv4 = os.Getenv("POD_IP")
+		} else {
+			logger.UtilLog.Warnln("sbi.RegisterIPv4 vacío, usando valor por defecto")
 		}
 		if sbi.Port != 0 {
+			logger.UtilLog.Infoln("Asignando SBIPort desde configuración: ", sbi.Port)
 			context.SBIPort = sbi.Port
+		} else {
+			logger.UtilLog.Warnln("sbi.Port no definido, usando valor por defecto")
 		}
 		if tls := sbi.TLS; tls != nil {
 			if tls.Key != "" {
+				logger.UtilLog.Infoln("Asignando TLS.Key desde configuración: ", tls.Key)
 				context.Key = tls.Key
+			} else {
+				logger.UtilLog.Warnln("TLS.Key no definido")
 			}
 			if tls.PEM != "" {
+				logger.UtilLog.Infoln("Asignando TLS.PEM desde configuración: ", tls.PEM)
 				context.PEM = tls.PEM
+			} else {
+				logger.UtilLog.Warnln("TLS.PEM no definido")
 			}
+		} else {
+			logger.UtilLog.Warnln("TLS no definido en sbi")
 		}
 		context.BindingIPv4 = os.Getenv(sbi.BindingIPv4)
 		if context.BindingIPv4 != "" {
-			logger.UtilLog.Infoln("parsing ServerIPv4 address from ENV Variable")
+			logger.UtilLog.Infoln("parsing ServerIPv4 address from ENV Variable: ", context.BindingIPv4)
 		} else {
 			context.BindingIPv4 = sbi.BindingIPv4
 			if context.BindingIPv4 == "" {
 				logger.UtilLog.Warnln("error parsing ServerIPv4 address from string. Using the 0.0.0.0 as default")
 				context.BindingIPv4 = "0.0.0.0"
+			} else {
+				logger.UtilLog.Infoln("Asignando BindingIPv4 desde configuración: ", context.BindingIPv4)
 			}
 		}
+	} else {
+		logger.UtilLog.Warnln("sbi no definido en configuración")
 	}
 	serviceNameList := configuration.ServiceNameList
 	context.InitNFService(serviceNameList, config.Info.Version)
