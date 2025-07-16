@@ -9,6 +9,7 @@ package service
 
 import (
 	"bufio"
+	ctxt "context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // Using package only for invoking initialization.
@@ -39,6 +40,7 @@ import (
 	ngap_service "github.com/omec-project/amf/ngap/service"
 	"github.com/omec-project/amf/oam"
 	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/tracing"
 	"github.com/omec-project/amf/util"
 	aperLogger "github.com/omec-project/aper/logger"
 	grpcClient "github.com/omec-project/config5g/proto/client"
@@ -53,6 +55,7 @@ import (
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/spf13/viper"
 	"github.com/urfave/cli/v3"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -93,7 +96,7 @@ func (*AMF) GetCliCmd() (flags []cli.Flag) {
 	return amfCLi
 }
 
-func (amf *AMF) Initialize(c *cli.Command) error {
+func (amf *AMF) Initialize(ctx ctxt.Context, c *cli.Command) error {
 	config = Config{
 		cfg: c.String("cfg"),
 	}
@@ -143,7 +146,7 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 		factory.AmfConfig.Configuration.SupportTAIList = nil
 		factory.AmfConfig.Configuration.PlmnSupportList = nil
 		logger.InitLog.Infoln("Reading Amf related configuration from ROC")
-		go manageGrpcClient(factory.AmfConfig.Configuration.WebuiUri, amf)
+		go manageGrpcClient(ctx, factory.AmfConfig.Configuration.WebuiUri, amf)
 	} else {
 		go func() {
 			logger.GrpcLog.Infoln("reading Amf Configuration from Helm")
@@ -157,7 +160,7 @@ func (amf *AMF) Initialize(c *cli.Command) error {
 
 // manageGrpcClient connects the config pod GRPC server and subscribes the config changes.
 // Then it updates AMF configuration.
-func manageGrpcClient(webuiUri string, amf *AMF) {
+func manageGrpcClient(ctx ctxt.Context, webuiUri string, amf *AMF) {
 	var configChannel chan *protos.NetworkSliceResponse
 	var client grpcClient.ConfClient
 	var stream protos.ConfigService_NetworkSliceSubscribeClient
@@ -191,7 +194,7 @@ func manageGrpcClient(webuiUri string, amf *AMF) {
 			if configChannel == nil {
 				configChannel = client.PublishOnConfigChange(true, stream)
 				logger.InitLog.Infoln("PublishOnConfigChange is triggered")
-				go amf.UpdateConfig(configChannel)
+				go amf.UpdateConfig(ctx, configChannel)
 				logger.InitLog.Infoln("AMF updateConfig is triggered")
 			}
 
@@ -388,8 +391,8 @@ func (amf *AMF) Start() {
 		HandleNotification: ngap.HandleSCTPNotification,
 	}
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
-
-	go amf.SendNFProfileUpdateToNrf()
+	ctx := ctxt.Background()
+	go amf.SendNFProfileUpdateToNrf(ctx)
 
 	if self.EnableNrfCaching {
 		logger.InitLog.Infoln("enable NRF caching feature")
@@ -411,6 +414,28 @@ func (amf *AMF) Start() {
 		amf.Terminate()
 		os.Exit(0)
 	}()
+
+	if factory.AmfConfig.Configuration.Telemetry != nil && factory.AmfConfig.Configuration.Telemetry.Enabled {
+		var tp *sdktrace.TracerProvider
+		tp, err = tracing.InitTracer(ctx, tracing.TelemetryConfig{
+			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
+			ServiceName:    "amf",
+			ServiceVersion: factory.AmfConfig.Info.Version,
+			Ratio:          factory.AmfConfig.Configuration.Telemetry.Ratio,
+		})
+		if err != nil {
+			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
+		}
+		logger.InitLog.Infoln("tracer initialized successfully")
+		defer func() {
+			err = tp.Shutdown(ctx)
+			if err != nil {
+				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+			} else {
+				logger.InitLog.Infoln("tracer shutdown successfully")
+			}
+		}()
+	}
 
 	sslLog := filepath.Dir(factory.AmfConfig.CfgLocation) + "/sslkey.log"
 	server, err := http2_util.NewServer(addr, sslLog, router)
@@ -491,10 +516,12 @@ func (amf *AMF) Terminate() {
 	logger.InitLog.Infoln("terminating AMF")
 	amfSelf := context.AMF_Self()
 
+	ctx := ctxt.Background()
+
 	// TODO: forward registered UE contexts to target AMF in the same AMF set if there is one
 
 	// deregister with NRF
-	problemDetails, err := consumer.SendDeregisterNFInstance()
+	problemDetails, err := consumer.SendDeregisterNFInstance(ctx)
 	if problemDetails != nil {
 		logger.InitLog.Errorf("deregister NF instance Failed Problem[%+v]", problemDetails)
 	} else if err != nil {
@@ -519,7 +546,7 @@ func (amf *AMF) Terminate() {
 	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
 		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
-			problemDetails, err := consumer.SendRemoveSubscription(subscriptionId.(string))
+			problemDetails, err := consumer.SendRemoveSubscription(ctx, subscriptionId.(string))
 			if problemDetails != nil {
 				logger.InitLog.Errorf("remove NF Subscription Failed Problem[%+v]", problemDetails)
 			} else if err != nil {
@@ -554,7 +581,7 @@ func (amf *AMF) StopKeepAliveTimer() {
 	}
 }
 
-func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
+func (amf *AMF) BuildAndSendRegisterNFInstance(ctx ctxt.Context) (models.NfProfile, error) {
 	self := context.AMF_Self()
 	profile, err := consumer.BuildNFInstance(self)
 	if err != nil {
@@ -563,12 +590,13 @@ func (amf *AMF) BuildAndSendRegisterNFInstance() (models.NfProfile, error) {
 	}
 	logger.InitLog.Infof("AMF Profile Registering to NRF: %v", profile)
 	// Indefinite attempt to register until success
-	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile)
+	profile, _, self.NfId, err = consumer.SendRegisterNFInstance(ctx, self.NrfUri, self.NfId, profile)
 	return profile, err
 }
 
 // UpdateNF is the callback function, this is called when keepalivetimer elapsed
 func (amf *AMF) UpdateNF() {
+	ctx := ctxt.Background()
 	KeepAliveTimerMutex.Lock()
 	defer KeepAliveTimerMutex.Unlock()
 	if KeepAliveTimer == nil {
@@ -591,14 +619,14 @@ func (amf *AMF) UpdateNF() {
 		if (problemDetails.Status/100) == 5 ||
 			problemDetails.Status == 404 || problemDetails.Status == 400 {
 			// register with NRF full profile
-			nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+			nfProfile, err = amf.BuildAndSendRegisterNFInstance(ctx)
 			if err != nil {
 				logger.InitLog.Errorf("could not register to NRF Error[%s]", err.Error())
 			}
 		}
 	} else if err != nil {
 		logger.InitLog.Errorf("AMF update to NRF Error[%s]", err.Error())
-		nfProfile, err = amf.BuildAndSendRegisterNFInstance()
+		nfProfile, err = amf.BuildAndSendRegisterNFInstance(ctx)
 		if err != nil {
 			logger.InitLog.Errorf("could not register to NRF Error[%s]", err.Error())
 		}
@@ -680,7 +708,7 @@ func (amf *AMF) UpdateSupportedTaiList() {
 	}
 }
 
-func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool {
+func (amf *AMF) UpdateConfig(ctx ctxt.Context, commChannel chan *protos.NetworkSliceResponse) bool {
 	for rsp := range commChannel {
 		logger.GrpcLog.Infof("received updateConfig in the amf app: %v", rsp)
 		var tai []models.Tai
@@ -698,7 +726,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 			}
 			// inform connected UEs with update slices
 			if len(ns.DeletedImsis) > 0 {
-				HandleImsiDeleteFromNetworkSlice(ns)
+				HandleImsiDeleteFromNetworkSlice(ctx, ns)
 			}
 			//TODO Inform connected UEs with update Slice
 			/*if len(ns.AddUpdatedImsis) > 0 {
@@ -747,7 +775,7 @@ func (amf *AMF) UpdateConfig(commChannel chan *protos.NetworkSliceResponse) bool
 	return true
 }
 
-func (amf *AMF) SendNFProfileUpdateToNrf() {
+func (amf *AMF) SendNFProfileUpdateToNrf(ctx ctxt.Context) {
 	// for rocUpdateConfig := range RocUpdateConfigChannel {
 	for rocUpdateConfig := range RocUpdateConfigChannel {
 		if rocUpdateConfig {
@@ -763,7 +791,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 				profile = profileTmp
 			}
 
-			if prof, _, nfId, err := consumer.SendRegisterNFInstance(self.NrfUri, self.NfId, profile); err != nil {
+			if prof, _, nfId, err := consumer.SendRegisterNFInstance(ctx, self.NrfUri, self.NfId, profile); err != nil {
 				logger.CfgLog.Warnf("send Register NF Instance with updated profile failed: %+v", err)
 			} else {
 				// stop keepAliveTimer if its running and start the timer
@@ -775,7 +803,7 @@ func (amf *AMF) SendNFProfileUpdateToNrf() {
 	}
 }
 
-func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
+func UeConfigSliceDeleteHandler(ctx ctxt.Context, supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
 	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
@@ -789,7 +817,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 		}
 		if ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sst == int32(st) &&
 			ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sd == ns.Nssai.Sd {
-			err := gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
+			err := gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			})
@@ -807,7 +835,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 		}
 		Nssai.Sst = int32(st)
 		Nssai.Sd = ns.Nssai.Sd
-		err = gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoDeleteEvent, fsm.ArgsType{
+		err = gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoDeleteEvent, fsm.ArgsType{
 			gmm.ArgAmfUe:      ue,
 			gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			gmm.ArgNssai:      Nssai,
@@ -818,7 +846,7 @@ func UeConfigSliceDeleteHandler(supi, sst, sd string, msg interface{}) {
 	}
 }
 
-func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
+func UeConfigSliceAddHandler(ctx ctxt.Context, supi, sst, sd string, msg interface{}) {
 	amfSelf := context.AMF_Self()
 	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 
@@ -830,7 +858,7 @@ func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 	}
 	Nssai.Sst = int32(st)
 	Nssai.Sd = ns.Nssai.Sd
-	err = gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoAddEvent, fsm.ArgsType{
+	err = gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoAddEvent, fsm.ArgsType{
 		gmm.ArgAmfUe:      ue,
 		gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 		gmm.ArgNssai:      Nssai,
@@ -840,7 +868,7 @@ func UeConfigSliceAddHandler(supi, sst, sd string, msg interface{}) {
 	}
 }
 
-func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
+func HandleImsiDeleteFromNetworkSlice(ctx ctxt.Context, slice *protos.NetworkSlice) {
 	var ue *context.AmfUe
 	var ok bool
 	logger.CfgLog.Infof("handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
@@ -859,13 +887,13 @@ func HandleImsiDeleteFromNetworkSlice(slice *protos.NetworkSlice) {
 			Sst:  slice.Nssai.Sst,
 			Sd:   slice.Nssai.Sd,
 		}
-		ue.SetEventChannel(nil)
+		ue.SetEventChannel(ctx, nil)
 		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
 		ue.EventChannel.SubmitMessage(configMsg)
 	}
 }
 
-func HandleImsiAddInNetworkSlice(slice *protos.NetworkSlice) {
+func HandleImsiAddInNetworkSlice(ctx ctxt.Context, slice *protos.NetworkSlice) {
 	var ue *context.AmfUe
 	var ok bool
 	logger.CfgLog.Infof("handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)

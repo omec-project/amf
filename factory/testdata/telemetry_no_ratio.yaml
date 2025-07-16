@@ -97,9 +97,8 @@ configuration:
     expireTime: 6s   # default is 6 seconds
     maxRetryTimes: 4 # the max number of retransmission
   telemetry:                                  # telemetry configuration
-    enabled: true                             # Optional; defaults to false (i.e., telemetry disabled).
+    enabled: true                             # Optional; defaults to false
     otlp_endpoint: "otel-collector.svc:4317"  # Mandatory if enabled=true
-    ratio: 0.4                                # Optional; defaults to 1.0. If set to 0, AMF assumes 1.0.
 # the kind of log output
   # debugLevel: how detailed to output, value: trace, debug, info, warn, error, fatal, panic
   # ReportCaller: enable the caller report or not, value: true or false

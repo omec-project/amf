@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"os"
@@ -62,7 +63,7 @@ func TestInitialConfig(t *testing.T) {
 	Rsp := make(chan *protos.NetworkSliceResponse, 1)
 
 	go func() {
-		AMFTest.UpdateConfig(Rsp)
+		AMFTest.UpdateConfig(context.Background(), Rsp)
 	}()
 	Rsp <- GetNetworkSliceConfig()
 
@@ -107,7 +108,7 @@ func TestUpdateConfig(t *testing.T) {
 		Rsp <- &nrp
 	}()
 	go func() {
-		AMFTest.UpdateConfig(Rsp)
+		AMFTest.UpdateConfig(context.Background(), Rsp)
 	}()
 
 	time.Sleep(2 * time.Second)
@@ -130,7 +131,7 @@ func TestRegisterNF(t *testing.T) {
 	}()
 	t.Logf("test case TestRegisterNF")
 	var prof models.NfProfile
-	consumer.SendRegisterNFInstance = func(nrfUri string, nfInstanceId string, profile models.NfProfile) (models.NfProfile, string, string, error) {
+	consumer.SendRegisterNFInstance = func(ctx context.Context, nrfUri string, nfInstanceId string, profile models.NfProfile) (models.NfProfile, string, string, error) {
 		prof = profile
 		prof.HeartBeatTimer = 1
 		t.Logf("Test RegisterNFInstance called")
@@ -143,7 +144,7 @@ func TestRegisterNF(t *testing.T) {
 	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
 		return prof, nil, nil
 	}
-	go AMFTest.SendNFProfileUpdateToNrf()
+	go AMFTest.SendNFProfileUpdateToNrf(context.Background())
 	service.RocUpdateConfigChannel <- true
 	time.Sleep(5 * time.Second)
 	require.Equal(t, service.KeepAliveTimer != nil, true)

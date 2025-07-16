@@ -8,6 +8,7 @@
 package producer
 
 import (
+	ctxt "context"
 	"net/http"
 	"strconv"
 
@@ -23,7 +24,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func ProducerHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func ProducerHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	if msg == nil {
 		r1, r2 := N1N2MessageTransferStatusProcedure(s1, s2)
 		return r1, "", r2, nil

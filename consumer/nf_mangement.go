@@ -18,6 +18,7 @@ import (
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nnrf_NFManagement"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile, err error) {
@@ -74,9 +75,20 @@ func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile,
 	return profile, err
 }
 
-var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.NfProfile) (
+var SendRegisterNFInstance = func(ctx context.Context, nrfUri, nfInstanceId string, profile models.NfProfile) (
 	prof models.NfProfile, resouceNrfUri string, retrieveNfInstanceId string, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP PUT nrf/nf-instances/{nfInstanceID}")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "PUT"),
+		attribute.String("nf.target", "nrf"),
+		attribute.String("net.peer.name", nrfUri),
+		attribute.String("amf.nf.id", nfInstanceId),
+		attribute.String("amf.nf.type", string(profile.NfType)),
+	)
+
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
 	configuration.SetBasePath(nrfUri)
@@ -84,7 +96,7 @@ var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.Nf
 
 	var res *http.Response
 	for {
-		prof, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(context.TODO(), nfInstanceId, profile)
+		prof, res, err = client.NFInstanceIDDocumentApi.RegisterNFInstance(ctx, nfInstanceId, profile)
 		if err != nil || res == nil {
 			logger.ConsumerLog.Errorf("AMF register to NRF Error[%s]", err.Error())
 			time.Sleep(2 * time.Second)
@@ -113,8 +125,18 @@ var SendRegisterNFInstance = func(nrfUri, nfInstanceId string, profile models.Nf
 	return prof, resouceNrfUri, retrieveNfInstanceId, err
 }
 
-func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err error) {
+func SendDeregisterNFInstance(ctx context.Context) (problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Infof("[AMF] Send Deregister NFInstance")
+
+	ctx, span := tracer.Start(ctx, "HTTP DELETE nrf/nf-instances/{nfInstanceID}")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "DELETE"),
+		attribute.String("nf.target", "nrf"),
+		attribute.String("net.peer.name", amf_context.AMF_Self().NrfUri),
+		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
+	)
 
 	amfSelf := amf_context.AMF_Self()
 	// Set client and set url
@@ -124,9 +146,10 @@ func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err erro
 
 	var res *http.Response
 
-	res, err = client.NFInstanceIDDocumentApi.DeregisterNFInstance(context.Background(), amfSelf.NfId)
+	res, err = client.NFInstanceIDDocumentApi.DeregisterNFInstance(ctx, amfSelf.NfId)
+
 	if err == nil {
-		return
+		return problemDetails, err
 	} else if res != nil {
 		defer func() {
 			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
@@ -134,14 +157,14 @@ func SendDeregisterNFInstance() (problemDetails *models.ProblemDetails, err erro
 			}
 		}()
 		if res.Status != err.Error() {
-			return
+			return problemDetails, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return problemDetails, err
 }
 
 var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
@@ -174,8 +197,18 @@ var SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.
 	return
 }
 
-func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscriptionData) (nrfSubData models.NrfSubscriptionData, problemDetails *models.ProblemDetails, err error) {
+func SendCreateSubscription(ctx context.Context, nrfUri string, nrfSubscriptionData models.NrfSubscriptionData) (nrfSubData models.NrfSubscriptionData, problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Debugf("Send Create Subscription")
+
+	ctx, span := tracer.Start(ctx, "HTTP POST nrf/subscriptions")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "nrf"),
+		attribute.String("net.peer.name", nrfUri),
+		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
+	)
 
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
@@ -183,9 +216,9 @@ func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscri
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 
 	var res *http.Response
-	nrfSubData, res, err = client.SubscriptionsCollectionApi.CreateSubscription(context.TODO(), nrfSubscriptionData)
+	nrfSubData, res, err = client.SubscriptionsCollectionApi.CreateSubscription(ctx, nrfSubscriptionData)
 	if err == nil {
-		return
+		return nrfSubData, problemDetails, err
 	} else if res != nil {
 		defer func() {
 			if resCloseErr := res.Body.Close(); resCloseErr != nil {
@@ -194,18 +227,28 @@ func SendCreateSubscription(nrfUri string, nrfSubscriptionData models.NrfSubscri
 		}()
 		if res.Status != err.Error() {
 			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %v", res.Status)
-			return
+			return nrfSubData, problemDetails, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return nrfSubData, problemDetails, err
 }
 
-func SendRemoveSubscription(subscriptionId string) (problemDetails *models.ProblemDetails, err error) {
+func SendRemoveSubscription(ctx context.Context, subscriptionId string) (problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Infoln("[AMF] Send Remove Subscription")
+
+	ctx, span := tracer.Start(ctx, "HTTP DELETE nrf/subscriptions/{subscriptionID}")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "DELETE"),
+		attribute.String("nf.target", "nrf"),
+		attribute.String("net.peer.name", amf_context.AMF_Self().NrfUri),
+		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
+	)
 
 	amfSelf := amf_context.AMF_Self()
 	// Set client and set url
@@ -214,9 +257,9 @@ func SendRemoveSubscription(subscriptionId string) (problemDetails *models.Probl
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 	var res *http.Response
 
-	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(context.Background(), subscriptionId)
+	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(ctx, subscriptionId)
 	if err == nil {
-		return
+		return problemDetails, nil
 	} else if res != nil {
 		defer func() {
 			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
@@ -224,12 +267,12 @@ func SendRemoveSubscription(subscriptionId string) (problemDetails *models.Probl
 			}
 		}()
 		if res.Status != err.Error() {
-			return
+			return problemDetails, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("server no response")
 	}
-	return
+	return problemDetails, err
 }

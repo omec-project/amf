@@ -38,6 +38,16 @@ func InitConfigFactory(f string) error {
 			enableKafka := true
 			AmfConfig.Configuration.KafkaInfo.EnableKafka = &enableKafka
 		}
+
+		if AmfConfig.Configuration.Telemetry != nil && AmfConfig.Configuration.Telemetry.Enabled {
+			if AmfConfig.Configuration.Telemetry.Ratio == 0 {
+				AmfConfig.Configuration.Telemetry.Ratio = 1.0
+			}
+
+			if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
+				return fmt.Errorf("OTLP endpoint is not set in the configuration")
+			}
+		}
 	}
 
 	return nil
