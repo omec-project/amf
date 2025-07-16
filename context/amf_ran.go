@@ -85,10 +85,10 @@ func (ran *AmfRan) Remove() {
 	ran.RemoveAllUeInRan()
 	if AMF_Self().EnableSctpLb {
 		if ran.GnbId != "" {
-			AMF_Self().DeleteAmfRanId(ran.GnbId)
+			AMF_Self().deleteAmfRanId(ran.GnbId)
 		}
 	} else {
-		AMF_Self().DeleteAmfRan(ran.Conn)
+		AMF_Self().deleteAmfRan(ran.Conn)
 	}
 }
 

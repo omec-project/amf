@@ -226,7 +226,6 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				} else {
 					// if user's subscription context obtained from UDM does not contain the default DNN for the,
 					// S-NSSAI, the AMF shall use a locally configured DNN as the DNN
-					dnn = ue.ServingAMF.SupportDnnLists[0]
 
 					if ue.SmfSelectionData != nil {
 						snssaiStr := util.SnssaiModelsToHex(snssai)
@@ -234,10 +233,20 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							for _, dnnInfo := range snssaiInfo.DnnInfos {
 								if dnnInfo.DefaultDnnIndicator {
 									dnn = dnnInfo.Dnn
+									break
 								}
 							}
 						}
 					}
+
+					if dnn == "" {
+						if len(ue.ServingAMF.SupportDnnLists) > 0 {
+							dnn = ue.ServingAMF.SupportDnnLists[0]
+						} else {
+							dnn = "internet"
+						}
+					}
+					ue.GmmLog.Warnf("Subscription context obtained from UDM does not contain the default DNN, using %s", dnn)
 				}
 
 				if newSmContext, cause, err := consumer.SelectSmf(ctx, ue, anType, pduSessionID, snssai, dnn); err != nil {

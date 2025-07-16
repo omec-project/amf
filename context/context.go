@@ -439,21 +439,12 @@ func (context *AMFContext) AmfRanFindByRanID(ranNodeID models.GlobalRanNodeId) (
 	return ran, ok
 }
 
-func (context *AMFContext) DeleteAmfRan(conn net.Conn) {
+func (context *AMFContext) deleteAmfRan(conn net.Conn) {
 	context.AmfRanPool.Delete(conn)
 }
 
-func (context *AMFContext) DeleteAmfRanId(gnbId string) {
+func (context *AMFContext) deleteAmfRanId(gnbId string) {
 	context.AmfRanPool.Delete(gnbId)
-}
-
-func (context *AMFContext) InSupportDnnList(targetDnn string) bool {
-	for _, dnn := range context.SupportDnnLists {
-		if dnn == targetDnn {
-			return true
-		}
-	}
-	return false
 }
 
 func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
