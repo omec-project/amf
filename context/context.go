@@ -439,11 +439,11 @@ func (context *AMFContext) AmfRanFindByRanID(ranNodeID models.GlobalRanNodeId) (
 	return ran, ok
 }
 
-func (context *AMFContext) deleteAmfRan(conn net.Conn) {
+func (context *AMFContext) DeleteAmfRan(conn net.Conn) {
 	context.AmfRanPool.Delete(conn)
 }
 
-func (context *AMFContext) deleteAmfRanId(gnbId string) {
+func (context *AMFContext) DeleteAmfRanId(gnbId string) {
 	context.AmfRanPool.Delete(gnbId)
 }
 
