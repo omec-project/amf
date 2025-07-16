@@ -189,7 +189,7 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 
 	if procName == "" {
 		procName = fmt.Sprintf("UnknownProcedureCode_%d", code)
-		logger.Warnf("Encountered unknown NGAP procedure code: %d from RAN: %s", code, ran.Conn.RemoteAddr().String())
+		logger.AppLog.Warnf("Encountered unknown NGAP procedure code: %d from RAN: %s", code, ran.Conn.RemoteAddr().String())
 	}
 
 	spanName := fmt.Sprintf("AMF NGAP %s", procName)
