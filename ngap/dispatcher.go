@@ -148,8 +148,13 @@ func Dispatch(conn net.Conn, msg []byte) {
 			NgapMsg:   pdu,
 			SctplbMsg: nil,
 		}
-
-		ranUe.Ran.Conn = conn
+		if ranUe.Ran.GnbId == ran.GnbId {
+			ranUe.AmfUe.TxLog.Infoln("gnbid match")
+			ranUe.Ran.Conn = conn
+		} else {
+			ranUe.AmfUe.TxLog.Infoln("gnbid differ")
+			ranUe.AmfUe.TxLog.Infof("In case of Xn handover source RAN gNB id:%s, target RAN gNB id:%s", ranUe.Ran.GnbId, ran.GnbId)
+		}
 		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
 		go DispatchNgapMsg(ran, pdu, nil)
