@@ -59,8 +59,8 @@ func TestTelemetryConfigEnabled(t *testing.T) {
 		t.Errorf("Expected OTLP endpoint to be set, but it is empty")
 	}
 
-	if AmfConfig.Configuration.Telemetry.Ratio != 0.4 {
-		t.Errorf("Expected telemetry ratio to be 0.4, but got: %f", AmfConfig.Configuration.Telemetry.Ratio)
+	if AmfConfig.Configuration.Telemetry.Ratio == nil || *AmfConfig.Configuration.Telemetry.Ratio != 0.4 {
+		t.Errorf("Expected telemetry ratio to be 0.4, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
 	}
 }
 
@@ -81,8 +81,30 @@ func TestTelemetryConfigEnabledNoRatioDefaultsTo1(t *testing.T) {
 		t.Errorf("Expected OTLP endpoint to be set, but it is empty")
 	}
 
-	if AmfConfig.Configuration.Telemetry.Ratio != 1.0 {
-		t.Errorf("Expected telemetry ratio to be 1.0, but got: %f", AmfConfig.Configuration.Telemetry.Ratio)
+	if AmfConfig.Configuration.Telemetry.Ratio == nil || *AmfConfig.Configuration.Telemetry.Ratio != 1.0 {
+		t.Errorf("Expected telemetry ratio to be 1.0, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
+	}
+}
+
+func TestTelemetryConfigEnabledRatio0Stays0(t *testing.T) {
+	if err := InitConfigFactory("testdata/telemetry_zero_ratio.yaml"); err != nil {
+		t.Logf("Error in InitConfigFactory: %v", err)
+	}
+
+	if AmfConfig.Configuration.Telemetry == nil {
+		t.Fatalf("Expected telemetry configuration to be present, but it is nil")
+	}
+
+	if !AmfConfig.Configuration.Telemetry.Enabled {
+		t.Errorf("Expected telemetry to be enabled, but it is not")
+	}
+
+	if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
+		t.Errorf("Expected OTLP endpoint to be set, but it is empty")
+	}
+
+	if AmfConfig.Configuration.Telemetry.Ratio == nil || *AmfConfig.Configuration.Telemetry.Ratio != 0.0 {
+		t.Errorf("Expected telemetry ratio to be 0.0, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
 	}
 }
 

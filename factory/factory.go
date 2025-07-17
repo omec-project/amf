@@ -40,8 +40,9 @@ func InitConfigFactory(f string) error {
 		}
 
 		if AmfConfig.Configuration.Telemetry != nil && AmfConfig.Configuration.Telemetry.Enabled {
-			if AmfConfig.Configuration.Telemetry.Ratio == 0 {
-				AmfConfig.Configuration.Telemetry.Ratio = 1.0
+			if AmfConfig.Configuration.Telemetry.Ratio == nil {
+				defaultRatio := 1.0
+				AmfConfig.Configuration.Telemetry.Ratio = &defaultRatio
 			}
 
 			if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {

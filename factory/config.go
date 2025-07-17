@@ -53,9 +53,9 @@ type KafkaInfo struct {
 }
 
 type TelemetryConfig struct {
-	Enabled      bool    `yaml:"enabled,omitempty"`       // Optional; defaults to false
-	OtlpEndpoint string  `yaml:"otlp_endpoint,omitempty"` // Mandatory if enabled=true
-	Ratio        float64 `yaml:"ratio,omitempty"`         // Optional; defaults to 1.0
+	Enabled      bool     `yaml:"enabled,omitempty"`       // Optional; defaults to false
+	OtlpEndpoint string   `yaml:"otlp_endpoint,omitempty"` // Mandatory if enabled=true
+	Ratio        *float64 `yaml:"ratio,omitempty"`         // Optional; defaults to 1.0
 }
 
 type Configuration struct {

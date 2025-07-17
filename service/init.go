@@ -421,7 +421,7 @@ func (amf *AMF) Start() {
 			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
 			ServiceName:    "amf",
 			ServiceVersion: factory.AmfConfig.Info.Version,
-			Ratio:          factory.AmfConfig.Configuration.Telemetry.Ratio,
+			Ratio:          *factory.AmfConfig.Configuration.Telemetry.Ratio,
 		})
 		if err != nil {
 			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
