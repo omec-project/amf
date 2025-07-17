@@ -46,6 +46,7 @@ const (
 	DNN_CONGESTION            = "DNN_CONGESTION"
 	PRIORITIZED_SERVICES_ONLY = "PRIORITIZED_SERVICES_ONLY"
 	OUT_OF_LADN_SERVICE_AREA  = "OUT_OF_LADN_SERVICE_AREA"
+	defaultDnn                = "internet"
 )
 
 func HandleULNASTransport(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType,
@@ -243,7 +244,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 						if len(ue.ServingAMF.SupportDnnLists) > 0 {
 							dnn = ue.ServingAMF.SupportDnnLists[0]
 						} else {
-							dnn = "internet"
+							dnn = defaultDnn
 						}
 					}
 					ue.GmmLog.Warnf("Subscription context obtained from UDM does not contain the default DNN, using %s", dnn)
