@@ -197,10 +197,17 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 		logger.AppLog.Warnf("Encountered unknown NGAP procedure code: %d from RAN: %s", code, ran.Conn.RemoteAddr().String())
 	}
 
+	peer := "unknown"
+	if ran != nil && ran.Conn != nil {
+		if addr := ran.Conn.RemoteAddr(); addr != nil {
+			peer = addr.String()
+		}
+	}
+
 	spanName := fmt.Sprintf("AMF NGAP %s", procName)
 	ctx, span := tracer.Start(ctx, spanName,
 		trace.WithAttributes(
-			attribute.String("net.peer", ran.Conn.RemoteAddr().String()),
+			attribute.String("net.peer", peer),
 			attribute.String("ngap.pdu_present", fmt.Sprintf("%d", pdu.Present)),
 			attribute.String("ngap.procedureCode", procName),
 		),
