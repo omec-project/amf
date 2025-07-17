@@ -108,4 +108,3 @@ require (
 	inet.af/netaddr v0.0.0-20220811202034-502d2d690317 // indirect
 )
 
-replace github.com/omec-project/amf => github.com/networkgcorefullcode/amf v1.0.0
