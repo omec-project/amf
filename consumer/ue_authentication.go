@@ -21,9 +21,10 @@ import (
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nausf_UEAuthentication"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
+func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amf_context.AmfUe,
 	resynchronizationInfo *models.ResynchronizationInfo,
 ) (*models.UeAuthenticationCtx, *models.ProblemDetails, error) {
 	configuration := Nausf_UEAuthentication.NewConfiguration()
@@ -52,8 +53,17 @@ func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
 	if resynchronizationInfo != nil {
 		authInfo.ResynchronizationInfo = resynchronizationInfo
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+
+	ctx, span := tracer.Start(ctx, "HTTP POST ausf/ue-authentications")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "ausf"),
+		attribute.String("net.peer.name", ue.AusfUri),
+	)
 
 	ueAuthenticationCtx, httpResponse, err := client.DefaultApi.UeAuthenticationsPost(ctx, authInfo)
 	if err == nil {
@@ -69,7 +79,7 @@ func SendUEAuthenticationAuthenticateRequest(ue *amf_context.AmfUe,
 	}
 }
 
-func SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
+func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, resStar string) (
 	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
 ) {
 	var ausfUri string
@@ -88,8 +98,19 @@ func SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
 			ResStar: resStar,
 		}),
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+
+	ctx, span := tracer.Start(ctx, "HTTP PUT ausf/ue-authentications/{authCtxId}/5g-aka-confirmation")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "PUT"),
+		attribute.String("nf.target", "ausf"),
+		attribute.String("net.peer.name", ausfUri),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
 
 	confirmResult, httpResponse, err := client.DefaultApi.UeAuthenticationsAuthCtxId5gAkaConfirmationPut(
 		ctx, ue.Suci, confirmData)
@@ -110,7 +131,7 @@ func SendAuth5gAkaConfirmRequest(ue *amf_context.AmfUe, resStar string) (
 	}
 }
 
-func SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage) (
+func SendEapAuthConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, eapMsg nasType.EAPMessage) (
 	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
 ) {
 	confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Href)
@@ -128,8 +149,18 @@ func SendEapAuthConfirmRequest(ue *amf_context.AmfUe, eapMsg nasType.EAPMessage)
 			EapPayload: base64.StdEncoding.EncodeToString(eapMsg.GetEAPMessage()),
 		}),
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+
+	ctx, span := tracer.Start(ctx, "HTTP POST ausf/ue-authentications/{authCtxId}/eap-session")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "ausf"),
+		attribute.String("net.peer.name", ausfUri),
+		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
 
 	eapSession, httpResponse, err := client.DefaultApi.EapAuthMethod(ctx, ue.Suci, eapSessionReq)
 	if err == nil {

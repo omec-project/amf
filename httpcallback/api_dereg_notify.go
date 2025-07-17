@@ -50,7 +50,7 @@ func HTTPDeregistrationNotification(c *gin.Context) {
 	if supi, exists := c.Params.Get("supi"); exists {
 		req.Params["supi"] = supi
 	}
-	rsp := producer.HandleDeregistrationNotification(req)
+	rsp := producer.HandleDeregistrationNotification(c.Request.Context(), req)
 
 	responseBody, err := openapi.Serialize(rsp.Body, "application/json")
 	if err != nil {
