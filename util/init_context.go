@@ -74,37 +74,39 @@ func InitAmfContext(context *context.AMFContext) {
 	}
 	context.RegisterIPv4 = factory.AMF_DEFAULT_IPV4 // default localhost
 	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
+
+	// block conditional to fill the amf context, the info is in the yml config
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			logger.UtilLog.Infoln("Asignando RegisterIPv4 desde configuración: ", sbi.RegisterIPv4)
+			logger.UtilLog.Infoln("Added RegisterIPv4 from file config: ", sbi.RegisterIPv4)
 			context.RegisterIPv4 = sbi.RegisterIPv4
 		} else if os.Getenv("POD_IP") != "" {
-			logger.UtilLog.Infoln("sbi.RegisterIPv4 vacío, usando POD_IP: ", os.Getenv("POD_IP"))
+			logger.UtilLog.Infoln("sbi.RegisterIPv4 empty, using POD_IP: ", os.Getenv("POD_IP"))
 			context.RegisterIPv4 = os.Getenv("POD_IP")
 		} else {
-			logger.UtilLog.Warnln("sbi.RegisterIPv4 vacío y POD_IP no definido, usando valor por defecto")
+			logger.UtilLog.Warnln("sbi.RegisterIPv4 empty and POD_IP not defined, using default value: ", context.RegisterIPv4)
 		}
 		if sbi.Port != 0 {
-			logger.UtilLog.Infoln("Asignando SBIPort desde configuración: ", sbi.Port)
+			logger.UtilLog.Infoln("Added SBIPort from file config: ", sbi.Port)
 			context.SBIPort = sbi.Port
 		} else {
-			logger.UtilLog.Warnln("sbi.Port no definido, usando valor por defecto")
+			logger.UtilLog.Warnln("sbi.Port not defined, using default value")
 		}
 		if tls := sbi.TLS; tls != nil {
 			if tls.Key != "" {
-				logger.UtilLog.Infoln("Asignando TLS.Key desde configuración: ", tls.Key)
+				logger.UtilLog.Infoln("Add TLS.Key from file config: ", tls.Key)
 				context.Key = tls.Key
 			} else {
-				logger.UtilLog.Warnln("TLS.Key no definido")
+				logger.UtilLog.Warnln("TLS.Key not defined")
 			}
 			if tls.PEM != "" {
-				logger.UtilLog.Infoln("Asignando TLS.PEM desde configuración: ", tls.PEM)
+				logger.UtilLog.Infoln("Added TLS.PEM from file config: ", tls.PEM)
 				context.PEM = tls.PEM
 			} else {
-				logger.UtilLog.Warnln("TLS.PEM no definido")
+				logger.UtilLog.Warnln("TLS.PEM not defined")
 			}
 		} else {
-			logger.UtilLog.Warnln("TLS no definido en sbi")
+			logger.UtilLog.Warnln("TLS not defined in the sbi")
 		}
 		context.BindingIPv4 = os.Getenv(sbi.BindingIPv4)
 		if context.BindingIPv4 != "" {
@@ -119,7 +121,7 @@ func InitAmfContext(context *context.AMFContext) {
 			}
 		}
 	} else {
-		logger.UtilLog.Warnln("sbi no definido en configuración")
+		logger.UtilLog.Warnln("sbi not defined in the config file")
 	}
 	serviceNameList := configuration.ServiceNameList
 	context.InitNFService(serviceNameList, config.Info.Version)
