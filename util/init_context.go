@@ -43,23 +43,23 @@ func InitAmfContext(context *context.AMFContext) {
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 	if context.NfId == "" {
-		logger.UtilLog.Infoln("context.NfId vacío, generando uno nuevo")
+		logger.UtilLog.Infoln("context.NfId empty, generating a new")
 		context.NfId = uuid.New().String()
 	} else {
-		logger.UtilLog.Infoln("context.NfId ya presente: ", context.NfId)
+		logger.UtilLog.Infoln("context.NfId is present: ", context.NfId)
 	}
 
 	if configuration.AmfName != "" {
 		logger.UtilLog.Infoln("Has been added AmfName from file config: ", configuration.AmfName)
 		context.Name = configuration.AmfName
 	} else {
-		logger.UtilLog.Warnln("AmfName no definido en file config")
+		logger.UtilLog.Warnln("AmfName not defined in file config")
 	}
 	if configuration.NgapIpList != nil {
 		logger.UtilLog.Infoln("Has been added NgapIpList from file config: ", configuration.NgapIpList)
 		context.NgapIpList = configuration.NgapIpList
 	} else {
-		logger.UtilLog.Warnln("NgapIpList no definido, usando localhost por defecto")
+		logger.UtilLog.Warnln("NgapIpList not defined, using localhost for default")
 		context.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
 	context.NgapPort = configuration.NgapPort
