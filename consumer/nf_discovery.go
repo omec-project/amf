@@ -22,13 +22,13 @@ func SendSearchNFInstances(nrfUri string, targetNfType, requestNfType models.NfT
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
 ) (models.SearchResult, error) {
 	if amf_context.AMF_Self().EnableNrfCaching {
-		return nrfCache.SearchNFInstances(nrfUri, targetNfType, requestNfType, param)
+		return nrfCache.SearchNFInstances(context.TODO(), nrfUri, targetNfType, requestNfType, param)
 	} else {
-		return SendNfDiscoveryToNrf(nrfUri, targetNfType, requestNfType, param)
+		return SendNfDiscoveryToNrf(context.TODO(), nrfUri, targetNfType, requestNfType, param)
 	}
 }
 
-func SendNfDiscoveryToNrf(nrfUri string, targetNfType, requestNfType models.NfType,
+func SendNfDiscoveryToNrf(ctx context.Context, nrfUri string, targetNfType, requestNfType models.NfType,
 	param *Nnrf_NFDiscovery.SearchNFInstancesParamOpts,
 ) (models.SearchResult, error) {
 	// Set client and set url
