@@ -6,6 +6,7 @@
 package producer
 
 import (
+	ctxt "context"
 	"testing"
 
 	"github.com/omec-project/amf/context"
@@ -38,7 +39,7 @@ func TestHandleOAMPurgeUEContextRequest_UEDeregistered(t *testing.T) {
 	}
 	amfUe := self.NewAmfUe("imsi-208930100007497")
 
-	HandleOAMPurgeUEContextRequest(amfUe.Supi, "", nil)
+	HandleOAMPurgeUEContextRequest(ctxt.Background(), amfUe.Supi, "", nil)
 
 	if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
 		t.Errorf("test failed")
@@ -53,7 +54,7 @@ func TestHandleOAMPurgeUEContextRequest_UERegistered(t *testing.T) {
 	amfUe := self.NewAmfUe("imsi-208930100007497")
 	amfUe.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 
-	HandleOAMPurgeUEContextRequest(amfUe.Supi, "", nil)
+	HandleOAMPurgeUEContextRequest(ctxt.Background(), amfUe.Supi, "", nil)
 
 	if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
 		t.Errorf("test failed")

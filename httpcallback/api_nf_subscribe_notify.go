@@ -48,7 +48,7 @@ func HTTPNfSubscriptionStatusNotify(c *gin.Context) {
 
 	req := httpwrapper.NewRequest(c.Request, nfSubscriptionStatusNotification)
 
-	rsp := producer.HandleNfSubscriptionStatusNotify(req)
+	rsp := producer.HandleNfSubscriptionStatusNotify(c.Request.Context(), req)
 
 	responseBody, err := openapi.Serialize(rsp.Body, "application/json")
 	if err != nil {

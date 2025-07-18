@@ -7,6 +7,7 @@
 package producer
 
 import (
+	ctxt "context"
 	"net/http"
 	"strings"
 
@@ -17,7 +18,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func UeContextHandler(s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	switch msg := msg.(type) {
 	case models.CreateUeContextRequest:
 		r1, r2 := CreateUEContextProcedure(s1, msg)
@@ -32,7 +33,7 @@ func UeContextHandler(s1, s2 string, msg interface{}) (interface{}, string, inte
 		r1, r2, r3 := AssignEbiDataProcedure(s1, msg)
 		return r1, "", r3, r2
 	case models.UeRegStatusUpdateReqData:
-		r1, r2 := RegistrationStatusUpdateProcedure(s1, msg)
+		r1, r2 := RegistrationStatusUpdateProcedure(ctx, s1, msg)
 		return r1, "", r2, nil
 	}
 
@@ -622,7 +623,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }
 
-func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
+func RegistrationStatusUpdateProcedure(ctx ctxt.Context, ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
 	*models.UeRegStatusUpdateRspData, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
@@ -667,7 +668,7 @@ func RegistrationStatusUpdateProcedure(ueContextID string, ueRegStatusUpdateReqD
 		}
 
 		if ueRegStatusUpdateReqData.PcfReselectedInd {
-			problem, err := consumer.AMPolicyControlDelete(ue)
+			problem, err := consumer.AMPolicyControlDelete(ctx, ue)
 			if problem != nil {
 				logger.GmmLog.Errorf("AM Policy Control Delete Failed Problem[%+v]", problem)
 			} else if err != nil {

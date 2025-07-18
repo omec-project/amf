@@ -17,11 +17,22 @@ import (
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nnssf_NSSelection"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []models.MappingOfSnssai) (
+func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, requestedNssai []models.MappingOfSnssai) (
 	*models.ProblemDetails, error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP GET nssf/network-slice-information")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "nssf"),
+		attribute.String("net.peer.name", ue.NssfUri),
+		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
+	)
+
 	configuration := Nnssf_NSSelection.NewConfiguration()
 	configuration.SetBasePath(ue.NssfUri)
 	client := Nnssf_NSSelection.NewAPIClient(configuration)
@@ -46,8 +57,9 @@ func NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []model
 			SliceInfoRequestForRegistration: optional.NewInterface(string(e)),
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+
 	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
 		models.NfType_AMF, amfSelf.NfId, &paramOpt)
 	if localErr == nil {
@@ -70,9 +82,21 @@ func NSSelectionGetForRegistration(ue *amf_context.AmfUe, requestedNssai []model
 	return nil, nil
 }
 
-func NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai models.Snssai) (
+func NSSelectionGetForPduSession(ctx context.Context, ue *amf_context.AmfUe, snssai models.Snssai) (
 	*models.AuthorizedNetworkSliceInfo, *models.ProblemDetails, error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP GET nssf/network-slice-information")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "GET"),
+		attribute.String("nf.target", "nssf"),
+		attribute.String("net.peer.name", ue.NssfUri),
+		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
+		attribute.Int("snssai.sst", int(snssai.Sst)),
+		attribute.String("snssai.sd", snssai.Sd),
+	)
+
 	configuration := Nnssf_NSSelection.NewConfiguration()
 	configuration.SetBasePath(ue.NssfUri)
 	client := Nnssf_NSSelection.NewAPIClient(configuration)
@@ -90,8 +114,9 @@ func NSSelectionGetForPduSession(ue *amf_context.AmfUe, snssai models.Snssai) (
 	paramOpt := Nnssf_NSSelection.NSSelectionGetParamOpts{
 		SliceInfoRequestForPduSession: optional.NewInterface(string(e)),
 	}
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+
 	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
 		models.NfType_AMF, amfSelf.NfId, &paramOpt)
 	if localErr == nil {

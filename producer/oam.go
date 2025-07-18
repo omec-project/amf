@@ -6,6 +6,7 @@
 package producer
 
 import (
+	ctxt "context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -66,7 +67,7 @@ type ActiveUeContext struct {
 
 type ActiveUeContexts []ActiveUeContext
 
-func HandleOAMPurgeUEContextRequest(supi, reqUri string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func HandleOAMPurgeUEContextRequest(ctx ctxt.Context, supi, reqUri string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	amfSelf := context.AMF_Self()
 	if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
 		ueFsmState := ue.State[models.AccessType__3_GPP_ACCESS].Current()
@@ -76,7 +77,7 @@ func HandleOAMPurgeUEContextRequest(supi, reqUri string, msg interface{}) (inter
 			ue.Remove()
 		case context.Registered:
 			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.Supi)
-			err := gmm.GmmFSM.SendEvent(ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
+			err := gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
 			})

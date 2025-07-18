@@ -6,6 +6,7 @@
 package nas
 
 import (
+	ctxt "context"
 	"errors"
 	"fmt"
 
@@ -14,9 +15,14 @@ import (
 	"github.com/omec-project/nas"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message) error {
+var tracer = otel.Tracer("amf/nas")
+
+func Dispatch(ctx ctxt.Context, ue *context.AmfUe, accessType models.AccessType, procedureCode int64, msg *nas.Message) error {
 	if msg.GmmMessage == nil {
 		return errors.New("gmm message is nil")
 	}
@@ -29,7 +35,19 @@ func Dispatch(ue *context.AmfUe, accessType models.AccessType, procedureCode int
 		return fmt.Errorf("UE State is empty (accessType=%q). Can't send GSM Message", accessType)
 	}
 
-	return gmm.GmmFSM.SendEvent(ue.State[accessType], gmm.GmmMessageEvent, fsm.ArgsType{
+	msgTypeName := nas.MessageName(msg.GmmHeader.GetMessageType())
+	spanName := fmt.Sprintf("AMF NAS %s", msgTypeName)
+
+	_, span := tracer.Start(ctx, spanName,
+		trace.WithAttributes(
+			attribute.String("nas.accessType", string(accessType)),
+			attribute.Int64("nas.procedureCode", procedureCode),
+			attribute.String("nas.messageType", msgTypeName),
+		),
+	)
+	defer span.End()
+
+	return gmm.GmmFSM.SendEvent(ctx, ue.State[accessType], gmm.GmmMessageEvent, fsm.ArgsType{
 		gmm.ArgAmfUe:         ue,
 		gmm.ArgAccessType:    accessType,
 		gmm.ArgNASMessage:    msg.GmmMessage,

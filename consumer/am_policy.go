@@ -15,9 +15,21 @@ import (
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Npcf_AMPolicy"
 	"github.com/omec-project/openapi/models"
+	"go.opentelemetry.io/otel/attribute"
 )
 
-func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*models.ProblemDetails, error) {
+func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType models.AccessType) (*models.ProblemDetails, error) {
+	ctx, span := tracer.Start(ctx, "HTTP POST pcf/policies")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "pcf"),
+		attribute.String("net.peer.name", ue.PcfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
@@ -41,7 +53,7 @@ func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*mo
 		policyAssociationRequest.Rfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	res, httpResp, localErr := client.DefaultApi.PoliciesPost(ctx, policyAssociationRequest)
@@ -81,14 +93,25 @@ func AMPolicyControlCreate(ue *amf_context.AmfUe, anType models.AccessType) (*mo
 	return nil, nil
 }
 
-func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAssociationUpdateRequest) (
+func AMPolicyControlUpdate(ctx context.Context, ue *amf_context.AmfUe, updateRequest models.PolicyAssociationUpdateRequest) (
 	problemDetails *models.ProblemDetails, err error,
 ) {
+	ctx, span := tracer.Start(ctx, "HTTP POST pcf/policies/{polAssoId}/update")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "POST"),
+		attribute.String("nf.target", "pcf"),
+		attribute.String("net.peer.name", ue.PcfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
 
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	res, httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdUpdatePost(
@@ -124,11 +147,23 @@ func AMPolicyControlUpdate(ue *amf_context.AmfUe, updateRequest models.PolicyAss
 	return problemDetails, err
 }
 
-func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+func AMPolicyControlDelete(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *models.ProblemDetails, err error) {
+	ctx, span := tracer.Start(ctx, "HTTP DELETE pcf/policies/{polAssoId}")
+	defer span.End()
+
+	span.SetAttributes(
+		attribute.String("http.method", "DELETE"),
+		attribute.String("nf.target", "pcf"),
+		attribute.String("net.peer.name", ue.PcfUri),
+		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+	)
+
 	configuration := Npcf_AMPolicy.NewConfiguration()
 	configuration.SetBasePath(ue.PcfUri)
 	client := Npcf_AMPolicy.NewAPIClient(configuration)
-	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdDelete(ctx, ue.PolicyAssociationId)
@@ -137,7 +172,7 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.Proble
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
-			return
+			return problemDetails, err
 		}
 		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
 		problemDetails = &problem
@@ -145,5 +180,5 @@ func AMPolicyControlDelete(ue *amf_context.AmfUe) (problemDetails *models.Proble
 		err = openapi.ReportError("server no response")
 	}
 
-	return
+	return problemDetails, err
 }
