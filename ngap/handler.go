@@ -1225,6 +1225,7 @@ func HandlePDUSessionResourceReleaseResponse(ctx ctxt.Context, ran *context.AmfR
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				continue
 			}
 			_, responseErr, problemDetail, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 				models.N2SmInfoType_PDU_RES_REL_RSP, transfer)
