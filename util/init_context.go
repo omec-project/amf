@@ -43,30 +43,30 @@ func InitAmfContext(context *context.AMFContext) {
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 	if context.NfId == "" {
-		logger.UtilLog.Infoln("context.NfId vacío, generando uno nuevo")
+		logger.UtilLog.Infoln("context.NfId empty, generating a new")
 		context.NfId = uuid.New().String()
 	} else {
-		logger.UtilLog.Infoln("context.NfId ya presente: ", context.NfId)
+		logger.UtilLog.Infoln("context.NfId is present: ", context.NfId)
 	}
 
 	if configuration.AmfName != "" {
-		logger.UtilLog.Infoln("Asignando AmfName desde configuración: ", configuration.AmfName)
+		logger.UtilLog.Infoln("Has been added AmfName from file config: ", configuration.AmfName)
 		context.Name = configuration.AmfName
 	} else {
-		logger.UtilLog.Warnln("AmfName no definido en configuración")
+		logger.UtilLog.Warnln("AmfName not defined in file config")
 	}
 	if configuration.NgapIpList != nil {
-		logger.UtilLog.Infoln("Asignando NgapIpList desde configuración: ", configuration.NgapIpList)
+		logger.UtilLog.Infoln("Has been added NgapIpList from file config: ", configuration.NgapIpList)
 		context.NgapIpList = configuration.NgapIpList
 	} else {
-		logger.UtilLog.Warnln("NgapIpList no definido, usando localhost por defecto")
+		logger.UtilLog.Warnln("NgapIpList not defined, using localhost for default")
 		context.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
 	context.NgapPort = configuration.NgapPort
 	context.SctpGrpcPort = configuration.SctpGrpcPort
 	sbi := configuration.Sbi
 	if sbi.Scheme != "" {
-		logger.UtilLog.Infoln("Asignando scheme desde configuración: ", sbi.Scheme)
+		logger.UtilLog.Infoln("Has been added scheme from file config: ", sbi.Scheme)
 		context.UriScheme = models.UriScheme(sbi.Scheme)
 	} else {
 		logger.UtilLog.Warnln("SBI scheme has not been set. Using http as default")
@@ -117,7 +117,7 @@ func InitAmfContext(context *context.AMFContext) {
 				logger.UtilLog.Warnln("error parsing ServerIPv4 address from string. Using the 0.0.0.0 as default")
 				context.BindingIPv4 = "0.0.0.0"
 			} else {
-				logger.UtilLog.Infoln("Asignando BindingIPv4 desde configuración: ", context.BindingIPv4)
+				logger.UtilLog.Infoln("Has been added BindingIPv4 from file config: ", context.BindingIPv4)
 			}
 		}
 	} else {
