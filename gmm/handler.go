@@ -233,7 +233,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							for _, dnnInfo := range snssaiInfo.DnnInfos {
 								if dnnInfo.DefaultDnnIndicator {
 									dnn = dnnInfo.Dnn
-									//break
+									break
 								}
 							}
 						}
