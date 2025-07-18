@@ -234,7 +234,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							for _, dnnInfo := range snssaiInfo.DnnInfos {
 								if dnnInfo.DefaultDnnIndicator {
 									dnn = dnnInfo.Dnn
-									break
+									//break
 								}
 							}
 						}
@@ -247,7 +247,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							dnn = defaultDnn
 						}
 					}
-					ue.GmmLog.Warnf("Subscription context obtained from UDM does not contain the default DNN, using %s", dnn)
+					ue.GmmLog.Warnf("Subscription context obtained from UDM does not contain the DNN, using %s", dnn)
 				}
 
 				if newSmContext, cause, err := consumer.SelectSmf(ctx, ue, anType, pduSessionID, snssai, dnn); err != nil {
