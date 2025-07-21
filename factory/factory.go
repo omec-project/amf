@@ -12,46 +12,50 @@ package factory
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"reflect"
+	"sync"
 
 	"github.com/omec-project/amf/logger"
 	"gopkg.in/yaml.v2"
 )
 
-var AmfConfig Config
+var (
+	AmfConfig  Config
+	ConfigLock sync.RWMutex
+)
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
-	if content, err := os.ReadFile(f); err != nil {
+	content, err := os.ReadFile(f)
+	if err != nil {
 		return err
-	} else {
-		AmfConfig = Config{}
-
-		if yamlErr := yaml.Unmarshal(content, &AmfConfig); yamlErr != nil {
-			return yamlErr
+	}
+	if err = yaml.Unmarshal(content, &AmfConfig); err != nil {
+		return err
+	}
+	if AmfConfig.Configuration.WebuiUri == "" {
+		AmfConfig.Configuration.WebuiUri = "http://webui:5001"
+		logger.CfgLog.Infof("webuiUri not set in configuration file. Using %v", AmfConfig.Configuration.WebuiUri)
+		return nil
+	}
+	if AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
+		enableKafka := true
+		AmfConfig.Configuration.KafkaInfo.EnableKafka = &enableKafka
+	}
+	if AmfConfig.Configuration.Telemetry != nil && AmfConfig.Configuration.Telemetry.Enabled {
+		if AmfConfig.Configuration.Telemetry.Ratio == nil {
+			defaultRatio := 1.0
+			AmfConfig.Configuration.Telemetry.Ratio = &defaultRatio
 		}
-		if AmfConfig.Configuration.WebuiUri == "" {
-			AmfConfig.Configuration.WebuiUri = "webui:9876"
-		}
-		if AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
-			enableKafka := true
-			AmfConfig.Configuration.KafkaInfo.EnableKafka = &enableKafka
-		}
 
-		if AmfConfig.Configuration.Telemetry != nil && AmfConfig.Configuration.Telemetry.Enabled {
-			if AmfConfig.Configuration.Telemetry.Ratio == nil {
-				defaultRatio := 1.0
-				AmfConfig.Configuration.Telemetry.Ratio = &defaultRatio
-			}
-
-			if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
-				return fmt.Errorf("OTLP endpoint is not set in the configuration")
-			}
+		if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
+			return fmt.Errorf("OTLP endpoint is not set in the configuration")
 		}
 	}
-
-	return nil
+	err = validateWebuiUri(AmfConfig.Configuration.WebuiUri)
+	return err
 }
 
 func UpdateConfig(f string) error {
@@ -146,5 +150,19 @@ func CheckConfigVersion() error {
 
 	logger.CfgLog.Infof("config version [%s]", currentVersion)
 
+	return nil
+}
+
+func validateWebuiUri(uri string) error {
+	parsedUrl, err := url.ParseRequestURI(uri)
+	if err != nil {
+		return err
+	}
+	if parsedUrl.Scheme != "http" && parsedUrl.Scheme != "https" {
+		return fmt.Errorf("unsupported scheme for webuiUri: %s", parsedUrl.Scheme)
+	}
+	if parsedUrl.Hostname() == "" {
+		return fmt.Errorf("missing host in webuiUri")
+	}
 	return nil
 }

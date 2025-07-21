@@ -16,12 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/service"
 	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
-	"github.com/omec-project/openapi/models"
-	"github.com/stretchr/testify/require"
 )
 
 var AMFTest = &service.AMF{}
@@ -117,40 +114,4 @@ func TestUpdateConfig(t *testing.T) {
 	} else {
 		t.Errorf("test failed")
 	}
-}
-
-func TestRegisterNF(t *testing.T) {
-	// Save current function and restore at the end:
-	origRegisterNFInstance := consumer.SendRegisterNFInstance
-	// origSearchNFInstances := consumer.SendSearchNFInstances
-	origUpdateNFInstance := consumer.SendUpdateNFInstance
-	defer func() {
-		consumer.SendRegisterNFInstance = origRegisterNFInstance
-		// consumer.SendSearchNFInstances = origSearchNFInstances
-		consumer.SendUpdateNFInstance = origUpdateNFInstance
-	}()
-	t.Logf("test case TestRegisterNF")
-	var prof models.NfProfile
-	consumer.SendRegisterNFInstance = func(ctx context.Context, nrfUri string, nfInstanceId string, profile models.NfProfile) (models.NfProfile, string, string, error) {
-		prof = profile
-		prof.HeartBeatTimer = 1
-		t.Logf("Test RegisterNFInstance called")
-		return prof, "", "", nil
-	}
-	/*consumer.SendSearchNFInstances = func(nrfUri string, targetNfType, requestNfType models.NfType, param Nnrf_NFDiscovery.SearchNFInstancesParamOpts) (*models.SearchResult, error) {
-		fmt.Printf("Test SearchNFInstance called\n")
-		return &models.SearchResult{}, nil
-	}*/
-	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (nfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
-		return prof, nil, nil
-	}
-	go AMFTest.SendNFProfileUpdateToNrf(context.Background())
-	service.RocUpdateConfigChannel <- true
-	time.Sleep(5 * time.Second)
-	require.Equal(t, service.KeepAliveTimer != nil, true)
-
-	/*service.RocUpdateConfigChannel <- false
-	time.Sleep(1 * time.Second)
-	require.Equal(t, service.KeepAliveTimer == nil, true)
-	*/
 }

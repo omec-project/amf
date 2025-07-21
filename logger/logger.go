@@ -12,29 +12,31 @@ import (
 )
 
 var (
-	log         *zap.Logger
-	AppLog      *zap.SugaredLogger
-	InitLog     *zap.SugaredLogger
-	CfgLog      *zap.SugaredLogger
-	ContextLog  *zap.SugaredLogger
-	DataRepoLog *zap.SugaredLogger
-	NgapLog     *zap.SugaredLogger
-	HandlerLog  *zap.SugaredLogger
-	HttpLog     *zap.SugaredLogger
-	GmmLog      *zap.SugaredLogger
-	MtLog       *zap.SugaredLogger
-	ProducerLog *zap.SugaredLogger
-	LocationLog *zap.SugaredLogger
-	CommLog     *zap.SugaredLogger
-	CallbackLog *zap.SugaredLogger
-	UtilLog     *zap.SugaredLogger
-	NasLog      *zap.SugaredLogger
-	ConsumerLog *zap.SugaredLogger
-	EeLog       *zap.SugaredLogger
-	GinLog      *zap.SugaredLogger
-	GrpcLog     *zap.SugaredLogger
-	KafkaLog    *zap.SugaredLogger
-	atomicLevel zap.AtomicLevel
+	log                *zap.Logger
+	AppLog             *zap.SugaredLogger
+	InitLog            *zap.SugaredLogger
+	CfgLog             *zap.SugaredLogger
+	ContextLog         *zap.SugaredLogger
+	DataRepoLog        *zap.SugaredLogger
+	NgapLog            *zap.SugaredLogger
+	HandlerLog         *zap.SugaredLogger
+	HttpLog            *zap.SugaredLogger
+	GmmLog             *zap.SugaredLogger
+	MtLog              *zap.SugaredLogger
+	ProducerLog        *zap.SugaredLogger
+	LocationLog        *zap.SugaredLogger
+	CommLog            *zap.SugaredLogger
+	CallbackLog        *zap.SugaredLogger
+	UtilLog            *zap.SugaredLogger
+	NasLog             *zap.SugaredLogger
+	ConsumerLog        *zap.SugaredLogger
+	EeLog              *zap.SugaredLogger
+	GinLog             *zap.SugaredLogger
+	GrpcLog            *zap.SugaredLogger
+	KafkaLog           *zap.SugaredLogger
+	NrfRegistrationLog *zap.SugaredLogger
+	PollConfigLog      *zap.SugaredLogger
+	atomicLevel        zap.AtomicLevel
 )
 
 const (
@@ -92,6 +94,8 @@ func init() {
 	GinLog = log.Sugar().With("component", "AMF", "category", "GIN")
 	GrpcLog = log.Sugar().With("component", "AMF", "category", "GRPC")
 	KafkaLog = log.Sugar().With("component", "AMF", "category", "Kafka")
+	NrfRegistrationLog = log.Sugar().With("component", "AMF", "category", "NrfRegistration")
+	PollConfigLog = log.Sugar().With("component", "AMF", "category", "PollConfig")
 }
 
 func GetLogger() *zap.Logger {

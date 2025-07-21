@@ -21,6 +21,7 @@ import (
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/nfConfigApi"
 	"github.com/omec-project/util/drsm"
 	"github.com/omec-project/util/idgenerator"
 )
@@ -632,4 +633,66 @@ func (context *AMFContext) Reset() {
 // Create new AMF context
 func AMF_Self() *AMFContext {
 	return &amfContext
+}
+
+func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndMobility) error {
+	logger.ContextLog.Infof("Processing config update from polling service")
+	if len(newConfig) == 0 {
+		logger.ContextLog.Warn("Received empty access and mobility config, clearing dynamic AMF context")
+		amfContext.Reset()
+		return nil
+	}
+	newSupportedTais, newPlmnSupportItems := convertAccessAndMobilityList(newConfig)
+	amfContext.SupportTaiLists = newSupportedTais
+	amfContext.PlmnSupportList = newPlmnSupportItems
+
+	logger.ContextLog.Debugf("AMF context updated from dynamic session management config successfully")
+	return nil
+}
+
+func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem) {
+	var newSupportedTais []models.Tai
+	var newPlmnSupportList []factory.PlmnSupportItem
+	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
+
+	for _, plmnSnssaiTacs := range newConfig {
+		newPlmn := models.PlmnId{
+			Mcc: plmnSnssaiTacs.PlmnId.Mcc,
+			Mnc: plmnSnssaiTacs.PlmnId.Mnc,
+		}
+		for _, tac := range plmnSnssaiTacs.Tacs {
+			newSupportedTais = append(newSupportedTais, models.Tai{
+				PlmnId: &newPlmn,
+				Tac:    tac,
+			})
+		}
+		newSnssai := models.Snssai{
+			Sst: plmnSnssaiTacs.Snssai.Sst,
+		}
+		if plmnSnssaiTacs.Snssai.Sd != nil {
+			newSnssai.Sd = *plmnSnssaiTacs.Snssai.Sd
+		}
+		if newPlmnSupportItemsMap[newPlmn] == nil {
+			newPlmnSupportItemsMap[newPlmn] = map[models.Snssai]struct{}{}
+		}
+		newPlmnSupportItemsMap[newPlmn][newSnssai] = struct{}{}
+	}
+	newPlmnSupportList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
+	return newSupportedTais, newPlmnSupportList
+}
+
+func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) []factory.PlmnSupportItem {
+	plmnSupportItemList := make([]factory.PlmnSupportItem, 0, len(plmnSnssaiMap))
+	for plmn, snssaiSet := range plmnSnssaiMap {
+		snssaiList := make([]models.Snssai, 0, len(snssaiSet))
+		for snssai := range snssaiSet {
+			snssaiList = append(snssaiList, snssai)
+		}
+		plmnSupportItem := factory.PlmnSupportItem{
+			PlmnId:     plmn,
+			SNssaiList: snssaiList,
+		}
+		plmnSupportItemList = append(plmnSupportItemList, plmnSupportItem)
+	}
+	return plmnSupportItemList
 }
