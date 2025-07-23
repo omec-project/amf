@@ -68,7 +68,7 @@ type Configuration struct {
 	Sbi                             *Sbi                      `yaml:"sbi,omitempty"`
 	NetworkFeatureSupport5GS        *NetworkFeatureSupport5GS `yaml:"networkFeatureSupport5GS,omitempty"`
 	ServiceNameList                 []string                  `yaml:"serviceNameList,omitempty"`
-	ServedGumaiList                 []models.Guami            `yaml:"servedGuamiList,omitempty"`
+	ServedGuamiList                 []models.Guami            `yaml:"servedGuamiList,omitempty"`
 	SupportTAIList                  []models.Tai              `yaml:"supportTaiList,omitempty"`
 	PlmnSupportList                 []PlmnSupportItem         `yaml:"plmnSupportList,omitempty"`
 	SupportDnnList                  []string                  `yaml:"supportDnnList,omitempty"`

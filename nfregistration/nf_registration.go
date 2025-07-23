@@ -55,7 +55,7 @@ func StartNfRegistrationService(ctx context.Context, accessAndMobilityConfigChan
 
 			if len(newAccessAndMobilityConfig) == 0 {
 				logger.NrfRegistrationLog.Debugln("Access and Mobility config is empty. AMF will deregister")
-				DeregisterNF()
+				DeregisterNF(ctx)
 			} else {
 				logger.NrfRegistrationLog.Debugln("Access and Mobility config is not empty. AMF will update registration")
 				registerCtx, registerCancel = context.WithCancel(context.Background())
@@ -77,14 +77,14 @@ var registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []
 			logger.NrfRegistrationLog.Infoln("no-op. Registration context was cancelled")
 			return
 		case <-time.After(interval):
-			nfProfile, _, err := consumer.SendRegisterNFInstance(newAccessAndMobilityConfig)
+			nfProfile, _, err := consumer.SendRegisterNFInstance(registerCtx, newAccessAndMobilityConfig)
 			if err != nil {
 				logger.NrfRegistrationLog.Errorln("register AMF instance to NRF failed. Will retry.", err.Error())
 				interval = retryTime
 				continue
 			}
 			logger.NrfRegistrationLog.Infoln("register AMF instance to NRF with updated profile succeeded")
-			startKeepAliveTimer(nfProfile.HeartBeatTimer, newAccessAndMobilityConfig)
+			startKeepAliveTimer(registerCtx, nfProfile.HeartBeatTimer, newAccessAndMobilityConfig)
 			return
 		}
 	}
@@ -93,7 +93,7 @@ var registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []
 // heartbeatNF is the callback function, this is called when keepalivetimer elapsed.
 // It sends a Update NF instance to the NRF. If it fails, it tries to register again.
 // keepAliveTimer is restarted at the end.
-func heartbeatNF(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
+func heartbeatNF(registerCtx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
 	keepAliveTimerMutex.Lock()
 	if keepAliveTimer == nil {
 		keepAliveTimerMutex.Unlock()
@@ -113,7 +113,7 @@ func heartbeatNF(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
 
 	if shouldRegister(problemDetails, err) {
 		logger.NrfRegistrationLog.Debugln("NF heartbeat failed. Trying to register again")
-		nfProfile, _, err = consumer.SendRegisterNFInstance(accessAndMobilityConfig)
+		nfProfile, _, err = consumer.SendRegisterNFInstance(registerCtx, accessAndMobilityConfig)
 		if err != nil {
 			logger.NrfRegistrationLog.Errorln("register AMF instance error:", err.Error())
 		} else {
@@ -122,7 +122,7 @@ func heartbeatNF(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
 	} else {
 		logger.NrfRegistrationLog.Debugln("AMF update NF instance (heartbeat) succeeded")
 	}
-	startKeepAliveTimer(nfProfile.HeartBeatTimer, accessAndMobilityConfig)
+	startKeepAliveTimer(registerCtx, nfProfile.HeartBeatTimer, accessAndMobilityConfig)
 }
 
 func shouldRegister(problemDetails *models.ProblemDetails, err error) bool {
@@ -137,11 +137,11 @@ func shouldRegister(problemDetails *models.ProblemDetails, err error) bool {
 	return false
 }
 
-var DeregisterNF = func() {
+var DeregisterNF = func(registerCtx context.Context) {
 	keepAliveTimerMutex.Lock()
 	stopKeepAliveTimer()
 	keepAliveTimerMutex.Unlock()
-	err := consumer.SendDeregisterNFInstance()
+	err := consumer.SendDeregisterNFInstance(registerCtx)
 	if err != nil {
 		logger.NrfRegistrationLog.Warnln("deregister instance from NRF error:", err.Error())
 		return
@@ -149,7 +149,7 @@ var DeregisterNF = func() {
 	logger.NrfRegistrationLog.Infoln("deregister instance from NRF successful")
 }
 
-func startKeepAliveTimer(profileHeartbeatTimer int32, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
+func startKeepAliveTimer(registerCtx context.Context, profileHeartbeatTimer int32, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
 	keepAliveTimerMutex.Lock()
 	defer keepAliveTimerMutex.Unlock()
 	stopKeepAliveTimer()
@@ -157,7 +157,7 @@ func startKeepAliveTimer(profileHeartbeatTimer int32, accessAndMobilityConfig []
 	if profileHeartbeatTimer > 0 {
 		heartbeatTimer = profileHeartbeatTimer
 	}
-	heartbeatFunction := func() { heartbeatNF(accessAndMobilityConfig) }
+	heartbeatFunction := func() { heartbeatNF(registerCtx, accessAndMobilityConfig) }
 	// AfterFunc starts timer and waits for keepAliveTimer to elapse and then calls heartbeatNF function
 	keepAliveTimer = afterFunc(time.Duration(heartbeatTimer)*time.Second, heartbeatFunction)
 	logger.NrfRegistrationLog.Debugf("started heartbeat timer: %v sec", heartbeatTimer)

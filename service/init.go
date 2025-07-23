@@ -22,7 +22,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/gin-contrib/cors"
 	"github.com/omec-project/amf/communication"
 	"github.com/omec-project/amf/consumer"
@@ -143,34 +142,7 @@ func (amf *AMF) Initialize(ctx ctxt.Context, c *cli.Command) error {
 
 	factory.AmfConfig.CfgLocation = absPath
 
-	if os.Getenv("MANAGED_BY_CONFIG_POD") == "true" {
-		factory.AmfConfig.Configuration.ServedGumaiList = nil
-		factory.AmfConfig.Configuration.SupportTAIList = nil
-		factory.AmfConfig.Configuration.PlmnSupportList = nil
-		logger.InitLog.Infoln("Reading Amf related configuration from ROC")
-	} else {
-		go func() {
-			logger.GrpcLog.Infoln("reading Amf Configuration from Helm")
-			// sending true to the channel for sending NFRegistration to NRF
-			RocUpdateConfigChannel <- true
-		}()
-	}
-
 	return nil
-}
-
-func (amf *AMF) WatchConfig() {
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		logger.AppLog.Infoln("config file changed:", e.Name)
-		if err := factory.UpdateConfig(factory.AmfConfig.CfgLocation); err != nil {
-			logger.AppLog.Errorln("error in loading updated configuration")
-		} else {
-			self := amfContext.AMF_Self()
-			util.InitAmfContext(self)
-			logger.AppLog.Infoln("successfully updated configuration")
-		}
-	})
 }
 
 func (amf *AMF) setLogLevel() {
@@ -330,9 +302,32 @@ func (amf *AMF) Start() {
 			logger.InitLog.Errorf("initialise DRSM failed, %v", err.Error())
 		}
 	}
+	ctx, cancelServices := ctxt.WithCancel(ctxt.Background())
+
+	if factory.AmfConfig.Configuration.Telemetry != nil && factory.AmfConfig.Configuration.Telemetry.Enabled {
+		var tp *sdktrace.TracerProvider
+		tp, err = tracing.InitTracer(ctx, tracing.TelemetryConfig{
+			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
+			ServiceName:    "amf",
+			ServiceVersion: factory.AmfConfig.Info.Version,
+			Ratio:          *factory.AmfConfig.Configuration.Telemetry.Ratio,
+		})
+		if err != nil {
+			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
+		}
+		logger.InitLog.Infoln("tracer initialized successfully")
+		defer func() {
+			err = tp.Shutdown(ctx)
+			if err != nil {
+				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+			} else {
+				logger.InitLog.Infoln("tracer shutdown successfully")
+			}
+		}()
+	}
+
 	registrationChan := make(chan []nfConfigApi.AccessAndMobility, 1)
 	contextUpdateChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	ctx, cancelServices := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -402,28 +397,6 @@ func (amf *AMF) Start() {
 		amf.Terminate(cancelServices, &wg)
 		os.Exit(0)
 	}()
-
-	if factory.AmfConfig.Configuration.Telemetry != nil && factory.AmfConfig.Configuration.Telemetry.Enabled {
-		var tp *sdktrace.TracerProvider
-		tp, err = tracing.InitTracer(ctx, tracing.TelemetryConfig{
-			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
-			ServiceName:    "amf",
-			ServiceVersion: factory.AmfConfig.Info.Version,
-			Ratio:          *factory.AmfConfig.Configuration.Telemetry.Ratio,
-		})
-		if err != nil {
-			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
-		}
-		logger.InitLog.Infoln("tracer initialized successfully")
-		defer func() {
-			err = tp.Shutdown(ctx)
-			if err != nil {
-				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
-			} else {
-				logger.InitLog.Infoln("tracer shutdown successfully")
-			}
-		}()
-	}
 
 	sslLog := filepath.Dir(factory.AmfConfig.CfgLocation) + "/sslkey.log"
 	server, err := http2_util.NewServer(addr, sslLog, router)
@@ -500,7 +473,7 @@ func (amf *AMF) Exec(c *cli.Command) error {
 }
 
 // Used in AMF planned removal procedure
-func (amf *AMF) Terminate(cancelServices context.CancelFunc, wg *sync.WaitGroup) {
+func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup) {
 	logger.InitLog.Infoln("terminating AMF")
 	amfSelf := amfContext.AMF_Self()
 
@@ -514,7 +487,7 @@ func (amf *AMF) Terminate(cancelServices context.CancelFunc, wg *sync.WaitGroup)
 	// send AMF status indication to ran to notify ran that this AMF will be unavailable
 	logger.InitLog.Infoln("send AMF Status Indication to Notify RANs due to AMF terminating")
 	unavailableGuamiList := ngap_message.BuildUnavailableGUAMIList(amfSelf.ServedGuamiList)
-	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
+	amfSelf.AmfRanPool.Range(func(key, value any) bool {
 		ran := value.(*amfContext.AmfRan)
 		ngap_message.SendAMFStatusIndication(ran, unavailableGuamiList)
 		return true
@@ -524,7 +497,7 @@ func (amf *AMF) Terminate(cancelServices context.CancelFunc, wg *sync.WaitGroup)
 
 	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
 
-	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v interface{}) bool {
+	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v any) bool {
 		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {
 			logger.InitLog.Debugf("SubscriptionId is %v", subscriptionId.(string))
 			problemDetails, err := consumer.SendRemoveSubscription(ctx, subscriptionId.(string))
@@ -540,140 +513,6 @@ func (amf *AMF) Terminate(cancelServices context.CancelFunc, wg *sync.WaitGroup)
 	})
 
 	logger.InitLog.Infoln("AMF terminated")
-}
-
-func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []models.Tai, opType protos.OpType) {
-	var plmnFound bool
-	for plmnindex, p := range factory.AmfConfig.Configuration.PlmnSupportList {
-		if p.PlmnId == plmn.PlmnId {
-			plmnFound = true
-			var found bool
-			nssai_r := plmn.SNssaiList[0]
-			for i, nssai := range p.SNssaiList {
-				if nssai_r == nssai {
-					found = true
-					if opType == protos.OpType_SLICE_DELETE {
-						factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList = append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList[:i], p.SNssaiList[i+1:]...)
-						if len(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList) == 0 {
-							factory.AmfConfig.Configuration.PlmnSupportList = append(factory.AmfConfig.Configuration.PlmnSupportList[:plmnindex],
-								factory.AmfConfig.Configuration.PlmnSupportList[plmnindex+1:]...)
-
-							factory.AmfConfig.Configuration.ServedGumaiList = append(factory.AmfConfig.Configuration.ServedGumaiList[:plmnindex],
-								factory.AmfConfig.Configuration.ServedGumaiList[plmnindex+1:]...)
-						}
-					}
-					break
-				}
-			}
-
-			if !found && opType != protos.OpType_SLICE_DELETE {
-				logger.GrpcLog.Infoln("plmn found but slice not found in AMF Configuration")
-				factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList = append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList, nssai_r)
-			}
-			break
-		}
-	}
-
-	guami := models.Guami{PlmnId: &plmn.PlmnId, AmfId: "cafe00"}
-	if !plmnFound && opType != protos.OpType_SLICE_DELETE {
-		factory.AmfConfig.Configuration.PlmnSupportList = append(factory.AmfConfig.Configuration.PlmnSupportList, plmn)
-		factory.AmfConfig.Configuration.ServedGumaiList = append(factory.AmfConfig.Configuration.ServedGumaiList, guami)
-	}
-	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v received fromRoc", plmn, guami)
-	logger.GrpcLog.Infof("SupportedPlmnLIst: %v, SupportGuamiLIst: %v in AMF", factory.AmfConfig.Configuration.PlmnSupportList,
-		factory.AmfConfig.Configuration.ServedGumaiList)
-	// same plmn received but Tacs in gnb updated
-	nssai_r := plmn.SNssaiList[0]
-	slice := strconv.FormatInt(int64(nssai_r.Sst), 10) + nssai_r.Sd
-	delete(factory.AmfConfig.Configuration.SliceTaiList, slice)
-	if opType != protos.OpType_SLICE_DELETE {
-		// maintaining slice level tai List
-		if factory.AmfConfig.Configuration.SliceTaiList == nil {
-			factory.AmfConfig.Configuration.SliceTaiList = make(map[string][]models.Tai)
-		}
-		factory.AmfConfig.Configuration.SliceTaiList[slice] = taiList
-	}
-
-	amf.UpdateSupportedTaiList()
-	logger.GrpcLog.Infoln("gnb updated in existing Plmn, SupportTAILIst received from Roc: ", taiList)
-	logger.GrpcLog.Infoln("SupportTAILIst in AMF", factory.AmfConfig.Configuration.SupportTAIList)
-}
-
-func (amf *AMF) UpdateSupportedTaiList() {
-	factory.AmfConfig.Configuration.SupportTAIList = nil
-	for _, slice := range factory.AmfConfig.Configuration.SliceTaiList {
-		for _, tai := range slice {
-			logger.GrpcLog.Infoln("Tai list present in Slice", tai, factory.AmfConfig.Configuration.SupportTAIList)
-			factory.AmfConfig.Configuration.SupportTAIList = append(factory.AmfConfig.Configuration.SupportTAIList, tai)
-		}
-	}
-}
-
-func (amf *AMF) UpdateConfig(ctx ctxt.Context, commChannel chan *protos.NetworkSliceResponse) bool {
-	for rsp := range commChannel {
-		logger.GrpcLog.Infof("received updateConfig in the amf app: %v", rsp)
-		var tai []models.Tai
-		for _, ns := range rsp.NetworkSlice {
-			var snssai *models.Snssai
-			logger.GrpcLog.Infoln("network Slice Name", ns.Name)
-			if ns.Nssai != nil {
-				snssai = new(models.Snssai)
-				val, err := strconv.ParseInt(ns.Nssai.Sst, 10, 64)
-				if err != nil {
-					logger.GrpcLog.Errorln(err)
-				}
-				snssai.Sst = int32(val)
-				snssai.Sd = ns.Nssai.Sd
-			}
-			// inform connected UEs with update slices
-			if len(ns.DeletedImsis) > 0 {
-				HandleImsiDeleteFromNetworkSlice(ctx, ns)
-			}
-			//TODO Inform connected UEs with update Slice
-			/*if len(ns.AddUpdatedImsis) > 0 {
-				HandleImsiAddInNetworkSlice(ns)
-			}*/
-
-			if ns.Site != nil {
-				site := ns.Site
-				logger.GrpcLog.Infoln("network Slice has site name:", site.SiteName)
-				if site.Plmn != nil {
-					plmn := new(factory.PlmnSupportItem)
-
-					logger.GrpcLog.Infoln("Plmn mcc", site.Plmn.Mcc)
-					plmn.PlmnId.Mnc = site.Plmn.Mnc
-					plmn.PlmnId.Mcc = site.Plmn.Mcc
-
-					if ns.Nssai != nil {
-						plmn.SNssaiList = append(plmn.SNssaiList, *snssai)
-					}
-					if site.Gnb != nil {
-						for _, gnb := range site.Gnb {
-							var t models.Tai
-							t.PlmnId = new(models.PlmnId)
-							t.PlmnId.Mnc = site.Plmn.Mnc
-							t.PlmnId.Mcc = site.Plmn.Mcc
-							t.Tac = strconv.Itoa(int(gnb.Tac))
-							tai = append(tai, t)
-						}
-					}
-
-					amf.UpdateAmfConfiguration(*plmn, tai, ns.OperationType)
-				} else {
-					logger.GrpcLog.Infoln("Plmn not present in the message")
-				}
-			}
-		}
-
-		// Update PlmnSupportList/ServedGuamiList/ServedTAIList in Amf Config
-		// factory.AmfConfig.Configuration.ServedGumaiList = nil
-		// factory.AmfConfig.Configuration.PlmnSupportList = nil
-		if len(factory.AmfConfig.Configuration.ServedGumaiList) > 0 {
-			RocUpdateConfigChannel <- true
-		}
-		factory.AmfConfig.Rcvd = true
-	}
-	return true
 }
 
 func UeConfigSliceDeleteHandler(ctx ctxt.Context, supi, sst, sd string, msg interface{}) {

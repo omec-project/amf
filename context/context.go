@@ -642,17 +642,19 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.Reset()
 		return nil
 	}
-	newSupportedTais, newPlmnSupportItems := convertAccessAndMobilityList(newConfig)
+	newSupportedTais, newPlmnSupportItems, newSliceTaiMap := convertAccessAndMobilityList(newConfig)
 	amfContext.SupportTaiLists = newSupportedTais
 	amfContext.PlmnSupportList = newPlmnSupportItems
+	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
 
-	logger.ContextLog.Debugf("AMF context updated from dynamic session management config successfully")
+	logger.ContextLog.Debugf("AMF context updated from dynamic config successfully")
 	return nil
 }
 
-func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem) {
+func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, map[string][]models.Tai) {
 	var newSupportedTais []models.Tai
 	var newPlmnSupportList []factory.PlmnSupportItem
+	newSliceTaiMap := make(map[string][]models.Tai)
 	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
 
 	for _, plmnSnssaiTacs := range newConfig {
@@ -660,14 +662,17 @@ func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 			Mcc: plmnSnssaiTacs.PlmnId.Mcc,
 			Mnc: plmnSnssaiTacs.PlmnId.Mnc,
 		}
-		for _, tac := range plmnSnssaiTacs.Tacs {
-			newSupportedTais = append(newSupportedTais, models.Tai{
-				PlmnId: &newPlmn,
-				Tac:    tac,
-			})
-		}
 		newSnssai := models.Snssai{
 			Sst: plmnSnssaiTacs.Snssai.Sst,
+		}
+		snssaiStr := strconv.FormatInt(int64(plmnSnssaiTacs.Snssai.GetSst()), 10) + plmnSnssaiTacs.Snssai.GetSd()
+		for _, tac := range plmnSnssaiTacs.Tacs {
+			newTai := models.Tai{
+				PlmnId: &newPlmn,
+				Tac:    tac,
+			}
+			newSupportedTais = append(newSupportedTais, newTai)
+			newSliceTaiMap[snssaiStr] = append(newSliceTaiMap[snssaiStr], newTai)
 		}
 		if plmnSnssaiTacs.Snssai.Sd != nil {
 			newSnssai.Sd = *plmnSnssaiTacs.Snssai.Sd
@@ -678,7 +683,7 @@ func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 		newPlmnSupportItemsMap[newPlmn][newSnssai] = struct{}{}
 	}
 	newPlmnSupportList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
-	return newSupportedTais, newPlmnSupportList
+	return newSupportedTais, newPlmnSupportList, newSliceTaiMap
 }
 
 func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) []factory.PlmnSupportItem {

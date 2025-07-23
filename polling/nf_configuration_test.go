@@ -45,7 +45,7 @@ func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) nf
 	}
 }
 
-func TstStartPollingService_Success(t *testing.T) {
+func TestStartPollingService_Success(t *testing.T) {
 	ctx := t.Context()
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
 	originalFactoryConfig := factory.AmfConfig
@@ -87,7 +87,7 @@ func TstStartPollingService_Success(t *testing.T) {
 	}
 }
 
-func TstStartPollingService_RetryAfterFailure(t *testing.T) {
+func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
 	defer func() { fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig }()
@@ -109,7 +109,7 @@ func TstStartPollingService_RetryAfterFailure(t *testing.T) {
 	t.Logf("Tried %v times", callCount)
 }
 
-func TstStartPollingService_NoUpdateOnIdenticalConfig(t *testing.T) {
+func TestStartPollingService_NoUpdateOnIdenticalConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	originalFetcher := fetchAccessAndMobilityConfig
@@ -136,7 +136,7 @@ func TstStartPollingService_NoUpdateOnIdenticalConfig(t *testing.T) {
 	}
 }
 
-func TstStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
+func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	originalFetcher := fetchAccessAndMobilityConfig

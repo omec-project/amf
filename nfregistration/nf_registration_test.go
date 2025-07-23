@@ -24,18 +24,18 @@ func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *t
 	isDeregisterNFCalled := false
 	testCases := []struct {
 		name                         string
-		sendDeregisterNFInstanceMock func() error
+		sendDeregisterNFInstanceMock func(ctx context.Context) error
 	}{
 		{
 			name: "Success",
-			sendDeregisterNFInstanceMock: func() error {
+			sendDeregisterNFInstanceMock: func(ctx context.Context) error {
 				isDeregisterNFCalled = true
 				return nil
 			},
 		},
 		{
 			name: "ErrorInDeregisterNFInstance",
-			sendDeregisterNFInstanceMock: func() error {
+			sendDeregisterNFInstanceMock: func(ctx context.Context) error {
 				isDeregisterNFCalled = true
 				return errors.New("mock error")
 			},
@@ -92,7 +92,7 @@ func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTi
 	}()
 
 	registrations := []nfConfigApi.AccessAndMobility{}
-	consumer.SendRegisterNFInstance = func(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
 		profile := models.NfProfile{HeartBeatTimer: 60}
 		registrations = append(registrations, accessAndMobilityConfig...)
 		return profile, "", nil
@@ -129,7 +129,7 @@ func TestNfRegistrationService_ConfigChanged_RetryIfRegisterNFFails(t *testing.T
 	}()
 
 	called := 0
-	consumer.SendRegisterNFInstance = func(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
 		profile := models.NfProfile{HeartBeatTimer: 60}
 		called++
 		return profile, "", errors.New("mock error")
@@ -243,13 +243,13 @@ func TestHeartbeatNF_Success(t *testing.T) {
 	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (models.NfProfile, *models.ProblemDetails, error) {
 		return models.NfProfile{}, nil, nil
 	}
-	consumer.SendRegisterNFInstance = func(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
 		calledRegister = true
 		profile := models.NfProfile{HeartBeatTimer: 60}
 		return profile, "", nil
 	}
 	accessAndMobilityConfig := []nfConfigApi.AccessAndMobility{}
-	heartbeatNF(accessAndMobilityConfig)
+	heartbeatNF(t.Context(), accessAndMobilityConfig)
 
 	if calledRegister {
 		t.Errorf("expected registerNF to be called on error")
@@ -276,14 +276,14 @@ func TestHeartbeatNF_WhenNfUpdateFails_ThenNfRegistersIsCalled(t *testing.T) {
 		return models.NfProfile{}, nil, errors.New("mock error")
 	}
 
-	consumer.SendRegisterNFInstance = func(accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
 		profile := models.NfProfile{HeartBeatTimer: 60}
 		calledRegister = true
 		return profile, "", nil
 	}
 
 	accessAndMobilityConfig := []nfConfigApi.AccessAndMobility{}
-	heartbeatNF(accessAndMobilityConfig)
+	heartbeatNF(t.Context(), accessAndMobilityConfig)
 
 	if !calledRegister {
 		t.Errorf("expected registerNF to be called on error")
@@ -336,7 +336,7 @@ func TestStartKeepAliveTimer_UsesProfileTimerOnlyWhenGreaterThanZero(t *testing.
 			}
 			defer func() { afterFunc = time.AfterFunc }()
 
-			startKeepAliveTimer(tc.profileTime, nil)
+			startKeepAliveTimer(t.Context(), tc.profileTime, nil)
 			if tc.expectedDuration != capturedDuration {
 				t.Errorf("Expected %v duration, got %v", tc.expectedDuration, capturedDuration)
 			}
