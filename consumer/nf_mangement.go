@@ -21,48 +21,65 @@ import (
 )
 
 func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile, err error) {
+	logger.ConsumerLog.Debugf("Building NFInstance profile for NfId: %s", context.NfId)
 	profile.NfInstanceId = context.NfId
 	profile.NfType = models.NfType_AMF
 	profile.NfStatus = models.NfStatus_REGISTERED
+
 	var plmns []models.PlmnId
 	for _, plmnItem := range context.PlmnSupportList {
+		logger.ConsumerLog.Debugf("Adding PLMN: %+v", plmnItem.PlmnId)
 		plmns = append(plmns, plmnItem.PlmnId)
 	}
 	if len(plmns) > 0 {
 		profile.PlmnList = &plmns
 		// TODO: change to Per Plmn Support Snssai List
 		profile.SNssais = &context.PlmnSupportList[0].SNssaiList
+		logger.ConsumerLog.Debugf("Set PlmnList and SNssais")
 	}
+
 	amfInfo := models.AmfInfo{}
 	if len(context.ServedGuamiList) == 0 {
 		err = fmt.Errorf("gumai List is Empty in AMF")
+		logger.ConsumerLog.Errorf("gumai List is Empty in AMF")
 		return profile, err
 	}
 	regionId, setId, _, err1 := util.SeperateAmfId(context.ServedGuamiList[0].AmfId)
 	if err1 != nil {
 		err = err1
+		logger.ConsumerLog.Errorf("Failed to separate AmfId: %v", err1)
 		return profile, err
 	}
 	amfInfo.AmfRegionId = regionId
 	amfInfo.AmfSetId = setId
 	amfInfo.GuamiList = &context.ServedGuamiList
+	logger.ConsumerLog.Debugf("Set AmfRegionId: %s, AmfSetId: %s, GuamiList: %+v", regionId, setId, context.ServedGuamiList)
+
 	if len(context.SupportTaiLists) == 0 {
 		err = fmt.Errorf("SupportTaiList is Empty in AMF")
+		logger.ConsumerLog.Errorf("SupportTaiList is Empty in AMF")
 		return profile, err
 	}
 	amfInfo.TaiList = &context.SupportTaiLists
 	profile.AmfInfo = &amfInfo
+	logger.ConsumerLog.Debugf("Set TaiList: %+v", context.SupportTaiLists)
+
 	if context.RegisterIPv4 == "" {
 		err = fmt.Errorf("AMF Address is empty")
+		logger.ConsumerLog.Errorf("AMF Address is empty")
 		return profile, err
 	}
 	profile.Ipv4Addresses = append(profile.Ipv4Addresses, context.RegisterIPv4)
+	logger.ConsumerLog.Debugf("Set RegisterIPv4: %s", context.RegisterIPv4)
+
 	service := []models.NfService{}
 	for _, nfService := range context.NfService {
+		logger.ConsumerLog.Debugf("Adding NfService: %+v", nfService)
 		service = append(service, nfService)
 	}
 	if len(service) > 0 {
 		profile.NfServices = &service
+		logger.ConsumerLog.Debugf("Set NfServices")
 	}
 
 	defaultNotificationSubscription := models.DefaultNotificationSubscription{
@@ -71,6 +88,9 @@ func BuildNFInstance(context *amf_context.AMFContext) (profile models.NfProfile,
 		N1MessageClass:   models.N1MessageClass__5_GMM,
 	}
 	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
+	logger.ConsumerLog.Debugf("Set DefaultNotificationSubscriptions: %+v", defaultNotificationSubscription)
+
+	logger.ConsumerLog.Debugf("NFInstance profile build complete: %+v", profile)
 	return profile, err
 }
 

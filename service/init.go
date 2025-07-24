@@ -621,7 +621,7 @@ func (amf *AMF) UpdateAmfConfiguration(plmn factory.PlmnSupportItem, taiList []m
 			var found bool
 			nssai_r := plmn.SNssaiList[0]
 			for i, nssai := range p.SNssaiList {
-				if nssai_r == nssai {
+				if util.CompareExtSnssai(nssai_r, nssai) {
 					found = true
 					if opType == protos.OpType_SLICE_DELETE {
 						factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList = append(factory.AmfConfig.Configuration.PlmnSupportList[plmnindex].SNssaiList[:i], p.SNssaiList[i+1:]...)
