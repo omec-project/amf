@@ -26,6 +26,7 @@ func TestUpdateAMFContext(t *testing.T) {
 		accessAndMobilityConfig []nfConfigApi.AccessAndMobility
 		expectedSupportTaiLists []models.Tai
 		expectedPlmnSupportList []factory.PlmnSupportItem
+		expectedSliceTaiList    map[string][]models.Tai
 	}{
 		{
 			name: "One Access and Mobility config",
@@ -47,6 +48,14 @@ func TestUpdateAMFContext(t *testing.T) {
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
 						{Sst: 1, Sd: "01"},
+					},
+				},
+			},
+			expectedSliceTaiList: map[string][]models.Tai{
+				"101": {
+					{
+						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+						Tac:    "1",
 					},
 				},
 			},
@@ -89,6 +98,20 @@ func TestUpdateAMFContext(t *testing.T) {
 					},
 				},
 			},
+			expectedSliceTaiList: map[string][]models.Tai{
+				"101": {
+					{
+						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+						Tac:    "1",
+					},
+				},
+				"201": {
+					{
+						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
+						Tac:    "2",
+					},
+				},
+			},
 		},
 		{
 			name: "Two Access and Mobility configs (same PLMN, different SNssai)",
@@ -123,6 +146,20 @@ func TestUpdateAMFContext(t *testing.T) {
 					},
 				},
 			},
+			expectedSliceTaiList: map[string][]models.Tai{
+				"101": {
+					{
+						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+						Tac:    "1",
+					},
+				},
+				"201": {
+					{
+						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+						Tac:    "2",
+					},
+				},
+			},
 		},
 	}
 
@@ -144,6 +181,9 @@ func TestUpdateAMFContext(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tc.expectedPlmnSupportList, amfContext.PlmnSupportList) {
 				t.Errorf("expected PlmnSupportList: %#v, got: %#v", tc.expectedPlmnSupportList, amfContext.PlmnSupportList)
+			}
+			if !reflect.DeepEqual(tc.expectedSliceTaiList, factory.AmfConfig.Configuration.SliceTaiList) {
+				t.Errorf("expected SliceTaiList: %#v, got: %#v", tc.expectedPlmnSupportList, factory.AmfConfig.Configuration.SliceTaiList)
 			}
 		})
 	}
