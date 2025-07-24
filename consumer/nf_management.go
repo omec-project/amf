@@ -68,60 +68,6 @@ func getNfProfile(amfContext *amfContext.AMFContext, accessAndMobilityConfig []n
 	return profile, nil
 }
 
-func BuildNFInstance(amfContext *amfContext.AMFContext) (profile models.NfProfile, err error) {
-	profile.NfInstanceId = amfContext.NfId
-	profile.NfType = models.NfType_AMF
-	profile.NfStatus = models.NfStatus_REGISTERED
-	var plmns []models.PlmnId
-	for _, plmnItem := range amfContext.PlmnSupportList {
-		plmns = append(plmns, plmnItem.PlmnId)
-	}
-	if len(plmns) > 0 {
-		profile.PlmnList = &plmns
-		// TODO: change to Per Plmn Support Snssai List
-		profile.SNssais = &amfContext.PlmnSupportList[0].SNssaiList
-	}
-	amfInfo := models.AmfInfo{}
-	if len(amfContext.ServedGuamiList) == 0 {
-		err = fmt.Errorf("gumai List is Empty in AMF")
-		return profile, err
-	}
-	regionId, setId, _, err1 := util.SeperateAmfId(amfContext.ServedGuamiList[0].AmfId)
-	if err1 != nil {
-		err = err1
-		return profile, err
-	}
-	amfInfo.AmfRegionId = regionId
-	amfInfo.AmfSetId = setId
-	amfInfo.GuamiList = &amfContext.ServedGuamiList
-	if len(amfContext.SupportTaiLists) == 0 {
-		err = fmt.Errorf("SupportTaiList is Empty in AMF")
-		return profile, err
-	}
-	amfInfo.TaiList = &amfContext.SupportTaiLists
-	profile.AmfInfo = &amfInfo
-	if amfContext.RegisterIPv4 == "" {
-		err = fmt.Errorf("AMF Address is empty")
-		return profile, err
-	}
-	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfContext.RegisterIPv4)
-	service := []models.NfService{}
-	for _, nfService := range amfContext.NfService {
-		service = append(service, nfService)
-	}
-	if len(service) > 0 {
-		profile.NfServices = &service
-	}
-
-	defaultNotificationSubscription := models.DefaultNotificationSubscription{
-		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfContext.GetIPv4Uri()),
-		NotificationType: models.NotificationType_N1_MESSAGES,
-		N1MessageClass:   models.N1MessageClass__5_GMM,
-	}
-	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
-	return profile, err
-}
-
 var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (prof models.NfProfile, resourceNrfUri string, err error) {
 	self := amfContext.AMF_Self()
 	nfProfile, err := getNfProfile(self, accessAndMobilityConfig)
