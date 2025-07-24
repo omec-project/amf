@@ -110,7 +110,7 @@ func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 	t.Logf("Tried %v times", callCount)
 }
 
-func TestStartPollingService_NoUpdateOnIdenticalConfig(t *testing.T) {
+func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	originalFetcher := fetchAccessAndMobilityConfig

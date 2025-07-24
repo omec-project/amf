@@ -59,7 +59,10 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 				logger.PollConfigLog.Infof("Access and Mobility config changed. New Access and Mobility: %+v", newAccessMobilityConfig)
 				poller.currentAccessAndMobilityConfig = deepcopy.Copy(newAccessMobilityConfig).([]nfConfigApi.AccessAndMobility)
 				contextUpdateChannel <- newAccessMobilityConfig
-				registrationChannel <- newAccessMobilityConfig
+				if plmnListIsChanged(poller.currentAccessAndMobilityConfig, newAccessMobilityConfig) {
+					logger.PollConfigLog.Debugf("Supported PLMN list changed")
+					registrationChannel <- newAccessMobilityConfig
+				}
 			} else {
 				logger.PollConfigLog.Debugf("Access and Mobility config did not change %+v", newAccessMobilityConfig)
 			}
@@ -118,4 +121,16 @@ func minDuration(a, b time.Duration) time.Duration {
 		return a
 	}
 	return b
+}
+
+func plmnListIsChanged(oldAccessMobilityConfig, newAccessMobilityConfig []nfConfigApi.AccessAndMobility) bool {
+	oldPlmnList := []nfConfigApi.PlmnId{}
+	newPlmnList := []nfConfigApi.PlmnId{}
+	for _, plmnSnssaiTac := range oldAccessMobilityConfig {
+		oldPlmnList = append(oldPlmnList, plmnSnssaiTac.PlmnId)
+	}
+	for _, plmnSnssaiTac := range newAccessMobilityConfig {
+		newPlmnList = append(newPlmnList, plmnSnssaiTac.PlmnId)
+	}
+	return !reflect.DeepEqual(oldPlmnList, newPlmnList)
 }
