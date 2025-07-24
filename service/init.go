@@ -332,18 +332,7 @@ func (amf *AMF) Start() {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		polling.StartPollingService(ctx, factory.AmfConfig.Configuration.WebuiUri, func(cfg []nfConfigApi.AccessAndMobility) {
-			select {
-			case registrationChan <- cfg:
-			default:
-				logger.PollConfigLog.Warn("registrationChan full, dropping config")
-			}
-			select {
-			case contextUpdateChan <- cfg:
-			default:
-				logger.PollConfigLog.Warn("contextUpdateChan full, dropping config")
-			}
-		})
+		polling.StartPollingService(ctx, factory.AmfConfig.Configuration.WebuiUri, registrationChan, contextUpdateChan)
 	}()
 	go func() {
 		defer wg.Done()

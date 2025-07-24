@@ -71,14 +71,13 @@ func TestStartPollingService_Success(t *testing.T) {
 	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, pollingEndpoint string) ([]nfConfigApi.AccessAndMobility, error) {
 		return expectedConfig, nil
 	}
-	accessMobilityChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	go StartPollingService(ctx, "http://dummy", func(cfg []nfConfigApi.AccessAndMobility) {
-		accessMobilityChan <- cfg
-	})
+	regChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	go StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 	time.Sleep(initialPollingInterval)
 
 	select {
-	case result := <-accessMobilityChan:
+	case result := <-updateCtxChan:
 		if !reflect.DeepEqual(result, expectedConfig) {
 			t.Errorf("Expected %+v, got %+v", expectedConfig, result)
 		}
@@ -97,7 +96,9 @@ func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 		callCount++
 		return nil, errors.New("mock failure")
 	}
-	go StartPollingService(ctx, "http://dummy", func([]nfConfigApi.AccessAndMobility) {})
+	regChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	go StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 
 	time.Sleep(4 * initialPollingInterval)
 	cancel()
@@ -121,13 +122,21 @@ func TestStartPollingService_NoUpdateOnIdenticalConfig(t *testing.T) {
 		return expectedConfig, nil
 	}
 
-	ch := make(chan struct{}, 1)
-	go StartPollingService(ctx, "http://dummy", func(_ []nfConfigApi.AccessAndMobility) {
-		callCount++
-		ch <- struct{}{}
-	})
+	regChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	go StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 
-	time.Sleep(2 * initialPollingInterval)
+	timeout := time.After(5 * initialPollingInterval)
+	for i := range 1 {
+		select {
+		case <-updateCtxChan:
+			// expected update
+			callCount++
+		case <-timeout:
+			t.Fatalf("Timed out waiting for config update #%d", i+1)
+		}
+	}
+
 	cancel()
 	<-ctx.Done()
 
@@ -152,16 +161,15 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 		return []nfConfigApi.AccessAndMobility{accessMobility2}, nil
 	}
 
-	ch := make(chan struct{}, 2)
-	go StartPollingService(ctx, "http://dummy", func(_ []nfConfigApi.AccessAndMobility) {
-		callCount++
-		ch <- struct{}{}
-	})
+	regChan := make(chan []nfConfigApi.AccessAndMobility, 2)
+	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 2)
+	go StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 
 	timeout := time.After(5 * initialPollingInterval)
 	for i := 0; i < 2; i++ {
 		select {
-		case <-ch:
+		case <-updateCtxChan:
+			callCount++
 			// expected update
 		case <-timeout:
 			t.Fatalf("Timed out waiting for config update #%d", i+1)

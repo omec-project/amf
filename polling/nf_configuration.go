@@ -34,7 +34,7 @@ type nfConfigPoller struct {
 
 // StartPollingService initializes the polling service and starts it. The polling service
 // continuously makes a HTTP GET request to the webconsole and updates the network configuration
-func StartPollingService(ctx context.Context, webuiUri string, onUpdate func([]nfConfigApi.AccessAndMobility)) {
+func StartPollingService(ctx context.Context, webuiUri string, registrationChannel, contextUpdateChannel chan []nfConfigApi.AccessAndMobility) {
 	poller := nfConfigPoller{
 		currentAccessAndMobilityConfig: []nfConfigApi.AccessAndMobility{},
 		client:                         &http.Client{Timeout: initialPollingInterval},
@@ -58,7 +58,8 @@ func StartPollingService(ctx context.Context, webuiUri string, onUpdate func([]n
 			if !reflect.DeepEqual(newAccessMobilityConfig, poller.currentAccessAndMobilityConfig) {
 				logger.PollConfigLog.Infof("Access and Mobility config changed. New Access and Mobility: %+v", newAccessMobilityConfig)
 				poller.currentAccessAndMobilityConfig = deepcopy.Copy(newAccessMobilityConfig).([]nfConfigApi.AccessAndMobility)
-				onUpdate(newAccessMobilityConfig)
+				contextUpdateChannel <- newAccessMobilityConfig
+				registrationChannel <- newAccessMobilityConfig
 			} else {
 				logger.PollConfigLog.Debugf("Access and Mobility config did not change %+v", newAccessMobilityConfig)
 			}
