@@ -63,8 +63,6 @@ type AMF struct{}
 
 const IMSI_PREFIX = "imsi-"
 
-var RocUpdateConfigChannel chan bool
-
 type (
 	// Config information.
 	Config struct {
@@ -86,10 +84,6 @@ var (
 	KeepAliveTimer      *time.Timer
 	KeepAliveTimerMutex sync.Mutex
 )
-
-func init() {
-	RocUpdateConfigChannel = make(chan bool)
-}
 
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
 	return amfCLi
@@ -327,7 +321,7 @@ func (amf *AMF) Start() {
 	registrationChan := make(chan []nfConfigApi.AccessAndMobility, 1)
 	contextUpdateChan := make(chan []nfConfigApi.AccessAndMobility, 1)
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		polling.StartPollingService(ctx, factory.AmfConfig.Configuration.WebuiUri, registrationChan, contextUpdateChan)
@@ -339,6 +333,7 @@ func (amf *AMF) Start() {
 
 	// Update AMF context using polled config
 	go func() {
+		defer wg.Done()
 		for {
 			select {
 			case <-ctx.Done():
