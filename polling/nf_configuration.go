@@ -17,6 +17,7 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 )
 
@@ -57,7 +58,7 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 			interval = initialPollingInterval
 			if !reflect.DeepEqual(newAccessMobilityConfig, poller.currentAccessAndMobilityConfig) {
 				logger.PollConfigLog.Infof("Access and Mobility config changed. New Access and Mobility: %+v", newAccessMobilityConfig)
-				if plmnListIsChanged(poller.currentAccessAndMobilityConfig, newAccessMobilityConfig) {
+				if plmnListOrTaiHasChanged(poller.currentAccessAndMobilityConfig, newAccessMobilityConfig) {
 					logger.PollConfigLog.Debugf("Supported PLMN list changed")
 					select {
 					case registrationChannel <- newAccessMobilityConfig:
@@ -124,16 +125,32 @@ func (p *nfConfigPoller) fetchAccessAndMobilityConfig(pollingEndpoint string) ([
 	}
 }
 
-func plmnListIsChanged(oldAccessMobilityConfig, newAccessMobilityConfig []nfConfigApi.AccessAndMobility) bool {
+func plmnListOrTaiHasChanged(oldAccessMobilityConfig, newAccessMobilityConfig []nfConfigApi.AccessAndMobility) bool {
 	oldPlmnList := []nfConfigApi.PlmnId{}
+	oldSupportedTais := []models.Tai{}
 	newPlmnList := []nfConfigApi.PlmnId{}
+	newSupportedTais := []models.Tai{}
 	for _, plmnSnssaiTac := range oldAccessMobilityConfig {
 		oldPlmnList = append(oldPlmnList, plmnSnssaiTac.PlmnId)
+		for _, tac := range plmnSnssaiTac.Tacs {
+			tai := models.Tai{
+				PlmnId: &models.PlmnId{Mcc: plmnSnssaiTac.PlmnId.Mcc, Mnc: plmnSnssaiTac.PlmnId.Mnc},
+				Tac:    tac,
+			}
+			oldSupportedTais = append(oldSupportedTais, tai)
+		}
 	}
 	for _, plmnSnssaiTac := range newAccessMobilityConfig {
 		newPlmnList = append(newPlmnList, plmnSnssaiTac.PlmnId)
+		for _, tac := range plmnSnssaiTac.Tacs {
+			tai := models.Tai{
+				PlmnId: &models.PlmnId{Mcc: plmnSnssaiTac.PlmnId.Mcc, Mnc: plmnSnssaiTac.PlmnId.Mnc},
+				Tac:    tac,
+			}
+			newSupportedTais = append(newSupportedTais, tai)
+		}
 	}
-	return !reflect.DeepEqual(oldPlmnList, newPlmnList)
+	return !reflect.DeepEqual(oldPlmnList, newPlmnList) || !reflect.DeepEqual(oldSupportedTais, newSupportedTais)
 }
 
 func minDuration(a, b time.Duration) time.Duration {
