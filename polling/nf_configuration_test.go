@@ -144,6 +144,9 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	originalFetcher := fetchAccessAndMobilityConfig
 	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
 	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
+	if err != nil {
+		t.Fatalf("Failed to create access mobility config: %v", err)
+	}
 	accessMobility2, err := makeAccessMobilityConfig("111", "02", "1", "1", []string{"2"})
 	if err != nil {
 		t.Fatalf("Failed to create access mobility config: %v", err)

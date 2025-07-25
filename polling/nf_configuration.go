@@ -57,12 +57,6 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 			interval = initialPollingInterval
 			if !reflect.DeepEqual(newAccessMobilityConfig, poller.currentAccessAndMobilityConfig) {
 				logger.PollConfigLog.Infof("Access and Mobility config changed. New Access and Mobility: %+v", newAccessMobilityConfig)
-				poller.currentAccessAndMobilityConfig = deepcopy.Copy(newAccessMobilityConfig).([]nfConfigApi.AccessAndMobility)
-				select {
-				case contextUpdateChannel <- newAccessMobilityConfig:
-				default:
-					logger.PollConfigLog.Warnln("contextUpdateChan full, dropping config")
-				}
 				if plmnListIsChanged(poller.currentAccessAndMobilityConfig, newAccessMobilityConfig) {
 					logger.PollConfigLog.Debugf("Supported PLMN list changed")
 					select {
@@ -70,6 +64,12 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 					default:
 						logger.PollConfigLog.Warnln("registrationChan full, dropping config")
 					}
+				}
+				poller.currentAccessAndMobilityConfig = deepcopy.Copy(newAccessMobilityConfig).([]nfConfigApi.AccessAndMobility)
+				select {
+				case contextUpdateChannel <- newAccessMobilityConfig:
+				default:
+					logger.PollConfigLog.Warnln("contextUpdateChan full, dropping config")
 				}
 			} else {
 				logger.PollConfigLog.Debugf("Access and Mobility config did not change %+v", newAccessMobilityConfig)

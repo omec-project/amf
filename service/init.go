@@ -318,8 +318,8 @@ func (amf *AMF) Start() {
 		}()
 	}
 
-	registrationChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	contextUpdateChan := make(chan []nfConfigApi.AccessAndMobility, 1)
+	registrationChan := make(chan []nfConfigApi.AccessAndMobility, 100)
+	contextUpdateChan := make(chan []nfConfigApi.AccessAndMobility, 100)
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() {
