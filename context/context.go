@@ -642,7 +642,7 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.Reset()
 		return nil
 	}
-	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := convertAccessAndMobilityList(newConfig)
+	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := ConvertAccessAndMobilityList(newConfig)
 	amfContext.SupportTaiLists = newSupportedTais
 	amfContext.PlmnSupportList = newPlmnSupportItems
 	amfContext.ServedGuamiList = newGuamiList
@@ -652,7 +652,7 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 	return nil
 }
 
-func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
+func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
 	var newSupportedTais []models.Tai
 	var newPlmnSupportList []factory.PlmnSupportItem
 	var newGuamiList []models.Guami

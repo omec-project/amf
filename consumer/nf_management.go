@@ -22,38 +22,39 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func getNfProfile(amfContext *amfContext.AMFContext, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (profile models.NfProfile, err error) {
-	if amfContext == nil {
+func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (profile models.NfProfile, err error) {
+	if amfCtx == nil {
 		return profile, fmt.Errorf("amf context has not been intialized. NF profile cannot be built")
 	}
-	profile.NfInstanceId = amfContext.NfId
+	newSupportedTais, _, newGuamiList, _ := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
+	profile.NfInstanceId = amfCtx.NfId
 	profile.NfType = models.NfType_AMF
 	profile.NfStatus = models.NfStatus_REGISTERED
-	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfContext.RegisterIPv4)
+	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfCtx.RegisterIPv4)
 	services := []models.NfService{}
-	for _, nfService := range amfContext.NfService {
+	for _, nfService := range amfCtx.NfService {
 		services = append(services, nfService)
 	}
 	if len(services) > 0 {
 		profile.NfServices = &services
 	}
 	var amfInfo models.AmfInfo
-	if len(amfContext.ServedGuamiList) == 0 {
+	if len(newGuamiList) == 0 {
 		err = fmt.Errorf("guami list is empty in AMF")
 		return profile, err
 	}
-	regionId, setId, _, err := util.SeparateAmfId(amfContext.ServedGuamiList[0].AmfId)
+	regionId, setId, _, err := util.SeparateAmfId(newGuamiList[0].AmfId)
 	if err != nil {
 		return profile, err
 	}
 	amfInfo.AmfRegionId = regionId
 	amfInfo.AmfSetId = setId
-	amfInfo.GuamiList = &amfContext.ServedGuamiList
-	if len(amfContext.SupportTaiLists) == 0 {
+	amfInfo.GuamiList = &newGuamiList
+	if len(newSupportedTais) == 0 {
 		err = fmt.Errorf("SupportTaiList is empty in AMF")
 		return profile, err
 	}
-	amfInfo.TaiList = &amfContext.SupportTaiLists
+	amfInfo.TaiList = &newSupportedTais
 	profile.AmfInfo = &amfInfo
 	plmnCopy := make([]models.PlmnId, len(accessAndMobilityConfig))
 	for _, accessAndMobilityData := range accessAndMobilityConfig {
