@@ -26,6 +26,31 @@ func init() {
 
 	self := context.AMF_Self()
 	util.InitAmfContext(self)
+	self.ServedGuamiList = []models.Guami{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			AmfId:  "cafe00",
+		},
+	}
+	self.SupportTaiLists = []models.Tai{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			Tac:    "1",
+		},
+	}
+	self.PlmnSupportList = []factory.PlmnSupportItem{
+		{
+			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
+			SNssaiList: []models.Snssai{
+				{
+					Sst: 1, Sd: "010203",
+				},
+				{
+					Sst: 1, Sd: "112233",
+				},
+			},
+		},
+	}
 
 	gmm.Mockinit()
 }

@@ -14,25 +14,31 @@ import (
 
 // Webui URL is not set then default Webui URL value is returned
 func TestGetDefaultWebuiUrl(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {
-		t.Logf("Error in InitConfigFactory: %v", err)
+		t.Errorf("Error in InitConfigFactory: %v", err)
 	}
 	got := AmfConfig.Configuration.WebuiUri
-	want := "webui:9876"
+	want := "http://webui:5001"
 	assert.Equal(t, got, want, "The webui URL is not correct.")
 }
 
 // Webui URL is set to a custom value then custom Webui URL is returned
 func TestGetCustomWebuiUrl(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("../amfTest/amfcfg_with_custom_webui_url.yaml"); err != nil {
-		t.Logf("Error in InitConfigFactory: %v", err)
+		t.Errorf("Error in InitConfigFactory: %v", err)
 	}
 	got := AmfConfig.Configuration.WebuiUri
-	want := "myspecialwebui:9872"
+	want := "https://myspecialwebui:5002"
 	assert.Equal(t, got, want, "The webui URL is not correct.")
 }
 
 func TestNoTelemetryConfig(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("testdata/no_telemetry.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -43,6 +49,8 @@ func TestNoTelemetryConfig(t *testing.T) {
 }
 
 func TestTelemetryConfigEnabled(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("testdata/telemetry.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -65,6 +73,8 @@ func TestTelemetryConfigEnabled(t *testing.T) {
 }
 
 func TestTelemetryConfigEnabledNoRatioDefaultsTo1(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("testdata/telemetry_no_ratio.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -87,6 +97,8 @@ func TestTelemetryConfigEnabledNoRatioDefaultsTo1(t *testing.T) {
 }
 
 func TestTelemetryConfigEnabledRatio0Stays0(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("testdata/telemetry_zero_ratio.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -109,9 +121,77 @@ func TestTelemetryConfigEnabledRatio0Stays0(t *testing.T) {
 }
 
 func TestTelemetryConfigEnabledNoEndpointReturnsError(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
 	if err := InitConfigFactory("testdata/telemetry_no_endpoint.yaml"); err == nil {
 		t.Errorf("Expected error when OTLP endpoint is not set, but got none")
 	} else {
 		t.Logf("Received expected error: %v", err)
+	}
+}
+
+func TestValidateWebuiUri(t *testing.T) {
+	tests := []struct {
+		name    string
+		uri     string
+		isValid bool
+	}{
+		{
+			name:    "valid https URI with port",
+			uri:     "https://webui:5001",
+			isValid: true,
+		},
+		{
+			name:    "valid http URI with port",
+			uri:     "http://webui:5001",
+			isValid: true,
+		},
+		{
+			name:    "valid https URI without port",
+			uri:     "https://webui",
+			isValid: true,
+		},
+		{
+			name:    "valid http URI without port",
+			uri:     "http://webui.com",
+			isValid: true,
+		},
+		{
+			name:    "invalid host",
+			uri:     "http://:8080",
+			isValid: false,
+		},
+		{
+			name:    "invalid scheme",
+			uri:     "ftp://webui:21",
+			isValid: false,
+		},
+		{
+			name:    "missing scheme",
+			uri:     "webui:9090",
+			isValid: false,
+		},
+		{
+			name:    "missing host",
+			uri:     "https://",
+			isValid: false,
+		},
+		{
+			name:    "empty string",
+			uri:     "",
+			isValid: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateWebuiUri(tc.uri)
+			if err == nil && !tc.isValid {
+				t.Errorf("expected URI: %s to be invalid", tc.uri)
+			}
+			if err != nil && tc.isValid {
+				t.Errorf("expected URI: %s to be valid", tc.uri)
+			}
+		})
 	}
 }

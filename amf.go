@@ -38,8 +38,6 @@ func action(ctx context.Context, c *cli.Command) error {
 		return fmt.Errorf("failed to initialize")
 	}
 
-	AMF.WatchConfig()
-
 	AMF.Start()
 
 	return nil

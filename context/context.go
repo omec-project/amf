@@ -21,6 +21,7 @@ import (
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/nfConfigApi"
 	"github.com/omec-project/util/drsm"
 	"github.com/omec-project/util/idgenerator"
 )
@@ -30,7 +31,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
-	mutex                            sync.Mutex
+	AmfContextMutex                            sync.Mutex
 )
 
 func init() {
@@ -282,8 +283,8 @@ func (context *AMFContext) AddAmfUeToUePool(ue *AmfUe, supi string) {
 }
 
 func (context *AMFContext) NewAmfUe(supi string) *AmfUe {
-	mutex.Lock()
-	defer mutex.Unlock()
+	AmfContextMutex.Lock()
+	defer AmfContextMutex.Unlock()
 	ue := AmfUe{}
 	ue.init()
 
@@ -632,4 +633,87 @@ func (context *AMFContext) Reset() {
 // Create new AMF context
 func AMF_Self() *AMFContext {
 	return &amfContext
+}
+
+func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndMobility) error {
+	AmfContextMutex.Lock()
+	factory.ConfigLock.Lock()
+	defer func() {
+		AmfContextMutex.Unlock()
+		factory.ConfigLock.Unlock()
+	}()
+	logger.ContextLog.Infoln("Processing config update from polling service")
+	if len(newConfig) == 0 {
+		logger.ContextLog.Warnln("Received empty access and mobility config, clearing dynamic AMF context")
+		amfContext.SupportTaiLists = amfContext.SupportTaiLists[:0]
+		amfContext.PlmnSupportList = amfContext.PlmnSupportList[:0]
+		amfContext.ServedGuamiList = amfContext.ServedGuamiList[:0]
+		return nil
+	}
+	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := ConvertAccessAndMobilityList(newConfig)
+	amfContext.SupportTaiLists = newSupportedTais
+	amfContext.PlmnSupportList = newPlmnSupportItems
+	amfContext.ServedGuamiList = newGuamiList
+	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
+
+	logger.ContextLog.Debugln("AMF context updated from dynamic config successfully")
+	return nil
+}
+
+func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
+	var newSupportedTais []models.Tai
+	var newPlmnSupportList []factory.PlmnSupportItem
+	var newGuamiList []models.Guami
+	newSliceTaiMap := make(map[string][]models.Tai)
+	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
+
+	for _, plmnSnssaiTacs := range newConfig {
+		newPlmn := models.PlmnId{
+			Mcc: plmnSnssaiTacs.PlmnId.Mcc,
+			Mnc: plmnSnssaiTacs.PlmnId.Mnc,
+		}
+		newSnssai := models.Snssai{
+			Sst: plmnSnssaiTacs.Snssai.Sst,
+		}
+		snssaiStr := strconv.FormatInt(int64(plmnSnssaiTacs.Snssai.GetSst()), 10) + plmnSnssaiTacs.Snssai.GetSd()
+		for _, tac := range plmnSnssaiTacs.Tacs {
+			newTai := models.Tai{
+				PlmnId: &newPlmn,
+				Tac:    tac,
+			}
+			newSupportedTais = append(newSupportedTais, newTai)
+			newSliceTaiMap[snssaiStr] = append(newSliceTaiMap[snssaiStr], newTai)
+		}
+		if plmnSnssaiTacs.Snssai.GetSd() != "" {
+			newSnssai.Sd = *plmnSnssaiTacs.Snssai.Sd
+		}
+		if newPlmnSupportItemsMap[newPlmn] == nil {
+			newPlmnSupportItemsMap[newPlmn] = map[models.Snssai]struct{}{}
+		}
+		newPlmnSupportItemsMap[newPlmn][newSnssai] = struct{}{}
+	}
+	newPlmnSupportList, newGuamiList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
+	return newSupportedTais, newPlmnSupportList, newGuamiList, newSliceTaiMap
+}
+
+func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]factory.PlmnSupportItem, []models.Guami) {
+	plmnSupportItemList := make([]factory.PlmnSupportItem, 0, len(plmnSnssaiMap))
+	newGuamiList := []models.Guami{}
+	for plmn, snssaiSet := range plmnSnssaiMap {
+		snssaiList := make([]models.Snssai, 0, len(snssaiSet))
+		for snssai := range snssaiSet {
+			snssaiList = append(snssaiList, snssai)
+		}
+		plmnSupportItem := factory.PlmnSupportItem{
+			PlmnId:     plmn,
+			SNssaiList: snssaiList,
+		}
+		plmnSupportItemList = append(plmnSupportItemList, plmnSupportItem)
+		newGuami := models.Guami{
+			PlmnId: &plmn,
+			AmfId:  "cafe00",
+		}
+		newGuamiList = append(newGuamiList, newGuami)
+	}
+	return plmnSupportItemList, newGuamiList
 }

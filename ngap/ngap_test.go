@@ -14,6 +14,7 @@ import (
 	"github.com/omec-project/amf/ngap"
 	ngaputil "github.com/omec-project/amf/ngap/util"
 	"github.com/omec-project/amf/util"
+	"github.com/omec-project/openapi/models"
 )
 
 func init() {
@@ -27,6 +28,31 @@ func init() {
 	}
 
 	util.InitAmfContext(context.AMF_Self())
+	context.AMF_Self().ServedGuamiList = []models.Guami{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			AmfId:  "cafe00",
+		},
+	}
+	context.AMF_Self().SupportTaiLists = []models.Tai{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			Tac:    "1",
+		},
+	}
+	context.AMF_Self().PlmnSupportList = []factory.PlmnSupportItem{
+		{
+			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
+			SNssaiList: []models.Snssai{
+				{
+					Sst: 1, Sd: "010203",
+				},
+				{
+					Sst: 1, Sd: "112233",
+				},
+			},
+		},
+	}
 }
 
 // TestHandleNGSetupRequest validates package ngap's handling for NGSetupRequest

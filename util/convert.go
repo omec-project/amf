@@ -33,7 +33,7 @@ func SnssaiModelsToHex(snssai models.Snssai) string {
 	return sst + snssai.Sd
 }
 
-func SeperateAmfId(amfid string) (regionId, setId, ptrId string, err error) {
+func SeparateAmfId(amfid string) (regionId, setId, ptrId string, err error) {
 	if len(amfid) != 6 {
 		err = fmt.Errorf("len of amfId[%s] != 6", amfid)
 		return
