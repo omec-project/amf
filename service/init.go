@@ -345,7 +345,7 @@ func (amf *AMF) Start() {
 				if err != nil {
 					logger.PollConfigLog.Errorf("AMF context update failed: %v", err)
 				} else {
-					logger.PollConfigLog.Debugf("AMF context updated from WebConsole config")
+					logger.PollConfigLog.Debugln("AMF context updated from WebConsole config")
 				}
 			}
 		}

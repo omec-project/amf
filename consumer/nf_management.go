@@ -39,19 +39,18 @@ func getNfProfile(amfContext *amfContext.AMFContext, accessAndMobilityConfig []n
 	}
 	var amfInfo models.AmfInfo
 	if len(amfContext.ServedGuamiList) == 0 {
-		err = fmt.Errorf("gumai List is Empty in AMF")
+		err = fmt.Errorf("guami list is empty in AMF")
 		return profile, err
 	}
-	regionId, setId, _, err1 := util.SeperateAmfId(amfContext.ServedGuamiList[0].AmfId)
-	if err1 != nil {
-		err = err1
+	regionId, setId, _, err := util.SeparateAmfId(amfContext.ServedGuamiList[0].AmfId)
+	if err != nil {
 		return profile, err
 	}
 	amfInfo.AmfRegionId = regionId
 	amfInfo.AmfSetId = setId
 	amfInfo.GuamiList = &amfContext.ServedGuamiList
 	if len(amfContext.SupportTaiLists) == 0 {
-		err = fmt.Errorf("SupportTaiList is Empty in AMF")
+		err = fmt.Errorf("SupportTaiList is empty in AMF")
 		return profile, err
 	}
 	amfInfo.TaiList = &amfContext.SupportTaiLists
@@ -111,7 +110,7 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 		logger.ConsumerLog.Debugln("AMF NF profile registered to the NRF")
 		return receivedNfProfile, resourceNrfUri, nil
 	default:
-		return receivedNfProfile, "", fmt.Errorf("unexpected status code returned by the NRF %d", res.StatusCode)
+		return receivedNfProfile, "", fmt.Errorf("NRF returned unexpected status code %d", res.StatusCode)
 	}
 }
 
@@ -206,7 +205,7 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 			}
 		}()
 		if res.Status != err.Error() {
-			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %v", res.Status)
+			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %s", res.Status)
 			return nrfSubData, problemDetails, err
 		}
 		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)

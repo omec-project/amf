@@ -37,7 +37,7 @@ const (
 func StartNfRegistrationService(ctx context.Context, accessAndMobilityConfigChan <-chan []nfConfigApi.AccessAndMobility) {
 	var registerCancel context.CancelFunc
 	var registerCtx context.Context
-	logger.NrfRegistrationLog.Infoln("Started NF registration to NRF service")
+	logger.NrfRegistrationLog.Infoln("started NF registration to NRF service")
 	for {
 		select {
 		case <-ctx.Done():
@@ -79,7 +79,7 @@ var registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []
 		case <-time.After(interval):
 			nfProfile, _, err := consumer.SendRegisterNFInstance(registerCtx, newAccessAndMobilityConfig)
 			if err != nil {
-				logger.NrfRegistrationLog.Errorln("register AMF instance to NRF failed. Will retry.", err.Error())
+				logger.NrfRegistrationLog.Errorf("register AMF instance to NRF failed. Will retry in %s", retryTime.String())
 				interval = retryTime
 				continue
 			}
@@ -127,7 +127,7 @@ func heartbeatNF(registerCtx context.Context, accessAndMobilityConfig []nfConfig
 
 func shouldRegister(problemDetails *models.ProblemDetails, err error) bool {
 	if problemDetails != nil {
-		logger.NrfRegistrationLog.Warnln("AMF update NF instance (heartbeat) problem details:", problemDetails)
+		logger.NrfRegistrationLog.Warnf("AMF update NF instance (heartbeat) problem details: %+v", problemDetails)
 		return true
 	}
 	if err != nil {

@@ -36,7 +36,7 @@ func InitConfigFactory(f string) error {
 	}
 	if AmfConfig.Configuration.WebuiUri == "" {
 		AmfConfig.Configuration.WebuiUri = "http://webui:5001"
-		logger.CfgLog.Infof("webuiUri not set in configuration file. Using %v", AmfConfig.Configuration.WebuiUri)
+		logger.CfgLog.Infof("webuiUri not set in configuration file. Using %s", AmfConfig.Configuration.WebuiUri)
 	}
 	if AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
 		enableKafka := true

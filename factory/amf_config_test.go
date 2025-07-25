@@ -32,7 +32,7 @@ func TestGetCustomWebuiUrl(t *testing.T) {
 		t.Errorf("Error in InitConfigFactory: %v", err)
 	}
 	got := AmfConfig.Configuration.WebuiUri
-	want := "https://myspecialwebui:9872"
+	want := "https://myspecialwebui:5002"
 	assert.Equal(t, got, want, "The webui URL is not correct.")
 }
 

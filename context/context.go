@@ -636,9 +636,9 @@ func AMF_Self() *AMFContext {
 }
 
 func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndMobility) error {
-	logger.ContextLog.Infof("Processing config update from polling service")
+	logger.ContextLog.Infoln("Processing config update from polling service")
 	if len(newConfig) == 0 {
-		logger.ContextLog.Warn("Received empty access and mobility config, clearing dynamic AMF context")
+		logger.ContextLog.Warnln("Received empty access and mobility config, clearing dynamic AMF context")
 		amfContext.Reset()
 		return nil
 	}
@@ -647,7 +647,7 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 	amfContext.PlmnSupportList = newPlmnSupportItems
 	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
 
-	logger.ContextLog.Debugf("AMF context updated from dynamic config successfully")
+	logger.ContextLog.Debugln("AMF context updated from dynamic config successfully")
 	return nil
 }
 
@@ -674,7 +674,7 @@ func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 			newSupportedTais = append(newSupportedTais, newTai)
 			newSliceTaiMap[snssaiStr] = append(newSliceTaiMap[snssaiStr], newTai)
 		}
-		if plmnSnssaiTacs.Snssai.Sd != nil {
+		if plmnSnssaiTacs.Snssai.GetSd() != "" {
 			newSnssai.Sd = *plmnSnssaiTacs.Snssai.Sd
 		}
 		if newPlmnSupportItemsMap[newPlmn] == nil {

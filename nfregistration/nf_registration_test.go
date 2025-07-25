@@ -112,10 +112,10 @@ func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTi
 
 	time.Sleep(100 * time.Millisecond)
 	if keepAliveTimer == nil {
-		t.Error("expected keepAliveTimer to be initialized by startKeepAliveTimer")
+		t.Errorf("expected keepAliveTimer to be initialized by startKeepAliveTimer")
 	}
 	if !reflect.DeepEqual(registrations, newConfig) {
-		t.Errorf("Expected %+v config, received %+v", newConfig, registrations)
+		t.Errorf("expected %+v config, received %+v", newConfig, registrations)
 	}
 }
 
@@ -149,7 +149,7 @@ func TestNfRegistrationService_ConfigChanged_RetryIfRegisterNFFails(t *testing.T
 	time.Sleep(2 * retryTime)
 
 	if called < 2 {
-		t.Error("Expected to retry register to NRF")
+		t.Errorf("expected to retry register to NRF")
 	}
 	t.Logf("Tried %v times", called)
 }
@@ -189,7 +189,7 @@ func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCance
 
 	time.Sleep(10 * time.Millisecond)
 	if len(registrations) != 1 {
-		t.Error("expected one registration to the NRF")
+		t.Errorf("expected one registration to the NRF")
 	}
 
 	secondConfig := []nfConfigApi.AccessAndMobility{
@@ -202,14 +202,14 @@ func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCance
 	ch <- secondConfig
 	time.Sleep(10 * time.Millisecond)
 	if len(registrations) != 2 {
-		t.Error("expected 2 registrations to the NRF")
+		t.Errorf("expected 2 registrations to the NRF")
 	}
 
 	select {
 	case <-registrations[0].ctx.Done():
 		// expected
 	default:
-		t.Error("expected first registration context to be cancelled")
+		t.Errorf("expected first registration context to be cancelled")
 	}
 
 	select {
@@ -255,7 +255,7 @@ func TestHeartbeatNF_Success(t *testing.T) {
 		t.Errorf("expected registerNF to be called on error")
 	}
 	if keepAliveTimer == nil {
-		t.Error("expected keepAliveTimer to be initialized by startKeepAliveTimer")
+		t.Errorf("expected keepAliveTimer to be initialized by startKeepAliveTimer")
 	}
 }
 
@@ -289,7 +289,7 @@ func TestHeartbeatNF_WhenNfUpdateFails_ThenNfRegistersIsCalled(t *testing.T) {
 		t.Errorf("expected registerNF to be called on error")
 	}
 	if keepAliveTimer == nil {
-		t.Error("expected keepAliveTimer to be initialized by startKeepAliveTimer")
+		t.Errorf("expected keepAliveTimer to be initialized by startKeepAliveTimer")
 	}
 }
 

@@ -41,7 +41,7 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 	}
 	interval := initialPollingInterval
 	pollingEndpoint := webuiUri + pollingPath
-	logger.PollConfigLog.Infof("Started polling service on %s every %v", pollingEndpoint, initialPollingInterval)
+	logger.PollConfigLog.Infof("started polling service on %s every %v", pollingEndpoint, initialPollingInterval)
 	for {
 		select {
 		case <-ctx.Done():
@@ -61,14 +61,14 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 				select {
 				case contextUpdateChannel <- newAccessMobilityConfig:
 				default:
-					logger.PollConfigLog.Warn("contextUpdateChan full, dropping config")
+					logger.PollConfigLog.Warnln("contextUpdateChan full, dropping config")
 				}
 				if plmnListIsChanged(poller.currentAccessAndMobilityConfig, newAccessMobilityConfig) {
 					logger.PollConfigLog.Debugf("Supported PLMN list changed")
 					select {
 					case registrationChannel <- newAccessMobilityConfig:
 					default:
-						logger.PollConfigLog.Warn("registrationChan full, dropping config")
+						logger.PollConfigLog.Warnln("registrationChan full, dropping config")
 					}
 				}
 			} else {
@@ -124,13 +124,6 @@ func (p *nfConfigPoller) fetchAccessAndMobilityConfig(pollingEndpoint string) ([
 	}
 }
 
-func minDuration(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func plmnListIsChanged(oldAccessMobilityConfig, newAccessMobilityConfig []nfConfigApi.AccessAndMobility) bool {
 	oldPlmnList := []nfConfigApi.PlmnId{}
 	newPlmnList := []nfConfigApi.PlmnId{}
@@ -141,4 +134,11 @@ func plmnListIsChanged(oldAccessMobilityConfig, newAccessMobilityConfig []nfConf
 		newPlmnList = append(newPlmnList, plmnSnssaiTac.PlmnId)
 	}
 	return !reflect.DeepEqual(oldPlmnList, newPlmnList)
+}
+
+func minDuration(a, b time.Duration) time.Duration {
+	if a < b {
+		return a
+	}
+	return b
 }

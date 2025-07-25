@@ -21,15 +21,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/omec-project/amf/factory"
-	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 )
 
-func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) nfConfigApi.AccessAndMobility {
+func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (nfConfigApi.AccessAndMobility, error) {
 	sstUint64, err := strconv.ParseUint(sst, 10, 8)
 	if err != nil {
-		panic("invalid SST value: " + sst)
+		return nfConfigApi.AccessAndMobility{}, err
 	}
 	sstint := int32(sstUint64)
 	return nfConfigApi.AccessAndMobility{
@@ -42,23 +40,15 @@ func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) nf
 			Sd:  &sd,
 		},
 		Tacs: tacs,
-	}
+	}, nil
 }
 
 func TestStartPollingService_Success(t *testing.T) {
 	ctx := t.Context()
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
-	originalFactoryConfig := factory.AmfConfig
 	defer func() {
 		fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig
-		factory.AmfConfig = originalFactoryConfig
 	}()
-	factory.AmfConfig = factory.Config{
-		Configuration: &factory.Configuration{
-			SupportTAIList:  []models.Tai{},
-			PlmnSupportList: []factory.PlmnSupportItem{},
-		},
-	}
 
 	expectedConfig := []nfConfigApi.AccessAndMobility{
 		{
@@ -105,7 +95,7 @@ func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 	<-ctx.Done()
 
 	if callCount < 2 {
-		t.Error("Expected to retry after failure")
+		t.Errorf("expected to retry after failure")
 	}
 	t.Logf("Tried %v times", callCount)
 }
@@ -115,7 +105,10 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 	defer cancel()
 	originalFetcher := fetchAccessAndMobilityConfig
 	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
-	accessMobility1 := makeAccessMobilityConfig("222", "02", "1", "1", []string{"1"})
+	accessMobility1, err := makeAccessMobilityConfig("222", "02", "1", "1", []string{"1"})
+	if err != nil {
+		t.Fatalf("Failed to create access mobility config: %v", err)
+	}
 	callCount := 0
 	expectedConfig := []nfConfigApi.AccessAndMobility{accessMobility1}
 	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, endpoint string) ([]nfConfigApi.AccessAndMobility, error) {
@@ -150,8 +143,11 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	defer cancel()
 	originalFetcher := fetchAccessAndMobilityConfig
 	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
-	accessMobility1 := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
-	accessMobility2 := makeAccessMobilityConfig("111", "02", "1", "1", []string{"2"})
+	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
+	accessMobility2, err := makeAccessMobilityConfig("111", "02", "1", "1", []string{"2"})
+	if err != nil {
+		t.Fatalf("Failed to create access mobility config: %v", err)
+	}
 	callCount := 0
 
 	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, endpoint string) ([]nfConfigApi.AccessAndMobility, error) {
@@ -186,7 +182,10 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 
 func TestFetchAccessAndMobilityConfig(t *testing.T) {
 	var accessMobilityConfigs []nfConfigApi.AccessAndMobility
-	accessMobility1 := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
+	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
+	if err != nil {
+		t.Fatalf("Failed to create access mobility config: %v", err)
+	}
 	accessMobilityConfigs = append(accessMobilityConfigs, accessMobility1)
 	validJson, err := json.Marshal(accessMobilityConfigs)
 	if err != nil {
