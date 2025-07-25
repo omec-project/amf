@@ -26,18 +26,28 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	if amfCtx == nil {
 		return profile, fmt.Errorf("amf context has not been intialized. NF profile cannot be built")
 	}
-	newSupportedTais, _, newGuamiList, _ := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
+	newSupportedTais, newPlmnSupportItems, newGuamiList, _ := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
 	profile.NfInstanceId = amfCtx.NfId
 	profile.NfType = models.NfType_AMF
 	profile.NfStatus = models.NfStatus_REGISTERED
-	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfCtx.RegisterIPv4)
-	services := []models.NfService{}
-	for _, nfService := range amfCtx.NfService {
-		services = append(services, nfService)
+	plmns := make([]models.PlmnId, len(accessAndMobilityConfig))
+	for _, accessAndMobilityData := range accessAndMobilityConfig {
+		nfPlmn := models.PlmnId{
+			Mcc: accessAndMobilityData.PlmnId.GetMcc(),
+			Mnc: accessAndMobilityData.PlmnId.GetMnc(),
+		}
+		plmns = append(plmns, nfPlmn)
 	}
-	if len(services) > 0 {
-		profile.NfServices = &services
+	profile.PlmnList = &plmns
+	perPlmnSnssaiList := []models.PlmnSnssai{}
+	for _, plmnSupportItem := range newPlmnSupportItems {
+		perPlmnSnssai := models.PlmnSnssai{
+			PlmnId:     &plmnSupportItem.PlmnId,
+			SNssaiList: plmnSupportItem.SNssaiList,
+		}
+		perPlmnSnssaiList = append(perPlmnSnssaiList, perPlmnSnssai)
 	}
+	profile.PerPlmnSnssaiList = perPlmnSnssaiList
 	var amfInfo models.AmfInfo
 	if len(newGuamiList) == 0 {
 		err = fmt.Errorf("guami list is empty in AMF")
@@ -56,15 +66,25 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	}
 	amfInfo.TaiList = &newSupportedTais
 	profile.AmfInfo = &amfInfo
-	plmnCopy := make([]models.PlmnId, len(accessAndMobilityConfig))
-	for _, accessAndMobilityData := range accessAndMobilityConfig {
-		nfPlmn := models.PlmnId{
-			Mcc: accessAndMobilityData.PlmnId.GetMcc(),
-			Mnc: accessAndMobilityData.PlmnId.GetMnc(),
-		}
-		plmnCopy = append(plmnCopy, nfPlmn)
+	if amfCtx.RegisterIPv4 == "" {
+		err = fmt.Errorf("AMF Address is empty")
+		return profile, err
 	}
-	profile.PlmnList = &plmnCopy
+	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfCtx.RegisterIPv4)
+	services := []models.NfService{}
+	for _, nfService := range amfCtx.NfService {
+		services = append(services, nfService)
+	}
+	if len(services) > 0 {
+		profile.NfServices = &services
+	}
+
+	defaultNotificationSubscription := models.DefaultNotificationSubscription{
+		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetIPv4Uri()),
+		NotificationType: models.NotificationType_N1_MESSAGES,
+		N1MessageClass:   models.N1MessageClass__5_GMM,
+	}
+	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
 	return profile, nil
 }
 
