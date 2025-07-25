@@ -25,6 +25,7 @@ func TestUpdateAMFContext(t *testing.T) {
 		name                    string
 		accessAndMobilityConfig []nfConfigApi.AccessAndMobility
 		expectedSupportTaiLists []models.Tai
+		expectedServedGuamiList []models.Guami
 		expectedPlmnSupportList []factory.PlmnSupportItem
 		expectedSliceTaiList    map[string][]models.Tai
 	}{
@@ -41,6 +42,12 @@ func TestUpdateAMFContext(t *testing.T) {
 				{
 					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
 					Tac:    "1",
+				},
+			},
+			expectedServedGuamiList: []models.Guami{
+				{
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					AmfId:  "cafe00",
 				},
 			},
 			expectedPlmnSupportList: []factory.PlmnSupportItem{
@@ -72,6 +79,16 @@ func TestUpdateAMFContext(t *testing.T) {
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "02"},
 					Snssai: makeSnssaiWithSd(2, "01"),
 					Tacs:   []string{"2"},
+				},
+			},
+			expectedServedGuamiList: []models.Guami{
+				{
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					AmfId:  "cafe00",
+				},
+				{
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
+					AmfId:  "cafe00",
 				},
 			},
 			expectedSupportTaiLists: []models.Tai{
@@ -137,6 +154,12 @@ func TestUpdateAMFContext(t *testing.T) {
 					Tac:    "2",
 				},
 			},
+			expectedServedGuamiList: []models.Guami{
+				{
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					AmfId:  "cafe00",
+				},
+			},
 			expectedPlmnSupportList: []factory.PlmnSupportItem{
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
@@ -178,6 +201,9 @@ func TestUpdateAMFContext(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tc.expectedSupportTaiLists, amfContext.SupportTaiLists) {
 				t.Errorf("expected SupportTaiLists: %#v, got: %#v", tc.expectedSupportTaiLists, amfContext.SupportTaiLists)
+			}
+			if !reflect.DeepEqual(tc.expectedServedGuamiList, amfContext.ServedGuamiList) {
+				t.Errorf("expected ServedGuamiList: %#v, got: %#v", tc.expectedServedGuamiList, amfContext.ServedGuamiList)
 			}
 			if !reflect.DeepEqual(tc.expectedPlmnSupportList, amfContext.PlmnSupportList) {
 				t.Errorf("expected PlmnSupportList: %#v, got: %#v", tc.expectedPlmnSupportList, amfContext.PlmnSupportList)

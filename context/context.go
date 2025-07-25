@@ -642,18 +642,20 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.Reset()
 		return nil
 	}
-	newSupportedTais, newPlmnSupportItems, newSliceTaiMap := convertAccessAndMobilityList(newConfig)
+	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := convertAccessAndMobilityList(newConfig)
 	amfContext.SupportTaiLists = newSupportedTais
 	amfContext.PlmnSupportList = newPlmnSupportItems
+	amfContext.ServedGuamiList = newGuamiList
 	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
 
 	logger.ContextLog.Debugln("AMF context updated from dynamic config successfully")
 	return nil
 }
 
-func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, map[string][]models.Tai) {
+func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
 	var newSupportedTais []models.Tai
 	var newPlmnSupportList []factory.PlmnSupportItem
+	var newGuamiList []models.Guami
 	newSliceTaiMap := make(map[string][]models.Tai)
 	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
 
@@ -682,12 +684,13 @@ func convertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 		}
 		newPlmnSupportItemsMap[newPlmn][newSnssai] = struct{}{}
 	}
-	newPlmnSupportList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
-	return newSupportedTais, newPlmnSupportList, newSliceTaiMap
+	newPlmnSupportList, newGuamiList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
+	return newSupportedTais, newPlmnSupportList, newGuamiList, newSliceTaiMap
 }
 
-func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) []factory.PlmnSupportItem {
+func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]factory.PlmnSupportItem, []models.Guami) {
 	plmnSupportItemList := make([]factory.PlmnSupportItem, 0, len(plmnSnssaiMap))
+	newGuamiList := []models.Guami{}
 	for plmn, snssaiSet := range plmnSnssaiMap {
 		snssaiList := make([]models.Snssai, 0, len(snssaiSet))
 		for snssai := range snssaiSet {
@@ -698,6 +701,11 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 			SNssaiList: snssaiList,
 		}
 		plmnSupportItemList = append(plmnSupportItemList, plmnSupportItem)
+		newGuami := models.Guami{
+			PlmnId: &plmn,
+			AmfId:  "cafe00",
+		}
+		newGuamiList = append(newGuamiList, newGuami)
 	}
-	return plmnSupportItemList
+	return plmnSupportItemList, newGuamiList
 }
