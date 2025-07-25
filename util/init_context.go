@@ -93,8 +93,8 @@ func InitAmfContext(context *context.AMFContext) {
 	}
 	serviceNameList := configuration.ServiceNameList
 	context.InitNFService(serviceNameList, config.Info.Version)
-	context.ServedGuamiList = configuration.ServedGuamiList
-	context.SupportTaiLists = configuration.SupportTAIList
+	context.ServedGuamiList = []models.Guami{}
+	context.SupportTaiLists = []models.Tai{}
 	// Tac value not converting into 3bytes hex string.
 	// keeping tac integer value in string format received from configuration
 	/*for i := range context.SupportTaiLists {
@@ -102,7 +102,7 @@ func InitAmfContext(context *context.AMFContext) {
 			context.SupportTaiLists[i].Tac = str
 		}
 	}*/
-	context.PlmnSupportList = configuration.PlmnSupportList
+	context.PlmnSupportList = []factory.PlmnSupportItem{}
 	context.SupportDnnLists = configuration.SupportDnnList
 	if configuration.NrfUri != "" {
 		context.NrfUri = configuration.NrfUri
