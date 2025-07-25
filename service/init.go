@@ -82,7 +82,6 @@ var amfCLi = []cli.Flag{
 
 var (
 	KeepAliveTimer      *time.Timer
-	KeepAliveTimerMutex sync.Mutex
 )
 
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
@@ -338,10 +337,8 @@ func (amf *AMF) Start() {
 			select {
 			case <-ctx.Done():
 				return
-			case cfg := <-contextUpdateChan:
-				factory.ConfigLock.Lock()
+			case cfg := <-contextUpdateChan:				
 				err = amfContext.UpdateAmfContext(self, cfg)
-				factory.ConfigLock.Unlock()
 				if err != nil {
 					logger.PollConfigLog.Errorf("AMF context update failed: %v", err)
 				} else {
@@ -418,7 +415,7 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup) {
 	amfSelf := amfContext.AMF_Self()
 
 	ctx := ctxt.Background()
-
+	cancelServices()
 	// TODO: forward registered UE contexts to target AMF in the same AMF set if there is one
 
 	// deregister with NRF

@@ -31,7 +31,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
-	mutex                            sync.Mutex
+	AmfContextMutex                            sync.Mutex
 )
 
 func init() {
@@ -283,8 +283,8 @@ func (context *AMFContext) AddAmfUeToUePool(ue *AmfUe, supi string) {
 }
 
 func (context *AMFContext) NewAmfUe(supi string) *AmfUe {
-	mutex.Lock()
-	defer mutex.Unlock()
+	AmfContextMutex.Lock()
+	defer AmfContextMutex.Unlock()
 	ue := AmfUe{}
 	ue.init()
 
@@ -636,10 +636,18 @@ func AMF_Self() *AMFContext {
 }
 
 func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndMobility) error {
+	AmfContextMutex.Lock()
+	factory.ConfigLock.Lock()
+	defer func() {
+		AmfContextMutex.Unlock()
+		factory.ConfigLock.Unlock()
+	}()
 	logger.ContextLog.Infoln("Processing config update from polling service")
 	if len(newConfig) == 0 {
 		logger.ContextLog.Warnln("Received empty access and mobility config, clearing dynamic AMF context")
-		amfContext.Reset()
+		amfContext.SupportTaiLists = amfContext.SupportTaiLists[:0]
+		amfContext.PlmnSupportList = amfContext.PlmnSupportList[:0]
+		amfContext.ServedGuamiList = amfContext.ServedGuamiList[:0]
 		return nil
 	}
 	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := ConvertAccessAndMobilityList(newConfig)
