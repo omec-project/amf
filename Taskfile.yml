@@ -1,0 +1,153 @@
+# SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
+# Copyright 2019 free5GC.org
+# SPDX-License-Identifier: Apache-2.0
+# Taskfile equivalent to AMF Makefile
+
+version: '3'
+
+vars:
+  PROJECT_NAME: sdcore
+  DOCKER_VERSION:
+    sh: cat ./VERSION 2>/dev/null || echo "latest"
+  
+  # Docker related
+  DOCKER_REGISTRY: ""
+  DOCKER_REPOSITORY: ""
+  DOCKER_TAG: "{{.DOCKER_VERSION}}"
+  DOCKER_IMAGENAME: "{{.DOCKER_REGISTRY}}{{.DOCKER_REPOSITORY}}{{.PROJECT_NAME}}:{{.DOCKER_TAG}}"
+  DOCKER_BUILDKIT: 1
+  DOCKER_BUILD_ARGS: ""
+  
+  # Docker labels
+  DOCKER_LABEL_VCS_URL:
+    sh: git remote get-url $(git remote) 2>/dev/null || echo "unknown"
+  DOCKER_LABEL_VCS_REF:
+    sh: |
+      if git diff-index --quiet HEAD -- 2>/dev/null; then
+        git rev-parse HEAD 2>/dev/null || echo "unknown"
+      else
+        echo "unknown"
+      fi
+  DOCKER_LABEL_COMMIT_DATE:
+    sh: |
+      if git diff-index --quiet HEAD -- 2>/dev/null; then
+        git show -s --format=%cd --date=iso-strict HEAD 2>/dev/null || echo "unknown"
+      else
+        echo "unknown"
+      fi
+  DOCKER_LABEL_BUILD_DATE:
+    sh: date -u "+%Y-%m-%dT%H:%M:%SZ"
+  
+  DOCKER_TARGETS: amf
+  GO_BIN_PATH: bin
+  GO_SRC_PATH: ./
+  NF: amf
+  GO_NF: amf
+  
+  # Build info
+  VERSION:
+    sh: git describe --tags 2>/dev/null || echo "dev"
+  BUILD_TIME:
+    sh: date -u "+%Y-%m-%dT%H:%M:%SZ"
+  COMMIT_HASH:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  COMMIT_TIME:
+    sh: git log --pretty="%ai" -1 2>/dev/null | awk '{time=$1"T"$2"Z"; print time}' || echo "unknown"
+
+tasks:
+  # Build Go binary
+  build:
+    desc: "Build AMF binary"
+    aliases: [amf, nfs, all]
+    cmds:
+      - echo "Start building amf...."
+      - mkdir -p {{.GO_BIN_PATH}}
+      - |
+        cd {{.GO_SRC_PATH}} && \
+        CGO_ENABLED=0 go build -o {{.GO_BIN_PATH}}/{{.GO_NF}} {{.GO_NF}}.go
+    sources:
+      - "**/*.go"
+      - "!**/*_test.go"
+    generates:
+      - "{{.GO_BIN_PATH}}/{{.GO_NF}}"
+
+  # Docker build
+  docker-build:
+    desc: "Build Docker image for AMF"
+    cmds:
+      - go mod vendor
+      - |
+        DOCKER_BUILDKIT={{.DOCKER_BUILDKIT}} docker build {{.DOCKER_BUILD_ARGS}} \
+          --target {{.DOCKER_TARGETS}} \
+          --tag {{.DOCKER_REGISTRY}}{{.DOCKER_REPOSITORY}}5gc-{{.DOCKER_TARGETS}}:{{.DOCKER_TAG}} \
+          --build-arg org_label_schema_version="{{.DOCKER_VERSION}}" \
+          --build-arg org_label_schema_vcs_url="{{.DOCKER_LABEL_VCS_URL}}" \
+          --build-arg org_label_schema_vcs_ref="{{.DOCKER_LABEL_VCS_REF}}" \
+          --build-arg org_label_schema_build_date="{{.DOCKER_LABEL_BUILD_DATE}}" \
+          --build-arg org_opencord_vcs_commit_date="{{.DOCKER_LABEL_COMMIT_DATE}}" \
+          .
+      - rm -rf vendor
+
+  # Docker push
+  docker-push:
+    desc: "Push Docker image to registry"
+    deps: [docker-build]
+    cmds:
+      - docker push {{.DOCKER_REGISTRY}}{{.DOCKER_REPOSITORY}}5gc-{{.DOCKER_TARGETS}}:{{.DOCKER_TAG}}
+
+  # Testing
+  test:
+    desc: "Run unit tests with coverage"
+    deps: [_coverage-dir]
+    cmds:
+      - |
+        docker run --rm -v {{.PWD}}:/amf -w /amf golang:latest \
+          go test \
+            -failfast \
+            -coverprofile=.coverage/coverage-unit.txt \
+            -covermode=atomic \
+            -v \
+            ./ ./...
+
+  _coverage-dir:
+    internal: true
+    cmds:
+      - rm -rf .coverage
+      - mkdir -p .coverage
+
+  # Code formatting and linting
+  fmt:
+    desc: "Format Go code"
+    cmds:
+      - go fmt ./...
+
+  golint:
+    desc: "Run Go linter"
+    cmds:
+      - |
+        docker run --rm -v {{.PWD}}:/app -w /app \
+          golangci/golangci-lint:latest golangci-lint run -v --config /app/.golangci.yml
+
+  check-reuse:
+    desc: "Check REUSE compliance"
+    cmds:
+      - |
+        docker run --rm -v {{.PWD}}:/amf -w /amf \
+          omecproject/reuse-verify:latest reuse lint
+
+  # Cleanup
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - rm -rf {{.GO_BIN_PATH}}/{{.GO_NF}}
+      - rm -rf .coverage
+
+  # Convenience tasks
+  all-checks:
+    desc: "Run all checks and builds"
+    deps: [fmt, golint, check-reuse, docker-build, test]
+
+  help:
+    desc: "Show available tasks"
+    cmds:
+      - task --list
