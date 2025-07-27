@@ -397,6 +397,7 @@ func (amf *AMF) Start() {
 	}
 
 	if self.EnableSctpLb {
+		logger.InitLog.Infoln("enable SCTP load balancing feature")
 		go StartGrpcServer(self.SctpGrpcPort)
 	}
 

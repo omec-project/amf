@@ -123,7 +123,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 
 func StartGrpcServer(port int) {
 	endpt := fmt.Sprintf(":%d", port)
-	fmt.Println("listen - ", endpt)
+	logger.GrpcLog.Infoln("listen - ", endpt)
 	lis, err := net.Listen("tcp", endpt)
 	if err != nil {
 		logger.GrpcLog.Errorf("failed to listen: %v", err)
