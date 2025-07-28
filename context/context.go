@@ -31,7 +31,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
-	AmfContextMutex                            sync.Mutex
+	AmfContextMutex                  sync.Mutex
 )
 
 func init() {

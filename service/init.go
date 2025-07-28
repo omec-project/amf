@@ -80,10 +80,6 @@ var amfCLi = []cli.Flag{
 	},
 }
 
-var (
-	KeepAliveTimer      *time.Timer
-)
-
 func (*AMF) GetCliCmd() (flags []cli.Flag) {
 	return amfCLi
 }
@@ -337,7 +333,7 @@ func (amf *AMF) Start() {
 			select {
 			case <-ctx.Done():
 				return
-			case cfg := <-contextUpdateChan:				
+			case cfg := <-contextUpdateChan:
 				err = amfContext.UpdateAmfContext(self, cfg)
 				if err != nil {
 					logger.PollConfigLog.Errorf("AMF context update failed: %v", err)
