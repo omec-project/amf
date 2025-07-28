@@ -13,6 +13,7 @@ import (
 	"math"
 	"net"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -704,6 +705,7 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 		for snssai := range snssaiSet {
 			snssaiList = append(snssaiList, snssai)
 		}
+		sortSNssaiList(snssaiList)
 		plmnSupportItem := factory.PlmnSupportItem{
 			PlmnId:     plmn,
 			SNssaiList: snssaiList,
@@ -716,4 +718,16 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 		newGuamiList = append(newGuamiList, newGuami)
 	}
 	return plmnSupportItemList, newGuamiList
+}
+
+func sortSNssaiList(snssaiList []models.Snssai) {
+	sort.Slice(snssaiList, func(i, j int) bool {
+		if snssaiList[i].Sst != snssaiList[j].Sst {
+			return snssaiList[i].Sst < snssaiList[j].Sst
+		}
+		if snssaiList[i].Sd != snssaiList[j].Sd {
+			return snssaiList[i].Sd != ""
+		}
+		return snssaiList[i].Sd < snssaiList[j].Sd
+	})
 }
