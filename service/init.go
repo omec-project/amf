@@ -8,13 +8,11 @@
 package service
 
 import (
-	"bufio"
 	ctxt "context"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof" // Using package only for invoking initialization.
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -64,7 +62,10 @@ type AMF struct{}
 
 const IMSI_PREFIX = "imsi-"
 
-var RocUpdateConfigChannel chan bool
+var (
+	RocUpdateConfigChannel chan bool
+	tracerProvider         *sdktrace.TracerProvider
+)
 
 type (
 	// Config information.
@@ -400,7 +401,7 @@ func (amf *AMF) Start() {
 	}
 
 	if self.EnableSctpLb {
-		go StartGrpcServer(self.SctpGrpcPort)
+		go StartGrpcServer(ctx, self.SctpGrpcPort)
 	}
 
 	if self.EnableDbStore {
@@ -416,8 +417,7 @@ func (amf *AMF) Start() {
 	}()
 
 	if factory.AmfConfig.Configuration.Telemetry != nil && factory.AmfConfig.Configuration.Telemetry.Enabled {
-		var tp *sdktrace.TracerProvider
-		tp, err = tracing.InitTracer(ctx, tracing.TelemetryConfig{
+		tracerProvider, err = tracing.InitTracer(ctx, tracing.TelemetryConfig{
 			OTLPEndpoint:   factory.AmfConfig.Configuration.Telemetry.OtlpEndpoint,
 			ServiceName:    "amf",
 			ServiceVersion: factory.AmfConfig.Info.Version,
@@ -427,14 +427,6 @@ func (amf *AMF) Start() {
 			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
 		}
 		logger.InitLog.Infoln("tracer initialized successfully")
-		defer func() {
-			err = tp.Shutdown(ctx)
-			if err != nil {
-				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
-			} else {
-				logger.InitLog.Infoln("tracer shutdown successfully")
-			}
-		}()
 	}
 
 	sslLog := filepath.Dir(factory.AmfConfig.CfgLocation) + "/sslkey.log"
@@ -466,49 +458,7 @@ func (amf *AMF) Start() {
 }
 
 func (amf *AMF) Exec(c *cli.Command) error {
-	// AMF.Initialize(cfgPath, c)
-
-	logger.InitLog.Debugln("args:", c.String("cfg"))
-	args := amf.FilterCli(c)
-	logger.InitLog.Debugln("filter:", args)
-	command := exec.Command("amf", args...)
-
-	stdout, err := command.StdoutPipe()
-	if err != nil {
-		logger.InitLog.Fatalln(err)
-	}
-	wg := sync.WaitGroup{}
-	wg.Add(3)
-	go func() {
-		in := bufio.NewScanner(stdout)
-		for in.Scan() {
-			logger.AppLog.Infoln(in.Text())
-		}
-		wg.Done()
-	}()
-
-	stderr, err := command.StderrPipe()
-	if err != nil {
-		logger.InitLog.Fatalln(err)
-	}
-	go func() {
-		in := bufio.NewScanner(stderr)
-		for in.Scan() {
-			logger.AppLog.Infoln(in.Text())
-		}
-		wg.Done()
-	}()
-
-	go func() {
-		if err = command.Start(); err != nil {
-			logger.InitLog.Errorf("AMF start error: %+v", err)
-		}
-		wg.Done()
-	}()
-
-	wg.Wait()
-
-	return err
+	return nil
 }
 
 // Used in AMF planned removal procedure
@@ -557,6 +507,14 @@ func (amf *AMF) Terminate() {
 		}
 		return true
 	})
+	if tracerProvider != nil {
+		err := tracerProvider.Shutdown(ctx)
+		if err != nil {
+			logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+		} else {
+			logger.InitLog.Infoln("tracer shutdown successfully")
+		}
+	}
 
 	logger.InitLog.Infoln("AMF terminated")
 }
