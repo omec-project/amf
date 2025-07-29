@@ -358,7 +358,11 @@ func (amf *AMF) Start() {
 	}
 
 	if self.EnableSctpLb {
-		go StartGrpcServer(ctx, self.SctpGrpcPort)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			StartGrpcServer(ctx, self.SctpGrpcPort)
+		}()
 	}
 
 	if self.EnableDbStore {
@@ -444,7 +448,7 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup) {
 		}
 		return true
 	})
-
+	wg.Wait()
 	logger.InitLog.Infoln("AMF terminated")
 }
 
