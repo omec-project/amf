@@ -62,10 +62,7 @@ type AMF struct{}
 
 const IMSI_PREFIX = "imsi-"
 
-var (
-	RocUpdateConfigChannel chan bool
-	tracerProvider         *sdktrace.TracerProvider
-)
+var RocUpdateConfigChannel chan bool
 
 type (
 	// Config information.
@@ -408,11 +405,13 @@ func (amf *AMF) Start() {
 		go context.SetupAmfCollection()
 	}
 
+	var tracerProvider *sdktrace.TracerProvider
+
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-signalChannel
-		amf.Terminate()
+		amf.Terminate(tracerProvider)
 		os.Exit(0)
 	}()
 
@@ -462,7 +461,7 @@ func (amf *AMF) Exec(c *cli.Command) error {
 }
 
 // Used in AMF planned removal procedure
-func (amf *AMF) Terminate() {
+func (amf *AMF) Terminate(tracerProvider *sdktrace.TracerProvider) {
 	logger.InitLog.Infoln("terminating AMF")
 	amfSelf := context.AMF_Self()
 
