@@ -358,11 +358,7 @@ func (amf *AMF) Start() {
 	}
 
 	if self.EnableSctpLb {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			StartGrpcServer(ctx, self.SctpGrpcPort)
-		}()
+		go StartGrpcServer(ctx, self.SctpGrpcPort)
 	}
 
 	if self.EnableDbStore {

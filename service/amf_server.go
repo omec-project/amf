@@ -124,27 +124,21 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 }
 
 func StartGrpcServer(ctx context.Context, port int) {
-	select {
-	case <-ctx.Done():
-		logger.GrpcLog.Infoln("AMF gRPC server shutting down")
-		return
-	default:
-		endpt := fmt.Sprintf(":%d", port)
-		logger.GrpcLog.Infof("AMF gRPC server is starting on port %s", endpt)
-		lisCfg := net.ListenConfig{}
-		lis, err := lisCfg.Listen(ctx, "tcp", endpt)
-		if err != nil {
-			logger.GrpcLog.Errorf("failed to listen: %v", err)
-		}
+	endpt := fmt.Sprintf(":%d", port)
+	logger.GrpcLog.Infof("AMF gRPC server is starting on port %s", endpt)
+	lisCfg := net.ListenConfig{}
+	lis, err := lisCfg.Listen(ctx, "tcp", endpt)
+	if err != nil {
+		logger.GrpcLog.Errorf("failed to listen: %v", err)
+	}
 
-		s := Server{}
+	s := Server{}
 
-		grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer()
 
-		sdcoreAmfServer.RegisterNgapServiceServer(grpcServer, &s)
+	sdcoreAmfServer.RegisterNgapServiceServer(grpcServer, &s)
 
-		if err := grpcServer.Serve(lis); err != nil {
-			logger.GrpcLog.Errorf("failed to serve: %v", err)
-		}
+	if err := grpcServer.Serve(lis); err != nil {
+		logger.GrpcLog.Errorf("failed to serve: %v", err)
 	}
 }
