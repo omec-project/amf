@@ -725,7 +725,21 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 		}
 		newGuamiList = append(newGuamiList, newGuami)
 	}
+	sortPlmnSupportItemList(plmnSupportItemList)
+	sortGuamiList(newGuamiList)
 	return plmnSupportItemList, newGuamiList
+}
+
+func sortPlmnSupportItemList(plmnSupportItemList []PlmnSupportItem) {
+	sort.Slice(plmnSupportItemList, func(i, j int) bool {
+		if plmnSupportItemList[i].PlmnId.Mcc != plmnSupportItemList[j].PlmnId.Mcc {
+			return plmnSupportItemList[i].PlmnId.Mcc < plmnSupportItemList[j].PlmnId.Mcc
+		}
+		if plmnSupportItemList[i].PlmnId.Mnc != plmnSupportItemList[j].PlmnId.Mnc {
+			return plmnSupportItemList[i].PlmnId.Mnc < plmnSupportItemList[j].PlmnId.Mnc
+		}
+		return false
+	})
 }
 
 func sortSNssaiList(snssaiList []models.Snssai) {
@@ -737,5 +751,17 @@ func sortSNssaiList(snssaiList []models.Snssai) {
 			return snssaiList[i].Sd != ""
 		}
 		return snssaiList[i].Sd < snssaiList[j].Sd
+	})
+}
+
+func sortGuamiList(guamiList []models.Guami) {
+	sort.Slice(guamiList, func(i, j int) bool {
+		if guamiList[i].PlmnId.Mcc != guamiList[j].PlmnId.Mcc {
+			return guamiList[i].PlmnId.Mcc < guamiList[j].PlmnId.Mcc
+		}
+		if guamiList[i].PlmnId.Mnc != guamiList[j].PlmnId.Mnc {
+			return guamiList[i].PlmnId.Mnc < guamiList[j].PlmnId.Mnc
+		}
+		return false
 	})
 }
