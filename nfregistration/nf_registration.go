@@ -56,12 +56,12 @@ func StartNfRegistrationService(ctx context.Context, accessAndMobilityConfigChan
 			if len(newAccessAndMobilityConfig) == 0 {
 				logger.NrfRegistrationLog.Debugln("Access and Mobility config is empty. AMF will deregister")
 				DeregisterNF(ctx)
-			} else {
-				logger.NrfRegistrationLog.Debugln("Access and Mobility config is not empty. AMF will update registration")
-				registerCtx, registerCancel = context.WithCancel(context.Background())
-				// Create new cancellable context for this registration
-				go registerNF(registerCtx, newAccessAndMobilityConfig)
+				return
 			}
+			logger.NrfRegistrationLog.Debugln("AMF will update registration")
+			registerCtx, registerCancel = context.WithCancel(context.Background())
+			// Create new cancellable context for this registration
+			go registerNF(registerCtx, newAccessAndMobilityConfig)
 		}
 	}
 }

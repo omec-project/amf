@@ -216,7 +216,7 @@ func TestUpdateAMFContext(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			origFactory := factory.AmfConfig
 			defer func() { factory.AmfConfig = origFactory }()
-			err := factory.InitConfigFactory("../amfTest/amfcfg.yaml")
+			err := factory.InitConfigFactory("../util/testdata/amfcfg.yaml")
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}

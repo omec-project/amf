@@ -16,7 +16,7 @@ import (
 func TestGetDefaultWebuiUrl(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/amfcfg.yaml"); err != nil {
 		t.Errorf("Error in InitConfigFactory: %v", err)
 	}
 	got := AmfConfig.Configuration.WebuiUri
@@ -28,7 +28,7 @@ func TestGetDefaultWebuiUrl(t *testing.T) {
 func TestGetCustomWebuiUrl(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../amfTest/amfcfg_with_custom_webui_url.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/amfcfg_with_custom_webui_url.yaml"); err != nil {
 		t.Errorf("Error in InitConfigFactory: %v", err)
 	}
 	got := AmfConfig.Configuration.WebuiUri
@@ -39,92 +39,92 @@ func TestGetCustomWebuiUrl(t *testing.T) {
 func TestNoTelemetryConfig(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("testdata/no_telemetry.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/no_telemetry.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
 
 	if AmfConfig.Configuration.Telemetry != nil {
-		t.Errorf("Expected no telemetry configuration, but got: %v", AmfConfig.Configuration.Telemetry)
+		t.Errorf("expected no telemetry configuration, but got: %v", AmfConfig.Configuration.Telemetry)
 	}
 }
 
 func TestTelemetryConfigEnabled(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("testdata/telemetry.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/telemetry.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
 
 	if AmfConfig.Configuration.Telemetry == nil {
-		t.Fatalf("Expected telemetry configuration to be present, but it is nil")
+		t.Fatalf("expected telemetry configuration to be present, but it is nil")
 	}
 
 	if !AmfConfig.Configuration.Telemetry.Enabled {
-		t.Errorf("Expected telemetry to be enabled, but it is not")
+		t.Errorf("expected telemetry to be enabled, but it is not")
 	}
 
 	if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
-		t.Errorf("Expected OTLP endpoint to be set, but it is empty")
+		t.Errorf("expected OTLP endpoint to be set, but it is empty")
 	}
 
 	if AmfConfig.Configuration.Telemetry.Ratio == nil || *AmfConfig.Configuration.Telemetry.Ratio != 0.4 {
-		t.Errorf("Expected telemetry ratio to be 0.4, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
+		t.Errorf("expected telemetry ratio to be 0.4, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
 	}
 }
 
 func TestTelemetryConfigEnabledNoRatioDefaultsTo1(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("testdata/telemetry_no_ratio.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/telemetry_no_ratio.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
 
 	if AmfConfig.Configuration.Telemetry == nil {
-		t.Fatalf("Expected telemetry configuration to be present, but it is nil")
+		t.Fatalf("expected telemetry configuration to be present, but it is nil")
 	}
 
 	if !AmfConfig.Configuration.Telemetry.Enabled {
-		t.Errorf("Expected telemetry to be enabled, but it is not")
+		t.Errorf("expected telemetry to be enabled, but it is not")
 	}
 
 	if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
-		t.Errorf("Expected OTLP endpoint to be set, but it is empty")
+		t.Errorf("expected OTLP endpoint to be set, but it is empty")
 	}
 
 	if AmfConfig.Configuration.Telemetry.Ratio == nil || *AmfConfig.Configuration.Telemetry.Ratio != 1.0 {
-		t.Errorf("Expected telemetry ratio to be 1.0, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
+		t.Errorf("expected telemetry ratio to be 1.0, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
 	}
 }
 
 func TestTelemetryConfigEnabledRatio0Stays0(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("testdata/telemetry_zero_ratio.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/telemetry_zero_ratio.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
 
 	if AmfConfig.Configuration.Telemetry == nil {
-		t.Fatalf("Expected telemetry configuration to be present, but it is nil")
+		t.Fatalf("expected telemetry configuration to be present, but it is nil")
 	}
 
 	if !AmfConfig.Configuration.Telemetry.Enabled {
-		t.Errorf("Expected telemetry to be enabled, but it is not")
+		t.Errorf("expected telemetry to be enabled, but it is not")
 	}
 
 	if AmfConfig.Configuration.Telemetry.OtlpEndpoint == "" {
-		t.Errorf("Expected OTLP endpoint to be set, but it is empty")
+		t.Errorf("expected OTLP endpoint to be set, but it is empty")
 	}
 
 	if AmfConfig.Configuration.Telemetry.Ratio == nil || *AmfConfig.Configuration.Telemetry.Ratio != 0.0 {
-		t.Errorf("Expected telemetry ratio to be 0.0, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
+		t.Errorf("expected telemetry ratio to be 0.0, but got: %v", AmfConfig.Configuration.Telemetry.Ratio)
 	}
 }
 
 func TestTelemetryConfigEnabledNoEndpointReturnsError(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("testdata/telemetry_no_endpoint.yaml"); err == nil {
-		t.Errorf("Expected error when OTLP endpoint is not set, but got none")
+	if err := InitConfigFactory("../util/testdata/telemetry_no_endpoint.yaml"); err == nil {
+		t.Errorf("expected error when OTLP endpoint is not set, but got none")
 	} else {
 		t.Logf("Received expected error: %v", err)
 	}

@@ -643,9 +643,9 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		AmfContextMutex.Unlock()
 		factory.ConfigLock.Unlock()
 	}()
-	logger.ContextLog.Infoln("Processing config update from polling service")
+	logger.ContextLog.Infoln("processing config update from polling service")
 	if len(newConfig) == 0 {
-		logger.ContextLog.Warnln("Received empty access and mobility config, clearing dynamic AMF context")
+		logger.ContextLog.Warnln("received empty access and mobility config, clearing dynamic AMF context")
 		amfContext.SupportTaiLists = amfContext.SupportTaiLists[:0]
 		amfContext.PlmnSupportList = amfContext.PlmnSupportList[:0]
 		amfContext.ServedGuamiList = amfContext.ServedGuamiList[:0]
@@ -685,7 +685,7 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 		}
 		newPlmnSupportItemsMap[newPlmn][newSnssai] = struct{}{}
 		if len(plmnSnssaiTacs.Tacs) == 0 {
-			logger.ContextLog.Warnf("Empty TACs for %+v (SNssai: %+v)", plmnSnssaiTacs.PlmnId, plmnSnssaiTacs.Snssai)
+			logger.ContextLog.Warnf("empty TACs for %+v (SNssai: %+v)", plmnSnssaiTacs.PlmnId, plmnSnssaiTacs.Snssai)
 			continue
 		}
 		for _, tac := range plmnSnssaiTacs.Tacs {

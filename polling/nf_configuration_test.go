@@ -69,10 +69,10 @@ func TestStartPollingService_Success(t *testing.T) {
 	select {
 	case result := <-updateCtxChan:
 		if !reflect.DeepEqual(result, expectedConfig) {
-			t.Errorf("Expected %+v, got %+v", expectedConfig, result)
+			t.Errorf("expected %+v, got %+v", expectedConfig, result)
 		}
 	case <-time.After(100 * time.Millisecond):
-		t.Errorf("Timeout waiting for PLMN config")
+		t.Errorf("timeout waiting for PLMN config")
 	}
 }
 
@@ -107,7 +107,7 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
 	accessMobility1, err := makeAccessMobilityConfig("222", "02", "1", "1", []string{"1"})
 	if err != nil {
-		t.Fatalf("Failed to create access mobility config: %v", err)
+		t.Fatalf("failed to create access mobility config: %v", err)
 	}
 	callCount := 0
 	expectedConfig := []nfConfigApi.AccessAndMobility{accessMobility1}
@@ -134,7 +134,7 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 	<-ctx.Done()
 
 	if callCount != 1 {
-		t.Errorf("Expected callback to be called once for new config, got %d", callCount)
+		t.Errorf("expected callback to be called once for new config, got %d", callCount)
 	}
 }
 
@@ -145,11 +145,11 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
 	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
 	if err != nil {
-		t.Fatalf("Failed to create access mobility config: %v", err)
+		t.Fatalf("failed to create access mobility config: %v", err)
 	}
 	accessMobility2, err := makeAccessMobilityConfig("111", "02", "1", "1", []string{"2"})
 	if err != nil {
-		t.Fatalf("Failed to create access mobility config: %v", err)
+		t.Fatalf("failed to create access mobility config: %v", err)
 	}
 	callCount := 0
 
@@ -179,7 +179,7 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	<-ctx.Done()
 
 	if callCount != 2 {
-		t.Errorf("Expected callback to be called twice for different configs, got %d", callCount)
+		t.Errorf("expected callback to be called twice for different configs, got %d", callCount)
 	}
 }
 
@@ -187,7 +187,7 @@ func TestFetchAccessAndMobilityConfig(t *testing.T) {
 	var accessMobilityConfigs []nfConfigApi.AccessAndMobility
 	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
 	if err != nil {
-		t.Fatalf("Failed to create access mobility config: %v", err)
+		t.Fatalf("failed to create access mobility config: %v", err)
 	}
 	accessMobilityConfigs = append(accessMobilityConfigs, accessMobility1)
 	validJson, err := json.Marshal(accessMobilityConfigs)

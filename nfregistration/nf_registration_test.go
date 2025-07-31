@@ -220,10 +220,10 @@ func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCance
 	}
 
 	if !reflect.DeepEqual(registrations[0].config, firstConfig) {
-		t.Errorf("Expected %+v config, received %+v", firstConfig, registrations)
+		t.Errorf("expected %+v config, received %+v", firstConfig, registrations)
 	}
 	if !reflect.DeepEqual(registrations[1].config, secondConfig) {
-		t.Errorf("Expected %+v config, received %+v", secondConfig, registrations)
+		t.Errorf("expected %+v config, received %+v", secondConfig, registrations)
 	}
 }
 
@@ -338,7 +338,7 @@ func TestStartKeepAliveTimer_UsesProfileTimerOnlyWhenGreaterThanZero(t *testing.
 
 			startKeepAliveTimer(t.Context(), tc.profileTime, nil)
 			if tc.expectedDuration != capturedDuration {
-				t.Errorf("Expected %v duration, got %v", tc.expectedDuration, capturedDuration)
+				t.Errorf("expected %v duration, got %v", tc.expectedDuration, capturedDuration)
 			}
 		})
 	}

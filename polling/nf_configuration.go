@@ -46,20 +46,20 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 	for {
 		select {
 		case <-ctx.Done():
-			logger.PollConfigLog.Infoln("Polling service shutting down")
+			logger.PollConfigLog.Infoln("polling service shutting down")
 			return
 		case <-time.After(interval):
 			newAccessMobilityConfig, err := fetchAccessAndMobilityConfig(&poller, pollingEndpoint)
 			if err != nil {
 				interval = minDuration(interval*time.Duration(pollingBackoffFactor), pollingMaxBackoff)
-				logger.PollConfigLog.Errorf("Polling error. Retrying in %v: %+v", interval, err)
+				logger.PollConfigLog.Errorf("polling error. Retrying in %v: %+v", interval, err)
 				continue
 			}
 			interval = initialPollingInterval
 			if !reflect.DeepEqual(newAccessMobilityConfig, poller.currentAccessAndMobilityConfig) {
 				logger.PollConfigLog.Infof("Access and Mobility config changed. New Access and Mobility: %+v", newAccessMobilityConfig)
 				if plmnListOrTaiHasChanged(poller.currentAccessAndMobilityConfig, newAccessMobilityConfig) {
-					logger.PollConfigLog.Debugf("Supported PLMN list changed")
+					logger.PollConfigLog.Debugf("supported PLMN list changed")
 					select {
 					case registrationChannel <- newAccessMobilityConfig:
 					default:

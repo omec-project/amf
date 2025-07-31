@@ -20,7 +20,7 @@ import (
 )
 
 func init() {
-	if err := factory.InitConfigFactory("../amfTest/amfcfg.yaml"); err != nil {
+	if err := factory.InitConfigFactory("../util/testdata/amfcfg.yaml"); err != nil {
 		logger.ProducerLog.Errorf("error in InitConfigFactory: %v", err)
 	}
 

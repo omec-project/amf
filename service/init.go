@@ -300,13 +300,13 @@ func (amf *AMF) Start() {
 			Ratio:          *factory.AmfConfig.Configuration.Telemetry.Ratio,
 		})
 		if err != nil {
-			logger.InitLog.Panic("could not initialize tracer", zap.Error(err))
+			logger.InitLog.Fatalf("could not initialize tracer", zap.Error(err))
 		}
 		logger.InitLog.Infoln("tracer initialized successfully")
 		defer func() {
 			err = tp.Shutdown(ctx)
 			if err != nil {
-				logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+				logger.InitLog.Errorf("failed to shutdown tracer", zap.Error(err))
 			} else {
 				logger.InitLog.Infoln("tracer shutdown successfully")
 			}
@@ -399,10 +399,6 @@ func (amf *AMF) Start() {
 	if err != nil {
 		logger.InitLog.Fatalf("HTTP server setup failed: %+v", err)
 	}
-}
-
-func (amf *AMF) Exec(c *cli.Command) error {
-	return nil
 }
 
 // Used in AMF planned removal procedure
@@ -543,8 +539,8 @@ func HandleImsiAddInNetworkSlice(ctx ctxt.Context, slice *protos.NetworkSlice) {
 	var ok bool
 	logger.CfgLog.Infof("handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
 
+	amfSelf := amfContext.AMF_Self()
 	for _, supi := range slice.AddUpdatedImsis {
-		amfSelf := amfContext.AMF_Self()
 		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
 		if !ok {
 			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)

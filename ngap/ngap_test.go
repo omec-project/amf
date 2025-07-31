@@ -19,7 +19,7 @@ import (
 
 func init() {
 	// Initializing AMF Context from config.
-	testAmfConfig := "../amfTest/amfcfg.yaml"
+	testAmfConfig := "../util/testdata/amfcfg.yaml"
 	if err := factory.InitConfigFactory(testAmfConfig); err != nil {
 		logger.NgapLog.Fatalln("failed to initialize Factory Config")
 	}
@@ -27,20 +27,21 @@ func init() {
 		logger.NgapLog.Fatalln("failed to initialize Kafka Stream")
 	}
 
-	util.InitAmfContext(context.AMF_Self())
-	context.AMF_Self().ServedGuamiList = []models.Guami{
+	self := context.AMF_Self()
+	util.InitAmfContext(self)
+	self.ServedGuamiList = []models.Guami{
 		{
 			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
 			AmfId:  "cafe00",
 		},
 	}
-	context.AMF_Self().SupportTaiLists = []models.Tai{
+	self.SupportTaiLists = []models.Tai{
 		{
 			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
 			Tac:    "1",
 		},
 	}
-	context.AMF_Self().PlmnSupportList = []factory.PlmnSupportItem{
+	self.PlmnSupportList = []factory.PlmnSupportItem{
 		{
 			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			SNssaiList: []models.Snssai{
