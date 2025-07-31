@@ -649,6 +649,8 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.SupportTaiLists = amfContext.SupportTaiLists[:0]
 		amfContext.PlmnSupportList = amfContext.PlmnSupportList[:0]
 		amfContext.ServedGuamiList = amfContext.ServedGuamiList[:0]
+		factory.AmfConfig.Configuration.SliceTaiList = make(map[string][]models.Tai, 0)
+		factory.AmfConfig.Rcvd = false
 		return nil
 	}
 	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := ConvertAccessAndMobilityList(newConfig)
@@ -656,6 +658,7 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 	amfContext.PlmnSupportList = newPlmnSupportItems
 	amfContext.ServedGuamiList = newGuamiList
 	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
+	factory.AmfConfig.Rcvd = true
 
 	logger.ContextLog.Debugln("AMF context updated from dynamic config successfully")
 	return nil
