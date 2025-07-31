@@ -12,7 +12,6 @@ package factory
 import (
 	"time"
 
-	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/logger"
 )
 
@@ -82,14 +81,12 @@ type Configuration struct {
 	T3565                           TimerValue                `yaml:"t3565"`
 	Telemetry                       *TelemetryConfig          `yaml:"telemetry,omitempty"`
 
-	// Maintain TaiList per slice
-	SliceTaiList             map[string][]models.Tai `yaml:"sliceTaiList,omitempty"`
-	EnableSctpLb             bool                    `yaml:"enableSctpLb"`
-	EnableDbStore            bool                    `yaml:"enableDBStore"`
-	EnableNrfCaching         bool                    `yaml:"enableNrfCaching"`
-	NrfCacheEvictionInterval int                     `yaml:"nrfCacheEvictionInterval,omitempty"`
-	KafkaInfo                KafkaInfo               `yaml:"kafkaInfo,omitempty"`
-	DebugProfilePort         int                     `yaml:"debugProfilePort,omitempty"`
+	EnableSctpLb             bool      `yaml:"enableSctpLb"`
+	EnableDbStore            bool      `yaml:"enableDBStore"`
+	EnableNrfCaching         bool      `yaml:"enableNrfCaching"`
+	NrfCacheEvictionInterval int       `yaml:"nrfCacheEvictionInterval,omitempty"`
+	KafkaInfo                KafkaInfo `yaml:"kafkaInfo,omitempty"`
+	DebugProfilePort         int       `yaml:"debugProfilePort,omitempty"`
 }
 
 func (c *Configuration) Get5gsNwFeatSuppEnable() bool {

@@ -26,7 +26,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	if amfCtx == nil {
 		return profile, fmt.Errorf("amf context has not been intialized. NF profile cannot be built")
 	}
-	newSupportedTais, newPlmnSupportItems, newGuamiList, _ := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
+	newSupportedTais, newPlmnSupportItems, newGuamiList := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
 	profile.NfInstanceId = amfCtx.NfId
 	profile.NfType = models.NfType_AMF
 	profile.NfStatus = models.NfStatus_REGISTERED

@@ -27,7 +27,6 @@ func TestUpdateAMFContext(t *testing.T) {
 		expectedSupportTaiLists []models.Tai
 		expectedServedGuamiList []models.Guami
 		expectedPlmnSupportList []PlmnSupportItem
-		expectedSliceTaiList    map[string][]models.Tai
 	}{
 		{
 			name: "One Access and Mobility config",
@@ -58,14 +57,6 @@ func TestUpdateAMFContext(t *testing.T) {
 					},
 				},
 			},
-			expectedSliceTaiList: map[string][]models.Tai{
-				"101": {
-					{
-						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
-						Tac:    "1",
-					},
-				},
-			},
 		},
 		{
 			name: "One Access and Mobility config (no TACs)",
@@ -91,7 +82,6 @@ func TestUpdateAMFContext(t *testing.T) {
 					},
 				},
 			},
-			expectedSliceTaiList: map[string][]models.Tai{},
 		},
 		{
 			name: "Two Access and Mobility config (different PLMN)",
@@ -141,20 +131,6 @@ func TestUpdateAMFContext(t *testing.T) {
 					},
 				},
 			},
-			expectedSliceTaiList: map[string][]models.Tai{
-				"101": {
-					{
-						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
-						Tac:    "1",
-					},
-				},
-				"201": {
-					{
-						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
-						Tac:    "2",
-					},
-				},
-			},
 		},
 		{
 			name: "Two Access and Mobility configs (same PLMN, different SNssai)",
@@ -195,20 +171,6 @@ func TestUpdateAMFContext(t *testing.T) {
 					},
 				},
 			},
-			expectedSliceTaiList: map[string][]models.Tai{
-				"101": {
-					{
-						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
-						Tac:    "1",
-					},
-				},
-				"201": {
-					{
-						PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
-						Tac:    "2",
-					},
-				},
-			},
 		},
 	}
 
@@ -233,9 +195,6 @@ func TestUpdateAMFContext(t *testing.T) {
 			}
 			if !reflect.DeepEqual(tc.expectedPlmnSupportList, amfContext.PlmnSupportList) {
 				t.Errorf("expected PlmnSupportList: %#v, got: %#v", tc.expectedPlmnSupportList, amfContext.PlmnSupportList)
-			}
-			if !reflect.DeepEqual(tc.expectedSliceTaiList, factory.AmfConfig.Configuration.SliceTaiList) {
-				t.Errorf("expected SliceTaiList: %#v, got: %#v", tc.expectedSliceTaiList, factory.AmfConfig.Configuration.SliceTaiList)
 			}
 		})
 	}

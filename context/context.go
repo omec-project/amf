@@ -656,25 +656,22 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.PlmnSupportList = amfContext.PlmnSupportList[:0]
 		amfContext.ServedGuamiList = amfContext.ServedGuamiList[:0]
 		amfContext.Rcvd = false
-		factory.AmfConfig.Configuration.SliceTaiList = make(map[string][]models.Tai, 0)
 		return nil
 	}
-	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := ConvertAccessAndMobilityList(newConfig)
+	newSupportedTais, newPlmnSupportItems, newGuamiList := ConvertAccessAndMobilityList(newConfig)
 	amfContext.SupportTaiLists = newSupportedTais
 	amfContext.PlmnSupportList = newPlmnSupportItems
 	amfContext.ServedGuamiList = newGuamiList
 	amfContext.Rcvd = true
-	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
 
 	logger.ContextLog.Debugln("AMF context updated from dynamic config successfully")
 	return nil
 }
 
-func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
+func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []PlmnSupportItem, []models.Guami) {
 	newSupportedTais := []models.Tai{}
 	var newPlmnSupportList []PlmnSupportItem
 	var newGuamiList []models.Guami
-	newSliceTaiMap := make(map[string][]models.Tai)
 	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
 
 	for _, plmnSnssaiTacs := range newConfig {
@@ -685,7 +682,6 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 		newSnssai := models.Snssai{
 			Sst: plmnSnssaiTacs.Snssai.Sst,
 		}
-		snssaiStr := strconv.FormatInt(int64(plmnSnssaiTacs.Snssai.GetSst()), 10) + plmnSnssaiTacs.Snssai.GetSd()
 		if plmnSnssaiTacs.Snssai.GetSd() != "" {
 			newSnssai.Sd = *plmnSnssaiTacs.Snssai.Sd
 		}
@@ -703,11 +699,10 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 				Tac:    tac,
 			}
 			newSupportedTais = append(newSupportedTais, newTai)
-			newSliceTaiMap[snssaiStr] = append(newSliceTaiMap[snssaiStr], newTai)
 		}
 	}
 	newPlmnSupportList, newGuamiList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
-	return newSupportedTais, newPlmnSupportList, newGuamiList, newSliceTaiMap
+	return newSupportedTais, newPlmnSupportList, newGuamiList
 }
 
 func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]PlmnSupportItem, []models.Guami) {
