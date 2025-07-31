@@ -26,7 +26,7 @@ func TestUpdateAMFContext(t *testing.T) {
 		accessAndMobilityConfig []nfConfigApi.AccessAndMobility
 		expectedSupportTaiLists []models.Tai
 		expectedServedGuamiList []models.Guami
-		expectedPlmnSupportList []factory.PlmnSupportItem
+		expectedPlmnSupportList []PlmnSupportItem
 		expectedSliceTaiList    map[string][]models.Tai
 	}{
 		{
@@ -50,7 +50,7 @@ func TestUpdateAMFContext(t *testing.T) {
 					AmfId:  "cafe00",
 				},
 			},
-			expectedPlmnSupportList: []factory.PlmnSupportItem{
+			expectedPlmnSupportList: []PlmnSupportItem{
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
@@ -83,7 +83,7 @@ func TestUpdateAMFContext(t *testing.T) {
 					AmfId:  "cafe00",
 				},
 			},
-			expectedPlmnSupportList: []factory.PlmnSupportItem{
+			expectedPlmnSupportList: []PlmnSupportItem{
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
@@ -127,7 +127,7 @@ func TestUpdateAMFContext(t *testing.T) {
 					Tac:    "2",
 				},
 			},
-			expectedPlmnSupportList: []factory.PlmnSupportItem{
+			expectedPlmnSupportList: []PlmnSupportItem{
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
@@ -186,7 +186,7 @@ func TestUpdateAMFContext(t *testing.T) {
 					AmfId:  "cafe00",
 				},
 			},
-			expectedPlmnSupportList: []factory.PlmnSupportItem{
+			expectedPlmnSupportList: []PlmnSupportItem{
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{

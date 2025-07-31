@@ -32,7 +32,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
-	AmfContextMutex                  sync.Mutex
+	AmfContextMutex                  sync.RWMutex
 )
 
 func init() {
@@ -42,7 +42,7 @@ func init() {
 	AMF_Self().UriScheme = models.UriScheme_HTTPS
 	AMF_Self().RelativeCapacity = 0xff
 	AMF_Self().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
-	AMF_Self().PlmnSupportList = make([]factory.PlmnSupportItem, 0, MaxNumOfPLMNs)
+	AMF_Self().PlmnSupportList = make([]PlmnSupportItem, 0, MaxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
 	AMF_Self().NetworkName.Full = "aether"
 	if !AMF_Self().EnableDbStore {
@@ -53,6 +53,7 @@ func init() {
 }
 
 type AMFContext struct {
+	Rcvd                            bool
 	Drsm                            drsm.DrsmInterface
 	EventSubscriptionIDGenerator    *idgenerator.IDGenerator
 	EventSubscriptions              sync.Map
@@ -62,7 +63,7 @@ type AMFContext struct {
 	LadnPool                        map[string]*LADN // dnn as key
 	SupportTaiLists                 []models.Tai
 	ServedGuamiList                 []models.Guami
-	PlmnSupportList                 []factory.PlmnSupportItem
+	PlmnSupportList                 []PlmnSupportItem
 	RelativeCapacity                int64
 	NfId                            string
 	Name                            string
@@ -112,7 +113,12 @@ type SecurityAlgorithm struct {
 	CipheringOrder []uint8 // slice of security.AlgCipheringXXX
 }
 
-func NewPlmnSupportItem() (item factory.PlmnSupportItem) {
+type PlmnSupportItem struct {
+	PlmnId     models.PlmnId   `yaml:"plmnId"`
+	SNssaiList []models.Snssai `yaml:"snssaiList,omitempty"`
+}
+
+func NewPlmnSupportItem() (item PlmnSupportItem) {
 	item.SNssaiList = make([]models.Snssai, 0, MaxNumOfSlice)
 	return
 }
@@ -649,24 +655,24 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.SupportTaiLists = amfContext.SupportTaiLists[:0]
 		amfContext.PlmnSupportList = amfContext.PlmnSupportList[:0]
 		amfContext.ServedGuamiList = amfContext.ServedGuamiList[:0]
+		amfContext.Rcvd = false
 		factory.AmfConfig.Configuration.SliceTaiList = make(map[string][]models.Tai, 0)
-		factory.AmfConfig.Rcvd = false
 		return nil
 	}
 	newSupportedTais, newPlmnSupportItems, newGuamiList, newSliceTaiMap := ConvertAccessAndMobilityList(newConfig)
 	amfContext.SupportTaiLists = newSupportedTais
 	amfContext.PlmnSupportList = newPlmnSupportItems
 	amfContext.ServedGuamiList = newGuamiList
+	amfContext.Rcvd = true
 	factory.AmfConfig.Configuration.SliceTaiList = newSliceTaiMap
-	factory.AmfConfig.Rcvd = true
 
 	logger.ContextLog.Debugln("AMF context updated from dynamic config successfully")
 	return nil
 }
 
-func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []factory.PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
+func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []PlmnSupportItem, []models.Guami, map[string][]models.Tai) {
 	newSupportedTais := []models.Tai{}
-	var newPlmnSupportList []factory.PlmnSupportItem
+	var newPlmnSupportList []PlmnSupportItem
 	var newGuamiList []models.Guami
 	newSliceTaiMap := make(map[string][]models.Tai)
 	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
@@ -704,8 +710,8 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 	return newSupportedTais, newPlmnSupportList, newGuamiList, newSliceTaiMap
 }
 
-func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]factory.PlmnSupportItem, []models.Guami) {
-	plmnSupportItemList := make([]factory.PlmnSupportItem, 0, len(plmnSnssaiMap))
+func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]PlmnSupportItem, []models.Guami) {
+	plmnSupportItemList := make([]PlmnSupportItem, 0, len(plmnSnssaiMap))
 	newGuamiList := []models.Guami{}
 	for plmn, snssaiSet := range plmnSnssaiMap {
 		snssaiList := make([]models.Snssai, 0, len(snssaiSet))
@@ -713,7 +719,7 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 			snssaiList = append(snssaiList, snssai)
 		}
 		sortSNssaiList(snssaiList)
-		plmnSupportItem := factory.PlmnSupportItem{
+		plmnSupportItem := PlmnSupportItem{
 			PlmnId:     plmn,
 			SNssaiList: snssaiList,
 		}

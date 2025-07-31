@@ -25,7 +25,6 @@ type Config struct {
 	Configuration *Configuration `yaml:"configuration"`
 	Logger        *logger.Logger `yaml:"logger"`
 	CfgLocation   string
-	Rcvd          bool
 }
 
 type Info struct {
@@ -176,11 +175,6 @@ type TLS struct {
 type Security struct {
 	IntegrityOrder []string `yaml:"integrityOrder,omitempty"`
 	CipheringOrder []string `yaml:"cipheringOrder,omitempty"`
-}
-
-type PlmnSupportItem struct {
-	PlmnId     models.PlmnId   `yaml:"plmnId"`
-	SNssaiList []models.Snssai `yaml:"snssaiList,omitempty"`
 }
 
 type NetworkName struct {

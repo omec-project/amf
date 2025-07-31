@@ -38,93 +38,93 @@ func InitDrsm() (drsm.DrsmInterface, error) {
 	return drsm.InitDRSM("amfid", podId, db, opt)
 }
 
-func InitAmfContext(context *context.AMFContext) {
+func InitAmfContext(amfContext *context.AMFContext) {
 	config := factory.AmfConfig
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
-	if context.NfId == "" {
-		context.NfId = uuid.New().String()
+	if amfContext.NfId == "" {
+		amfContext.NfId = uuid.New().String()
 	}
 
 	if configuration.AmfName != "" {
-		context.Name = configuration.AmfName
+		amfContext.Name = configuration.AmfName
 	}
 	if configuration.NgapIpList != nil {
-		context.NgapIpList = configuration.NgapIpList
+		amfContext.NgapIpList = configuration.NgapIpList
 	} else {
-		context.NgapIpList = []string{"127.0.0.1"} // default localhost
+		amfContext.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
-	context.NgapPort = configuration.NgapPort
-	context.SctpGrpcPort = configuration.SctpGrpcPort
+	amfContext.NgapPort = configuration.NgapPort
+	amfContext.SctpGrpcPort = configuration.SctpGrpcPort
 	sbi := configuration.Sbi
 	if sbi.Scheme != "" {
-		context.UriScheme = models.UriScheme(sbi.Scheme)
+		amfContext.UriScheme = models.UriScheme(sbi.Scheme)
 	} else {
 		logger.UtilLog.Warnln("SBI scheme has not been set. Using http as default")
-		context.UriScheme = "http"
+		amfContext.UriScheme = "http"
 	}
-	context.RegisterIPv4 = factory.AMF_DEFAULT_IPV4 // default localhost
-	context.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
+	amfContext.RegisterIPv4 = factory.AMF_DEFAULT_IPV4 // default localhost
+	amfContext.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			context.RegisterIPv4 = os.Getenv("POD_IP")
+			amfContext.RegisterIPv4 = os.Getenv("POD_IP")
 		}
 		if sbi.Port != 0 {
-			context.SBIPort = sbi.Port
+			amfContext.SBIPort = sbi.Port
 		}
 		if tls := sbi.TLS; tls != nil {
 			if tls.Key != "" {
-				context.Key = tls.Key
+				amfContext.Key = tls.Key
 			}
 			if tls.PEM != "" {
-				context.PEM = tls.PEM
+				amfContext.PEM = tls.PEM
 			}
 		}
-		context.BindingIPv4 = os.Getenv(sbi.BindingIPv4)
-		if context.BindingIPv4 != "" {
+		amfContext.BindingIPv4 = os.Getenv(sbi.BindingIPv4)
+		if amfContext.BindingIPv4 != "" {
 			logger.UtilLog.Infoln("parsing ServerIPv4 address from ENV Variable")
 		} else {
-			context.BindingIPv4 = sbi.BindingIPv4
-			if context.BindingIPv4 == "" {
+			amfContext.BindingIPv4 = sbi.BindingIPv4
+			if amfContext.BindingIPv4 == "" {
 				logger.UtilLog.Warnln("error parsing ServerIPv4 address from string. Using the 0.0.0.0 as default")
-				context.BindingIPv4 = "0.0.0.0"
+				amfContext.BindingIPv4 = "0.0.0.0"
 			}
 		}
 	}
 	serviceNameList := configuration.ServiceNameList
-	context.InitNFService(serviceNameList, config.Info.Version)
-	context.ServedGuamiList = []models.Guami{}
-	context.SupportTaiLists = []models.Tai{}
-	context.PlmnSupportList = []factory.PlmnSupportItem{}
-	context.SupportDnnLists = configuration.SupportDnnList
+	amfContext.InitNFService(serviceNameList, config.Info.Version)
+	amfContext.ServedGuamiList = []models.Guami{}
+	amfContext.SupportTaiLists = []models.Tai{}
+	amfContext.PlmnSupportList = []context.PlmnSupportItem{}
+	amfContext.SupportDnnLists = configuration.SupportDnnList
 	if configuration.NrfUri != "" {
-		context.NrfUri = configuration.NrfUri
+		amfContext.NrfUri = configuration.NrfUri
 	} else {
 		logger.UtilLog.Warnln("NRF Uri is empty! Using localhost as NRF IPv4 address")
-		context.NrfUri = factory.AMF_DEFAULT_NRFURI
+		amfContext.NrfUri = factory.AMF_DEFAULT_NRFURI
 	}
 	security := configuration.Security
 	if security != nil {
-		context.SecurityAlgorithm.IntegrityOrder = getIntAlgOrder(security.IntegrityOrder)
-		context.SecurityAlgorithm.CipheringOrder = getEncAlgOrder(security.CipheringOrder)
+		amfContext.SecurityAlgorithm.IntegrityOrder = getIntAlgOrder(security.IntegrityOrder)
+		amfContext.SecurityAlgorithm.CipheringOrder = getEncAlgOrder(security.CipheringOrder)
 	}
-	context.NetworkName = configuration.NetworkName
-	context.T3502Value = configuration.T3502Value
-	context.T3512Value = configuration.T3512Value
-	context.Non3gppDeregistrationTimerValue = configuration.Non3gppDeregistrationTimerValue
-	context.T3513Cfg = configuration.T3513
-	context.T3522Cfg = configuration.T3522
-	context.T3550Cfg = configuration.T3550
-	context.T3560Cfg = configuration.T3560
-	context.T3565Cfg = configuration.T3565
-	context.EnableSctpLb = configuration.EnableSctpLb
-	context.EnableDbStore = configuration.EnableDbStore
-	context.EnableNrfCaching = configuration.EnableNrfCaching
+	amfContext.NetworkName = configuration.NetworkName
+	amfContext.T3502Value = configuration.T3502Value
+	amfContext.T3512Value = configuration.T3512Value
+	amfContext.Non3gppDeregistrationTimerValue = configuration.Non3gppDeregistrationTimerValue
+	amfContext.T3513Cfg = configuration.T3513
+	amfContext.T3522Cfg = configuration.T3522
+	amfContext.T3550Cfg = configuration.T3550
+	amfContext.T3560Cfg = configuration.T3560
+	amfContext.T3565Cfg = configuration.T3565
+	amfContext.EnableSctpLb = configuration.EnableSctpLb
+	amfContext.EnableDbStore = configuration.EnableDbStore
+	amfContext.EnableNrfCaching = configuration.EnableNrfCaching
 	if configuration.EnableNrfCaching {
 		if configuration.NrfCacheEvictionInterval == 0 {
-			context.NrfCacheEvictionInterval = time.Duration(900) // 15 mins
+			amfContext.NrfCacheEvictionInterval = time.Duration(900) // 15 mins
 		} else {
-			context.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
+			amfContext.NrfCacheEvictionInterval = time.Duration(configuration.NrfCacheEvictionInterval)
 		}
 	}
 }

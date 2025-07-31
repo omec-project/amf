@@ -38,7 +38,7 @@ func init() {
 			Tac:    "1",
 		},
 	}
-	self.PlmnSupportList = []factory.PlmnSupportItem{
+	self.PlmnSupportList = []context.PlmnSupportItem{
 		{
 			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			SNssaiList: []models.Snssai{

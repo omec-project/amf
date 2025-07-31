@@ -15,7 +15,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -26,7 +25,6 @@ import (
 	amfContext "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/eventexposure"
 	"github.com/omec-project/amf/factory"
-	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/httpcallback"
 	"github.com/omec-project/amf/location"
 	"github.com/omec-project/amf/logger"
@@ -42,14 +40,12 @@ import (
 	"github.com/omec-project/amf/tracing"
 	"github.com/omec-project/amf/util"
 	aperLogger "github.com/omec-project/aper/logger"
-	protos "github.com/omec-project/config5g/proto/sdcoreConfig"
 	nasLogger "github.com/omec-project/nas/logger"
 	ngapLogger "github.com/omec-project/ngap/logger"
 	openapiLogger "github.com/omec-project/openapi/logger"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 	nrfCache "github.com/omec-project/openapi/nrfcache"
-	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/spf13/viper"
@@ -442,119 +438,4 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup) {
 	})
 	wg.Wait()
 	logger.InitLog.Infoln("AMF terminated")
-}
-
-func UeConfigSliceDeleteHandler(ctx ctxt.Context, supi, sst, sd string, msg interface{}) {
-	amfSelf := amfContext.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
-
-	// Triggers for NwInitiatedDeRegistration
-	// - Only 1 Allowed Nssai is exist and its slice information matched
-	ns := msg.(*protos.NetworkSlice)
-	if len(ue.AllowedNssai[models.AccessType__3_GPP_ACCESS]) == 1 {
-		st, err := strconv.Atoi(ns.Nssai.Sst)
-		if err != nil {
-			logger.CfgLog.Errorln(err)
-		}
-		if ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sst == int32(st) &&
-			ue.AllowedNssai[models.AccessType__3_GPP_ACCESS][0].AllowedSnssai.Sd == ns.Nssai.Sd {
-			err := gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
-				gmm.ArgAmfUe:      ue,
-				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
-			})
-			if err != nil {
-				logger.CfgLog.Errorln(err)
-			}
-		} else {
-			logger.CfgLog.Infoln("deleted slice not matched with slice info in UEContext")
-		}
-	} else {
-		var Nssai models.Snssai
-		st, err := strconv.Atoi(ns.Nssai.Sst)
-		if err != nil {
-			logger.CfgLog.Errorln(err)
-		}
-		Nssai.Sst = int32(st)
-		Nssai.Sd = ns.Nssai.Sd
-		err = gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoDeleteEvent, fsm.ArgsType{
-			gmm.ArgAmfUe:      ue,
-			gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
-			gmm.ArgNssai:      Nssai,
-		})
-		if err != nil {
-			logger.CfgLog.Errorln(err)
-		}
-	}
-}
-
-func UeConfigSliceAddHandler(ctx ctxt.Context, supi, sst, sd string, msg interface{}) {
-	amfSelf := amfContext.AMF_Self()
-	ue, _ := amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
-
-	ns := msg.(*protos.NetworkSlice)
-	var Nssai models.Snssai
-	st, err := strconv.Atoi(ns.Nssai.Sst)
-	if err != nil {
-		logger.CfgLog.Errorln(err)
-	}
-	Nssai.Sst = int32(st)
-	Nssai.Sd = ns.Nssai.Sd
-	err = gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.SliceInfoAddEvent, fsm.ArgsType{
-		gmm.ArgAmfUe:      ue,
-		gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
-		gmm.ArgNssai:      Nssai,
-	})
-	if err != nil {
-		logger.CfgLog.Errorln(err)
-	}
-}
-
-func HandleImsiDeleteFromNetworkSlice(ctx ctxt.Context, slice *protos.NetworkSlice) {
-	var ue *amfContext.AmfUe
-	var ok bool
-	logger.CfgLog.Infof("handle Subscribers Delete From Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
-
-	for _, supi := range slice.DeletedImsis {
-		amfSelf := amfContext.AMF_Self()
-		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
-		if !ok {
-			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
-			continue
-		}
-		// publish the event to ue channel
-		configMsg := amfContext.ConfigMsg{
-			Supi: supi,
-			Msg:  slice,
-			Sst:  slice.Nssai.Sst,
-			Sd:   slice.Nssai.Sd,
-		}
-		ue.SetEventChannel(ctx, nil)
-		ue.EventChannel.UpdateConfigHandler(UeConfigSliceDeleteHandler)
-		ue.EventChannel.SubmitMessage(configMsg)
-	}
-}
-
-func HandleImsiAddInNetworkSlice(ctx ctxt.Context, slice *protos.NetworkSlice) {
-	var ue *amfContext.AmfUe
-	var ok bool
-	logger.CfgLog.Infof("handle Subscribers Added in Network Slice [sst:%v sd:%v]", slice.Nssai.Sst, slice.Nssai.Sd)
-
-	amfSelf := amfContext.AMF_Self()
-	for _, supi := range slice.AddUpdatedImsis {
-		ue, ok = amfSelf.AmfUeFindBySupi(IMSI_PREFIX + supi)
-		if !ok {
-			logger.CfgLog.Infof("the UE [%v] is not Registered with the 5G-Core", supi)
-			continue
-		}
-		// publish the event to ue channel
-		configMsg := amfContext.ConfigMsg{
-			Supi: supi,
-			Msg:  slice,
-			Sst:  slice.Nssai.Sst,
-			Sd:   slice.Nssai.Sd,
-		}
-
-		ue.EventChannel.UpdateConfigHandler(UeConfigSliceAddHandler)
-		ue.EventChannel.SubmitMessage(configMsg)
-	}
 }
