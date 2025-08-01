@@ -177,7 +177,7 @@ func BuildNGSetupResponse() ([]byte, error) {
 	pLMNSupportList := ie.Value.PLMNSupportList
 	for _, plmnItem := range amfSelf.PlmnSupportList {
 		pLMNSupportItem := ngapType.PLMNSupportItem{}
-		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnItem.PlmnId)
+		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(*plmnItem.PlmnId)
 		for _, snssai := range plmnItem.SNssaiList {
 			sliceSupportItem := ngapType.SliceSupportItem{}
 			sliceSupportItem.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
@@ -2996,7 +2996,7 @@ func BuildAMFConfigurationUpdate(tNLassociationUsage ngapType.TNLAssociationUsag
 	pLMNSupportList := ie.Value.PLMNSupportList
 	for _, plmnItem := range amfSelf.PlmnSupportList {
 		pLMNSupportItem := ngapType.PLMNSupportItem{}
-		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnItem.PlmnId)
+		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(*plmnItem.PlmnId)
 		for _, snssai := range plmnItem.SNssaiList {
 			sliceSupportItem := ngapType.SliceSupportItem{}
 			sliceSupportItem.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
