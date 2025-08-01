@@ -14,16 +14,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"sync"
 
 	"github.com/omec-project/amf/logger"
 	"gopkg.in/yaml.v2"
 )
 
-var (
-	AmfConfig  Config
-	ConfigLock sync.RWMutex
-)
+var AmfConfig Config
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {

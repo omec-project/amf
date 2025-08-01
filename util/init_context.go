@@ -49,10 +49,9 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	if configuration.AmfName != "" {
 		amfContext.Name = configuration.AmfName
 	}
+	amfContext.NgapIpList = []string{"127.0.0.1"} // default localhost
 	if configuration.NgapIpList != nil {
 		amfContext.NgapIpList = configuration.NgapIpList
-	} else {
-		amfContext.NgapIpList = []string{"127.0.0.1"} // default localhost
 	}
 	amfContext.NgapPort = configuration.NgapPort
 	amfContext.SctpGrpcPort = configuration.SctpGrpcPort

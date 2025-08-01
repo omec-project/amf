@@ -48,7 +48,6 @@ import (
 	nrfCache "github.com/omec-project/openapi/nrfcache"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
-	"github.com/spf13/viper"
 	"github.com/urfave/cli/v3"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.uber.org/zap"
@@ -108,18 +107,6 @@ func (amf *AMF) Initialize(ctx ctxt.Context, c *cli.Command) error {
 	}
 
 	if err := factory.CheckConfigVersion(); err != nil {
-		return err
-	}
-
-	if _, err := os.Stat(absPath); err == nil {
-		viper.SetConfigFile(absPath)
-		viper.SetConfigType("yaml")
-		err = viper.ReadInConfig() // Find and read the config file
-		if err != nil {            // Handle errors reading the config file
-			return err
-		}
-	} else if os.IsNotExist(err) {
-		logger.AppLog.Errorln("file %s does not exists", absPath)
 		return err
 	}
 

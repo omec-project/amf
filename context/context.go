@@ -32,7 +32,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
-	AmfContextMutex                  sync.RWMutex
+	amfContextMutex                  sync.RWMutex
 )
 
 func init() {
@@ -116,11 +116,6 @@ type SecurityAlgorithm struct {
 type PlmnSupportItem struct {
 	PlmnId     models.PlmnId   `yaml:"plmnId"`
 	SNssaiList []models.Snssai `yaml:"snssaiList,omitempty"`
-}
-
-func NewPlmnSupportItem() (item PlmnSupportItem) {
-	item.SNssaiList = make([]models.Snssai, 0, MaxNumOfSlice)
-	return
 }
 
 func (context *AMFContext) TmsiAllocate() int32 {
@@ -290,8 +285,8 @@ func (context *AMFContext) AddAmfUeToUePool(ue *AmfUe, supi string) {
 }
 
 func (context *AMFContext) NewAmfUe(supi string) *AmfUe {
-	AmfContextMutex.Lock()
-	defer AmfContextMutex.Unlock()
+	amfContextMutex.Lock()
+	defer amfContextMutex.Unlock()
 	ue := AmfUe{}
 	ue.init()
 
@@ -643,12 +638,8 @@ func AMF_Self() *AMFContext {
 }
 
 func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndMobility) error {
-	AmfContextMutex.Lock()
-	factory.ConfigLock.Lock()
-	defer func() {
-		AmfContextMutex.Unlock()
-		factory.ConfigLock.Unlock()
-	}()
+	amfContextMutex.Lock()
+	defer amfContextMutex.Unlock()
 	logger.ContextLog.Infoln("processing config update from polling service")
 	if len(newConfig) == 0 {
 		logger.ContextLog.Warnln("received empty access and mobility config, clearing dynamic AMF context")
