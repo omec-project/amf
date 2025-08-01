@@ -94,7 +94,7 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	amfContext.InitNFService(serviceNameList, config.Info.Version)
 	amfContext.ServedGuamiList = []models.Guami{}
 	amfContext.SupportTaiLists = []models.Tai{}
-	amfContext.PlmnSupportList = []context.PlmnSupportItem{}
+	amfContext.PlmnSupportList = []models.PlmnSnssai{}
 	amfContext.SupportDnnLists = configuration.SupportDnnList
 	if configuration.NrfUri != "" {
 		amfContext.NrfUri = configuration.NrfUri

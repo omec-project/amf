@@ -26,7 +26,7 @@ func TestUpdateAMFContext(t *testing.T) {
 		accessAndMobilityConfig []nfConfigApi.AccessAndMobility
 		expectedSupportTaiLists []models.Tai
 		expectedServedGuamiList []models.Guami
-		expectedPlmnSupportList []PlmnSupportItem
+		expectedPlmnSupportList []models.PlmnSnssai
 	}{
 		{
 			name: "One Access and Mobility config",
@@ -49,9 +49,9 @@ func TestUpdateAMFContext(t *testing.T) {
 					AmfId:  "cafe00",
 				},
 			},
-			expectedPlmnSupportList: []PlmnSupportItem{
+			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
 						{Sst: 1, Sd: "01"},
 					},
@@ -74,9 +74,9 @@ func TestUpdateAMFContext(t *testing.T) {
 					AmfId:  "cafe00",
 				},
 			},
-			expectedPlmnSupportList: []PlmnSupportItem{
+			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
 						{Sst: 1, Sd: "01"},
 					},
@@ -117,15 +117,15 @@ func TestUpdateAMFContext(t *testing.T) {
 					Tac:    "2",
 				},
 			},
-			expectedPlmnSupportList: []PlmnSupportItem{
+			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
 						{Sst: 1, Sd: "01"},
 					},
 				},
 				{
-					PlmnId: models.PlmnId{Mcc: "001", Mnc: "02"},
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
 					SNssaiList: []models.Snssai{
 						{Sst: 2, Sd: "01"},
 					},
@@ -162,9 +162,9 @@ func TestUpdateAMFContext(t *testing.T) {
 					AmfId:  "cafe00",
 				},
 			},
-			expectedPlmnSupportList: []PlmnSupportItem{
+			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
 						{Sst: 1, Sd: "01"},
 						{Sst: 2, Sd: "01"},

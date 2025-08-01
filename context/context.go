@@ -42,7 +42,7 @@ func init() {
 	AMF_Self().UriScheme = models.UriScheme_HTTPS
 	AMF_Self().RelativeCapacity = 0xff
 	AMF_Self().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
-	AMF_Self().PlmnSupportList = make([]PlmnSupportItem, 0, MaxNumOfPLMNs)
+	AMF_Self().PlmnSupportList = make([]models.PlmnSnssai, 0, MaxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
 	AMF_Self().NetworkName.Full = "aether"
 	if !AMF_Self().EnableDbStore {
@@ -63,7 +63,7 @@ type AMFContext struct {
 	LadnPool                        map[string]*LADN // dnn as key
 	SupportTaiLists                 []models.Tai
 	ServedGuamiList                 []models.Guami
-	PlmnSupportList                 []PlmnSupportItem
+	PlmnSupportList                 []models.PlmnSnssai
 	RelativeCapacity                int64
 	NfId                            string
 	Name                            string
@@ -111,11 +111,6 @@ type AMFContextEventSubscription struct {
 type SecurityAlgorithm struct {
 	IntegrityOrder []uint8 // slice of security.AlgIntegrityXXX
 	CipheringOrder []uint8 // slice of security.AlgCipheringXXX
-}
-
-type PlmnSupportItem struct {
-	PlmnId     models.PlmnId   `yaml:"plmnId"`
-	SNssaiList []models.Snssai `yaml:"snssaiList,omitempty"`
 }
 
 func (context *AMFContext) TmsiAllocate() int32 {
@@ -649,9 +644,9 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 		amfContext.Rcvd = false
 		return nil
 	}
-	newSupportedTais, newPlmnSupportItems, newGuamiList := ConvertAccessAndMobilityList(newConfig)
+	newSupportedTais, newPlmnSnssaiList, newGuamiList := ConvertAccessAndMobilityList(newConfig)
 	amfContext.SupportTaiLists = newSupportedTais
-	amfContext.PlmnSupportList = newPlmnSupportItems
+	amfContext.PlmnSupportList = newPlmnSnssaiList
 	amfContext.ServedGuamiList = newGuamiList
 	amfContext.Rcvd = true
 
@@ -659,9 +654,9 @@ func UpdateAmfContext(amfContext *AMFContext, newConfig []nfConfigApi.AccessAndM
 	return nil
 }
 
-func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []PlmnSupportItem, []models.Guami) {
+func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]models.Tai, []models.PlmnSnssai, []models.Guami) {
 	newSupportedTais := []models.Tai{}
-	var newPlmnSupportList []PlmnSupportItem
+	var newPlmnSnssaiList []models.PlmnSnssai
 	var newGuamiList []models.Guami
 	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
 
@@ -692,12 +687,12 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 			newSupportedTais = append(newSupportedTais, newTai)
 		}
 	}
-	newPlmnSupportList, newGuamiList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
-	return newSupportedTais, newPlmnSupportList, newGuamiList
+	newPlmnSnssaiList, newGuamiList = flattenPlmnSnssaiMap(newPlmnSupportItemsMap)
+	return newSupportedTais, newPlmnSnssaiList, newGuamiList
 }
 
-func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]PlmnSupportItem, []models.Guami) {
-	plmnSupportItemList := make([]PlmnSupportItem, 0, len(plmnSnssaiMap))
+func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]models.PlmnSnssai, []models.Guami) {
+	plmnSnssaiList := make([]models.PlmnSnssai, 0, len(plmnSnssaiMap))
 	newGuamiList := []models.Guami{}
 	for plmn, snssaiSet := range plmnSnssaiMap {
 		snssaiList := make([]models.Snssai, 0, len(snssaiSet))
@@ -705,29 +700,29 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 			snssaiList = append(snssaiList, snssai)
 		}
 		sortSNssaiList(snssaiList)
-		plmnSupportItem := PlmnSupportItem{
-			PlmnId:     plmn,
+		plmnSnssai := models.PlmnSnssai{
+			PlmnId:     &plmn,
 			SNssaiList: snssaiList,
 		}
-		plmnSupportItemList = append(plmnSupportItemList, plmnSupportItem)
+		plmnSnssaiList = append(plmnSnssaiList, plmnSnssai)
 		newGuami := models.Guami{
 			PlmnId: &plmn,
 			AmfId:  "cafe00",
 		}
 		newGuamiList = append(newGuamiList, newGuami)
 	}
-	sortPlmnSupportItemList(plmnSupportItemList)
+	sortPlmnSnssaiList(plmnSnssaiList)
 	sortGuamiList(newGuamiList)
-	return plmnSupportItemList, newGuamiList
+	return plmnSnssaiList, newGuamiList
 }
 
-func sortPlmnSupportItemList(plmnSupportItemList []PlmnSupportItem) {
-	sort.Slice(plmnSupportItemList, func(i, j int) bool {
-		if plmnSupportItemList[i].PlmnId.Mcc != plmnSupportItemList[j].PlmnId.Mcc {
-			return plmnSupportItemList[i].PlmnId.Mcc < plmnSupportItemList[j].PlmnId.Mcc
+func sortPlmnSnssaiList(plmnSnssaiList []models.PlmnSnssai) {
+	sort.Slice(plmnSnssaiList, func(i, j int) bool {
+		if plmnSnssaiList[i].PlmnId.Mcc != plmnSnssaiList[j].PlmnId.Mcc {
+			return plmnSnssaiList[i].PlmnId.Mcc < plmnSnssaiList[j].PlmnId.Mcc
 		}
-		if plmnSupportItemList[i].PlmnId.Mnc != plmnSupportItemList[j].PlmnId.Mnc {
-			return plmnSupportItemList[i].PlmnId.Mnc < plmnSupportItemList[j].PlmnId.Mnc
+		if plmnSnssaiList[i].PlmnId.Mnc != plmnSnssaiList[j].PlmnId.Mnc {
+			return plmnSnssaiList[i].PlmnId.Mnc < plmnSnssaiList[j].PlmnId.Mnc
 		}
 		return false
 	})

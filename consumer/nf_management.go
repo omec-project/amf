@@ -26,7 +26,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	if amfCtx == nil {
 		return profile, fmt.Errorf("amf context has not been intialized. NF profile cannot be built")
 	}
-	newSupportedTais, newPlmnSupportItems, newGuamiList := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
+	newSupportedTais, newPlmnSnssai, newGuamiList := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
 	profile.NfInstanceId = amfCtx.NfId
 	profile.NfType = models.NfType_AMF
 	profile.NfStatus = models.NfStatus_REGISTERED
@@ -40,10 +40,10 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	}
 	profile.PlmnList = &plmns
 	perPlmnSnssaiList := []models.PlmnSnssai{}
-	for _, plmnSupportItem := range newPlmnSupportItems {
+	for _, plmnSnssai := range newPlmnSnssai {
 		perPlmnSnssai := models.PlmnSnssai{
-			PlmnId:     &plmnSupportItem.PlmnId,
-			SNssaiList: plmnSupportItem.SNssaiList,
+			PlmnId:     plmnSnssai.PlmnId,
+			SNssaiList: plmnSnssai.SNssaiList,
 		}
 		perPlmnSnssaiList = append(perPlmnSnssaiList, perPlmnSnssai)
 	}
