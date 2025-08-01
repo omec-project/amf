@@ -361,11 +361,13 @@ func (amf *AMF) Start() {
 		go amfContext.SetupAmfCollection()
 	}
 
+	var tracerProvider *sdktrace.TracerProvider
+
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-signalChannel
-		amf.Terminate(cancelServices, &wg)
+		amf.Terminate(cancelServices, &wg, tracerProvider)
 		os.Exit(0)
 	}()
 
@@ -398,7 +400,7 @@ func (amf *AMF) Start() {
 }
 
 // Used in AMF planned removal procedure
-func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup) {
+func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup, tracerProvider *sdktrace.TracerProvider) {
 	logger.InitLog.Infoln("terminating AMF")
 	amfSelf := amfContext.AMF_Self()
 
@@ -436,6 +438,14 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup) {
 		}
 		return true
 	})
+	if tracerProvider != nil {
+		err := tracerProvider.Shutdown(ctx)
+		if err != nil {
+			logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+		} else {
+			logger.InitLog.Infoln("tracer shutdown successfully")
+		}
+	}
 	wg.Wait()
 	logger.InitLog.Infoln("AMF terminated")
 }
