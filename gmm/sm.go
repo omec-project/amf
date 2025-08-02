@@ -296,7 +296,7 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 					logger.GmmLog.Errorln(err)
 				}
 			} else {
-				gmm_message.SendSecurityModeCommand(amfUe.RanUe[accessType], eapSuccess, eapMessage)
+				gmm_message.SendSecurityModeCommand(amfUe.RanUe[accessType], accessType, eapSuccess, eapMessage)
 			}
 		}
 	case GmmMessageEvent:

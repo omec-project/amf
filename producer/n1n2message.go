@@ -45,7 +45,7 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 	var ue *context.AmfUe
 	var ok bool
 	var problemDetails *models.ProblemDetails
-	logger.ProducerLog.Infof("Handle N1N2 Message Transfer Request")
+	logger.ProducerLog.Infoln("handle N1N2 Message Transfer Request")
 
 	n1n2MessageTransferRequest := request.Body.(models.N1N2MessageTransferRequest)
 	ueContextID := request.Params["ueContextId"]
@@ -148,7 +148,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	if requestData.N1MessageContainer != nil {
 		switch requestData.N1MessageContainer.N1MessageClass {
 		case models.N1MessageClass_SM:
-			ue.ProducerLog.Debugf("Receive N1 SM Message (PDU Session ID: %d)", requestData.PduSessionId)
+			ue.ProducerLog.Debugf("receive N1 SM Message (PDU Session ID: %d)", requestData.PduSessionId)
 			n1MsgType = nasMessage.PayloadContainerTypeN1SMInfo
 			if smContext, ok = ue.SmContextFindByPDUSessionID(requestData.PduSessionId); !ok {
 				problemDetails = &models.ProblemDetails{
@@ -172,7 +172,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	if requestData.N2InfoContainer != nil {
 		switch requestData.N2InfoContainer.N2InformationClass {
 		case models.N2InformationClass_SM:
-			ue.ProducerLog.Debugf("Receive N2 SM Message (PDU Session ID: %d)", requestData.PduSessionId)
+			ue.ProducerLog.Debugf("receive N2 SM Message (PDU Session ID: %d)", requestData.PduSessionId)
 			if smContext == nil {
 				if smContext, ok = ue.SmContextFindByPDUSessionID(requestData.PduSessionId); !ok {
 					problemDetails = &models.ProblemDetails{
@@ -232,9 +232,9 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			err    error
 		)
 		if n1Msg != nil {
-			nasPdu, err = gmm_message.BuildDLNASTransport(ue, n1MsgType, n1Msg, uint8(requestData.PduSessionId), nil, nil, 0)
+			nasPdu, err = gmm_message.BuildDLNASTransport(ue, anType, n1MsgType, n1Msg, uint8(requestData.PduSessionId), nil, nil, 0)
 			if err != nil {
-				ue.ProducerLog.Errorf("Build DL NAS Transport error: %+v", err)
+				ue.ProducerLog.Errorf("build DL NAS Transport error: %+v", err)
 				problemDetails = &models.ProblemDetails{
 					Title:  "System failure",
 					Status: http.StatusInternalServerError,
@@ -244,7 +244,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				return nil, "", problemDetails, nil
 			}
 			if n2Info == nil {
-				ue.ProducerLog.Debug("Forward N1 Message to UE")
+				ue.ProducerLog.Debugln("forward N1 Message to UE")
 				ngap_message.SendDownlinkNasTransport(ue.RanUe[anType], nasPdu, nil)
 				n1n2MessageTransferRspData = new(models.N1N2MessageTransferRspData)
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
@@ -328,7 +328,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 
 	var n1n2MessageID int64
 	if n1n2MessageIDTmp, err := ue.N1N2MessageIDGenerator.Allocate(); err != nil {
-		ue.ProducerLog.Errorf("Allocate n1n2MessageID error: %+v", err)
+		ue.ProducerLog.Errorf("allocate n1n2MessageID error: %+v", err)
 		problemDetails = &models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -364,7 +364,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			}
 			pkg, err := ngap_message.BuildPaging(ue, pagingPriority, false)
 			if err != nil {
-				logger.NgapLog.Errorf("Build Paging failed : %s", err.Error())
+				logger.NgapLog.Errorf("build paging failed: %s", err.Error())
 				return n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr
 			}
 			ngap_message.SendPaging(ue, pkg)
@@ -377,7 +377,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 		if ue.CmConnect(models.AccessType__3_GPP_ACCESS) {
 			if n2Info == nil {
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED
-				gmm_message.SendDLNASTransport(ue.RanUe[models.AccessType__3_GPP_ACCESS],
+				gmm_message.SendDLNASTransport(ue.RanUe[models.AccessType__3_GPP_ACCESS], models.AccessType__3_GPP_ACCESS,
 					nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.PduSessionId, 0, nil, 0)
 			} else {
 				n1n2MessageTransferRspData.Cause = models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE
@@ -389,7 +389,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				ue.N1N2Message = &message
 				nasMsg, err := gmm_message.BuildNotification(ue, models.AccessType_NON_3_GPP_ACCESS)
 				if err != nil {
-					logger.GmmLog.Errorf("Build Notification failed : %s", err.Error())
+					logger.GmmLog.Errorf("build notification failed: %s", err.Error())
 					return n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr
 				}
 				gmm_message.SendNotification(ue.RanUe[models.AccessType__3_GPP_ACCESS], nasMsg)
@@ -416,7 +416,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			}
 			pkg, err := ngap_message.BuildPaging(ue, pagingPriority, true)
 			if err != nil {
-				logger.NgapLog.Errorf("Build Paging failed : %s", err.Error())
+				logger.NgapLog.Errorf("build paging failed: %s", err.Error())
 			}
 			ngap_message.SendPaging(ue, pkg)
 			return n1n2MessageTransferRspData, locationHeader, nil, nil
@@ -425,7 +425,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 }
 
 func HandleN1N2MessageTransferStatusRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.CommLog.Info("Handle N1N2Message Transfer Status Request")
+	logger.CommLog.Infoln("handle N1N2Message Transfer Status Request")
 
 	ueContextID := request.Params["ueContextId"]
 	reqUri := request.Params["reqUri"]
@@ -545,7 +545,7 @@ func N1N2MessageSubscribeProcedure(ueContextID string,
 	ueN1N2InfoSubscriptionCreatedData := new(models.UeN1N2InfoSubscriptionCreatedData)
 
 	if newSubscriptionID, err := ue.N1N2MessageSubscribeIDGenerator.Allocate(); err != nil {
-		logger.CommLog.Errorf("Create subscriptionID Error: %+v", err)
+		logger.CommLog.Errorf("create subscriptionID Error: %+v", err)
 		problemDetails := &models.ProblemDetails{
 			Status: http.StatusInternalServerError,
 			Cause:  "SYSTEM_FAILURE",
@@ -559,7 +559,7 @@ func N1N2MessageSubscribeProcedure(ueContextID string,
 }
 
 func HandleN1N2MessageUnSubscribeRequest(request *httpwrapper.Request) *httpwrapper.Response {
-	logger.CommLog.Info("Handle N1N2Message Unsubscribe Request")
+	logger.CommLog.Infoln("handle N1N2Message Unsubscribe Request")
 
 	ueContextID := request.Params["ueContextId"]
 	subscriptionID := request.Params["subscriptionId"]
