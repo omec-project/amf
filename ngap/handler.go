@@ -1719,7 +1719,7 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 						responseData := errResponse.JsonData
 						n1Msg := errResponse.BinaryDataN1SmMessage
 						n2Info := errResponse.BinaryDataN2SmInformation
-						BuildAndSendN1N2Msg(ranUe, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
+						BuildAndSendN1N2Msg(ranUe, ran.AnType, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
 					}
 				}
 			}
@@ -1760,7 +1760,7 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 	}
 }
 
-func BuildAndSendN1N2Msg(ranUe *context.RanUe, n1Msg, n2Info []byte, N2SmInfoType models.N2SmInfoType, pduSessId int32) {
+func BuildAndSendN1N2Msg(ranUe *context.RanUe, anType models.AccessType, n1Msg, n2Info []byte, N2SmInfoType models.N2SmInfoType, pduSessId int32) {
 	amfUe := ranUe.AmfUe
 	if n2Info != nil {
 		switch N2SmInfoType {
@@ -1771,7 +1771,7 @@ func BuildAndSendN1N2Msg(ranUe *context.RanUe, n1Msg, n2Info []byte, N2SmInfoTyp
 				pduSessionId := uint8(pduSessId)
 				var err error
 				nasPdu, err = gmm_message.BuildDLNASTransport(
-					amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
+					amfUe, anType, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
 				if err != nil {
 					ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
 				}
@@ -2024,7 +2024,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 					var nasPdu []byte
 					if n1Msg != nil {
 						pduSessionId := uint8(pduSessionID)
-						nasPdu, err = gmm_message.BuildDLNASTransport(amfUe, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
+						nasPdu, err = gmm_message.BuildDLNASTransport(amfUe, ran.AnType, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, pduSessionId, nil, nil, 0)
 						if err != nil {
 							ranUe.Log.Warnf("GMM Message build DL NAS Transport filaed: %v", err)
 						}
@@ -2041,7 +2041,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 				pduSessionID, errJSON.Error.Cause)
 			if n1Msg != nil {
 				gmm_message.SendDLNASTransport(
-					ranUe, nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
+					ranUe, ran.AnType, nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 			}
 			// TODO: handle n2 info transfer
 		} else if err != nil {
@@ -2071,7 +2071,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 				responseData := response.JsonData
 				n2Info := response.BinaryDataN1SmMessage
 				n1Msg := response.BinaryDataN2SmInformation
-				BuildAndSendN1N2Msg(ranUe, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
+				BuildAndSendN1N2Msg(ranUe, ran.AnType, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
 			} else if errResponse != nil {
 				errJSON := errResponse.JsonData
 				n1Msg := errResponse.BinaryDataN2SmInformation
@@ -2079,7 +2079,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 					pduSessionID, errJSON.Error.Cause)
 				if n1Msg != nil {
 					gmm_message.SendDLNASTransport(
-						ranUe, nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
+						ranUe, ran.AnType, nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 				}
 			} else if err != nil {
 				return
@@ -2335,7 +2335,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 					responseData := errResponse.JsonData
 					n1Msg := errResponse.BinaryDataN1SmMessage
 					n2Info := errResponse.BinaryDataN2SmInformation
-					BuildAndSendN1N2Msg(ranUe, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
+					BuildAndSendN1N2Msg(ranUe, ran.AnType, n1Msg, n2Info, responseData.N2SmInfoType, pduSessionID)
 				}
 			}
 		}

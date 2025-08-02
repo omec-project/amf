@@ -114,11 +114,11 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 	}
 
 	if smContextStatusNotification.StatusInfo.ResourceStatus == models.ResourceStatus_RELEASED {
-		ue.ProducerLog.Debugf("Release PDU Session[%d] (Cause: %s)", pduSessionID,
+		ue.ProducerLog.Debugf("release PDU Session[%d] (Cause: %s)", pduSessionID,
 			smContextStatusNotification.StatusInfo.Cause)
 
 		if smContext.PduSessionIDDuplicated() {
-			ue.ProducerLog.Debugf("Resume establishing PDU Session[%d]", pduSessionID)
+			ue.ProducerLog.Debugf("resume establishing PDU Session[%d]", pduSessionID)
 			smContext.SetDuplicatedPduSessionID(false)
 			go func() {
 				var (
@@ -127,14 +127,15 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					smMessage []byte
 				)
 				smMessage = smContext.ULNASTransport().GetPayloadContainerContents()
+				anType := smContext.AccessType()
 
 				if smContext.ULNASTransport().SNSSAI != nil {
 					snssai = nasConvert.SnssaiToModels(smContext.ULNASTransport().SNSSAI)
 				} else {
-					if allowedNssai, ok := ue.AllowedNssai[smContext.AccessType()]; ok {
+					if allowedNssai, ok := ue.AllowedNssai[anType]; ok {
 						snssai = *allowedNssai[0].AllowedSnssai
 					} else {
-						ue.GmmLog.Error("Ue doesn't have allowedNssai")
+						ue.GmmLog.Errorln("UE doesn't have allowedNssai")
 						return
 					}
 				}
@@ -158,10 +159,10 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					}
 				}
 
-				newSmContext, cause, err := consumer.SelectSmf(ctx, ue, smContext.AccessType(), pduSessionID, snssai, dnn)
+				newSmContext, cause, err := consumer.SelectSmf(ctx, ue, anType, pduSessionID, snssai, dnn)
 				if err != nil {
 					logger.CallbackLog.Error(err)
-					gmm_message.SendDLNASTransport(ue.RanUe[smContext.AccessType()],
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
 						nasMessage.PayloadContainerTypeN1SMInfo,
 						smContext.ULNASTransport().GetPayloadContainerContents(), pduSessionID, cause, nil, 0)
 					return
@@ -176,13 +177,13 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					ue.StoreSmContext(pduSessionID, newSmContext)
 					// TODO: handle response(response N2SmInfo to RAN if exists)
 				} else if errResponse != nil {
-					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]\n", pduSessionID)
-					gmm_message.SendDLNASTransport(ue.RanUe[smContext.AccessType()],
+					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]", pduSessionID)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
 						nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 				} else if err != nil {
-					ue.ProducerLog.Errorf("Failed to Create smContext[pduSessionID: %d], Error[%s]\n", pduSessionID, err.Error())
+					ue.ProducerLog.Errorf("failed to create smContext[pduSessionID: %d], Error[%s]", pduSessionID, err.Error())
 				} else {
-					ue.ProducerLog.Errorf("Failed to Create smContext[pduSessionID: %d], Error[%v]\n", pduSessionID, problemDetail)
+					ue.ProducerLog.Errorf("failed to create smContext[pduSessionID: %d], Error[%v]", pduSessionID, problemDetail)
 				}
 				smContext.DeleteULNASTransport()
 			}()

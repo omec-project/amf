@@ -151,19 +151,21 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
 	ranId := ngapConvert.RanIdToModels(*ranNodeId)
 	ran.RanPresent = ranNodeId.Present
 	ran.RanId = &ranId
-	if ranNodeId.Present == ngapType.GlobalRANNodeIDPresentGlobalN3IWFID {
-		ran.AnType = models.AccessType_NON_3_GPP_ACCESS
-	} else {
-		ran.AnType = models.AccessType__3_GPP_ACCESS
-	}
 
 	// Setting RanId in String format with ":" separation of each field
 	if ranId.PlmnId != nil {
 		ran.GnbId = ranId.PlmnId.Mcc + ":" + ranId.PlmnId.Mnc + ":"
 	}
-	if ranId.GNbId != nil {
-		ran.GnbId += ranId.GNbId.GNBValue
+	if ranNodeId.Present == ngapType.GlobalRANNodeIDPresentGlobalN3IWFID {
+		ran.AnType = models.AccessType_NON_3_GPP_ACCESS
+		ran.GnbId += ranId.N3IwfId
+	} else {
+		ran.AnType = models.AccessType__3_GPP_ACCESS
+		if ranId.GNbId != nil {
+			ran.GnbId += ranId.GNbId.GNBValue
+		}
 	}
+	ran.Log.Debugf("set RanId: %+v, GnbId: %s, AnType: %s", ran.RanId, ran.GnbId, ran.AnType)
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {

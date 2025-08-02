@@ -81,7 +81,7 @@ var GmmFSM *fsm.FSM
 
 func init() {
 	if f, err := fsm.NewFSM(transitions, callbacks); err != nil {
-		logger.GmmLog.Errorf("Initialize Gmm FSM Error: %+v", err)
+		logger.GmmLog.Errorf("initialize Gmm FSM error: %+v", err)
 	} else {
 		GmmFSM = f
 	}
