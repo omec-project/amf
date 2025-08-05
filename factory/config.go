@@ -58,6 +58,7 @@ type TelemetryConfig struct {
 
 type Configuration struct {
 	AmfName                         string                    `yaml:"amfName,omitempty"`
+	AmfId                           string                    `yaml:"amfId,omitempty"`
 	AmfDBName                       string                    `yaml:"amfDBName,omitempty"`
 	Mongodb                         *Mongodb                  `yaml:"mongodb,omitempty"`
 	NgapIpList                      []string                  `yaml:"ngapIpList,omitempty"`

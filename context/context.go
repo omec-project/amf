@@ -32,7 +32,7 @@ var (
 	tmsiGenerator                    *idgenerator.IDGenerator = nil
 	amfUeNGAPIDGenerator             *idgenerator.IDGenerator = nil
 	amfStatusSubscriptionIDGenerator *idgenerator.IDGenerator = nil
-	amfContextMutex                  sync.RWMutex
+	amfContextMutex                  sync.Mutex
 )
 
 func init() {
@@ -707,7 +707,7 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 		plmnSnssaiList = append(plmnSnssaiList, plmnSnssai)
 		newGuami := models.Guami{
 			PlmnId: &plmn,
-			AmfId:  "cafe00",
+			AmfId:  factory.AmfConfig.Configuration.AmfId,
 		}
 		newGuamiList = append(newGuamiList, newGuami)
 	}

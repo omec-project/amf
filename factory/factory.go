@@ -30,6 +30,10 @@ func InitConfigFactory(f string) error {
 	if err = yaml.Unmarshal(content, &AmfConfig); err != nil {
 		return err
 	}
+	if AmfConfig.Configuration.AmfId == "" {
+		AmfConfig.Configuration.AmfId = "cafe00"
+		logger.CfgLog.Infof("amfId not set in configuration file. Using %s", AmfConfig.Configuration.AmfId)
+	}
 	if AmfConfig.Configuration.WebuiUri == "" {
 		AmfConfig.Configuration.WebuiUri = "http://webui:5001"
 		logger.CfgLog.Infof("webuiUri not set in configuration file. Using %s", AmfConfig.Configuration.WebuiUri)
