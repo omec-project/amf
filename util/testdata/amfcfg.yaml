@@ -10,7 +10,6 @@ info:
 
 configuration:
   amfName: AMF # the name of this AMF
-  amfId: cafe00  # AMF ID for GUAMIs
   ngapIpList:  # the IP list of N2 interfaces on this AMF
     - 127.0.0.1
   sbi: # Service-based interface information

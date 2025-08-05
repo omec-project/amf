@@ -24,16 +24,40 @@ func TestGetDefaultWebuiUrl(t *testing.T) {
 	assert.Equal(t, got, want, "The webui URL is not correct.")
 }
 
+// AMF ID is not set then default AMF ID value is returned
+func TestGetDefaultAmfId(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
+	if err := InitConfigFactory("../util/testdata/amfcfg.yaml"); err != nil {
+		t.Errorf("Error in InitConfigFactory: %v", err)
+	}
+	got := AmfConfig.Configuration.AmfId
+	want := "cafe00"
+	assert.Equal(t, got, want, "The AMF ID is not correct.")
+}
+
 // Webui URL is set to a custom value then custom Webui URL is returned
 func TestGetCustomWebuiUrl(t *testing.T) {
 	origAmfConfig := AmfConfig
 	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../util/testdata/amfcfg_with_custom_webui_url.yaml"); err != nil {
+	if err := InitConfigFactory("../util/testdata/amfcfg_with_custom_webui_url_and_amfid.yaml"); err != nil {
 		t.Errorf("Error in InitConfigFactory: %v", err)
 	}
 	got := AmfConfig.Configuration.WebuiUri
 	want := "https://myspecialwebui:5002"
 	assert.Equal(t, got, want, "The webui URL is not correct.")
+}
+
+// AMF ID is set to a custom value then custom AMF ID is returned
+func TestGetCustomAmfId(t *testing.T) {
+	origAmfConfig := AmfConfig
+	defer func() { AmfConfig = origAmfConfig }()
+	if err := InitConfigFactory("../util/testdata/amfcfg_with_custom_webui_url_and_amfid.yaml"); err != nil {
+		t.Errorf("Error in InitConfigFactory: %v", err)
+	}
+	got := AmfConfig.Configuration.AmfId
+	want := "cafe01"
+	assert.Equal(t, got, want, "The AMF ID is not correct.")
 }
 
 func TestNoTelemetryConfig(t *testing.T) {
@@ -191,6 +215,47 @@ func TestValidateWebuiUri(t *testing.T) {
 			}
 			if err != nil && tc.isValid {
 				t.Errorf("expected URI: %s to be valid", tc.uri)
+			}
+		})
+	}
+}
+
+func TestValidateAmfId(t *testing.T) {
+	tests := []struct {
+		name    string
+		amfId   string
+		isValid bool
+	}{
+		{
+			name:    "valid amfId",
+			amfId:   "cafe00",
+			isValid: true,
+		},
+		{
+			name:    "invalid amfId (shorter than 6 chars)",
+			amfId:   "cafe",
+			isValid: false,
+		},
+		{
+			name:    "invalid amfId (longer 6 chars)",
+			amfId:   "cafe00cafe00",
+			isValid: false,
+		},
+		{
+			name:    "invalid amfId (invalid chars)",
+			amfId:   "cafe!0",
+			isValid: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateAmfId(tc.amfId)
+			if err == nil && !tc.isValid {
+				t.Errorf("expected amfId: %s to be invalid", tc.amfId)
+			}
+			if err != nil && tc.isValid {
+				t.Errorf("expected amfId: %s to be valid", tc.amfId)
 			}
 		})
 	}

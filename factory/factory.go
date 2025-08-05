@@ -14,12 +14,15 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"regexp"
 
 	"github.com/omec-project/amf/logger"
 	"gopkg.in/yaml.v2"
 )
 
 var AmfConfig Config
+
+const AMFID_PATTERN = "^[A-Fa-f0-9]{6}$"
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
@@ -52,7 +55,10 @@ func InitConfigFactory(f string) error {
 			return fmt.Errorf("OTLP endpoint is not set in the configuration")
 		}
 	}
-	err = validateWebuiUri(AmfConfig.Configuration.WebuiUri)
+	if err = validateWebuiUri(AmfConfig.Configuration.WebuiUri); err != nil {
+		return err
+	}
+	err = validateAmfId(AmfConfig.Configuration.AmfId)
 	return err
 }
 
@@ -79,6 +85,17 @@ func validateWebuiUri(uri string) error {
 	}
 	if parsedUrl.Hostname() == "" {
 		return fmt.Errorf("missing host in webuiUri")
+	}
+	return nil
+}
+
+func validateAmfId(amfId string) error {
+	amfIdMatch, err := regexp.MatchString(AMFID_PATTERN, amfId)
+	if err != nil {
+		return fmt.Errorf("invalid amfId: %s. It should match the following pattern: `%s`", amfId, AMFID_PATTERN)
+	}
+	if !amfIdMatch {
+		return fmt.Errorf("invalid amfId: %s. It should match the following pattern: `%s`", amfId, AMFID_PATTERN)
 	}
 	return nil
 }
