@@ -125,7 +125,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 
 func StartGrpcServer(ctx context.Context, port int) {
 	endpt := fmt.Sprintf(":%d", port)
-	fmt.Println("listen - ", endpt)
+	logger.GrpcLog.Infof("AMF gRPC server is starting on port %s", endpt)
 	lisCfg := net.ListenConfig{}
 	lis, err := lisCfg.Listen(ctx, "tcp", endpt)
 	if err != nil {

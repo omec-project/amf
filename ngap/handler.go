@@ -40,7 +40,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 	var fiveGSTMSI *ngapType.FiveGSTMSI
 	var ranUe *context.RanUe
 
-	if !factory.AmfConfig.Rcvd {
+	if !amfSelf.Rcvd {
 		logger.NgapLog.Errorln("AMF not ready to handle signalling traffic")
 		return nil, nil
 	}
@@ -1394,7 +1394,7 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 
 	var iesCriticalityDiagnostics ngapType.CriticalityDiagnosticsIEList
 
-	if !factory.AmfConfig.Rcvd {
+	if !amfSelf.Rcvd {
 		logger.NgapLog.Errorln("AMF not ready to handle signalling traffic")
 		return
 	}
