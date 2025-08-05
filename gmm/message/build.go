@@ -431,9 +431,9 @@ func BuildDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrat
 		}
 		var anType models.AccessType
 		switch accessType {
-		case 0x01:
+		case nasMessage.AccessType3GPP:
 			anType = models.AccessType__3_GPP_ACCESS
-		case 0x02:
+		case nasMessage.AccessTypeNon3GPP:
 			anType = models.AccessType_NON_3_GPP_ACCESS
 		default:
 			logger.GmmLog.Errorf("invalid access network type: %d", accessType)
