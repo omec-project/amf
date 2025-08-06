@@ -11,47 +11,47 @@ on:
 
 jobs:
   build:
-    uses: omec-project/.github/.github/workflows/build.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/build.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   docker-build:
-    uses: omec-project/.github/.github/workflows/docker-build.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/docker-build.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   static-analysis:
-    uses: omec-project/.github/.github/workflows/static-analysis.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/static-analysis.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   lint:
-    uses: omec-project/.github/.github/workflows/lint.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/lint.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   hadolint:
-    uses: omec-project/.github/.github/workflows/hadolint.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/hadolint.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   license-check:
-    uses: omec-project/.github/.github/workflows/license-check.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/license-check.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   fossa-scan:
-    uses: omec-project/.github/.github/workflows/fossa-scan.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/fossa-scan.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   unit-tests:
-    uses: omec-project/.github/.github/workflows/unit-test.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/unit-test.yml@main
     with:
       branch_name: ${{ github.ref }}
 
   e2e-tests:
     if: github.event_name == 'pull_request'
-    uses: omec-project/.github/.github/workflows/e2e-test.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/e2e-test.yml@main
     with:
       branch_name: ${{ github.ref }}

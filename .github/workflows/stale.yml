@@ -7,7 +7,7 @@ on:
 
 jobs:
   stale:
-    uses: omec-project/.github/.github/workflows/stale-issue.yml@main
+    uses: networkgcorefullcode/.github/.github/workflows/stale-issue.yml@main
     with:
       days_before_stale: 120
       days_before_close: 15
