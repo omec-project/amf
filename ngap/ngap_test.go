@@ -14,11 +14,12 @@ import (
 	"github.com/omec-project/amf/ngap"
 	ngaputil "github.com/omec-project/amf/ngap/util"
 	"github.com/omec-project/amf/util"
+	"github.com/omec-project/openapi/models"
 )
 
 func init() {
 	// Initializing AMF Context from config.
-	testAmfConfig := "../amfTest/amfcfg.yaml"
+	testAmfConfig := "../util/testdata/amfcfg.yaml"
 	if err := factory.InitConfigFactory(testAmfConfig); err != nil {
 		logger.NgapLog.Fatalln("failed to initialize Factory Config")
 	}
@@ -26,7 +27,33 @@ func init() {
 		logger.NgapLog.Fatalln("failed to initialize Kafka Stream")
 	}
 
-	util.InitAmfContext(context.AMF_Self())
+	self := context.AMF_Self()
+	util.InitAmfContext(self)
+	self.ServedGuamiList = []models.Guami{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			AmfId:  "cafe00",
+		},
+	}
+	self.SupportTaiLists = []models.Tai{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			Tac:    "1",
+		},
+	}
+	self.PlmnSupportList = []models.PlmnSnssai{
+		{
+			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			SNssaiList: []models.Snssai{
+				{
+					Sst: 1, Sd: "010203",
+				},
+				{
+					Sst: 1, Sd: "112233",
+				},
+			},
+		},
+	}
 }
 
 // TestHandleNGSetupRequest validates package ngap's handling for NGSetupRequest

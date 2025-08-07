@@ -22,8 +22,8 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
-func BuildDLNASTransport(ue *context.AmfUe, payloadContainerType uint8, nasPdu []byte,
-	pduSessionId uint8, cause *uint8, backoffTimerUint *uint8, backoffTimer uint8,
+func BuildDLNASTransport(ue *context.AmfUe, anType models.AccessType, payloadContainerType uint8,
+	nasPdu []byte, pduSessionId uint8, cause *uint8, backoffTimerUint *uint8, backoffTimer uint8,
 ) ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
@@ -62,10 +62,10 @@ func BuildDLNASTransport(ue *context.AmfUe, payloadContainerType uint8, nasPdu [
 
 	m.DLNASTransport = dLNASTransport
 
-	return nas_security.Encode(ue, m)
+	return nas_security.Encode(ue, m, anType)
 }
 
-func BuildNotification(ue *context.AmfUe, accessType models.AccessType) ([]byte, error) {
+func BuildNotification(ue *context.AmfUe, anType models.AccessType) ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeNotification)
@@ -79,15 +79,18 @@ func BuildNotification(ue *context.AmfUe, accessType models.AccessType) ([]byte,
 	notification.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
 	notification.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
 	notification.SetMessageType(nas.MsgTypeNotification)
-	if accessType == models.AccessType__3_GPP_ACCESS {
+	switch anType {
+	case models.AccessType__3_GPP_ACCESS:
 		notification.SetAccessType(nasMessage.AccessType3GPP)
-	} else {
+	case models.AccessType_NON_3_GPP_ACCESS:
 		notification.SetAccessType(nasMessage.AccessTypeNon3GPP)
+	default:
+		logger.GmmLog.Errorf("invalid access network type: %s", anType)
 	}
 
 	m.Notification = notification
 
-	return nas_security.Encode(ue, m)
+	return nas_security.Encode(ue, m, anType)
 }
 
 func BuildIdentityRequest(typeOfIdentity uint8) ([]byte, error) {
@@ -163,7 +166,7 @@ func BuildAuthenticationRequest(ue *context.AmfUe) ([]byte, error) {
 	return m.PlainNasEncode()
 }
 
-func BuildServiceAccept(ue *context.AmfUe, pDUSessionStatus *[16]bool,
+func BuildServiceAccept(ue *context.AmfUe, anType models.AccessType, pDUSessionStatus *[16]bool,
 	reactivationResult *[16]bool, errPduSessionId, errCause []uint8,
 ) ([]byte, error) {
 	m := nas.NewMessage()
@@ -201,7 +204,7 @@ func BuildServiceAccept(ue *context.AmfUe, pDUSessionStatus *[16]bool,
 	}
 	m.ServiceAccept = serviceAccept
 
-	return nas_security.Encode(ue, m)
+	return nas_security.Encode(ue, m, anType)
 }
 
 func BuildAuthenticationReject(ue *context.AmfUe, eapMsg string) ([]byte, error) {
@@ -318,7 +321,7 @@ func BuildRegistrationReject(ue *context.AmfUe, cause5GMM uint8, eapMessage stri
 }
 
 // TS 24.501 8.2.25
-func BuildSecurityModeCommand(ue *context.AmfUe, eapSuccess bool, eapMessage string) ([]byte, error) {
+func BuildSecurityModeCommand(ue *context.AmfUe, anType models.AccessType, eapSuccess bool, eapMessage string) ([]byte, error) {
 	m := nas.NewMessage()
 	m.GmmMessage = nas.NewGmmMessage()
 	m.GmmHeader.SetMessageType(nas.MsgTypeSecurityModeCommand)
@@ -383,7 +386,7 @@ func BuildSecurityModeCommand(ue *context.AmfUe, eapSuccess bool, eapMessage str
 
 	ue.SecurityContextAvailable = true
 	m.SecurityModeCommand = securityModeCommand
-	payload, err := nas_security.Encode(ue, m)
+	payload, err := nas_security.Encode(ue, m, anType)
 	if err != nil {
 		ue.SecurityContextAvailable = false
 		return nil, err
@@ -426,7 +429,16 @@ func BuildDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrat
 			ProtocolDiscriminator: nasMessage.Epd5GSMobilityManagementMessage,
 			SecurityHeaderType:    nas.SecurityHeaderTypeIntegrityProtectedAndCiphered,
 		}
-		return nas_security.Encode(ue.AmfUe, m)
+		var anType models.AccessType
+		switch accessType {
+		case nasMessage.AccessType3GPP:
+			anType = models.AccessType__3_GPP_ACCESS
+		case nasMessage.AccessTypeNon3GPP:
+			anType = models.AccessType_NON_3_GPP_ACCESS
+		default:
+			logger.GmmLog.Errorf("invalid access network type: %d", accessType)
+		}
+		return nas_security.Encode(ue.AmfUe, m, anType)
 	}
 	return m.PlainNasEncode()
 }
@@ -496,7 +508,7 @@ func BuildRegistrationAccept(
 		registrationAccept.EquivalentPlmns = nasType.NewEquivalentPlmns(nasMessage.RegistrationAcceptEquivalentPlmnsType)
 		var buf []uint8
 		for _, plmnSupportItem := range amfSelf.PlmnSupportList {
-			buf = append(buf, nasConvert.PlmnIDToNas(plmnSupportItem.PlmnId)...)
+			buf = append(buf, nasConvert.PlmnIDToNas(*plmnSupportItem.PlmnId)...)
 		}
 		registrationAccept.EquivalentPlmns.SetLen(uint8(len(buf)))
 		copy(registrationAccept.EquivalentPlmns.Octet[:], buf)
@@ -633,7 +645,7 @@ func BuildRegistrationAccept(
 
 	m.RegistrationAccept = registrationAccept
 
-	return nas_security.Encode(ue, m)
+	return nas_security.Encode(ue, m, anType)
 }
 
 func BuildStatus5GMM(cause uint8) ([]byte, error) {

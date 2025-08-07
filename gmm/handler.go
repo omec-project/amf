@@ -25,6 +25,7 @@ import (
 	"github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/nas/nas_security"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/util"
@@ -115,7 +116,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				fallthrough
 			case nasMessage.ULNASTransportRequestTypeExistingEmergencyPduSession:
 				ue.GmmLog.Warnf("emergency PDU Session is not supported")
-				gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+				gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 					smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
 				return nil
 			}
@@ -166,7 +167,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				if response == nil {
 					err := fmt.Errorf("PDU Session ID[%d] can't be released in DUPLICATE_SESSION_ID case", pduSessionID)
 					ue.GmmLog.Errorln(err)
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
 				} else {
 					smContext.SetUserLocation(ue.Location)
@@ -190,7 +191,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				} else {
 					ue.GmmLog.Errorf("S-NSSAI[%v] is not allowed for access type[%s] (PDU Session ID: %d)",
 						smContext.Snssai(), anType, pduSessionID)
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
 				}
 			// other requestType: AMF forward the 5GSM message, and the PDU session ID IE towards the SMF identified
@@ -251,7 +252,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 
 				if newSmContext, cause, err := consumer.SelectSmf(ctx, ue, anType, pduSessionID, snssai, dnn); err != nil {
 					ue.GmmLog.Errorf("Select SMF failed: %+v", err)
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, cause, nil, 0)
 				} else {
 					_, smContextRef, errResponse, problemDetail, err := consumer.SendCreateSmContextRequest(ctx, ue, newSmContext, nil, smMessage)
@@ -264,7 +265,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 					} else if errResponse != nil {
 						ue.GmmLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]",
 							pduSessionID)
-						gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+						gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 							errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 					} else {
 						newSmContext.SetSmContextRef(smContextRef)
@@ -282,7 +283,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 					// TS 24.501 5.4.5.2.5 case a) 3)
 					pduSessionIDStr := fmt.Sprintf("%d", pduSessionID)
 					if ueContextInSmf, ok := ue.UeContextInSmfData.PduSessions[pduSessionIDStr]; !ok {
-						gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+						gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 							smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
 					} else {
 						// TS 24.501 5.4.5.2.3 case a) 1) iv)
@@ -295,7 +296,7 @@ func transport5GSMMessage(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 						return forward5GSMMessageToSMF(ctx, ue, anType, pduSessionID, smContext, smMessage)
 					}
 				} else {
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						smMessage, pduSessionID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
 				}
 			default:
@@ -336,10 +337,10 @@ func forward5GSMMessageToSMF(
 
 	if err != nil {
 		// TODO: error handling
-		ue.GmmLog.Errorf("Update SMContext error [pduSessionID: %d], Error[%v]", pduSessionID, err)
+		ue.GmmLog.Errorf("update SMContext error [pduSessionID: %d], Error[%v]", pduSessionID, err)
 		return nil
 	} else if problemDetail != nil {
-		ue.GmmLog.Errorf("Update SMContext failed [pduSessionID: %d], problem[%v]", pduSessionID, problemDetail)
+		ue.GmmLog.Errorf("update SMContext failed [pduSessionID: %d], problem[%v]", pduSessionID, problemDetail)
 		return nil
 	} else if errResponse != nil {
 		errJSON := errResponse.JsonData
@@ -347,7 +348,7 @@ func forward5GSMMessageToSMF(
 		ue.GmmLog.Warnf("PDU Session Modification Procedure is rejected by SMF[pduSessionId:%d], Error[%s]",
 			pduSessionID, errJSON.Error.Cause)
 		if n1Msg != nil {
-			gmm_message.SendDLNASTransport(ue.RanUe[accessType], nasMessage.PayloadContainerTypeN1SMInfo,
+			gmm_message.SendDLNASTransport(ue.RanUe[accessType], accessType, nasMessage.PayloadContainerTypeN1SMInfo,
 				errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 		}
 		// TODO: handle n2 info transfer
@@ -361,7 +362,7 @@ func forward5GSMMessageToSMF(
 		n2SmInfo := response.BinaryDataN2SmInformation
 		if response.BinaryDataN1SmMessage != nil {
 			ue.GmmLog.Debug("Receive N1 SM Message from SMF")
-			n1Msg, err = gmm_message.BuildDLNASTransport(ue, nasMessage.PayloadContainerTypeN1SMInfo,
+			n1Msg, err = gmm_message.BuildDLNASTransport(ue, accessType, nasMessage.PayloadContainerTypeN1SMInfo,
 				response.BinaryDataN1SmMessage, uint8(pduSessionID), nil, nil, 0)
 			if err != nil {
 				return err
@@ -402,7 +403,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		return fmt.Errorf("AmfUe is nil")
 	}
 
-	ue.GmmLog.Info("Handle Registration Request")
+	ue.GmmLog.Infoln("handle Registration Request")
 
 	if ue.RanUe[anType] == nil {
 		return fmt.Errorf("RanUe is nil")
@@ -438,7 +439,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		// TS 24.501 4.4.6: When the UE sends a REGISTRATION REQUEST or SERVICE REQUEST message that includes a NAS
 		// message container IE, the UE shall set the security header type of the initial NAS message to
 		// "integrity protected"; then the AMF shall decipher the value part of the NAS message container IE
-		err := security.NASEncrypt(ue.CipheringAlg, ue.KnasEnc, ue.ULCount.Get(), security.Bearer3GPP,
+		err := security.NASEncrypt(ue.CipheringAlg, ue.KnasEnc, ue.ULCount.Get(), nas_security.GetBearerType(anType),
 			security.DirectionUplink, contents)
 		if err != nil {
 			ue.SecurityContextAvailable = false
@@ -947,14 +948,14 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 				}
 				switch requestData.N1MessageContainer.N1MessageClass {
 				case models.N1MessageClass_SM:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeN1SMInfo,
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						n1Msg, requestData.PduSessionId, 0, nil, 0)
 				case models.N1MessageClass_LPP:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeLPP, n1Msg, 0, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeLPP, n1Msg, 0, 0, nil, 0)
 				case models.N1MessageClass_SMS:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeSMS, n1Msg, 0, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeSMS, n1Msg, 0, 0, nil, 0)
 				case models.N1MessageClass_UPDP:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeUEPolicy, n1Msg, 0, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeUEPolicy, n1Msg, 0, 0, nil, 0)
 				}
 				ue.N1N2Message = nil
 				return nil
@@ -1010,7 +1011,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 				var err error
 				if n1Msg != nil {
 					pduSessionId := uint8(smInfo.PduSessionId)
-					nasPdu, err = gmm_message.BuildDLNASTransport(ue, nasMessage.PayloadContainerTypeN1SMInfo,
+					nasPdu, err = gmm_message.BuildDLNASTransport(ue, anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						n1Msg, pduSessionId, nil, nil, 0)
 					if err != nil {
 						return err
@@ -1708,7 +1709,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		return fmt.Errorf("AmfUe is nil")
 	}
 
-	ue.GmmLog.Info("Handle Service Request")
+	ue.GmmLog.Infoln("handle Service Request")
 
 	if ue.T3513 != nil {
 		ue.T3513.Stop()
@@ -1725,13 +1726,13 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 			Procedure: context.OnGoingProcedureNothing,
 		})
 	} else if procedure != context.OnGoingProcedureNothing {
-		ue.GmmLog.Warnf("UE should not in OnGoing[%s]", procedure)
+		ue.GmmLog.Warnf("UE should not be in OnGoing[%s]", procedure)
 	}
 
 	// Send Authtication / Security Procedure not support
 	// Rejecting ServiceRequest if it is received in Deregistered State
 	if !ue.SecurityContextIsValid() || ue.State[anType].Current() == context.Deregistered {
-		ue.GmmLog.Warnf("No Security Context : SUPI[%s]", ue.Supi)
+		ue.GmmLog.Warnf("no security context: SUPI[%s]", ue.Supi)
 		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
 		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
 			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
@@ -1748,7 +1749,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		// TS 24.501 4.4.6: When the UE sends a REGISTRATION REQUEST or SERVICE REQUEST message that includes a NAS
 		// message container IE, the UE shall set the security header type of the initial NAS message to
 		// "integrity protected"; then the AMF shall decipher the value part of the NAS message container IE
-		err := security.NASEncrypt(ue.CipheringAlg, ue.KnasEnc, ue.ULCount.Get(), security.Bearer3GPP,
+		err := security.NASEncrypt(ue.CipheringAlg, ue.KnasEnc, ue.ULCount.Get(), nas_security.GetBearerType(anType),
 			security.DirectionUplink, contents)
 
 		if err != nil {
@@ -1780,12 +1781,12 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 
 	if serviceType == nasMessage.ServiceTypeEmergencyServices ||
 		serviceType == nasMessage.ServiceTypeEmergencyServicesFallback {
-		ue.GmmLog.Warnf("emergency service is not supported")
+		ue.GmmLog.Warnln("emergency service is not supported")
 	}
 
 	if ue.MacFailed {
 		ue.SecurityContextAvailable = false
-		ue.GmmLog.Warnf("Security Context Exist, But Integrity Check Failed with existing Context: SUPI[%s]", ue.Supi)
+		ue.GmmLog.Warnf("security context exists but integrity check failed with existing context: SUPI[%s]", ue.Supi)
 		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
 		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
 			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
@@ -1892,14 +1893,13 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				}
 				switch requestData.N1MessageContainer.N1MessageClass {
 				case models.N1MessageClass_SM:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType],
-						nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.PduSessionId, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.PduSessionId, 0, nil, 0)
 				case models.N1MessageClass_LPP:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeLPP, n1Msg, 0, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeLPP, n1Msg, 0, 0, nil, 0)
 				case models.N1MessageClass_SMS:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeSMS, n1Msg, 0, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeSMS, n1Msg, 0, 0, nil, 0)
 				case models.N1MessageClass_UPDP:
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], nasMessage.PayloadContainerTypeUEPolicy, n1Msg, 0, 0, nil, 0)
+					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeUEPolicy, n1Msg, 0, 0, nil, 0)
 				}
 				ue.N1N2Message = nil
 				return nil
@@ -1963,7 +1963,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				var err error
 				if n1Msg != nil {
 					pduSessionId := uint8(smInfo.PduSessionId)
-					nasPdu, err = gmm_message.BuildDLNASTransport(ue, nasMessage.PayloadContainerTypeN1SMInfo,
+					nasPdu, err = gmm_message.BuildDLNASTransport(ue, anType, nasMessage.PayloadContainerTypeN1SMInfo,
 						n1Msg, pduSessionId, nil, nil, 0)
 					if err != nil {
 						return err
@@ -2045,7 +2045,7 @@ func sendServiceAccept(ue *context.AmfUe, anType models.AccessType, ctxList ngap
 		// update Kgnb/Kn3iwf
 		ue.UpdateSecurityContext(anType)
 
-		nasPdu, err := gmm_message.BuildServiceAccept(ue, pDUSessionStatus, reactivationResult,
+		nasPdu, err := gmm_message.BuildServiceAccept(ue, anType, pDUSessionStatus, reactivationResult,
 			errPduSessionId, errCause)
 		if err != nil {
 			return err
@@ -2056,14 +2056,14 @@ func sendServiceAccept(ue *context.AmfUe, anType models.AccessType, ctxList ngap
 			ngap_message.SendInitialContextSetupRequest(ue, anType, nasPdu, nil, nil, nil, nil)
 		}
 	} else if len(suList.List) != 0 {
-		nasPdu, err := gmm_message.BuildServiceAccept(ue, pDUSessionStatus, reactivationResult,
+		nasPdu, err := gmm_message.BuildServiceAccept(ue, anType, pDUSessionStatus, reactivationResult,
 			errPduSessionId, errCause)
 		if err != nil {
 			return err
 		}
 		ngap_message.SendPDUSessionResourceSetupRequest(ue.RanUe[anType], nasPdu, suList)
 	} else {
-		gmm_message.SendServiceAccept(ue.RanUe[anType], pDUSessionStatus, reactivationResult, errPduSessionId, errCause)
+		gmm_message.SendServiceAccept(ue.RanUe[anType], anType, pDUSessionStatus, reactivationResult, errPduSessionId, errCause)
 	}
 	return nil
 }
