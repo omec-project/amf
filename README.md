@@ -13,12 +13,12 @@ of NAS signalling, NAS ciphering & integrity protection, registration
 management, connection management, mobility management, access authentication
 and authorization, security context management.
 
-## AMF Block Diagram
-![AMF Block Diagram](/docs/images/README-AMF.png)
+## AMF flow Diagram
+![AMF Flow Diagram](/docs/images/README-AMF.png)
 
-AMF takes configuration from Configuration Service. Configuration is handled at
-Network Slice level. Configuration (Network Slices) can be added, removed and
-deleted. AMF has prometheus interface to export metrics. Metrics include
+AMF takes configuration from NFConfig Service. Configuration is handled at
+ the Network Slice level. Configuration (Network Slices) can be added, removed and
+deleted. AMF has a prometheus interface to export metrics. Metrics include
 connected gNodeB's and its status.
 
 ## Dynamic Network configuration (via webconsole)
