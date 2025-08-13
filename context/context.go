@@ -447,15 +447,6 @@ func (context *AMFContext) DeleteAmfRanId(gnbId string) {
 	context.AmfRanPool.Delete(gnbId)
 }
 
-func (context *AMFContext) InSupportDnnList(targetDnn string) bool {
-	for _, dnn := range context.SupportDnnLists {
-		if dnn == targetDnn {
-			return true
-		}
-	}
-	return false
-}
-
 func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
 	for _, plmnSupportItem := range context.PlmnSupportList {
 		for _, supportSnssai := range plmnSupportItem.SNssaiList {
