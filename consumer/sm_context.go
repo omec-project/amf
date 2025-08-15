@@ -85,14 +85,15 @@ func SelectSmf(
 		const maxRetries = 10
 		for i := 0; i < maxRetries; i++ {
 			if err := SearchNssfNSSelectionInstance(ctx, ue, nrfUri, models.NfType_NSSF, models.NfType_AMF, nil); err != nil {
-				ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
+				ue.GmmLog.Errorf("AMF cannot select an NSSF instance via NRF [error: %+v]", err)
+				if i == maxRetries-1 {
+					return nil, nasMessage.Cause5GMMPayloadWasNotForwarded,
+						fmt.Errorf("nssf selection instance timed out")
+				}
 				time.Sleep(2 * time.Second)
-			} else {
-				break
+				continue
 			}
-			if i == maxRetries-1 {
-				return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("nssf selection instance timed out")
-			}
+			break
 		}
 		response, problemDetails, err := NSSelectionGetForPduSession(ctx, ue, snssai)
 		if err != nil {

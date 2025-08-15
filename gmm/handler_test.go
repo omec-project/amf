@@ -104,13 +104,17 @@ func Test_SendNotForwarded(t *testing.T) {
 	}
 
 	ue := newUE()
-	sendNotForwarded(ue, models.AccessType__3_GPP_ACCESS, nil, 7)
+	if err := sendNotForwarded(ue, models.AccessType__3_GPP_ACCESS, nil, 7); err != nil {
+		t.Logf("sendNotForwarded returned error (ignored in this test): %v", err)
+	}
 	if calls != 0 {
 		t.Errorf("expected 0 calls; got %d", calls)
 	}
 
 	ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
-	sendNotForwarded(ue, models.AccessType__3_GPP_ACCESS, []byte{0x01}, 7)
+	if err := sendNotForwarded(ue, models.AccessType__3_GPP_ACCESS, []byte{0x01}, 7); err != nil {
+		t.Logf("sendNotForwarded returned error (ignored in this test): %v", err)
+	}
 	if calls != 1 {
 		t.Errorf("expected 1 call; got %d", calls)
 	}

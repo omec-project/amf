@@ -108,7 +108,9 @@ func transport5GSMMessage(
 
 	if ulNasTransport.OldPDUSessionID != nil {
 		ue.GmmLog.Warn("ssc mode 3 not supported; not forwarding payload")
-		sendNotForwarded(ue, anType, smMsg, pduID)
+		if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
+			return fmt.Errorf("ssc mode3 operation has not been implemented yet: %w", err)
+		}
 		return fmt.Errorf("ssc mode3 operation has not been implemented yet")
 	}
 
@@ -117,7 +119,9 @@ func transport5GSMMessage(
 
 	if isEmergencyRequest(requestType) {
 		ue.GmmLog.Warnf("emergency PDU Session is not supported")
-		sendNotForwarded(ue, anType, smMsg, pduID)
+		if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
+			ue.GmmLog.Warnf("sendNotForwarded failed (anType=%s, pduID=%d): %v", anType, pduID, err)
+		}
 		return nil
 	}
 
@@ -145,7 +149,9 @@ func transport5GSMMessage(
 			}
 			ue.GmmLog.Errorf("s-nssai[%v] is not allowed for access type[%s] (pdu session id: %d)",
 				smCtx.Snssai(), anType, pduID)
-			sendNotForwarded(ue, anType, smMsg, pduID)
+			if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
+				ue.GmmLog.Warnf("sendNotForwarded failed (anType=%s, pduID=%d): %v", anType, pduID, err)
+			}
 			return nil
 
 		default:
@@ -198,13 +204,17 @@ func transport5GSMMessage(
 	case nasMessage.ULNASTransportRequestTypeModificationRequest,
 		nasMessage.ULNASTransportRequestTypeExistingPduSession:
 		if ue.UeContextInSmfData == nil {
-			sendNotForwarded(ue, anType, smMsg, pduID)
+			if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
+				ue.GmmLog.Warnf("sendNotForwarded failed (anType=%s, pduID=%d): %v", anType, pduID, err)
+			}
 			return nil
 		}
 		pid := fmt.Sprintf("%d", pduID)
 		ueInSmf, ok := ue.UeContextInSmfData.PduSessions[pid]
 		if !ok {
-			sendNotForwarded(ue, anType, smMsg, pduID)
+			if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
+				ue.GmmLog.Warnf("sendNotForwarded failed (anType=%s, pduID=%d): %v", anType, pduID, err)
+			}
 			return nil
 		}
 
@@ -255,17 +265,23 @@ func is5GSMStatusFromUE(smMsg []byte, ue *context.AmfUe) bool {
 		ue.GmmLog.Errorf("could not decode Nas message: %v", err)
 		return false
 	}
-	return msg.GsmMessage != nil && msg.Status5GSM != nil
+	if msg.GsmMessage != nil && msg.Status5GSM != nil {
+		ue.GmmLog.Warnf("Received 5GSM Status message from UE, cause: %d", msg.Status5GSM.GetCauseValue())
+		return true
+	}
+	return false
 }
 
-func sendNotForwarded(ue *context.AmfUe, anType models.AccessType, smMsg []byte, pduID int32) {
+func sendNotForwarded(ue *context.AmfUe, anType models.AccessType, smMsg []byte, pduID int32) error {
 	ranUe := ue.RanUe[anType]
 	if ranUe == nil {
-		ue.GmmLog.Warnf("no RAN UE for access %s, cannot send DL NAS Transport (pdu=%d)", anType, pduID)
-		return
+		err := fmt.Errorf("no RAN UE for access %s, cannot send DL NAS Transport (pdu=%d)", anType, pduID)
+		ue.GmmLog.Warn(err.Error())
+		return err
 	}
 	sendDLNASTransport(ranUe, anType, nasMessage.PayloadContainerTypeN1SMInfo,
 		smMsg, pduID, nasMessage.Cause5GMMPayloadWasNotForwarded, nil, 0)
+	return nil
 }
 
 func releaseDuplicatePDUSession(
@@ -295,7 +311,9 @@ func releaseDuplicatePDUSession(
 	if resp == nil {
 		err := fmt.Errorf("pdu session ID[%d] can't be released in DUPLICATE_SESSION_ID case", pduID)
 		ue.GmmLog.Errorln(err)
-		sendNotForwarded(ue, anType, smMsg, pduID)
+		if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
+			ue.GmmLog.Warnf("sendNotForwarded failed (anType=%s, pduID=%d): %v", anType, pduID, err)
+		}
 		return nil
 	}
 
