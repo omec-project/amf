@@ -266,7 +266,7 @@ func is5GSMStatusFromUE(smMsg []byte, ue *context.AmfUe) bool {
 		return false
 	}
 	if msg.GsmMessage != nil && msg.Status5GSM != nil {
-		ue.GmmLog.Warnf("Received 5GSM Status message from UE, cause: %d", msg.Status5GSM.GetCauseValue())
+		ue.GmmLog.Warnf("received 5GSM Status message from UE, cause: %d", msg.Status5GSM.GetCauseValue())
 		return true
 	}
 	return false
@@ -321,7 +321,7 @@ func releaseDuplicatePDUSession(
 	if n2 := resp.BinaryDataN2SmInformation; n2 != nil {
 		switch resp.JsonData.N2SmInfoType {
 		case models.N2SmInfoType_PDU_RES_REL_CMD:
-			ue.GmmLog.Debugln("AMF transfer NGAP PDU Session resource release command from SMF")
+			ue.GmmLog.Debugln("AMF transfer NGAP PDU session resource release command from SMF")
 			var list ngapType.PDUSessionResourceToReleaseListRelCmd
 			ngap_message.AppendPDUSessionResourceToReleaseListRelCmd(&list, pduID, n2)
 			ngap_message.SendPDUSessionResourceReleaseCommand(ue.RanUe[anType], nil, list)

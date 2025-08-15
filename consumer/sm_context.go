@@ -88,7 +88,7 @@ func SelectSmf(
 				ue.GmmLog.Errorf("AMF cannot select an NSSF instance via NRF [error: %+v]", err)
 				if i == maxRetries-1 {
 					return nil, nasMessage.Cause5GMMPayloadWasNotForwarded,
-						fmt.Errorf("nssf selection instance timed out")
+						fmt.Errorf("NSSF selection instance timed out")
 				}
 				time.Sleep(2 * time.Second)
 				continue
