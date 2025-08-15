@@ -74,22 +74,26 @@ func SelectSmf(
 	var smfUri string
 
 	ue.GmmLog.Infof("Select SMF [snssai: %+v, dnn: %+v]", snssai, dnn)
+	if snssai.Sst == 0 || dnn == "" {
+		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("invalid SNSSAI or DNN parameters")
+	}
 
 	nrfUri := ue.ServingAMF.NrfUri // default NRF URI is pre-configured by AMF
 
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
-		// TODO: Set a timeout of NSSF Selection or will starvation here
-		for {
-			if err := SearchNssfNSSelectionInstance(ctx, ue, nrfUri, models.NfType_NSSF,
-				models.NfType_AMF, nil); err != nil {
+		const maxRetries = 10
+		for i := 0; i < maxRetries; i++ {
+			if err := SearchNssfNSSelectionInstance(ctx, ue, nrfUri, models.NfType_NSSF, models.NfType_AMF, nil); err != nil {
 				ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
 				time.Sleep(2 * time.Second)
 			} else {
 				break
 			}
+			if i == maxRetries-1 {
+				return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("nssf selection instance timed out")
+			}
 		}
-
 		response, problemDetails, err := NSSelectionGetForPduSession(ctx, ue, snssai)
 		if err != nil {
 			err = fmt.Errorf("NSSelection Get Error[%+v]", err)
