@@ -97,7 +97,7 @@ func transport5GSMMessage(
 	anType models.AccessType,
 	ulNasTransport *nasMessage.ULNASTransport,
 ) error {
-	ue.GmmLog.Info("transport 5GSM Message to SMF")
+	ue.GmmLog.Infoln("transport 5GSM Message to SMF")
 
 	smMsg := ulNasTransport.GetPayloadContainerContents()
 
@@ -107,7 +107,7 @@ func transport5GSMMessage(
 	}
 
 	if ulNasTransport.OldPDUSessionID != nil {
-		ue.GmmLog.Warn("ssc mode 3 not supported; not forwarding payload")
+		ue.GmmLog.Warnln("ssc mode 3 not supported; not forwarding payload")
 		if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
 			return fmt.Errorf("ssc mode3 operation has not been implemented yet: %w", err)
 		}
@@ -118,7 +118,7 @@ func transport5GSMMessage(
 	requestType := ulNasTransport.RequestType
 
 	if isEmergencyRequest(requestType) {
-		ue.GmmLog.Warnf("emergency PDU Session is not supported")
+		ue.GmmLog.Warnln("emergency PDU Session is not supported")
 		if err := sendNotForwarded(ue, anType, smMsg, pduID); err != nil {
 			ue.GmmLog.Warnf("sendNotForwarded failed (anType=%s, pduID=%d): %v", anType, pduID, err)
 		}
@@ -174,8 +174,29 @@ func transport5GSMMessage(
 		newSmCtx, cause, err := consumer.SelectSmf(ctx, ue, anType, pduID, snssai, dnn)
 		if err != nil {
 			ue.GmmLog.Errorf("select SMF failed: %+v", err)
+			m := new(nas.Message)
+			if err := m.PlainNasDecode(&smMsg); err != nil {
+				ue.GmmLog.Errorf("could not decode NAS message: %v", err)
+			}
+			if m.GsmHeader.GetMessageType() != nas.MsgTypePDUSessionEstablishmentRequest {
+				ue.GmmLog.Errorf("expected PDU Session Establishment Request (%+v), got %+v", nas.MsgTypePDUSessionEstablishmentRequest, m.GsmHeader.GetMessageType())
+				return nil
+			}
+			pti := m.PDUSessionEstablishmentRequest.GetPTI()
+			m.GsmHeader.SetMessageType(nas.MsgTypePDUSessionEstablishmentReject)
+			m.PDUSessionEstablishmentRequest = nil
+			m.PDUSessionEstablishmentReject = nasMessage.NewPDUSessionEstablishmentReject(0x0)
+			m.PDUSessionEstablishmentReject.SetMessageType(nas.MsgTypePDUSessionEstablishmentReject)
+			m.PDUSessionEstablishmentReject.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSSessionManagementMessage)
+			m.PDUSessionEstablishmentReject.SetPDUSessionID(uint8(pduID))
+			m.PDUSessionEstablishmentReject.SetPTI(pti)
+			m.PDUSessionEstablishmentReject.SetCauseValue(cause)
+			nasPdu, err := m.PlainNasEncode()
+			if err != nil {
+				ue.GmmLog.Errorf("error encoding NAS message: %+v", err)
+			}
 			sendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo,
-				smMsg, pduID, cause, nil, 0)
+				nasPdu, pduID, cause, nil, 0)
 			return nil
 		}
 
