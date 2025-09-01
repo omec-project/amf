@@ -11,12 +11,12 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/aper v1.3.1
-	github.com/omec-project/nas v1.6.0
+	github.com/omec-project/nas v1.6.1
 	github.com/omec-project/ngap v1.5.0
 	github.com/omec-project/openapi v1.6.3
 	github.com/omec-project/util v1.5.0
 	github.com/prometheus/client_golang v1.23.0
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.4.1
 	go.mongodb.org/mongo-driver v1.17.4
 	go.opentelemetry.io/otel v1.37.0
