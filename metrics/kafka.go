@@ -52,7 +52,7 @@ func InitialiseKafkaStream(config *factory.Configuration) error {
 		kafkaWriter: &producer,
 	}
 
-	logger.KafkaLog.Debugf("initialising kafka stream with url[%v], topic[%v]", brokerUrl, topicName)
+	logger.KafkaLog.Debugf("initialising kafka stream with url[%s], topic[%s]", brokerUrl, topicName)
 	return nil
 }
 
@@ -71,14 +71,14 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 		EventType:      mi.CSubscriberEvt,
 		SubscriberData: mi.CoreSubscriberData{Subscriber: ctxt, Operation: op},
 	}
-	if msg, err := json.Marshal(smKafkaEvt); err != nil {
-		logger.KafkaLog.Errorf("publishing ue context event error [%v] ", err.Error())
+	msg, err := json.Marshal(smKafkaEvt)
+	if err != nil {
+		logger.KafkaLog.Errorf("publishing ue context event error %+v", err)
 		return err
-	} else {
-		logger.KafkaLog.Debugf("publishing ue context event[%s] ", msg)
-		if err := StatWriter.SendMessage(msg); err != nil {
-			logger.KafkaLog.Errorf("could not publish ue context event, error [%v]", err.Error())
-		}
+	}
+	logger.KafkaLog.Debugf("publishing ue context event: %s", msg)
+	if err := StatWriter.SendMessage(msg); err != nil {
+		logger.KafkaLog.Errorf("could not publish ue context event, error %+v", err)
 	}
 	return nil
 }
@@ -87,9 +87,9 @@ func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
 	if msg, err := json.Marshal(msgEvent); err != nil {
 		return err
 	} else {
-		logger.KafkaLog.Debugf("publishing nf status event[%s] ", msg)
+		logger.KafkaLog.Debugf("publishing nf status event: %s", msg)
 		if err := StatWriter.SendMessage(msg); err != nil {
-			logger.KafkaLog.Errorf("error publishing nf status event: %v", err)
+			logger.KafkaLog.Errorf("error publishing nf status event: %+v", err)
 		}
 	}
 	return nil

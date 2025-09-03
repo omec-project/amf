@@ -73,7 +73,7 @@ func SelectSmf(
 ) (*amf_context.SmContext, uint8, error) {
 	var smfUri string
 
-	ue.GmmLog.Infof("Select SMF [snssai: %+v, dnn: %+v]", snssai, dnn)
+	ue.GmmLog.Infof("Select SMF [snssai: %+v, dnn: %s]", snssai, dnn)
 	if snssai.Sst == 0 || dnn == "" {
 		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, fmt.Errorf("invalid SNSSAI or DNN parameters")
 	}
@@ -83,7 +83,7 @@ func SelectSmf(
 	nsiInformation := ue.GetNsiInformationFromSnssai(anType, snssai)
 	if nsiInformation == nil {
 		const maxRetries = 10
-		for i := 0; i < maxRetries; i++ {
+		for i := range maxRetries {
 			if err := SearchNssfNSSelectionInstance(ctx, ue, nrfUri, models.NfType_NSSF, models.NfType_AMF, nil); err != nil {
 				ue.GmmLog.Errorf("AMF cannot select an NSSF instance via NRF [error: %+v]", err)
 				if i == maxRetries-1 {
