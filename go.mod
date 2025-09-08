@@ -15,7 +15,7 @@ require (
 	github.com/omec-project/ngap v1.5.0
 	github.com/omec-project/openapi v1.6.3
 	github.com/omec-project/util v1.5.0
-	github.com/prometheus/client_golang v1.23.0
+	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.4.1
 	go.mongodb.org/mongo-driver v1.17.4
@@ -27,6 +27,8 @@ require (
 	google.golang.org/protobuf v1.36.8
 	gopkg.in/yaml.v2 v2.4.0
 )
+
+require go.yaml.in/yaml/v2 v2.4.2 // indirect
 
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
@@ -65,7 +67,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.65.0 // indirect
+	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/segmentio/kafka-go v0.4.49
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
