@@ -17,7 +17,7 @@ import (
 	"regexp"
 
 	"github.com/omec-project/amf/logger"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v4"
 )
 
 var AmfConfig Config
