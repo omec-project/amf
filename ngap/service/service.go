@@ -173,11 +173,9 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 		}
 
 		if info == nil || info.PPID != ngap.PPID {
-			logger.NgapLog.Warnf("GA: received info failed: %+v", info)
 			logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
 			continue
 		}
-		logger.NgapLog.Warnf("GA: received info: %+v", info)
 
 		logger.NgapLog.Debugf("read %d bytes", n)
 		logger.NgapLog.Debugf("packet content: %+v", hex.Dump(buf[:n]))
