@@ -329,10 +329,7 @@ func (amf *AMF) Start() {
 
 	addr := fmt.Sprintf("%s:%d", self.BindingIPv4, self.SBIPort)
 
-	ngapHandler := ngap_service.NGAPHandler{
-		HandleMessage:      ngap.Dispatch,
-		HandleNotification: ngap.HandleSCTPNotification,
-	}
+	ngapHandler := ngap_service.NGAPHandler(ngap.Dispatch)
 	ngap_service.Run(self.NgapIpList, self.NgapPort, ngapHandler)
 
 	if self.EnableNrfCaching {
