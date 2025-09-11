@@ -12,7 +12,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/aper"
+	"github.com/omec-project/ngap/aper"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
 )
