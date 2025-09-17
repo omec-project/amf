@@ -23,29 +23,32 @@ type Writer struct {
 var StatWriter Writer
 
 func InitialiseKafkaStream(config *factory.Configuration) error {
-	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
-		logger.KafkaLog.Info("Kafka disabled")
+	if !*config.KafkaInfo.EnableKafka {
+		logger.KafkaLog.Warnln("Kafka is disabled")
 		return nil
 	}
 
-	brokerUrl := "sd-core-kafka-headless:9092"
+	brokerUrl := "kafka:9092"
 	topicName := "sdcore-data-source-amf"
 
 	if config.KafkaInfo.BrokerUri != "" && config.KafkaInfo.BrokerPort != 0 {
 		brokerUrl = fmt.Sprintf("%s:%d", config.KafkaInfo.BrokerUri, config.KafkaInfo.BrokerPort)
 	}
-	logger.KafkaLog.Debugf("initialise kafka broker url [%v]", brokerUrl)
+
+	logger.KafkaLog.Debugf("initialise kafka broker url: %s", brokerUrl)
 
 	if config.KafkaInfo.Topic != "" {
 		topicName = config.KafkaInfo.Topic
 	}
-	logger.KafkaLog.Debugf("initialise kafka Topic [%v]", config.KafkaInfo.Topic)
+
+	logger.KafkaLog.Debugf("initialise kafka Topic: %s", config.KafkaInfo.Topic)
 
 	producer := kafka.Writer{
-		Addr:         kafka.TCP(brokerUrl),
-		Topic:        topicName,
-		Balancer:     &kafka.LeastBytes{},
-		BatchTimeout: 10 * time.Millisecond,
+		Addr:                   kafka.TCP(brokerUrl),
+		Topic:                  topicName,
+		AllowAutoTopicCreation: true,
+		Balancer:               &kafka.LeastBytes{},
+		BatchTimeout:           10 * time.Millisecond,
 	}
 
 	StatWriter = Writer{
@@ -61,9 +64,15 @@ func GetWriter() Writer {
 }
 
 func (writer Writer) SendMessage(message []byte) error {
+	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
+		return nil
+	}
 	msg := kafka.Message{Value: message}
-	err := writer.kafkaWriter.WriteMessages(context.Background(), msg)
-	return err
+	if err := writer.kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
+		logger.KafkaLog.Errorf("kafka send message write error: %s", err.Error())
+		return err
+	}
+	return nil
 }
 
 func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.SubscriberOp) error {
@@ -73,23 +82,24 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 	}
 	msg, err := json.Marshal(smKafkaEvt)
 	if err != nil {
-		logger.KafkaLog.Errorf("publishing ue context event error %+v", err)
+		logger.KafkaLog.Errorf("publishing ue context event error %s", err.Error())
 		return err
 	}
 	logger.KafkaLog.Debugf("publishing ue context event: %s", string(msg))
 	if err := StatWriter.SendMessage(msg); err != nil {
-		logger.KafkaLog.Errorf("could not publish ue context event, error %+v", err)
+		logger.KafkaLog.Errorf("could not publish ue context event, error %s", err.Error())
 	}
 	return nil
 }
 
 func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {
 	if msg, err := json.Marshal(msgEvent); err != nil {
+		logger.KafkaLog.Errorf("publishing nf status marshal error: %s", err.Error())
 		return err
 	} else {
 		logger.KafkaLog.Debugf("publishing nf status event: %s", string(msg))
 		if err := StatWriter.SendMessage(msg); err != nil {
-			logger.KafkaLog.Errorf("error publishing nf status event: %+v", err)
+			logger.KafkaLog.Errorf("publishing nf status event error: %s", err.Error())
 		}
 	}
 	return nil
