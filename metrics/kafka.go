@@ -41,7 +41,7 @@ func InitialiseKafkaStream(config *factory.Configuration) error {
 		topicName = config.KafkaInfo.Topic
 	}
 
-	logger.KafkaLog.Debugf("initialise kafka Topic: %s", config.KafkaInfo.Topic)
+	logger.KafkaLog.Debugf("initialise kafka Topic: %s", topicName)
 
 	producer := kafka.Writer{
 		Addr:                   kafka.TCP(brokerUrl),
@@ -64,9 +64,6 @@ func GetWriter() Writer {
 }
 
 func (writer Writer) SendMessage(message []byte) error {
-	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
-		return nil
-	}
 	msg := kafka.Message{Value: message}
 	if err := writer.kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
 		logger.KafkaLog.Errorf("kafka send message write error: %s", err.Error())
