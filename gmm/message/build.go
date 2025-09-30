@@ -10,7 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"

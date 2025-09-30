@@ -7,13 +7,13 @@ require (
 	github.com/antihax/optional v1.0.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/nas v1.6.2
 	github.com/omec-project/ngap v1.6.0
-	github.com/omec-project/openapi v1.6.3
-	github.com/omec-project/util v1.5.0
+	github.com/omec-project/openapi v1.6.4
+	github.com/omec-project/util v1.5.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.4.1
@@ -29,7 +29,6 @@ require (
 
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
-	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
@@ -37,7 +36,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
-	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
+	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.9 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -62,7 +61,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
@@ -85,14 +83,14 @@ require (
 	go.uber.org/zap v1.27.0
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
-	golang.org/x/tools v0.35.0 // indirect
+	golang.org/x/crypto v0.42.0 // indirect
+	golang.org/x/mod v0.27.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/oauth2 v0.31.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/tools v0.36.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
 	gopkg.in/h2non/gock.v1 v1.1.2 // indirect

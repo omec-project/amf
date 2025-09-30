@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/antihax/optional"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
