@@ -9,6 +9,7 @@ package service
 import (
 	"encoding/hex"
 	"io"
+	"math/bits"
 	"net"
 	"sync"
 	"syscall"
@@ -197,7 +198,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 				logger.NgapLog.Warnf("received sctp notification[type 0x%x] but not handled", notification.Type())
 			}
 		} else {
-			if info == nil || info.PPID != ngap.PPID {
+			if info == nil || info.PPID != bits.ReverseBytes32(ngap.PPID) {
 				logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
 				continue
 			}
