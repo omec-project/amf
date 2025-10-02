@@ -36,6 +36,7 @@ import (
 	"github.com/omec-project/nas/security"
 	"github.com/omec-project/ngap/ngapConvert"
 	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
@@ -642,7 +643,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		}
 
 		searchOpt := Nnrf_NFDiscovery.SearchNFInstancesParamOpts{
-			Guami: optional.NewInterface(util.MarshToJsonString(guamiFromUeGuti)),
+			Guami: optional.NewInterface(openapi.MarshToJsonString(guamiFromUeGuti)),
 		}
 		err := consumer.SearchAmfCommunicationInstance(ctx, ue, amfSelf.NrfUri, models.NfType_AMF, models.NfType_AMF, &searchOpt)
 		if err != nil {
@@ -1376,8 +1377,8 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 					}
 
 					if !reflect.DeepEqual(*guami.PlmnId, targetAmfPlmnId) {
-						searchTargetAmfQueryParam.TargetPlmnList = optional.NewInterface(util.MarshToJsonString([]models.PlmnId{targetAmfPlmnId}))
-						searchTargetAmfQueryParam.RequesterPlmnList = optional.NewInterface(util.MarshToJsonString([]models.PlmnId{*guami.PlmnId}))
+						searchTargetAmfQueryParam.TargetPlmnList = optional.NewInterface(openapi.MarshToJsonString([]models.PlmnId{targetAmfPlmnId}))
+						searchTargetAmfQueryParam.RequesterPlmnList = optional.NewInterface(openapi.MarshToJsonString([]models.PlmnId{*guami.PlmnId}))
 					}
 
 					searchTargetAmfQueryParam.AmfRegionId = optional.NewString(targetAmfSetToken[2])
