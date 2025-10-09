@@ -62,7 +62,7 @@ func NewSupportedTAI() (tai SupportedTAI) {
 }
 
 func NewSupportedTAIList() []SupportedTAI {
-	return make([]SupportedTAI, 0, MaxNumOfTAI*MaxNumOfBroadcastPLMNs)
+	return make([]SupportedTAI, 0, maxNumOfTAI*maxNumOfBroadcastPLMNs)
 }
 
 func (ran *AmfRan) Remove() {

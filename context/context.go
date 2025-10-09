@@ -42,13 +42,13 @@ func init() {
 	AMF_Self().UriScheme = models.UriScheme_HTTPS
 	AMF_Self().RelativeCapacity = 0xff
 	AMF_Self().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
-	AMF_Self().PlmnSupportList = make([]models.PlmnSnssai, 0, MaxNumOfPLMNs)
+	AMF_Self().PlmnSupportList = make([]models.PlmnSnssai, 0, maxNumOfPLMNs)
 	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
 	AMF_Self().NetworkName.Full = "aether"
 	if !AMF_Self().EnableDbStore {
 		tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 		amfStatusSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
-		amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, MaxValueOfAmfUeNgapId)
+		amfUeNGAPIDGenerator = idgenerator.NewGenerator(1, maxValueOfAmfUeNgapId)
 	}
 }
 
