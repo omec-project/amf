@@ -3,12 +3,12 @@ module github.com/omec-project/amf
 go 1.24.0
 
 require (
-	git.cs.nctu.edu.tw/calee/sctp v1.1.0
 	github.com/antihax/optional v1.0.0
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/google/uuid v1.6.0
+	github.com/ishidawataru/sctp v0.0.0-20250829011129-4b890084db30
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/nas v1.6.3
 	github.com/omec-project/ngap v1.6.1

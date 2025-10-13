@@ -9,25 +9,18 @@ package service
 import (
 	"encoding/hex"
 	"io"
-	"math/bits"
 	"net"
 	"sync"
 	"syscall"
 
-	"git.cs.nctu.edu.tw/calee/sctp"
+	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap"
 )
 
-type NGAPHandler struct {
-	HandleMessage      func(conn net.Conn, msg []byte)
-	HandleNotification func(conn net.Conn, notification sctp.Notification)
-}
+type NGAPHandler func(conn net.Conn, msg []byte)
 
 const readBufSize uint32 = 131072
-
-// set default read timeout to 2 seconds
-var readTimeout syscall.Timeval = syscall.Timeval{Sec: 2, Usec: 0}
 
 var (
 	sctpListener *sctp.SCTPListener
@@ -35,9 +28,7 @@ var (
 )
 
 var sctpConfig sctp.SocketConfig = sctp.SocketConfig{
-	InitMsg:   sctp.InitMsg{NumOstreams: 3, MaxInstreams: 5, MaxAttempts: 2, MaxInitTimeout: 2},
-	RtoInfo:   &sctp.RtoInfo{SrtoAssocID: 0, SrtoInitial: 500, SrtoMax: 1500, StroMin: 100},
-	AssocInfo: &sctp.AssocInfo{AsocMaxRxt: 4},
+	InitMsg: sctp.InitMsg{NumOstreams: 3, MaxInstreams: 5, MaxAttempts: 2, MaxInitTimeout: 2},
 }
 
 func Run(addresses []string, port int, handler NGAPHandler) {
@@ -61,14 +52,14 @@ func Run(addresses []string, port int, handler NGAPHandler) {
 }
 
 func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
-	if listener, err := sctpConfig.Listen("sctp", addr); err != nil {
+	listener, err := sctpConfig.Listen("sctp", addr)
+	if err != nil {
 		logger.NgapLog.Errorf("failed to listen: %+v", err)
 		return
-	} else {
-		sctpListener = listener
 	}
+	sctpListener = listener
 
-	logger.NgapLog.Infof("Listen on %s", sctpListener.Addr())
+	logger.NgapLog.Infof("listen on %s", sctpListener.Addr())
 
 	for {
 		newConn, err := sctpListener.AcceptSCTP()
@@ -126,16 +117,6 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 			logger.NgapLog.Debugf("Set read buffer to %d bytes", readBufSize)
 		}
 
-		if err := newConn.SetReadTimeout(readTimeout); err != nil {
-			logger.NgapLog.Errorf("set read timeout error: %+v, accept failed", err)
-			if err = newConn.Close(); err != nil {
-				logger.NgapLog.Errorf("close error: %+v", err)
-			}
-			continue
-		} else {
-			logger.NgapLog.Debugf("set read timeout: %+v", readTimeout)
-		}
-
 		logger.NgapLog.Infof("[AMF] SCTP Accept from: %s", newConn.RemoteAddr().String())
 		connections.Store(newConn, newConn)
 
@@ -144,13 +125,13 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 }
 
 func Stop() {
-	logger.NgapLog.Infoln("close SCTP server...")
+	logger.NgapLog.Infoln("close SCTP server")
 	if err := sctpListener.Close(); err != nil {
 		logger.NgapLog.Error(err)
-		logger.NgapLog.Infof("SCTP server may not close normally.")
+		logger.NgapLog.Infoln("SCTP server may not close normally")
 	}
 
-	connections.Range(func(key, value interface{}) bool {
+	connections.Range(func(key, value any) bool {
 		conn := value.(net.Conn)
 		if err := conn.Close(); err != nil {
 			logger.NgapLog.Error(err)
@@ -173,7 +154,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 	for {
 		buf := make([]byte, bufsize)
 
-		n, info, notification, err := conn.SCTPRead(buf)
+		n, info, err := conn.SCTPRead(buf)
 		if err != nil {
 			switch err {
 			case io.EOF, io.ErrUnexpectedEOF:
@@ -191,23 +172,15 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 			}
 		}
 
-		if notification != nil {
-			if handler.HandleNotification != nil {
-				handler.HandleNotification(conn, notification)
-			} else {
-				logger.NgapLog.Warnf("received sctp notification[type 0x%x] but not handled", notification.Type())
-			}
-		} else {
-			if info == nil || info.PPID != bits.ReverseBytes32(ngap.PPID) {
-				logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
-				continue
-			}
-
-			logger.NgapLog.Debugf("Read %d bytes", n)
-			logger.NgapLog.Debugf("Packet content: %+v", hex.Dump(buf[:n]))
-
-			// TODO: concurrent on per-UE message
-			handler.HandleMessage(conn, buf[:n])
+		if info == nil || info.PPID != ngap.PPID {
+			logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
+			continue
 		}
+
+		logger.NgapLog.Debugf("read %d bytes", n)
+		logger.NgapLog.Debugf("packet content: %+v", hex.Dump(buf[:n]))
+
+		// TODO: concurrent on per-UE message
+		handler(conn, buf[:n])
 	}
 }

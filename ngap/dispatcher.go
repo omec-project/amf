@@ -12,9 +12,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"reflect"
 
-	"git.cs.nctu.edu.tw/calee/sctp"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -336,52 +334,6 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 		default:
 			ran.Log.Warnf("Not implemented(choice: %d, procedureCode: %d)", pdu.Present, unsuccessfulOutcome.ProcedureCode.Value)
 		}
-	}
-}
-
-func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
-	amfSelf := context.AMF_Self()
-
-	logger.NgapLog.Infof("Handle SCTP Notification[addr: %+v]", conn.RemoteAddr())
-
-	ran, ok := amfSelf.AmfRanFindByConn(conn)
-	if !ok {
-		logger.NgapLog.Warnf("RAN context has been removed[addr: %+v]", conn.RemoteAddr())
-		return
-	}
-
-	// Removing Stale Connections in AmfRanPool
-	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
-		amfRan := value.(*context.AmfRan)
-
-		conn := amfRan.Conn.(*sctp.SCTPConn)
-		errorConn := sctp.NewSCTPConn(-1, nil)
-		if reflect.DeepEqual(conn, errorConn) {
-			amfRan.Remove()
-			ran.Log.Infoln("removed stale entry in AmfRan pool")
-		}
-		return true
-	})
-
-	switch notification.Type() {
-	case sctp.SCTP_ASSOC_CHANGE:
-		ran.Log.Infoln("SCTP_ASSOC_CHANGE notification")
-		event := notification.(*sctp.SCTPAssocChangeEvent)
-		switch event.State() {
-		case sctp.SCTP_COMM_LOST:
-			ran.Log.Infoln("SCTP state is SCTP_COMM_LOST, close the connection")
-			ran.Remove()
-		case sctp.SCTP_SHUTDOWN_COMP:
-			ran.Log.Infoln("SCTP state is SCTP_SHUTDOWN_COMP, close the connection")
-			ran.Remove()
-		default:
-			ran.Log.Warnf("SCTP state[%+v] is not handled", event.State())
-		}
-	case sctp.SCTP_SHUTDOWN_EVENT:
-		ran.Log.Infoln("SCTP_SHUTDOWN_EVENT notification, close the connection")
-		ran.Remove()
-	default:
-		ran.Log.Warnf("Non handled notification type: 0x%x", notification.Type())
 	}
 }
 
