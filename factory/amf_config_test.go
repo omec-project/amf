@@ -8,56 +8,76 @@ package factory
 
 import (
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
-// Webui URL is not set then default Webui URL value is returned
-func TestGetDefaultWebuiUrl(t *testing.T) {
-	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../util/testdata/amfcfg.yaml"); err != nil {
-		t.Errorf("Error in InitConfigFactory: %v", err)
+func TestWebuiUrl(t *testing.T) {
+	tests := []struct {
+		name       string
+		configFile string
+		want       string
+	}{
+		{
+			name:       "default webui URL",
+			configFile: "../util/testdata/amfcfg.yaml",
+			want:       "http://webui:5001",
+		},
+		{
+			name:       "custom webui URL",
+			configFile: "../util/testdata/amfcfg_with_custom_webui_url_and_amfid.yaml",
+			want:       "https://myspecialwebui:5002",
+		},
 	}
-	got := AmfConfig.Configuration.WebuiUri
-	want := "http://webui:5001"
-	assert.Equal(t, got, want, "The webui URL is not correct.")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origAmfConfig := AmfConfig
+			defer func() { AmfConfig = origAmfConfig }()
+
+			if err := InitConfigFactory(tt.configFile); err != nil {
+				t.Fatalf("Error in InitConfigFactory: %v", err)
+			}
+
+			got := AmfConfig.Configuration.WebuiUri
+			if got != tt.want {
+				t.Errorf("WebuiUri is not correct. got = %q, want = %q", got, tt.want)
+			}
+		})
+	}
 }
 
-// AMF ID is not set then default AMF ID value is returned
-func TestGetDefaultAmfId(t *testing.T) {
-	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../util/testdata/amfcfg.yaml"); err != nil {
-		t.Errorf("Error in InitConfigFactory: %v", err)
+func TestAmfId(t *testing.T) {
+	tests := []struct {
+		name       string
+		configFile string
+		want       string
+	}{
+		{
+			name:       "default AMF ID",
+			configFile: "../util/testdata/amfcfg.yaml",
+			want:       "cafe00",
+		},
+		{
+			name:       "custom AMF ID",
+			configFile: "../util/testdata/amfcfg_with_custom_webui_url_and_amfid.yaml",
+			want:       "cafe01",
+		},
 	}
-	got := AmfConfig.Configuration.AmfId
-	want := "cafe00"
-	assert.Equal(t, got, want, "The AMF ID is not correct.")
-}
 
-// Webui URL is set to a custom value then custom Webui URL is returned
-func TestGetCustomWebuiUrl(t *testing.T) {
-	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../util/testdata/amfcfg_with_custom_webui_url_and_amfid.yaml"); err != nil {
-		t.Errorf("Error in InitConfigFactory: %v", err)
-	}
-	got := AmfConfig.Configuration.WebuiUri
-	want := "https://myspecialwebui:5002"
-	assert.Equal(t, got, want, "The webui URL is not correct.")
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origAmfConfig := AmfConfig
+			defer func() { AmfConfig = origAmfConfig }()
 
-// AMF ID is set to a custom value then custom AMF ID is returned
-func TestGetCustomAmfId(t *testing.T) {
-	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
-	if err := InitConfigFactory("../util/testdata/amfcfg_with_custom_webui_url_and_amfid.yaml"); err != nil {
-		t.Errorf("Error in InitConfigFactory: %v", err)
+			if err := InitConfigFactory(tt.configFile); err != nil {
+				t.Fatalf("Error in InitConfigFactory: %v", err)
+			}
+
+			got := AmfConfig.Configuration.AmfId
+			if got != tt.want {
+				t.Errorf("AmfId is not correct. got = %q, want = %q", got, tt.want)
+			}
+		})
 	}
-	got := AmfConfig.Configuration.AmfId
-	want := "cafe01"
-	assert.Equal(t, got, want, "The AMF ID is not correct.")
 }
 
 func TestNoTelemetryConfig(t *testing.T) {
