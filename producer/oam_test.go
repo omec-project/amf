@@ -56,7 +56,7 @@ func init() {
 
 func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 	tests := []struct {
-		name                                string
+		name                               string
 		setupUE                            func(*context.AMFContext) *context.AmfUe
 		expectedDeregisteredInitiatedCount uint32
 		expectedRegisteredCount            uint32
