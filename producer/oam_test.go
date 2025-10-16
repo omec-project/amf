@@ -16,7 +16,6 @@ import (
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
-	"github.com/stretchr/testify/assert"
 )
 
 func init() {
@@ -55,36 +54,68 @@ func init() {
 	gmm.Mockinit()
 }
 
-func TestHandleOAMPurgeUEContextRequest_UEDeregistered(t *testing.T) {
-	self := context.AMF_Self()
-	var err error
-	self.Drsm, err = util.MockDrsmInit()
-	if err != nil {
-		logger.ProducerLog.Errorf("error in MockDrsmInit: %v", err)
+func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
+	tests := []struct {
+		name                               string
+		setupUE                            func(*context.AMFContext) *context.AmfUe
+		expectedDeregisteredInitiatedCount uint32
+		expectedRegisteredCount            uint32
+		description                        string
+	}{
+		{
+			name: "UE_Deregistered",
+			setupUE: func(self *context.AMFContext) *context.AmfUe {
+				// UE is created but not in registered state (default deregistered)
+				return self.NewAmfUe("imsi-208930100007497")
+			},
+			expectedDeregisteredInitiatedCount: 0,
+			expectedRegisteredCount:            0,
+			description:                        "UE in deregistered state should be purged without state transitions",
+		},
+		{
+			name: "UE_Registered",
+			setupUE: func(self *context.AMFContext) *context.AmfUe {
+				amfUe := self.NewAmfUe("imsi-208930100007497")
+				// Set UE to registered state
+				amfUe.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+				return amfUe
+			},
+			expectedDeregisteredInitiatedCount: 1,
+			expectedRegisteredCount:            2,
+			description:                        "UE in registered state should trigger deregistration before purge",
+		},
 	}
-	amfUe := self.NewAmfUe("imsi-208930100007497")
 
-	HandleOAMPurgeUEContextRequest(ctxt.Background(), amfUe.Supi, "", nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			self := context.AMF_Self()
+			var err error
+			self.Drsm, err = util.MockDrsmInit()
+			if err != nil {
+				t.Fatalf("error in MockDrsmInit: %v", err)
+			}
 
-	if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
-		t.Errorf("test failed")
+			// Reset mock counters
+			gmm.MockDeregisteredInitiatedCallCount = 0
+			gmm.MockRegisteredCallCount = 0
+
+			amfUe := tt.setupUE(self)
+			HandleOAMPurgeUEContextRequest(ctxt.Background(), amfUe.Supi, "", nil)
+			if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
+				t.Errorf("UE should have been purged from context but still exists")
+			}
+
+			if gmm.MockDeregisteredInitiatedCallCount != tt.expectedDeregisteredInitiatedCount {
+				t.Errorf("MockDeregisteredInitiatedCallCount: got = %d, want = %d",
+					gmm.MockDeregisteredInitiatedCallCount, tt.expectedDeregisteredInitiatedCount)
+			}
+
+			if gmm.MockRegisteredCallCount != tt.expectedRegisteredCount {
+				t.Errorf("MockRegisteredCallCount: got = %d, want = %d",
+					gmm.MockRegisteredCallCount, tt.expectedRegisteredCount)
+			}
+
+			t.Logf("Test passed: %s", tt.description)
+		})
 	}
-
-	assert.Equal(t, uint32(0), gmm.MockDeregisteredInitiatedCallCount)
-	assert.Equal(t, uint32(0), gmm.MockRegisteredCallCount)
-}
-
-func TestHandleOAMPurgeUEContextRequest_UERegistered(t *testing.T) {
-	self := context.AMF_Self()
-	amfUe := self.NewAmfUe("imsi-208930100007497")
-	amfUe.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(context.Registered)
-
-	HandleOAMPurgeUEContextRequest(ctxt.Background(), amfUe.Supi, "", nil)
-
-	if _, ok := self.AmfUeFindBySupi(amfUe.Supi); ok {
-		t.Errorf("test failed")
-	}
-
-	assert.Equal(t, uint32(2), gmm.MockRegisteredCallCount)
-	assert.Equal(t, uint32(1), gmm.MockDeregisteredInitiatedCallCount)
 }
