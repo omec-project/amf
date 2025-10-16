@@ -31,7 +31,7 @@ func TestWebuiUrl(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			origAmfConfig := AmfConfig
-			defer func() { AmfConfig = origAmfConfig }()
+			t.Cleanup(func() { AmfConfig = origAmfConfig })
 
 			if err := InitConfigFactory(tt.configFile); err != nil {
 				t.Fatalf("Error in InitConfigFactory: %v", err)
@@ -66,7 +66,7 @@ func TestAmfId(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			origAmfConfig := AmfConfig
-			defer func() { AmfConfig = origAmfConfig }()
+			t.Cleanup(func() { AmfConfig = origAmfConfig })
 
 			if err := InitConfigFactory(tt.configFile); err != nil {
 				t.Fatalf("Error in InitConfigFactory: %v", err)
@@ -82,7 +82,7 @@ func TestAmfId(t *testing.T) {
 
 func TestNoTelemetryConfig(t *testing.T) {
 	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
+	t.Cleanup(func() { AmfConfig = origAmfConfig })
 	if err := InitConfigFactory("../util/testdata/no_telemetry.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -94,7 +94,7 @@ func TestNoTelemetryConfig(t *testing.T) {
 
 func TestTelemetryConfigEnabled(t *testing.T) {
 	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
+	t.Cleanup(func() { AmfConfig = origAmfConfig })
 	if err := InitConfigFactory("../util/testdata/telemetry.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestTelemetryConfigEnabled(t *testing.T) {
 
 func TestTelemetryConfigEnabledNoRatioDefaultsTo1(t *testing.T) {
 	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
+	t.Cleanup(func() { AmfConfig = origAmfConfig })
 	if err := InitConfigFactory("../util/testdata/telemetry_no_ratio.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -142,7 +142,7 @@ func TestTelemetryConfigEnabledNoRatioDefaultsTo1(t *testing.T) {
 
 func TestTelemetryConfigEnabledRatio0Stays0(t *testing.T) {
 	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
+	t.Cleanup(func() { AmfConfig = origAmfConfig })
 	if err := InitConfigFactory("../util/testdata/telemetry_zero_ratio.yaml"); err != nil {
 		t.Logf("Error in InitConfigFactory: %v", err)
 	}
@@ -166,7 +166,7 @@ func TestTelemetryConfigEnabledRatio0Stays0(t *testing.T) {
 
 func TestTelemetryConfigEnabledNoEndpointReturnsError(t *testing.T) {
 	origAmfConfig := AmfConfig
-	defer func() { AmfConfig = origAmfConfig }()
+	t.Cleanup(func() { AmfConfig = origAmfConfig })
 	if err := InitConfigFactory("../util/testdata/telemetry_no_endpoint.yaml"); err == nil {
 		t.Errorf("expected error when OTLP endpoint is not set, but got none")
 	} else {
