@@ -7,21 +7,23 @@
 package service
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"io"
 	"math/bits"
 	"net"
 	"sync"
 	"syscall"
+	"time"
 
-	"git.cs.nctu.edu.tw/calee/sctp"
+	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap"
 )
 
 type NGAPHandler struct {
 	HandleMessage      func(conn net.Conn, msg []byte)
-	HandleNotification func(conn net.Conn, notification sctp.Notification)
+	HandleNotification func(conn net.Conn, notificationData []byte)
 }
 
 const readBufSize uint32 = 131072
@@ -34,13 +36,34 @@ var (
 	connections  sync.Map
 )
 
+var handler NGAPHandler
+
 var sctpConfig sctp.SocketConfig = sctp.SocketConfig{
-	InitMsg:   sctp.InitMsg{NumOstreams: 3, MaxInstreams: 5, MaxAttempts: 2, MaxInitTimeout: 2},
-	RtoInfo:   &sctp.RtoInfo{SrtoAssocID: 0, SrtoInitial: 500, SrtoMax: 1500, StroMin: 100},
-	AssocInfo: &sctp.AssocInfo{AsocMaxRxt: 4},
+	InitMsg: sctp.InitMsg{NumOstreams: 3, MaxInstreams: 5, MaxAttempts: 2, MaxInitTimeout: 2},
+	NotificationHandler: func(notificationData []byte) error {
+		// Handle notifications inline
+		logger.NgapLog.Debugf("Received SCTP notification of size %d bytes", len(notificationData))
+		// Parse notification type from the data
+		if len(notificationData) >= 6 {
+			// NotificationHeader: Type(2 bytes) + Flags(2 bytes) + Length(4 bytes)
+			notificationType := binary.LittleEndian.Uint16(notificationData[0:2])
+			logger.NgapLog.Debugf("Notification type: 0x%x", notificationType)
+
+			// Call the handler's notification callback if it exists
+			if handler.HandleNotification != nil {
+				// We need to find the connection associated with this notification
+				// For now, pass nil as conn since we can't easily get it in the callback
+				handler.HandleNotification(nil, notificationData)
+			}
+		}
+		return nil
+	},
 }
 
-func Run(addresses []string, port int, handler NGAPHandler) {
+func Run(addresses []string, port int, h NGAPHandler) {
+	// Store handler globally so notification callback can access it
+	handler = h
+
 	ips := []net.IPAddr{}
 
 	for _, addr := range addresses {
@@ -57,7 +80,7 @@ func Run(addresses []string, port int, handler NGAPHandler) {
 		Port:    port,
 	}
 
-	go listenAndServe(addr, handler)
+	go listenAndServe(addr, h)
 }
 
 func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
@@ -126,14 +149,17 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 			logger.NgapLog.Debugf("Set read buffer to %d bytes", readBufSize)
 		}
 
-		if err := newConn.SetReadTimeout(readTimeout); err != nil {
-			logger.NgapLog.Errorf("set read timeout error: %+v, accept failed", err)
+		// Set read deadline using time.Now() + timeout duration
+		// readTimeout is syscall.Timeval{Sec: 2, Usec: 0}, so we convert to time.Duration
+		deadline := time.Now().Add(time.Duration(readTimeout.Sec)*time.Second + time.Duration(readTimeout.Usec)*time.Microsecond)
+		if err := newConn.SetReadDeadline(deadline); err != nil {
+			logger.NgapLog.Errorf("set read deadline error: %+v, accept failed", err)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
 			continue
 		} else {
-			logger.NgapLog.Debugf("set read timeout: %+v", readTimeout)
+			logger.NgapLog.Debugf("set read deadline: %+v", deadline)
 		}
 
 		logger.NgapLog.Infof("[AMF] SCTP Accept from: %s", newConn.RemoteAddr().String())
@@ -173,7 +199,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 	for {
 		buf := make([]byte, bufsize)
 
-		n, info, notification, err := conn.SCTPRead(buf)
+		n, info, err := conn.SCTPRead(buf)
 		if err != nil {
 			switch err {
 			case io.EOF, io.ErrUnexpectedEOF:
@@ -181,6 +207,12 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 				return
 			case syscall.EAGAIN:
 				logger.NgapLog.Debugln("SCTP read timeout")
+				// Update read deadline for next read
+				deadline := time.Now().Add(time.Duration(readTimeout.Sec)*time.Second + time.Duration(readTimeout.Usec)*time.Microsecond)
+				if setErr := conn.SetReadDeadline(deadline); setErr != nil {
+					logger.NgapLog.Errorf("set read deadline error: %+v", setErr)
+					return
+				}
 				continue
 			case syscall.EINTR:
 				logger.NgapLog.Debugf("SCTPRead: %+v", err)
@@ -191,23 +223,17 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 			}
 		}
 
-		if notification != nil {
-			if handler.HandleNotification != nil {
-				handler.HandleNotification(conn, notification)
-			} else {
-				logger.NgapLog.Warnf("received sctp notification[type 0x%x] but not handled", notification.Type())
-			}
-		} else {
-			if info == nil || info.PPID != bits.ReverseBytes32(ngap.PPID) {
-				logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
-				continue
-			}
-
-			logger.NgapLog.Debugf("Read %d bytes", n)
-			logger.NgapLog.Debugf("Packet content: %+v", hex.Dump(buf[:n]))
-
-			// TODO: concurrent on per-UE message
-			handler.HandleMessage(conn, buf[:n])
+		// Notifications are now handled by the notification callback
+		// So we only get here if we have actual data
+		if info == nil || info.PPID != bits.ReverseBytes32(ngap.PPID) {
+			logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
+			continue
 		}
+
+		logger.NgapLog.Debugf("Read %d bytes", n)
+		logger.NgapLog.Debugf("Packet content: %+v", hex.Dump(buf[:n]))
+
+		// TODO: concurrent on per-UE message
+		handler.HandleMessage(conn, buf[:n])
 	}
 }

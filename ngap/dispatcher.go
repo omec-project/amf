@@ -9,12 +9,13 @@ package ngap
 
 import (
 	ctxt "context"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
 	"reflect"
 
-	"git.cs.nctu.edu.tw/calee/sctp"
+	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -339,7 +340,7 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	}
 }
 
-func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
+func HandleSCTPNotification(conn net.Conn, notificationData []byte) {
 	amfSelf := context.AMF_Self()
 
 	logger.NgapLog.Infof("Handle SCTP Notification[addr: %+v]", conn.RemoteAddr())
@@ -363,25 +364,40 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 		return true
 	})
 
-	switch notification.Type() {
-	case sctp.SCTP_ASSOC_CHANGE:
+	// Parse notification type from raw data
+	// NotificationHeader: Type(2 bytes) + Flags(2 bytes) + Length(4 bytes)
+	if len(notificationData) < 6 {
+		ran.Log.Warnf("Notification data too short: %d bytes", len(notificationData))
+		return
+	}
+
+	notificationType := binary.LittleEndian.Uint16(notificationData[0:2])
+
+	switch notificationType {
+	case uint16(sctp.SCTP_ASSOC_CHANGE):
 		ran.Log.Infoln("SCTP_ASSOC_CHANGE notification")
-		event := notification.(*sctp.SCTPAssocChangeEvent)
-		switch event.State() {
-		case sctp.SCTP_COMM_LOST:
+		// Parse state from SCTP_ASSOC_CHANGE event
+		// struct sctp_assoc_change: type(2) flags(2) length(4) state(2) error(2) outbound_streams(2) inbound_streams(2) assoc_id(4)
+		if len(notificationData) < 18 {
+			ran.Log.Warnf("SCTP_ASSOC_CHANGE notification data too short")
+			return
+		}
+		state := binary.LittleEndian.Uint16(notificationData[8:10])
+		switch state {
+		case uint16(sctp.SCTP_COMM_LOST):
 			ran.Log.Infoln("SCTP state is SCTP_COMM_LOST, close the connection")
 			ran.Remove()
-		case sctp.SCTP_SHUTDOWN_COMP:
+		case uint16(sctp.SCTP_SHUTDOWN_COMP):
 			ran.Log.Infoln("SCTP state is SCTP_SHUTDOWN_COMP, close the connection")
 			ran.Remove()
 		default:
-			ran.Log.Warnf("SCTP state[%+v] is not handled", event.State())
+			ran.Log.Warnf("SCTP state[%d] is not handled", state)
 		}
-	case sctp.SCTP_SHUTDOWN_EVENT:
+	case uint16(sctp.SCTP_SHUTDOWN_EVENT):
 		ran.Log.Infoln("SCTP_SHUTDOWN_EVENT notification, close the connection")
 		ran.Remove()
 	default:
-		ran.Log.Warnf("Non handled notification type: 0x%x", notification.Type())
+		ran.Log.Warnf("Non handled notification type: 0x%x", notificationType)
 	}
 }
 
