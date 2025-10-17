@@ -10,7 +10,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"io"
-	"math/bits"
 	"net"
 	"sync"
 	"syscall"
@@ -153,11 +152,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		// readTimeout is syscall.Timeval{Sec: 2, Usec: 0}, so we convert to time.Duration
 		deadline := time.Now().Add(time.Duration(readTimeout.Sec)*time.Second + time.Duration(readTimeout.Usec)*time.Microsecond)
 		if err := newConn.SetReadDeadline(deadline); err != nil {
-			logger.NgapLog.Errorf("set read deadline error: %+v, accept failed", err)
-			if err = newConn.Close(); err != nil {
-				logger.NgapLog.Errorf("close error: %+v", err)
-			}
-			continue
+			logger.NgapLog.Warnf("set read deadline error: %+v, continuing without deadline", err)
+			// Don't fail here, just log and continue
 		} else {
 			logger.NgapLog.Debugf("set read deadline: %+v", deadline)
 		}
@@ -225,7 +221,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 
 		// Notifications are now handled by the notification callback
 		// So we only get here if we have actual data
-		if info == nil || info.PPID != bits.ReverseBytes32(ngap.PPID) {
+		if info == nil || info.PPID != ngap.PPID {
 			logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
 			continue
 		}
