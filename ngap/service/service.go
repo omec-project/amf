@@ -13,7 +13,6 @@ import (
 	"net"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/logger"
@@ -105,8 +104,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		var info *sctp.SndRcvInfo
-		if infoTmp, err := newConn.GetDefaultSentParam(); err != nil {
-			logger.NgapLog.Errorf("get default sent param error: %+v, accept failed", err)
+		if infoTmp, getErr := newConn.GetDefaultSentParam(); getErr != nil {
+			logger.NgapLog.Errorf("get default sent param error: %+v, accept failed", getErr)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -117,8 +116,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		info.PPID = ngap.PPID
-		if err := newConn.SetDefaultSentParam(info); err != nil {
-			logger.NgapLog.Errorf("set default sent param error: %+v, accept failed", err)
+		if setErr := newConn.SetDefaultSentParam(info); setErr != nil {
+			logger.NgapLog.Errorf("set default sent param error: %+v, accept failed", setErr)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -128,8 +127,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		events := sctp.SCTP_EVENT_DATA_IO | sctp.SCTP_EVENT_SHUTDOWN | sctp.SCTP_EVENT_ASSOCIATION
-		if err := newConn.SubscribeEvents(events); err != nil {
-			logger.NgapLog.Errorf("failed to accept: %+v", err)
+		if subErr := newConn.SubscribeEvents(events); subErr != nil {
+			logger.NgapLog.Errorf("failed to accept: %+v", subErr)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -138,8 +137,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 			logger.NgapLog.Debugln("subscribe SCTP event[DATA_IO, SHUTDOWN_EVENT, ASSOCIATION_CHANGE]")
 		}
 
-		if err := newConn.SetReadBuffer(int(readBufSize)); err != nil {
-			logger.NgapLog.Errorf("set read buffer error: %+v, accept failed", err)
+		if bufErr := newConn.SetReadBuffer(int(readBufSize)); bufErr != nil {
+			logger.NgapLog.Errorf("set read buffer error: %+v, accept failed", bufErr)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -148,14 +147,29 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 			logger.NgapLog.Debugf("Set read buffer to %d bytes", readBufSize)
 		}
 
-		// Set read deadline using time.Now() + timeout duration
-		// readTimeout is syscall.Timeval{Sec: 2, Usec: 0}, so we convert to time.Duration
-		deadline := time.Now().Add(time.Duration(readTimeout.Sec)*time.Second + time.Duration(readTimeout.Usec)*time.Microsecond)
-		if err := newConn.SetReadDeadline(deadline); err != nil {
-			logger.NgapLog.Warnf("set read deadline error: %+v, continuing without deadline", err)
-			// Don't fail here, just log and continue
+		// Set read timeout using SO_RCVTIMEO socket option
+		// This is the proper way to set timeouts on SCTP sockets
+		rawConn, err := newConn.SyscallConn()
+		if err != nil {
+			logger.NgapLog.Errorf("get syscall conn error: %+v, accept failed", err)
+			if err = newConn.Close(); err != nil {
+				logger.NgapLog.Errorf("close error: %+v", err)
+			}
+			continue
+		}
+
+		var setTimeoutErr error
+		err = rawConn.Control(func(fd uintptr) {
+			setTimeoutErr = syscall.SetsockoptTimeval(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &readTimeout)
+		})
+		if err != nil || setTimeoutErr != nil {
+			logger.NgapLog.Errorf("set read timeout error: control=%+v, setsockopt=%+v, accept failed", err, setTimeoutErr)
+			if err = newConn.Close(); err != nil {
+				logger.NgapLog.Errorf("close error: %+v", err)
+			}
+			continue
 		} else {
-			logger.NgapLog.Debugf("set read deadline: %+v", deadline)
+			logger.NgapLog.Debugf("set read timeout: %+v", readTimeout)
 		}
 
 		logger.NgapLog.Infof("[AMF] SCTP Accept from: %s", newConn.RemoteAddr().String())
@@ -203,12 +217,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 				return
 			case syscall.EAGAIN:
 				logger.NgapLog.Debugln("SCTP read timeout")
-				// Update read deadline for next read
-				deadline := time.Now().Add(time.Duration(readTimeout.Sec)*time.Second + time.Duration(readTimeout.Usec)*time.Microsecond)
-				if setErr := conn.SetReadDeadline(deadline); setErr != nil {
-					logger.NgapLog.Errorf("set read deadline error: %+v", setErr)
-					return
-				}
+				// Timeout is set via SO_RCVTIMEO socket option, no need to reset
 				continue
 			case syscall.EINTR:
 				logger.NgapLog.Debugf("SCTPRead: %+v", err)
