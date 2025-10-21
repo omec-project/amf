@@ -239,7 +239,12 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 		}
 
 		// Regular message handling
-		if info == nil || info.PPID != ngap.PPID {
+		if info == nil {
+			logger.NgapLog.Warnf("received SCTP message with nil SndRcvInfo, discarding packet")
+			continue
+		}
+
+		if info.PPID != ngap.PPID {
 			logger.NgapLog.Warnf("received SCTP PPID %d != %d (expected NGAP), discarding packet",
 				info.PPID, ngap.PPID)
 			continue
