@@ -9,12 +9,12 @@ package ngap
 
 import (
 	ctxt "context"
+	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
-	"reflect"
 
-	"git.cs.nctu.edu.tw/calee/sctp"
+	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -339,10 +339,15 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	}
 }
 
-func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
-	amfSelf := context.AMF_Self()
+func HandleSCTPNotification(conn net.Conn, notificationData []byte) {
+	if conn == nil {
+		logger.NgapLog.Infof("handle global SCTP notification")
+		handleGlobalSCTPNotification(notificationData)
+		return
+	}
 
-	logger.NgapLog.Infof("Handle SCTP Notification[addr: %+v]", conn.RemoteAddr())
+	amfSelf := context.AMF_Self()
+	logger.NgapLog.Infof("handle SCTP Notification[addr: %+v]", conn.RemoteAddr())
 
 	ran, ok := amfSelf.AmfRanFindByConn(conn)
 	if !ok {
@@ -350,38 +355,110 @@ func HandleSCTPNotification(conn net.Conn, notification sctp.Notification) {
 		return
 	}
 
-	// Removing Stale Connections in AmfRanPool
-	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
+	// Clean up stale connections in AmfRanPool
+	amfSelf.AmfRanPool.Range(func(key, value any) bool {
 		amfRan := value.(*context.AmfRan)
-
-		conn := amfRan.Conn.(*sctp.SCTPConn)
-		errorConn := sctp.NewSCTPConn(-1, nil)
-		if reflect.DeepEqual(conn, errorConn) {
+		if amfRan.Conn == nil {
 			amfRan.Remove()
-			ran.Log.Infoln("removed stale entry in AmfRan pool")
+			ran.Log.Infoln("removed RAN with nil connection from AmfRan pool")
 		}
 		return true
 	})
 
-	switch notification.Type() {
+	// NotificationHeader = Type (2 bytes) + Flags (2 bytes) + Length (4 bytes) = 8 bytes
+	if len(notificationData) < 8 {
+		ran.Log.Warnf("notification data too short: %d bytes", len(notificationData))
+		return
+	}
+
+	// Parse notification header using LittleEndian (host byte order)
+	notificationType := sctp.SCTPNotificationType(binary.LittleEndian.Uint16(notificationData[0:2]))
+	notificationFlags := binary.LittleEndian.Uint16(notificationData[2:4])
+	notificationLength := binary.LittleEndian.Uint32(notificationData[4:8])
+
+	ran.Log.Debugf("processing notification - Type: %d, Flags: %d, Length: %d",
+		notificationType, notificationFlags, notificationLength)
+
+	// Validate notification length matches actual data
+	if uint32(len(notificationData)) < notificationLength {
+		ran.Log.Warnf("notification data length mismatch: got %d bytes, expected %d",
+			len(notificationData), notificationLength)
+		return
+	}
+
+	switch notificationType {
 	case sctp.SCTP_ASSOC_CHANGE:
 		ran.Log.Infoln("SCTP_ASSOC_CHANGE notification")
-		event := notification.(*sctp.SCTPAssocChangeEvent)
-		switch event.State() {
+		// SCTP Association Change Notification Structure:
+		// notificationData = Type (2 bytes) + Flags (2 bytes) + Length (4 bytes) +
+		// State (2 bytes) + Error (2 bytes) + outboundStreams (2 bytes) +
+		// InboundStreams (2 bytes) + AssocID (4 bytes) = 20 bytes
+		if len(notificationData) < 20 {
+			ran.Log.Warnf("SCTP_ASSOC_CHANGE notification data too short: got %d bytes, need minimum 20",
+				len(notificationData))
+			return
+		}
+		state := sctp.SCTPState(binary.LittleEndian.Uint16(notificationData[8:10]))
+		errorSctp := binary.LittleEndian.Uint16(notificationData[10:12])
+		outboundStreams := binary.LittleEndian.Uint16(notificationData[12:14])
+		inboundStreams := binary.LittleEndian.Uint16(notificationData[14:16])
+		assocID := binary.LittleEndian.Uint32(notificationData[16:20])
+
+		ran.Log.Debugf("association change - State: %v, Error: %d, Out: %d, In: %d, AssocID: %d",
+			state, errorSctp, outboundStreams, inboundStreams, assocID)
+
+		switch state {
 		case sctp.SCTP_COMM_LOST:
 			ran.Log.Infoln("SCTP state is SCTP_COMM_LOST, close the connection")
 			ran.Remove()
 		case sctp.SCTP_SHUTDOWN_COMP:
 			ran.Log.Infoln("SCTP state is SCTP_SHUTDOWN_COMP, close the connection")
 			ran.Remove()
+		case sctp.SCTP_COMM_UP:
+			ran.Log.Infoln("SCTP association is up")
+		case sctp.SCTP_RESTART:
+			ran.Log.Infoln("SCTP association restarted")
 		default:
-			ran.Log.Warnf("SCTP state[%+v] is not handled", event.State())
+			ran.Log.Warnf("SCTP state[%d] is not handled", state)
 		}
+
 	case sctp.SCTP_SHUTDOWN_EVENT:
 		ran.Log.Infoln("SCTP_SHUTDOWN_EVENT notification, close the connection")
 		ran.Remove()
+
+	case sctp.SCTP_PEER_ADDR_CHANGE:
+		ran.Log.Infoln("SCTP_PEER_ADDR_CHANGE notification")
+
+	case sctp.SCTP_REMOTE_ERROR:
+		ran.Log.Warnln("SCTP_REMOTE_ERROR notification - peer reported error")
+
+	case sctp.SCTP_SEND_FAILED:
+		ran.Log.Warnln("SCTP_SEND_FAILED notification - message delivery failed")
+
 	default:
-		ran.Log.Warnf("Non handled notification type: 0x%x", notification.Type())
+		ran.Log.Warnf("unhandled notification type: %d", notificationType)
+	}
+}
+
+func handleGlobalSCTPNotification(notificationHeader []byte) {
+	// notificationHeader = Type (2 bytes) + Flags (2 bytes) + Length (4 bytes) = 8 bytes
+	if len(notificationHeader) < 8 {
+		logger.NgapLog.Warnf("global notification data too short: %d bytes", len(notificationHeader))
+		return
+	}
+
+	notificationType := sctp.SCTPNotificationType(binary.LittleEndian.Uint16(notificationHeader[0:2]))
+	logger.NgapLog.Debugf("handling global SCTP notification of type: %d", notificationType)
+
+	switch notificationType {
+	case sctp.SCTP_SHUTDOWN_EVENT:
+		logger.NgapLog.Warnln("global SCTP_SHUTDOWN_EVENT notification - listener shutting down")
+
+	case sctp.SCTP_ASSOC_CHANGE:
+		logger.NgapLog.Infoln("global SCTP_ASSOC_CHANGE notification")
+
+	default:
+		logger.NgapLog.Debugf("global notification type: %d", notificationType)
 	}
 }
 

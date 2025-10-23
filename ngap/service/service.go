@@ -9,19 +9,18 @@ package service
 import (
 	"encoding/hex"
 	"io"
-	"math/bits"
 	"net"
 	"sync"
 	"syscall"
 
-	"git.cs.nctu.edu.tw/calee/sctp"
+	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap"
 )
 
 type NGAPHandler struct {
 	HandleMessage      func(conn net.Conn, msg []byte)
-	HandleNotification func(conn net.Conn, notification sctp.Notification)
+	HandleNotification func(conn net.Conn, notificationData []byte)
 }
 
 const readBufSize uint32 = 131072
@@ -34,13 +33,28 @@ var (
 	connections  sync.Map
 )
 
+var handler NGAPHandler
+
 var sctpConfig sctp.SocketConfig = sctp.SocketConfig{
-	InitMsg:   sctp.InitMsg{NumOstreams: 3, MaxInstreams: 5, MaxAttempts: 2, MaxInitTimeout: 2},
-	RtoInfo:   &sctp.RtoInfo{SrtoAssocID: 0, SrtoInitial: 500, SrtoMax: 1500, StroMin: 100},
-	AssocInfo: &sctp.AssocInfo{AsocMaxRxt: 4},
+	InitMsg: sctp.InitMsg{
+		NumOstreams:    3,
+		MaxInstreams:   5,
+		MaxAttempts:    2,
+		MaxInitTimeout: 2,
+	},
+	NotificationHandler: func(notificationData []byte) error {
+		logger.NgapLog.Debugf("received SCTP notification of size %d bytes", len(notificationData))
+
+		if handler.HandleNotification != nil {
+			handler.HandleNotification(nil, notificationData)
+		}
+		return nil
+	},
 }
 
-func Run(addresses []string, port int, handler NGAPHandler) {
+func Run(addresses []string, port int, h NGAPHandler) {
+	handler = h
+
 	ips := []net.IPAddr{}
 
 	for _, addr := range addresses {
@@ -57,7 +71,7 @@ func Run(addresses []string, port int, handler NGAPHandler) {
 		Port:    port,
 	}
 
-	go listenAndServe(addr, handler)
+	go listenAndServe(addr, h)
 }
 
 func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
@@ -83,8 +97,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		var info *sctp.SndRcvInfo
-		if infoTmp, err := newConn.GetDefaultSentParam(); err != nil {
-			logger.NgapLog.Errorf("get default sent param error: %+v, accept failed", err)
+		if infoTmp, errGet := newConn.GetDefaultSentParam(); errGet != nil {
+			logger.NgapLog.Errorf("get default sent param error: %+v, accept failed", errGet)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -95,8 +109,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		info.PPID = ngap.PPID
-		if err := newConn.SetDefaultSentParam(info); err != nil {
-			logger.NgapLog.Errorf("set default sent param error: %+v, accept failed", err)
+		if errSet := newConn.SetDefaultSentParam(info); errSet != nil {
+			logger.NgapLog.Errorf("set default sent param error: %+v, accept failed", errSet)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -106,8 +120,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		events := sctp.SCTP_EVENT_DATA_IO | sctp.SCTP_EVENT_SHUTDOWN | sctp.SCTP_EVENT_ASSOCIATION
-		if err := newConn.SubscribeEvents(events); err != nil {
-			logger.NgapLog.Errorf("failed to accept: %+v", err)
+		if errSubs := newConn.SubscribeEvents(events); errSubs != nil {
+			logger.NgapLog.Errorf("failed to accept: %+v", errSubs)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -116,8 +130,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 			logger.NgapLog.Debugln("subscribe SCTP event[DATA_IO, SHUTDOWN_EVENT, ASSOCIATION_CHANGE]")
 		}
 
-		if err := newConn.SetReadBuffer(int(readBufSize)); err != nil {
-			logger.NgapLog.Errorf("set read buffer error: %+v, accept failed", err)
+		if errSetR := newConn.SetReadBuffer(int(readBufSize)); errSetR != nil {
+			logger.NgapLog.Errorf("set read buffer error: %+v, accept failed", errSetR)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -126,8 +140,23 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 			logger.NgapLog.Debugf("Set read buffer to %d bytes", readBufSize)
 		}
 
-		if err := newConn.SetReadTimeout(readTimeout); err != nil {
-			logger.NgapLog.Errorf("set read timeout error: %+v, accept failed", err)
+		// Set read timeout using SO_RCVTIMEO socket option
+		// This is the proper way to set timeouts on SCTP sockets
+		rawConn, err := newConn.SyscallConn()
+		if err != nil {
+			logger.NgapLog.Errorf("get syscall conn error: %+v, accept failed", err)
+			if err = newConn.Close(); err != nil {
+				logger.NgapLog.Errorf("close error: %+v", err)
+			}
+			continue
+		}
+
+		var setTimeoutErr error
+		err = rawConn.Control(func(fd uintptr) {
+			setTimeoutErr = syscall.SetsockoptTimeval(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &readTimeout)
+		})
+		if err != nil || setTimeoutErr != nil {
+			logger.NgapLog.Errorf("set read timeout error: control=%+v, setsockopt=%+v, accept failed", err, setTimeoutErr)
 			if err = newConn.Close(); err != nil {
 				logger.NgapLog.Errorf("close error: %+v", err)
 			}
@@ -137,7 +166,7 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 		}
 
 		logger.NgapLog.Infof("[AMF] SCTP Accept from: %s", newConn.RemoteAddr().String())
-		connections.Store(newConn, newConn)
+		connections.Store(newConn, true)
 
 		go handleConnection(newConn, readBufSize, handler)
 	}
@@ -162,52 +191,75 @@ func Stop() {
 }
 
 func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) {
+	buf := make([]byte, bufsize)
+
 	defer func() {
+		connections.Delete(conn)
+
 		// if AMF call Stop(), then conn.Close() will return EBADF because conn has been closed inside Stop()
 		if err := conn.Close(); err != nil && err != syscall.EBADF {
 			logger.NgapLog.Errorf("close connection error: %+v", err)
 		}
-		connections.Delete(conn)
+		logger.NgapLog.Infof("connection[addr: %+v] closed", conn.RemoteAddr())
 	}()
 
 	for {
-		buf := make([]byte, bufsize)
-
-		n, info, notification, err := conn.SCTPRead(buf)
+		n, info, err := conn.SCTPRead(buf)
 		if err != nil {
 			switch err {
 			case io.EOF, io.ErrUnexpectedEOF:
-				logger.NgapLog.Debugln("read EOF from client")
+				logger.NgapLog.Debugf("connection[addr: %+v] closed by peer (EOF)", conn.RemoteAddr())
 				return
 			case syscall.EAGAIN:
 				logger.NgapLog.Debugln("SCTP read timeout")
+				// Timeout is set via SO_RCVTIMEO socket option, no need to reset
 				continue
 			case syscall.EINTR:
-				logger.NgapLog.Debugf("SCTPRead: %+v", err)
+				logger.NgapLog.Debugf("SCTPRead interrupted: %+v", err)
 				continue
+			case syscall.ECONNRESET:
+				logger.NgapLog.Infof("connection[addr: %+v] reset by peer", conn.RemoteAddr())
+				return
+			case syscall.ENOTCONN:
+				logger.NgapLog.Infof("connection[addr: %+v] not connected", conn.RemoteAddr())
+				return
 			default:
 				logger.NgapLog.Errorf("handle connection[addr: %+v] error: %+v", conn.RemoteAddr(), err)
 				return
 			}
 		}
 
-		if notification != nil {
+		// Check if this is a notification (MSG_NOTIFICATION flag)
+		if info != nil && (info.Flags&sctp.MSG_NOTIFICATION) != 0 {
+			logger.NgapLog.Debugf("received connection-specific SCTP notification")
 			if handler.HandleNotification != nil {
-				handler.HandleNotification(conn, notification)
-			} else {
-				logger.NgapLog.Warnf("received sctp notification[type 0x%x] but not handled", notification.Type())
+				handler.HandleNotification(conn, buf[:n])
 			}
-		} else {
-			if info == nil || info.PPID != bits.ReverseBytes32(ngap.PPID) {
-				logger.NgapLog.Warnln("received SCTP PPID != 60, discard this packet")
-				continue
-			}
-
-			logger.NgapLog.Debugf("Read %d bytes", n)
-			logger.NgapLog.Debugf("Packet content: %+v", hex.Dump(buf[:n]))
-
-			// TODO: concurrent on per-UE message
-			handler.HandleMessage(conn, buf[:n])
+			continue
 		}
+
+		// Regular message handling
+		if info == nil {
+			logger.NgapLog.Warnf("received SCTP message with nil SndRcvInfo, discarding packet")
+			continue
+		}
+
+		if info.PPID != ngap.PPID {
+			logger.NgapLog.Warnf("received SCTP PPID %d != %d (expected NGAP), discarding packet",
+				info.PPID, ngap.PPID)
+			continue
+		}
+
+		// Validate data length
+		if n <= 0 {
+			logger.NgapLog.Warnf("received empty SCTP packet, discarding")
+			continue
+		}
+
+		logger.NgapLog.Debugf("read %d bytes", n)
+		logger.NgapLog.Debugf("packet content: %+v", hex.Dump(buf[:n]))
+
+		// TODO: concurrent on per-UE message
+		handler.HandleMessage(conn, buf[:n])
 	}
 }
