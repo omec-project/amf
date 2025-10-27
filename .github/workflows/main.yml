@@ -45,6 +45,11 @@ jobs:
     with:
       branch_name: ${{ github.ref }}
 
+  score-analysis:
+    uses: omec-project/.github/.github/workflows/scorecard-analysis.yml@main
+    with:
+      branch_name: ${{ github.ref }}
+
   unit-tests:
     uses: omec-project/.github/.github/workflows/unit-test.yml@main
     with:
