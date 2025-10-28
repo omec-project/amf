@@ -11,52 +11,52 @@ on:
 
 jobs:
   build:
-    uses: omec-project/.github/.github/workflows/build.yml@main
+    uses: omec-project/.github/.github/workflows/build.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   docker-build:
-    uses: omec-project/.github/.github/workflows/docker-build.yml@main
+    uses: omec-project/.github/.github/workflows/docker-build.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   static-analysis:
-    uses: omec-project/.github/.github/workflows/static-analysis.yml@main
+    uses: omec-project/.github/.github/workflows/static-analysis.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   lint:
-    uses: omec-project/.github/.github/workflows/lint.yml@main
+    uses: omec-project/.github/.github/workflows/lint.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   hadolint:
-    uses: omec-project/.github/.github/workflows/hadolint.yml@main
+    uses: omec-project/.github/.github/workflows/hadolint.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   license-check:
-    uses: omec-project/.github/.github/workflows/license-check.yml@main
+    uses: omec-project/.github/.github/workflows/license-check.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   fossa-scan:
-    uses: omec-project/.github/.github/workflows/fossa-scan.yml@main
+    uses: omec-project/.github/.github/workflows/fossa-scan.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
-  score-analysis:
-    uses: omec-project/.github/.github/workflows/scorecard-analysis.yml@main
+  analysis:
+    uses: omec-project/.github/.github/workflows/scorecard-analysis.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   unit-tests:
-    uses: omec-project/.github/.github/workflows/unit-test.yml@main
+    uses: omec-project/.github/.github/workflows/unit-test.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
 
   e2e-tests:
     if: github.event_name == 'pull_request'
-    uses: omec-project/.github/.github/workflows/e2e-test.yml@main
+    uses: omec-project/.github/.github/workflows/e2e-test.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       branch_name: ${{ github.ref }}
