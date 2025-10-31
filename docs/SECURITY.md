@@ -1,3 +1,7 @@
+<!--
+SPDX-FileCopyrightText: 2025 Intel Corporation
+SPDX-License-Identifier: Apache-2.0
+-->
 # Security Policy
 
 ## Supported Versions
@@ -35,4 +39,4 @@ When using this project:
 
 ## Contact
 
-Please see [here](../README.md#reach-out-to-us-thorugh)
+Please see [here](../README.md#reach-out-to-us-through)
