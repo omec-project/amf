@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
+permissions: read-all
+
 jobs:
   stale:
     uses: omec-project/.github/.github/workflows/stale-issue.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
