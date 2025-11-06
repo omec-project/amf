@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2024 Intel Corporation
+# Copyright 2024-Present Intel Corporation
 # Copyright 2025 Canonical Ltd.
+name: Release Pipeline
+
 on:
   push:
     branches:
@@ -8,13 +10,26 @@ on:
     paths:
       - "VERSION"
 
+permissions:
+  contents: read
+
 jobs:
   tag-github:
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
     uses: omec-project/.github/.github/workflows/tag-github.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     secrets: inherit
 
   release-image:
     needs: tag-github
+    permissions:
+      contents: read
+      packages: write
+      actions: read
+      id-token: write
+      attestations: write
     uses: omec-project/.github/.github/workflows/release-image.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       changed: ${{ needs.tag-github.outputs.changed }}
@@ -23,6 +38,11 @@ jobs:
 
   update-version:
     needs: tag-github
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      id-token: write
     uses: omec-project/.github/.github/workflows/update-version.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       changed: ${{ needs.tag-github.outputs.changed }}
@@ -31,6 +51,10 @@ jobs:
 
   branch-release:
     needs: tag-github
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
     uses: omec-project/.github/.github/workflows/branch-release.yml@453e42d23f0366133ec7c053ee92a97f374f3ac5 # v0.0.1
     with:
       release_branch: ${{ needs.tag-github.outputs.release_branch }}
