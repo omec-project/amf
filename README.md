@@ -6,6 +6,7 @@ Copyright 2019 free5GC.org
 SPDX-License-Identifier: Apache-2.0
 -->
 [![Go Report Card](https://goreportcard.com/badge/github.com/omec-project/amf)](https://goreportcard.com/report/github.com/omec-project/amf)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/omec-project/amf/badge)](https://scorecard.dev/viewer/?uri=github.com/omec-project/amf)
 
 # amf
 It is a control plane function in the 5G core network. AMF supports termination
