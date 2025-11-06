@@ -9,5 +9,3 @@ configuration:
   amfName: AMF # the name of this AMF
   amfId: cafe01  # AMF ID for GUAMIs
   webuiUri: https://myspecialwebui:5002 # a valid URI of Webui
-
-
