@@ -100,6 +100,7 @@ jobs:
     if: github.repository_owner == 'omec-project'
     permissions:
       actions: read
+      artifact-metadata: read
       attestations: read
       checks: read
       contents: read
