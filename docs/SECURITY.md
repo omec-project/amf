@@ -39,4 +39,4 @@ When using this project:
 
 ## Contact
 
-Please see [here](../README.md#reach-out-to-us-through)
+Please see [here](https://github.com/omec-project/amf/?tab=readme-ov-file#reach-out-to-us-through)
