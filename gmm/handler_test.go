@@ -86,21 +86,21 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 		for i := 1; i < 13; i++ {
 			switch i {
 			case 1:
-				capability.Octet[i] = uint8(fd.PeiLength)
+				capability.Octet[i] = fd.PeiLength
 			case 2:
-				capability.Octet[i] = uint8(fd.SubscribedNssaiLength)
+				capability.Octet[i] = fd.SubscribedNssaiLength
 			case 3:
-				capability.Octet[i] = uint8(fd.AllowedNssaiLength)
+				capability.Octet[i] = fd.AllowedNssaiLength
 			case 4:
-				capability.Octet[i] = uint8(fd.AreasLength)
+				capability.Octet[i] = fd.AreasLength
 			case 5:
-				capability.Octet[i] = uint8(fd.SupiLength)
+				capability.Octet[i] = fd.SupiLength
 			case 6:
-				capability.Octet[i] = uint8(fd.GutiLength)
+				capability.Octet[i] = fd.GutiLength
 			case 7:
-				capability.Octet[i] = uint8(fd.PcfUriLength)
+				capability.Octet[i] = fd.PcfUriLength
 			case 8:
-				capability.Octet[i] = uint8(fd.PcfIdLength)
+				capability.Octet[i] = fd.PcfIdLength
 			default:
 				capability.Octet[i] = uint8((fd.T3502ValueMs >> ((i - 9) * 8)) & 0xFF)
 			}
@@ -802,8 +802,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(10)
-				ul.OldPDUSessionID = nasType.NewOldPDUSessionID(nasMessage.ULNASTransportOldPDUSessionIDType)
-				ul.OldPDUSessionID.SetOldPDUSessionID(9)
+				oldPDUSessionID := nasType.NewOldPDUSessionID(nasMessage.ULNASTransportOldPDUSessionIDType)
+				oldPDUSessionID.SetOldPDUSessionID(9)
+				ul.OldPDUSessionID = oldPDUSessionID
 
 				return ul
 			},
@@ -834,8 +835,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(2)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialEmergencyRequest)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialEmergencyRequest)
+				ul.RequestType = requestType
 
 				return ul
 			},
@@ -851,8 +853,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(3)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeExistingPduSession)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeExistingPduSession)
+				ul.RequestType = requestType
 
 				return ul
 			},
@@ -871,8 +874,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(4)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeExistingEmergencyPduSession)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeExistingEmergencyPduSession)
+				ul.RequestType = requestType
 
 				return ul
 			},
@@ -885,8 +889,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(5)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialRequest)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialRequest)
+				ul.RequestType = requestType
 
 				return ul
 			},
@@ -903,8 +908,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(6)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeModificationRequest)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeModificationRequest)
+				ul.RequestType = requestType
 
 				return ul
 			},
@@ -921,8 +927,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(7)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialRequest)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialRequest)
+				ul.RequestType = requestType
 
 				// Add SNSSAI to the UL message
 				snssai := nasType.NewSNSSAI(nasMessage.ULNASTransportSNSSAIType)
@@ -938,9 +945,10 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul.DNN = dnn
 
 				// Add PayloadContainer with some dummy SM NAS message
-				ul.PayloadContainer = nasType.PayloadContainer{}
-				ul.PayloadContainer.SetLen(4)
-				ul.PayloadContainer.SetPayloadContainerContents([]byte{0x01, 0x02, 0x03, 0x04})
+				payloadContainer := nasType.PayloadContainer{}
+				payloadContainer.SetLen(4)
+				payloadContainer.SetPayloadContainerContents([]byte{0x01, 0x02, 0x03, 0x04})
+				ul.PayloadContainer = payloadContainer
 
 				return ul
 			},
@@ -967,8 +975,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul := &nasMessage.ULNASTransport{}
 				ul.PduSessionID2Value = nasType.NewPduSessionID2Value(nasMessage.ULNASTransportPduSessionID2ValueType)
 				ul.SetPduSessionID2Value(8)
-				ul.RequestType = nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
-				ul.RequestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeModificationRequest)
+				requestType := nasType.NewRequestType(nasMessage.ULNASTransportRequestTypeType)
+				requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeModificationRequest)
+				ul.RequestType = requestType
 
 				return ul
 			},
@@ -1291,18 +1300,29 @@ func BenchmarkHandleInitialRegistration(b *testing.B) {
 
 	for name, fuzzData := range scenarios {
 		b.Run(name, func(b *testing.B) {
-			ue := newFuzzUE(fuzzData)
 			ctx := ctxt.Background()
+			var errorCount, panicCount int
 
 			b.ResetTimer()
 
 			for b.Loop() {
+				ue := newFuzzUE(fuzzData)
+
 				func() {
 					defer func() {
-						recover() // Ignore panics in benchmark
+						if r := recover(); r != nil {
+							panicCount++
+						}
 					}()
-					HandleInitialRegistration(ctx, ue, models.AccessType__3_GPP_ACCESS)
+					if err := HandleInitialRegistration(ctx, ue, models.AccessType__3_GPP_ACCESS); err != nil {
+						errorCount++
+					}
 				}()
+			}
+
+			b.StopTimer()
+			if errorCount > 0 || panicCount > 0 {
+				b.Logf("Errors: %d, Panics: %d", errorCount, panicCount)
 			}
 		})
 	}
