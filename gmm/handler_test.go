@@ -9,6 +9,7 @@ package gmm
 
 import (
 	ctxt "context"
+	"encoding/binary"
 	"fmt"
 	"strings"
 	"testing"
@@ -1106,7 +1107,7 @@ func FuzzHandleInitialRegistration(f *testing.F) {
 	}
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		if len(data) < minFuzzDataSize { // Minimum required bytes
+		if len(data) < minFuzzDataSize { // Skip invalid inputs that don't contain enough data to parse FuzzData
 			return
 		}
 
@@ -1157,19 +1158,16 @@ func FuzzHandleInitialRegistration(f *testing.F) {
 
 const (
 	// minFuzzDataSize represents the minimum number of bytes required to parse FuzzData
-	// Layout: 17 single-byte fields + 5 uint32 fields (4 bytes each) = 17 + 20 = 37 bytes
-	// We use 39 for safety margin and future extensibility
+	// Layout: 21 single-byte fields (bools converted to uint8, uint8 fields) + 4 uint32 fields (4 bytes each) = 21 + 16 = 37 bytes.
+	// We use 39 to provide a 2-byte safety margin for future extensibility or alignment.
 	minFuzzDataSize = 39
-
 	// Field layout documentation:
-	// Bytes 0-16:  17 single-byte fields (bools converted to uint8, uint8 fields)
-	// Bytes 17-20: MaxNumOfTAs (uint32)
-	// Bytes 21-23: 3 more single-byte fields
-	// Bytes 24-27: T3502ValueMs (uint32)
-	// Bytes 28-31: T3512ValueMs (uint32)
-	// Bytes 32-35: Non3gppDeregTimerValueMs (uint32)
-	// Bytes 36-37: 2 more single-byte fields
-	// Bytes 38+:   Reserved for future use
+	// Bytes 0-20:  21 single-byte fields (bools converted to uint8, uint8 fields)
+	// Bytes 21-24: MaxNumOfTAs (uint32)
+	// Bytes 25-28: T3502ValueMs (uint32)
+	// Bytes 29-32: T3512ValueMs (uint32)
+	// Bytes 33-36: Non3gppDeregTimerValueMs (uint32)
+	// Bytes 37-38: Reserved for future use (2-byte safety margin)
 )
 
 func parseFuzzData(data []byte) *FuzzData {
@@ -1212,7 +1210,7 @@ func parseUint32(data []byte) uint32 {
 	if len(data) < 4 {
 		return 0
 	}
-	return uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24
+	return binary.LittleEndian.Uint32(data[:4])
 }
 
 func generateString(prefix string, length int) string {
