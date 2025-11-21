@@ -30,14 +30,10 @@ func makeSnssaiWithSd(sst int32, sd string) nfConfigApi.Snssai {
 
 func loadTestConfig() error {
 	configLoadOnce.Do(func() {
-		origConfig := factory.AmfConfig // Save original
-
 		configLoadErr = factory.InitConfigFactory("../util/testdata/amfcfg.yaml")
 		if configLoadErr == nil {
 			testConfig = factory.AmfConfig
 		}
-
-		factory.AmfConfig = origConfig // Restore original
 	})
 	return configLoadErr
 }
