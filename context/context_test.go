@@ -1,3 +1,4 @@
+// SPDX-FileCopyrightText: 2025 Intel Corporation
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -7,6 +8,7 @@ package context
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/omec-project/amf/factory"
@@ -14,10 +16,42 @@ import (
 	"github.com/omec-project/openapi/nfConfigApi"
 )
 
+var (
+	testConfig     factory.Config
+	configLoadOnce sync.Once
+	configLoadErr  error
+)
+
 func makeSnssaiWithSd(sst int32, sd string) nfConfigApi.Snssai {
 	s := nfConfigApi.NewSnssai(sst)
 	s.SetSd(sd)
 	return *s
+}
+
+func loadTestConfig() error {
+	configLoadOnce.Do(func() {
+		configLoadErr = factory.InitConfigFactory("../util/testdata/amfcfg.yaml")
+		if configLoadErr == nil {
+			testConfig = factory.AmfConfig
+		}
+	})
+	return configLoadErr
+}
+
+// setupTestFactory sets up the factory config for testing and returns a cleanup function
+func setupTestFactory(t *testing.T) func() {
+	t.Helper()
+
+	if err := loadTestConfig(); err != nil {
+		t.Fatalf("failed to load test config: %v", err)
+	}
+
+	origFactory := factory.AmfConfig
+	factory.AmfConfig = testConfig
+
+	return func() {
+		factory.AmfConfig = origFactory
+	}
 }
 
 func TestUpdateAMFContext(t *testing.T) {
@@ -176,14 +210,11 @@ func TestUpdateAMFContext(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			origFactory := factory.AmfConfig
-			defer func() { factory.AmfConfig = origFactory }()
-			err := factory.InitConfigFactory("../util/testdata/amfcfg.yaml")
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-			}
+			cleanup := setupTestFactory(t)
+			defer cleanup()
+
 			amfContext := AMFContext{}
-			err = UpdateAmfContext(&amfContext, tc.accessAndMobilityConfig)
+			err := UpdateAmfContext(&amfContext, tc.accessAndMobilityConfig)
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
