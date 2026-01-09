@@ -6,6 +6,7 @@ Copyright 2019 free5GC.org
 SPDX-License-Identifier: Apache-2.0
 -->
 [![Go Report Card](https://goreportcard.com/badge/github.com/omec-project/amf)](https://goreportcard.com/report/github.com/omec-project/amf)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11716/badge)](https://www.bestpractices.dev/projects/11716)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/omec-project/amf/badge)](https://scorecard.dev/viewer/?uri=github.com/omec-project/amf)
 
 # amf
@@ -15,7 +16,7 @@ management, connection management, mobility management, access authentication
 and authorization, security context management.
 
 ## AMF flow Diagram
-![AMF Flow Diagram](/docs/images/README-AMF.png)
+![AMF Flow Diagram](docs/images/README-AMF.png)
 
 AMF takes configuration from NFConfig Service. Configuration is handled at
  the Network Slice level. Configuration (Network Slices) can be added, removed and
