@@ -768,7 +768,7 @@ func BuildPDUSessionResourceSetupRequest(ue *context.RanUe, nasPdu []byte,
 	ie.Value.Present = ngapType.PDUSessionResourceSetupRequestIEsPresentUEAggregateMaximumBitRate
 	ie.Value.UEAggregateMaximumBitRate = new(ngapType.UEAggregateMaximumBitRate)
 
-	// ueAmbrUL & ueAmbrDL is set to default value of 1000000000 if it's nil
+	// ueAmbrUL & ueAmbrDL are set to the default value 1000000000 if the subscribed UE AMBR information is nil
 	var ueAmbrUL, ueAmbrDL int64
 	if ue.AmfUe == nil || ue.AmfUe.AccessAndMobilitySubscriptionData == nil || ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr == nil {
 		logger.NgapLog.Warn("Subscribed UE AMBR is nil; using default AMBR values (1000000000 UL, 1000000000 DL)")

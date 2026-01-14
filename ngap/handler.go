@@ -1130,6 +1130,9 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		// TODO: it's a workaround, need to fix it.
 		targetRanUe := context.AMF_Self().RanUeFindByAmfUeNgapID(ranUe.TargetUe.AmfUeNgapId)
 
+		if targetRanUe == nil {
+			ran.Log.Errorf("targetRanUe is nil for AmfUeNgapId: %v", ranUe.TargetUe.AmfUeNgapId)
+		}
 		// If target UE RAN is nil, set it to current RAN
 		if targetRanUe.Ran == nil {
 			ran.Log.Warnf("targetRanUe RAN is nil - Setting current RAN for target UE with AmfUeNgapId: %v", ranUe.TargetUe.AmfUeNgapId)
