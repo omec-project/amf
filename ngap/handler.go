@@ -1132,6 +1132,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 
 		if targetRanUe == nil {
 			ran.Log.Errorf("targetRanUe is nil for AmfUeNgapId: %v", ranUe.TargetUe.AmfUeNgapId)
+			return
 		}
 		// If target UE RAN is nil, set it to current RAN
 		if targetRanUe.Ran == nil {
