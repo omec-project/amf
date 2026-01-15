@@ -1048,35 +1048,42 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			cause = *tmp
 		}
 	}
-	if amfUe.State[ran.AnType].Is(context.Registered) {
-		ranUe.Log.Infoln("Rel Ue Context in GMM-Registered")
-		if pDUSessionResourceList != nil {
-			for _, pduSessionReourceItem := range pDUSessionResourceList.List {
-				pduSessionID := int32(pduSessionReourceItem.PDUSessionID.Value)
-				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
-				if !ok {
-					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
-					continue
+	if amfUe.GetOnGoing(amfUe.GetAnType()).Procedure == context.OnGoingProcedureN2Handover {
+		ranUe.Log.Infof("Setting target UE on going procedure to nothing after N2 Handover")
+		amfUe.SetOnGoing(amfUe.GetAnType(), &context.OnGoingProcedureWithPrio{
+			Procedure: context.OnGoingProcedureNothing,
+		})
+	} else {
+		if amfUe.State[ran.AnType].Is(context.Registered) {
+			ranUe.Log.Infoln("Rel Ue Context in GMM-Registered")
+			if pDUSessionResourceList != nil {
+				for _, pduSessionReourceItem := range pDUSessionResourceList.List {
+					pduSessionID := int32(pduSessionReourceItem.PDUSessionID.Value)
+					smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
+					if !ok {
+						ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+						continue
+					}
+					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, cause)
+					if err != nil {
+						ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
+					} else if response == nil {
+						ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
+					}
 				}
-				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, cause)
-				if err != nil {
-					ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
-				} else if response == nil {
-					ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
-				}
+			} else {
+				ranUe.Log.Infoln("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
+				amfUe.SmContextList.Range(func(key, value interface{}) bool {
+					smContext := value.(*context.SmContext)
+					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, cause)
+					if err != nil {
+						ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
+					} else if response == nil {
+						ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
+					}
+					return true
+				})
 			}
-		} else {
-			ranUe.Log.Infoln("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
-			amfUe.SmContextList.Range(func(key, value interface{}) bool {
-				smContext := value.(*context.SmContext)
-				response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, cause)
-				if err != nil {
-					ran.Log.Errorf("Send Update SmContextDeactivate UpCnxState Error[%s]", err.Error())
-				} else if response == nil {
-					ran.Log.Errorln("Send Update SmContextDeactivate UpCnxState Error")
-				}
-				return true
-			})
 		}
 	}
 
@@ -1123,7 +1130,15 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		// TODO: it's a workaround, need to fix it.
 		targetRanUe := context.AMF_Self().RanUeFindByAmfUeNgapID(ranUe.TargetUe.AmfUeNgapId)
 
-		targetRanUe.Ran = ran
+		if targetRanUe == nil {
+			ran.Log.Errorf("targetRanUe is nil for AmfUeNgapId: %v", ranUe.TargetUe.AmfUeNgapId)
+			return
+		}
+		// If target UE RAN is nil, set it to current RAN
+		if targetRanUe.Ran == nil {
+			ran.Log.Warnf("targetRanUe RAN is nil - Setting current RAN for target UE with AmfUeNgapId: %v", ranUe.TargetUe.AmfUeNgapId)
+			targetRanUe.Ran = ran
+		}
 		context.DetachSourceUeTargetUe(ranUe)
 		err := ranUe.Remove()
 		if err != nil {
@@ -2983,10 +2998,10 @@ func HandleHandoverNotify(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		}
 		amfUe.AttachRanUe(targetUe)
 		context.StoreContextInDB(amfUe)
-		ngap_message.SendUEContextReleaseCommand(sourceUe, context.UeContextReleaseHandover, ngapType.CausePresentNas,
-			ngapType.CauseNasPresentNormalRelease)
+		ngap_message.SendUEContextReleaseCommand(sourceUe, context.UeContextReleaseHandover, ngapType.CausePresentRadioNetwork,
+			ngapType.CauseRadioNetworkPresentSuccessfulHandover)
 	}
-
+	targetUe.SentInitialContextSetupRequest = true
 	// TODO: The UE initiates Mobility Registration Update procedure as described in clause 4.2.2.2.2.
 }
 

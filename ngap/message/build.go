@@ -767,8 +767,20 @@ func BuildPDUSessionResourceSetupRequest(ue *context.RanUe, nasPdu []byte,
 	ie.Criticality.Value = ngapType.CriticalityPresentIgnore
 	ie.Value.Present = ngapType.PDUSessionResourceSetupRequestIEsPresentUEAggregateMaximumBitRate
 	ie.Value.UEAggregateMaximumBitRate = new(ngapType.UEAggregateMaximumBitRate)
-	ueAmbrUL := ngapConvert.UEAmbrToInt64(ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink)
-	ueAmbrDL := ngapConvert.UEAmbrToInt64(ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink)
+
+	// ueAmbrUL & ueAmbrDL are set to the default value 1000000000 if the subscribed UE AMBR information is nil
+	var ueAmbrUL, ueAmbrDL int64
+	if ue.AmfUe == nil || ue.AmfUe.AccessAndMobilitySubscriptionData == nil || ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr == nil {
+		logger.NgapLog.Warn("Subscribed UE AMBR is nil; using default AMBR values (1000000000 UL, 1000000000 DL)")
+		ueAmbrUL, ueAmbrDL = 1000000000, 1000000000
+	} else {
+		uplink := ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink
+		downlink := ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink
+
+		ueAmbrUL = ngapConvert.UEAmbrToInt64(uplink)
+		ueAmbrDL = ngapConvert.UEAmbrToInt64(downlink)
+	}
+
 	ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateUL.Value = ueAmbrUL
 	ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateDL.Value = ueAmbrDL
 	pDUSessionResourceSetupRequestIEs.List = append(pDUSessionResourceSetupRequestIEs.List, ie)
