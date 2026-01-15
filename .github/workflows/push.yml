@@ -67,7 +67,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: omec-project/.github/.github/workflows/sbom-source.yml@c12b5b935a1b028103fbfecb1c2bde72e241e1a9
+    uses: omec-project/.github/.github/workflows/sbom-source.yml@313f90fdb8e4b93d4c3968c0b88f217fe84de9b8 # v0.0.5
     with:
       branch_name: ${{ github.ref }}
       artifact_name: amf-${{ needs.tag-github.outputs.version }}.spdx.json
