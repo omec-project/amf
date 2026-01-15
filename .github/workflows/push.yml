@@ -60,3 +60,16 @@ jobs:
       release_branch: ${{ needs.tag-github.outputs.release_branch }}
       version_branch: ${{ needs.tag-github.outputs.version_branch }}
     secrets: inherit
+
+  sbom-source:
+    needs: tag-github
+    if: ${{ needs.tag-github.outputs.changed == 'true' }}
+    permissions:
+      contents: read
+      actions: read
+    uses: omec-project/.github/.github/workflows/sbom-source.yml@313f90fdb8e4b93d4c3968c0b88f217fe84de9b8 # v0.0.5
+    with:
+      branch_name: ${{ github.ref }}
+      artifact_name: amf-${{ needs.tag-github.outputs.version }}.spdx.json
+      sbom_format: spdx-json
+      path: .
