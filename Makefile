@@ -9,7 +9,7 @@
 PROJECT_NAME             := amf
 VERSION                  ?= $(shell cat ./VERSION 2>/dev/null || echo "dev")
 
-# Extract Go version from go.mod file
+# Extract minimum Go version from go.mod file
 GOLANG_MINIMUM_VERSION   ?= $(shell awk '/^go / {print $$2}' go.mod 2>/dev/null || echo "1.25")
 
 # Number of processors for parallel builds (Linux only)
