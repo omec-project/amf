@@ -63,7 +63,6 @@ jobs:
 
   sbom-source:
     needs: tag-github
-    if: ${{ needs.tag-github.outputs.changed == 'true' }}
     permissions:
       contents: read
       actions: read
