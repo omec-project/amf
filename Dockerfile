@@ -1,3 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Intel Corporation
 # SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 #
 # SPDX-License-Identifier: Apache-2.0
@@ -25,9 +26,23 @@ RUN make all
 
 FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS amf
 
-LABEL maintainer="Aether SD-Core <dev@lists.aetherproject.org>" \
-    description="Aether open source 5G Core Network" \
-    version="Stage 3"
+# Build arguments for dynamic labels
+ARG VERSION=dev
+ARG VCS_URL=unknown
+ARG VCS_REF=unknown
+ARG BUILD_DATE=unknown
+
+LABEL org.opencontainers.image.source="${VCS_URL}" \
+    org.opencontainers.image.version="${VERSION}" \
+    org.opencontainers.image.created="${BUILD_DATE}" \
+    org.opencontainers.image.revision="${VCS_REF}" \
+    org.opencontainers.image.url="${VCS_URL}" \
+    org.opencontainers.image.title="amf" \
+    org.opencontainers.image.description="Aether 5G Core AMF Network Function" \
+    org.opencontainers.image.authors="Aether SD-Core <dev@lists.aetherproject.org>" \
+    org.opencontainers.image.vendor="Aether Project" \
+    org.opencontainers.image.licenses="Apache-2.0" \
+    org.opencontainers.image.documentation="https://docs.sd-core.aetherproject.org/"
 
 ARG DEBUG_TOOLS
 
