@@ -73,6 +73,7 @@ jobs:
       artifact_name: ${{ github.event.repository.name }}-${{ needs.tag-github.outputs.version }}.spdx.json
       sbom_format: spdx-json
       path: .
+  
   grype-scan:
     needs: [tag-github, sbom-source]
     permissions:
