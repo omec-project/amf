@@ -66,21 +66,21 @@ jobs:
     permissions:
       contents: read
       actions: read
-    uses: omec-project/.github/.github/workflows/sbom-source.yml@d6d5f6169822d28e8a7bc71316d4615f75573fd6 # v0.0.8
+    uses: omec-project/.github/.github/workflows/sbom-source.yml@8dfff47ca98efd751c939d94b9c207be27f99492 # v0.0.11
     with:
       changed: ${{ needs.tag-github.outputs.changed }}
       branch_name: ${{ github.ref }}
       artifact_name: ${{ github.event.repository.name }}-${{ needs.tag-github.outputs.version }}.spdx.json
       sbom_format: spdx-json
       path: .
-  
+
   grype-scan:
     needs: [tag-github, sbom-source]
     permissions:
       contents: read
       actions: read
       security-events: write # Required for SARIF upload to Code Scanning
-    uses: omec-project/.github/.github/workflows/grype-scan.yml@8dfff47ca98efd751c939d94b9c207be27f99492
+    uses: omec-project/.github/.github/workflows/grype-scan.yml@8dfff47ca98efd751c939d94b9c207be27f99492 # v0.0.11
     with:
       changed: ${{ needs.tag-github.outputs.changed }}
       artifact_name: ${{ github.event.repository.name }}-${{ needs.tag-github.outputs.version }}.spdx.json
