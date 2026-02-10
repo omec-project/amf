@@ -137,11 +137,20 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	}
 	var ue *context.AmfUe = nil
 	var guti string
+	var guami models.Guami
+	amfSelf := context.AMF_Self()
 	if msg.GmmHeader.GetMessageType() == nas.MsgTypeRegistrationRequest {
 		mobileIdentity5GSContents := msg.RegistrationRequest.GetMobileIdentity5GSContents()
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
-			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
+			guami, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)
+			servedGuami := amfSelf.ServedGuamiList[0]
+			if reflect.DeepEqual(guami, servedGuami) {
+				logger.CommLog.Debugf("GUAMI matched")
+			} else {
+				logger.CommLog.Debugf("GUAMI mismatch")
+				guti = ""
+			}
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
 			// UeContext found based on SUCI which means context is exist in Network
