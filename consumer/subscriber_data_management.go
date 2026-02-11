@@ -79,7 +79,9 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 		ctx, ue.Supi, &getAmDataParamOpt)
 	if localErr == nil {
 		ue.AccessAndMobilitySubscriptionData = &data
-		ue.Gpsi = data.Gpsis[0] // TODO: select GPSI
+		if len(data.Gpsis) > 0 {
+			ue.Gpsi = data.Gpsis[0] // TODO: select GPSI
+		}
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
