@@ -144,12 +144,23 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			guami, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)
-			servedGuami := amfSelf.ServedGuamiList[0]
-			if reflect.DeepEqual(guami, servedGuami) {
-				logger.CommLog.Debugf("GUAMI matched")
-			} else {
-				logger.CommLog.Debugf("GUAMI mismatch")
+			if len(amfSelf.ServedGuamiList) == 0 {
+				logger.CommLog.Warnln("no served GUAMI configured; clearing GUTI")
 				guti = ""
+			} else {
+				guamiFound := false
+				for _, servedGuami := range amfSelf.ServedGuamiList {
+					if reflect.DeepEqual(guami, servedGuami) {
+						guamiFound = true
+						break
+					}
+				}
+				if guamiFound {
+					logger.CommLog.Debugln("GUAMI matched")
+				} else {
+					logger.CommLog.Debugln("GUAMI mismatch")
+					guti = ""
+				}
 			}
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
