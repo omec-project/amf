@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2022 Intel Corporation
 
+# Timeline for each  ecosystem is intentionally staggered to spread
+# Dependabot PRs over the week.
 version: 2
 updates:
 
