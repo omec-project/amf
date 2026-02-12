@@ -35,12 +35,11 @@ DOCKER_LABEL_VCS_REF     ?= $(shell \
 			echo "unknown"; \
 		fi \
 	)}}}")
-DOCKER_LABEL_COMMIT_DATE ?= $(shell git diff-index --quiet HEAD -- 2>/dev/null && git show -s --format=%cd --date=iso-strict HEAD 2>/dev/null || echo "unknown")
 DOCKER_LABEL_BUILD_DATE  ?= $(shell date -u "+%Y-%m-%dT%H:%M:%SZ")
 
 ## Build configuration
 BINARY_NAME              := $(PROJECT_NAME)
-GO_PACKAGES              ?= ./ ./...
+GO_PACKAGES              ?= ./...
 
 ## Directory configuration
 BIN_DIR                  := bin
@@ -82,7 +81,6 @@ docker-build: ## Build Docker image
 		--build-arg VCS_URL="$(DOCKER_LABEL_VCS_URL)" \
 		--build-arg VCS_REF="$(DOCKER_LABEL_VCS_REF)" \
 		--build-arg BUILD_DATE="$(DOCKER_LABEL_BUILD_DATE)" \
-		--build-arg COMMIT_DATE="$(DOCKER_LABEL_COMMIT_DATE)" \
 		--tag $(DOCKER_IMAGENAME) \
 		. \
 		|| exit 1

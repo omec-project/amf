@@ -16,7 +16,7 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-      day: "sunday"
+      day: "thursday"
       time: "21:00"
       timezone: "America/Los_Angeles"
 
@@ -24,7 +24,7 @@ updates:
     directory: /
     schedule:
       interval: "weekly"
-      day: "sunday"
+      day: "tuesday"
       time: "21:00"
       timezone: "America/Los_Angeles"
     groups:
