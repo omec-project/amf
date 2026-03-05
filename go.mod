@@ -1,6 +1,6 @@
 module github.com/omec-project/amf
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/antihax/optional v1.0.0
@@ -10,10 +10,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/nas v1.8.0
-	github.com/omec-project/ngap v1.8.0
-	github.com/omec-project/openapi v1.7.0
-	github.com/omec-project/util v1.7.0
+	github.com/omec-project/nas v1.8.1
+	github.com/omec-project/ngap v1.8.1
+	github.com/omec-project/openapi v1.7.1
+	github.com/omec-project/util v1.7.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/urfave/cli/v3 v3.6.2
 	go.mongodb.org/mongo-driver v1.17.9
@@ -81,7 +81,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
