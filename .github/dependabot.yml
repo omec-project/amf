@@ -25,6 +25,9 @@ updates:
       opentelemetry:
         patterns:
           - "go.opentelemetry.io/otel*"
+      omec-project:
+        patterns:
+          - "github.com/omec-project/*"
 
   - package-ecosystem: github-actions
     directory: /

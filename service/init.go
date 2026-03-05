@@ -197,19 +197,6 @@ func (amf *AMF) setLogLevel() {
 	}
 }
 
-func (amf *AMF) FilterCli(c *cli.Command) (args []string) {
-	for _, flag := range amf.GetCliCmd() {
-		name := flag.Names()[0]
-		value := fmt.Sprint(c.Generic(name))
-		if value == "" {
-			continue
-		}
-
-		args = append(args, "--"+name, value)
-	}
-	return args
-}
-
 func (amf *AMF) Start() {
 	logger.InitLog.Infoln("server started")
 	var err error
