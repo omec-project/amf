@@ -648,22 +648,6 @@ func BuildRegistrationAccept(
 	return nas_security.Encode(ue, m, anType)
 }
 
-func BuildStatus5GMM(cause uint8) ([]byte, error) {
-	m := nas.NewMessage()
-	m.GmmMessage = nas.NewGmmMessage()
-	m.GmmHeader.SetMessageType(nas.MsgTypeStatus5GMM)
-
-	status5GMM := nasMessage.NewStatus5GMM(0)
-	status5GMM.SetExtendedProtocolDiscriminator(nasMessage.Epd5GSMobilityManagementMessage)
-	status5GMM.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
-	status5GMM.SetMessageType(nas.MsgTypeStatus5GMM)
-	status5GMM.SetCauseValue(cause)
-
-	m.Status5GMM = status5GMM
-
-	return m.PlainNasEncode()
-}
-
 func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType,
 	networkSlicingIndication *nasType.NetworkSlicingIndication,
 ) ([]byte, error) {

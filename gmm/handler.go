@@ -24,7 +24,6 @@ import (
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
-	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/producer/callback"
@@ -1719,65 +1718,6 @@ func NetworkInitiatedDeregistrationProcedure(ctx ctxt.Context, ue *context.AmfUe
 			ue.Remove()
 		}
 	}
-	return err
-}
-
-// TODO: to be implemented
-func HandleUeSliceInfoDelete(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
-	// TODO send configuration update to update allowed nssai list with re-registration required to UE
-	//     so that pdu session sync up happen in registration procedure when UE triggers this procedure
-	// gmm_message.SendConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS, nil)
-
-	// we are doing local cleanup for now, below code will be deprecated when we support
-	// Configuration Update
-	var problemDetails *models.ProblemDetails
-	ue.SmContextList.Range(func(key, value interface{}) bool {
-		smContext := value.(*context.SmContext)
-		if smContext.Snssai().Sst == nssai.Sst && smContext.Snssai().Sd == nssai.Sd {
-			logger.GmmLog.Infof("Deleted Slice [sst: %v, sd: %v]matched with smcontext, sending Release SMContext Request to SMF",
-				smContext.Snssai().Sst, smContext.Snssai().Sd)
-			// send smcontext release request
-			problemDetails, err = consumer.SendReleaseSmContextRequest(ue, smContext, nil, "", nil)
-			if problemDetails != nil {
-				ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetails)
-			} else if err != nil {
-				ue.GmmLog.Errorf("Release SmContext Error[%v]", err.Error())
-			}
-		}
-		return true
-	})
-
-	var allowedList []models.AllowedSnssai
-	// update Allowed Nssai List
-	for _, slice := range ue.AllowedNssai[accessType] {
-		if slice.AllowedSnssai.Sst != nssai.Sst && slice.AllowedSnssai.Sd != nssai.Sd {
-			allowedList = append(allowedList, slice)
-		}
-	}
-	ue.AllowedNssai[accessType] = allowedList
-
-	return err
-}
-
-// TODO: to be implemented
-func HandleUeSliceInfoAdd(ue *context.AmfUe, accessType models.AccessType, nssai models.Snssai) (err error) {
-	// TODO send configuration update to update allowed nssai list with re-registration required to UE
-	//     so that pdu session sync up happen in registration procedure when UE triggers this procedure
-	// gmm_message.SendConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS, nil)
-
-	var allowedList []models.AllowedSnssai
-	// update Allowed Nssai List
-	for _, slice := range ue.AllowedNssai[accessType] {
-		if slice.AllowedSnssai.Sst != nssai.Sst && slice.AllowedSnssai.Sd != nssai.Sd {
-			allowedList = append(allowedList, slice)
-		}
-	}
-	var allowedNssai models.AllowedSnssai
-	allowedNssai.AllowedSnssai = &nssai
-	allowedList = append(allowedList, allowedNssai)
-
-	ue.AllowedNssai[accessType] = allowedList
-
 	return err
 }
 
