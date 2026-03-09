@@ -9,10 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/omec-project/amf/logger"
-	utilLogger "github.com/omec-project/util/logger"
 )
 
 // Route is the information for every URI.
@@ -29,23 +26,6 @@ type Route struct {
 
 // Routes is the list of the generated Route.
 type Routes []Route
-
-// NewRouter returns a new router.
-func NewRouter() *gin.Engine {
-	router := utilLogger.NewGinWithZap(logger.GinLog)
-	AddService(router)
-
-	router.Use(cors.New(cors.Config{
-		AllowMethods:     []string{"GET", "POST", "OPTIONS", "PUT", "PATCH", "DELETE"},
-		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "User-Agent", "Referrer", "Host", "Token", "X-Requested-With"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		AllowAllOrigins:  true,
-		MaxAge:           86400,
-	}))
-
-	return router
-}
 
 func AddService(engine *gin.Engine) *gin.RouterGroup {
 	group := engine.Group("/namf-oam/v1")

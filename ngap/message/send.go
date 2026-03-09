@@ -128,20 +128,6 @@ func SendNGSetupFailure(ran *context.AmfRan, cause ngapType.Cause) {
 	SendToRan(ran, pkt)
 }
 
-// partOfNGInterface: if reset type is "reset all", set it to nil TS 38.413 9.2.6.11
-func SendNGReset(ran *context.AmfRan, cause ngapType.Cause,
-	partOfNGInterface *ngapType.UEAssociatedLogicalNGConnectionList,
-) {
-	ran.Log.Infoln("send NG Reset")
-
-	pkt, err := BuildNGReset(cause, partOfNGInterface)
-	if err != nil {
-		ran.Log.Errorf("build NGReset failed: %s", err.Error())
-		return
-	}
-	SendToRan(ran, pkt)
-}
-
 func SendNGResetAcknowledge(ran *context.AmfRan, partOfNGInterface *ngapType.UEAssociatedLogicalNGConnectionList,
 	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
 ) {
@@ -241,22 +227,6 @@ func SendErrorIndication(ran *context.AmfRan, amfUeNgapId, ranUeNgapId *int64, c
 		return
 	}
 	SendToRan(ran, pkt)
-}
-
-func SendUERadioCapabilityCheckRequest(ue *context.RanUe) {
-	if ue == nil {
-		logger.NgapLog.Errorln("RanUe is nil")
-		return
-	}
-
-	ue.Log.Infoln("send UE Radio Capability Check Request")
-
-	pkt, err := BuildUERadioCapabilityCheckRequest(ue)
-	if err != nil {
-		ue.Log.Errorf("build UERadioCapabilityCheckRequest failed: %s", err.Error())
-		return
-	}
-	SendToRanUe(ue, pkt)
 }
 
 func SendHandoverCancelAcknowledge(ue *context.RanUe, criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
@@ -388,31 +358,6 @@ func SendInitialContextSetupRequest(
 		return
 	}
 	amfUe.RanUe[anType].SentInitialContextSetupRequest = true
-	NasSendToRan(amfUe, anType, pkt)
-}
-
-func SendUEContextModificationRequest(
-	amfUe *context.AmfUe,
-	anType models.AccessType,
-	oldAmfUeNgapID *int64,
-	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
-	mobilityRestrictionList *ngapType.MobilityRestrictionList,
-	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
-) {
-	if amfUe == nil {
-		logger.NgapLog.Errorln("AmfUe is nil")
-		return
-	}
-
-	amfUe.RanUe[anType].Log.Infoln("send UE Context Modification Request")
-
-	pkt, err := BuildUEContextModificationRequest(amfUe, anType, oldAmfUeNgapID, rrcInactiveTransitionReportRequest,
-		coreNetworkAssistanceInfo, mobilityRestrictionList, emergencyFallbackIndicator)
-	if err != nil {
-		amfUe.RanUe[anType].Log.Errorf("build UEContextModificationRequest failed: %s", err.Error())
-		return
-	}
 	NasSendToRan(amfUe, anType, pkt)
 }
 
@@ -795,59 +740,6 @@ func SendAMFStatusIndication(ran *context.AmfRan, unavailableGUAMIList ngapType.
 	SendToRan(ran, pkt)
 }
 
-// TS 23.501 5.19.5.2
-// amfOverloadResponse: the required behaviour of NG-RAN, provided by AMF
-// amfTrafficLoadReductionIndication(int 1~99): indicates the percentage of the type, set to 0 if does not need this ie
-// of traffic relative to the instantaneous incoming rate at the NG-RAN node, provided by AMF
-// overloadStartNSSAIList: overload slices, provide by AMF
-func SendOverloadStart(
-	ran *context.AmfRan,
-	amfOverloadResponse *ngapType.OverloadResponse,
-	amfTrafficLoadReductionIndication int64,
-	overloadStartNSSAIList *ngapType.OverloadStartNSSAIList,
-) {
-	if ran == nil {
-		logger.NgapLog.Errorln("Ran is nil")
-		return
-	}
-
-	ran.Log.Infoln("send Overload Start")
-
-	if amfTrafficLoadReductionIndication != 0 &&
-		(amfTrafficLoadReductionIndication < 1 || amfTrafficLoadReductionIndication > 99) {
-		ran.Log.Errorln("AmfTrafficLoadReductionIndication out of range (should be 1 ~ 99)")
-		return
-	}
-
-	if overloadStartNSSAIList != nil && len(overloadStartNSSAIList.List) > context.MaxNumOfSlice {
-		ran.Log.Errorln("NSSAI List out of range")
-		return
-	}
-
-	pkt, err := BuildOverloadStart(amfOverloadResponse, amfTrafficLoadReductionIndication, overloadStartNSSAIList)
-	if err != nil {
-		ran.Log.Errorf("build OverloadStart failed: %s", err.Error())
-		return
-	}
-	SendToRan(ran, pkt)
-}
-
-func SendOverloadStop(ran *context.AmfRan) {
-	if ran == nil {
-		logger.NgapLog.Errorln("Ran is nil")
-		return
-	}
-
-	ran.Log.Infoln("send Overload Stop")
-
-	pkt, err := BuildOverloadStop()
-	if err != nil {
-		ran.Log.Errorf("build OverloadStop failed: %s", err.Error())
-		return
-	}
-	SendToRan(ran, pkt)
-}
-
 // SONConfigurationTransfer = sONConfigurationTransfer from uplink Ran Configuration Transfer
 func SendDownlinkRanConfigurationTransfer(ran *context.AmfRan, transfer *ngapType.SONConfigurationTransfer) {
 	if ran == nil {
@@ -863,51 +755,6 @@ func SendDownlinkRanConfigurationTransfer(ran *context.AmfRan, transfer *ngapTyp
 		return
 	}
 	SendToRan(ran, pkt)
-}
-
-// NRPPa PDU is by pass
-// NRPPa PDU is from LMF define in 4.13.5.6
-func SendDownlinkNonUEAssociatedNRPPATransport(ue *context.RanUe, nRPPaPDU ngapType.NRPPaPDU) {
-	if ue == nil {
-		logger.NgapLog.Errorln("RanUe is nil")
-		return
-	}
-
-	ue.Log.Infoln("send Downlink Non UE Associated NRPPA Transport")
-
-	if len(nRPPaPDU.Value) == 0 {
-		ue.Log.Errorln("length of NRPPA-PDU is 0")
-		return
-	}
-
-	pkt, err := BuildDownlinkNonUEAssociatedNRPPATransport(ue, nRPPaPDU)
-	if err != nil {
-		ue.Log.Errorf("build DownlinkNonUEAssociatedNRPPATransport failed: %s", err.Error())
-		return
-	}
-	SendToRanUe(ue, pkt)
-}
-
-func SendDeactivateTrace(amfUe *context.AmfUe, anType models.AccessType) {
-	if amfUe == nil {
-		logger.NgapLog.Errorln("AmfUe is nil")
-		return
-	}
-
-	ranUe := amfUe.RanUe[anType]
-	if ranUe == nil {
-		logger.NgapLog.Errorln("RanUe is nil")
-		return
-	}
-
-	ranUe.Log.Infoln("send Deactivate Trace")
-
-	pkt, err := BuildDeactivateTrace(amfUe, anType)
-	if err != nil {
-		ranUe.Log.Errorf("build DeactivateTrace failed: %s", err.Error())
-		return
-	}
-	SendToRanUe(ranUe, pkt)
 }
 
 // AOI List is from SMF
@@ -948,64 +795,6 @@ func SendLocationReportingControl(
 	pkt, err := BuildLocationReportingControl(ue, AOIList, LocationReportingReferenceIDToBeCancelled, eventType)
 	if err != nil {
 		ue.Log.Errorf("build LocationReportingControl failed: %s", err.Error())
-		return
-	}
-	SendToRanUe(ue, pkt)
-}
-
-func SendUETNLABindingReleaseRequest(ue *context.RanUe) {
-	if ue == nil {
-		logger.NgapLog.Errorln("RanUe is nil")
-		return
-	}
-
-	ue.Log.Infoln("send UE TNLA Binging Release Request")
-
-	pkt, err := BuildUETNLABindingReleaseRequest(ue)
-	if err != nil {
-		ue.Log.Errorf("build UETNLABindingReleaseRequest failed: %s", err.Error())
-		return
-	}
-	SendToRanUe(ue, pkt)
-}
-
-// Weight Factor associated with each of the TNL association within the AMF
-func SendAMFConfigurationUpdate(ran *context.AmfRan, usage ngapType.TNLAssociationUsage,
-	weightfactor ngapType.TNLAddressWeightFactor,
-) {
-	if ran == nil {
-		logger.NgapLog.Errorln("Ran is nil")
-		return
-	}
-
-	ran.Log.Infoln("send AMF Configuration Update")
-
-	pkt, err := BuildAMFConfigurationUpdate(usage, weightfactor)
-	if err != nil {
-		ran.Log.Errorf("build AMFConfigurationUpdate failed: %s", err.Error())
-		return
-	}
-	SendToRan(ran, pkt)
-}
-
-// NRPPa PDU is a pdu from LMF to RAN defined in TS 23.502 4.13.5.5 step 3
-// NRPPa PDU is by pass
-func SendDownlinkUEAssociatedNRPPaTransport(ue *context.RanUe, nRPPaPDU ngapType.NRPPaPDU) {
-	if ue == nil {
-		logger.NgapLog.Errorln("RanUe is nil")
-		return
-	}
-
-	ue.Log.Infoln("send Downlink UE Associated NRPPa Transport")
-
-	if len(nRPPaPDU.Value) == 0 {
-		ue.Log.Errorln("length of NRPPA-PDU is 0")
-		return
-	}
-
-	pkt, err := BuildDownlinkUEAssociatedNRPPaTransport(ue, nRPPaPDU)
-	if err != nil {
-		ue.Log.Errorf("build DownlinkUEAssociatedNRPPaTransport failed: %s", err.Error())
 		return
 	}
 	SendToRanUe(ue, pkt)

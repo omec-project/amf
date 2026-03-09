@@ -312,14 +312,3 @@ func SendRegistrationAccept(
 		})
 	}
 }
-
-func SendStatus5GMM(ue *context.RanUe, cause uint8) {
-	ue.AmfUe.GmmLog.Infoln("send Status 5GMM")
-
-	nasMsg, err := BuildStatus5GMM(cause)
-	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
-		return
-	}
-	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
-}
