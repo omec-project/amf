@@ -69,10 +69,12 @@ func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *t
 				StartNfRegistrationService(ctx, ch)
 			}()
 			ch <- []nfConfigApi.AccessAndMobility{}
+			timeoutTimer := time.NewTimer(1 * time.Second)
+			defer timeoutTimer.Stop()
 
 			select {
 			case <-serviceDone:
-			case <-time.After(1 * time.Second):
+			case <-timeoutTimer.C:
 				t.Fatal("timed out waiting for NF registration service to stop")
 			}
 
