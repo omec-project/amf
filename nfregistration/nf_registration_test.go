@@ -63,10 +63,18 @@ func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *t
 
 			ch := make(chan []nfConfigApi.AccessAndMobility, 1)
 			ctx := t.Context()
-			go StartNfRegistrationService(ctx, ch)
+			serviceDone := make(chan struct{})
+			go func() {
+				defer close(serviceDone)
+				StartNfRegistrationService(ctx, ch)
+			}()
 			ch <- []nfConfigApi.AccessAndMobility{}
 
-			time.Sleep(100 * time.Millisecond)
+			select {
+			case <-serviceDone:
+			case <-time.After(1 * time.Second):
+				t.Fatal("timed out waiting for NF registration service to stop")
+			}
 
 			if keepAliveTimer != nil {
 				t.Errorf("expected keepAliveTimer to be nil after stopKeepAliveTimer")
