@@ -50,7 +50,7 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 		if !ok {
 			logger.NgapLog.Infof("create a new NG connection for N3IWF: %s", sctplbMsg.N3IwfId)
 			ran = amfSelf.NewAmfRanId(sctplbMsg.N3IwfId)
-			ran.RanPresent = context.RanPresentN3IwfId
+			ran.RanId = ran.ConvertN3iwfIdToRanId(sctplbMsg.N3IwfId)
 			ran.AnType = models.AccessType_NON_3_GPP_ACCESS
 			ran.Amf2RanMsgChan = Amf2RanMsgChan
 		}

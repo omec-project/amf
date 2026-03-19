@@ -60,7 +60,7 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 				if req.N3IwfId != "" {
 					if ran, ok = amfSelf.AmfRanFindByGnbId(req.N3IwfId); !ok {
 						ran = amfSelf.NewAmfRanId(req.N3IwfId)
-						ran.RanPresent = amfContext.RanPresentN3IwfId
+						ran.RanId = ran.ConvertN3iwfIdToRanId(req.N3IwfId)
 						ran.AnType = models.AccessType_NON_3_GPP_ACCESS
 						logger.GrpcLog.Debugf("new N3IWF RAN: %v", req.N3IwfId)
 					}
