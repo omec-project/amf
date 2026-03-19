@@ -17,6 +17,7 @@ import (
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/ngap"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
+	"github.com/omec-project/openapi/models"
 	mi "github.com/omec-project/util/metricinfo"
 	"google.golang.org/grpc"
 )
@@ -56,26 +57,36 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 				amfSelf := amfContext.AMF_Self()
 				var ran *amfContext.AmfRan
 				var ok bool
-				if ran, ok = amfSelf.AmfRanFindByGnbId(req.GnbId); !ok {
-					ran = amfSelf.NewAmfRanId(req.GnbId)
-					if req.GnbId != "" {
-						ran.GnbId = req.GnbId
-						ran.RanId = ran.ConvertGnbIdToRanId(ran.GnbId)
-						logger.GrpcLog.Debugf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
-						rsp.GnbId = req.GnbId
+				if req.N3IwfId != "" {
+					if ran, ok = amfSelf.AmfRanFindByGnbId(req.N3IwfId); !ok {
+						ran = amfSelf.NewAmfRanId(req.N3IwfId)
+						ran.RanPresent = amfContext.RanPresentN3IwfId
+						ran.AnType = models.AccessType_NON_3_GPP_ACCESS
+						logger.GrpcLog.Debugf("new N3IWF RAN: %v", req.N3IwfId)
+					}
+					rsp.N3IwfId = req.N3IwfId
+				} else {
+					if ran, ok = amfSelf.AmfRanFindByGnbId(req.GnbId); !ok {
+						ran = amfSelf.NewAmfRanId(req.GnbId)
+						if req.GnbId != "" {
+							ran.GnbId = req.GnbId
+							ran.RanId = ran.ConvertGnbIdToRanId(ran.GnbId)
+							logger.GrpcLog.Debugf("RanID: %v for GnbId: %v", ran.RanID(), req.GnbId)
+							rsp.GnbId = req.GnbId
 
-						// send nf(gnb) status notification
-						gnbStatus := mi.MetricEvent{
-							EventType: mi.CNfStatusEvt,
-							NfStatusData: mi.CNfStatus{
-								NfType:   mi.NfTypeGnb,
-								NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
-							},
-						}
+							// send nf(gnb) status notification
+							gnbStatus := mi.MetricEvent{
+								EventType: mi.CNfStatusEvt,
+								NfStatusData: mi.CNfStatus{
+									NfType:   mi.NfTypeGnb,
+									NfStatus: mi.NfStatusConnected, NfName: req.GnbId,
+								},
+							}
 
-						if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
-							if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
-								logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
+							if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
+								if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+									logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
+								}
 							}
 						}
 					}
@@ -112,6 +123,35 @@ func (s *Server) HandleMessage(srv sdcoreAmfServer.NgapService_HandleMessageServ
 				}
 				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
 					if err := metrics.StatWriter.PublishNfStatusEvent(gnbStatus); err != nil {
+						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
+					}
+				}
+			case sdcoreAmfServer.MsgType_N3IWF_DISC:
+				logger.GrpcLog.Infoln("N3IWF disconnected")
+				ngap.HandleSCTPNotificationLb(req.N3IwfId)
+				n3iwfStatus := mi.MetricEvent{
+					EventType: mi.CNfStatusEvt,
+					NfStatusData: mi.CNfStatus{
+						NfType:   mi.NfTypeGnb,
+						NfStatus: mi.NfStatusDisconnected, NfName: req.N3IwfId,
+					},
+				}
+				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
+					if err := metrics.StatWriter.PublishNfStatusEvent(n3iwfStatus); err != nil {
+						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
+					}
+				}
+			case sdcoreAmfServer.MsgType_N3IWF_CONN:
+				logger.GrpcLog.Infoln("new N3IWF Connected")
+				n3iwfStatus := mi.MetricEvent{
+					EventType: mi.CNfStatusEvt,
+					NfStatusData: mi.CNfStatus{
+						NfType:   mi.NfTypeGnb,
+						NfStatus: mi.NfStatusConnected, NfName: req.N3IwfId,
+					},
+				}
+				if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
+					if err := metrics.StatWriter.PublishNfStatusEvent(n3iwfStatus); err != nil {
 						logger.GrpcLog.Errorf("error publishing NfStatusEvent: %v", err)
 					}
 				}

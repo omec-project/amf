@@ -41,7 +41,11 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		msg.Msgtype = sdcoreAmfServer.MsgType_AMF_MSG
 		msg.AmfId = os.Getenv("HOSTNAME")
 		msg.GnbIpAddr = ran.GnbIp
-		msg.GnbId = ran.GnbId
+		if ran.RanPresent == context.RanPresentN3IwfId {
+			msg.N3IwfId = ran.GnbId
+		} else {
+			msg.GnbId = ran.GnbId
+		}
 		ran.Amf2RanMsgChan <- msg
 	} else {
 		if ran.Conn == nil {

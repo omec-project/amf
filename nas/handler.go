@@ -48,7 +48,11 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 					rsp.AmfId = os.Getenv("HOSTNAME")
 					/* TODO for this release setting pod ip to simplify logic in sctplb */
 					rsp.RedirectId = id.PodIp
-					rsp.GnbId = ue.Ran.GnbId
+					if ue.Ran.RanPresent == context.RanPresentN3IwfId {
+						rsp.N3IwfId = ue.Ran.GnbId
+					} else {
+						rsp.GnbId = ue.Ran.GnbId
+					}
 					rsp.Msg = ue.SctplbMsg
 					if ue.AmfUe != nil {
 						ue.AmfUe.Remove()
@@ -72,7 +76,11 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		// we dont call this function when AMF restarts. So we
 		// need to set the AnType from stored Information.
 		if amfSelf.EnableSctpLb {
-			ue.Ran.AnType = models.AccessType__3_GPP_ACCESS
+			if ue.Ran.RanPresent == context.RanPresentN3IwfId {
+				ue.Ran.AnType = models.AccessType_NON_3_GPP_ACCESS
+			} else {
+				ue.Ran.AnType = models.AccessType__3_GPP_ACCESS
+			}
 		}
 		ue.AmfUe.AttachRanUe(ue)
 
