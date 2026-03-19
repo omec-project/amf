@@ -572,13 +572,14 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	case nasMessage.MobileIdentity5GSType5gGuti:
 		guamiFromUeGutiTmp, guti := nasConvert.GutiToString(mobileIdentity5GSContents)
 		guamiFromUeGuti = guamiFromUeGutiTmp
-		ue.Guti = guti
 		ue.GmmLog.Debugf("GUTI: %s", guti)
 
 		servedGuami := amfSelf.ServedGuamiList[0]
 		if reflect.DeepEqual(guamiFromUeGuti, servedGuami) {
+			ue.Guti = guti
 			ue.ServingAmfChanged = false
 		} else {
+			ue.GmmLog.Warnf("Invalid GUAMI received from UE")
 			ue.GmmLog.Debugf("Serving AMF has changed but 5G-Core is not supporting for now")
 			ue.ServingAmfChanged = false
 		}
