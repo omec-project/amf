@@ -15,7 +15,7 @@ require (
 	github.com/omec-project/openapi v1.7.1
 	github.com/omec-project/util v1.7.2
 	github.com/prometheus/client_golang v1.23.2
-	github.com/urfave/cli/v3 v3.7.0
+	github.com/urfave/cli/v3 v3.8.0
 	go.mongodb.org/mongo-driver v1.17.9
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.42.0
