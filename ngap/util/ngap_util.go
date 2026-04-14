@@ -7,6 +7,7 @@ package util
 
 import (
 	"net"
+	"sync"
 	"time"
 
 	"github.com/omec-project/ngap"
@@ -30,6 +31,7 @@ var MessageTypeMap = map[byte]string{
 // Mock Connection struct. Implements the net.Conn interface
 type TestConn struct {
 	Data []byte
+	mu   sync.RWMutex
 }
 
 type TestConnAddr struct{}
@@ -40,8 +42,22 @@ func (tca TestConnAddr) String() (a string)  { return }
 // Write method of the mocked testConn struct will be invoked as a part of the
 // unit test framework
 func (tc *TestConn) Write(b []byte) (n int, err error) {
-	tc.Data = b
-	return
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+	tc.Data = append(tc.Data[:0], b...)
+	return len(b), nil
+}
+
+func (tc *TestConn) Snapshot() []byte {
+	tc.mu.RLock()
+	defer tc.mu.RUnlock()
+	return append([]byte(nil), tc.Data...)
+}
+
+func (tc *TestConn) Reset() {
+	tc.mu.Lock()
+	defer tc.mu.Unlock()
+	tc.Data = nil
 }
 
 func (tc *TestConn) Close() (e error) { return }
