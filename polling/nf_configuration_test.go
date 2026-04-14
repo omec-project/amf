@@ -37,6 +37,12 @@ func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, 
 	}
 }
 
+func cleanupPollingService(t *testing.T, cancel context.CancelFunc, serviceDone <-chan struct{}) {
+	t.Helper()
+	cancel()
+	waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
+}
+
 func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (nfConfigApi.AccessAndMobility, error) {
 	sstUint64, err := strconv.ParseUint(sst, 10, 8)
 	if err != nil {
@@ -59,10 +65,9 @@ func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (n
 func TestStartPollingService_Success(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
-	defer func() {
-		cancel()
+	t.Cleanup(func() {
 		fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig
-	}()
+	})
 
 	expectedConfig := []nfConfigApi.AccessAndMobility{
 		{
@@ -82,14 +87,15 @@ func TestStartPollingService_Success(t *testing.T) {
 		defer close(serviceDone)
 		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 	}()
+	t.Cleanup(func() {
+		cleanupPollingService(t, cancel, serviceDone)
+	})
 
 	select {
 	case result := <-updateCtxChan:
 		if !reflect.DeepEqual(result, expectedConfig) {
 			t.Errorf("expected %+v, got %+v", expectedConfig, result)
 		}
-		cancel()
-		waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
 	case <-time.After(initialPollingInterval + time.Second):
 		t.Errorf("timeout waiting for PLMN config")
 	}
@@ -98,7 +104,7 @@ func TestStartPollingService_Success(t *testing.T) {
 func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
-	defer func() { fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig }()
+	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig })
 
 	var callCount atomic.Int32
 	attempts := make(chan struct{}, 2)
@@ -117,12 +123,12 @@ func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 		defer close(serviceDone)
 		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 	}()
+	t.Cleanup(func() {
+		cleanupPollingService(t, cancel, serviceDone)
+	})
 
 	waitForSignal(t, attempts, initialPollingInterval+time.Second, "timed out waiting for first polling attempt")
 	waitForSignal(t, attempts, 2*initialPollingInterval+time.Second, "timed out waiting for retry polling attempt")
-	cancel()
-	<-ctx.Done()
-	waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
 
 	if callCount.Load() < 2 {
 		t.Errorf("expected to retry after failure")
@@ -133,7 +139,7 @@ func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetcher := fetchAccessAndMobilityConfig
-	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
+	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetcher })
 	accessMobility1, err := makeAccessMobilityConfig("222", "02", "1", "1", []string{"1"})
 	if err != nil {
 		t.Fatalf("failed to create access mobility config: %v", err)
@@ -151,6 +157,9 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 		defer close(serviceDone)
 		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 	}()
+	t.Cleanup(func() {
+		cleanupPollingService(t, cancel, serviceDone)
+	})
 
 	timeout := time.After(5 * initialPollingInterval)
 	for i := range 1 {
@@ -163,10 +172,6 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 		}
 	}
 
-	cancel()
-	<-ctx.Done()
-	waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
-
 	if callCount != 1 {
 		t.Errorf("expected callback to be called once for new config, got %d", callCount)
 	}
@@ -175,7 +180,7 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetcher := fetchAccessAndMobilityConfig
-	defer func() { fetchAccessAndMobilityConfig = originalFetcher }()
+	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetcher })
 	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
 	if err != nil {
 		t.Fatalf("failed to create access mobility config: %v", err)
@@ -201,6 +206,9 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 		defer close(serviceDone)
 		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
 	}()
+	t.Cleanup(func() {
+		cleanupPollingService(t, cancel, serviceDone)
+	})
 
 	timeout := time.After(5 * initialPollingInterval)
 	for i := 0; i < 2; i++ {
@@ -212,10 +220,6 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 			t.Fatalf("Timed out waiting for config update #%d", i+1)
 		}
 	}
-
-	cancel()
-	<-ctx.Done()
-	waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
 
 	if receivedCount != 2 {
 		t.Errorf("expected callback to be called twice for different configs, got %d", receivedCount)
