@@ -17,6 +17,27 @@ import (
 	"github.com/omec-project/openapi/models"
 )
 
+func waitForConnData(t *testing.T, conn *ngaputil.TestConn, timeout time.Duration) []byte {
+	t.Helper()
+	timeoutTimer := time.NewTimer(timeout)
+	defer timeoutTimer.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		data := conn.Snapshot()
+		if len(data) > 0 {
+			return data
+		}
+
+		select {
+		case <-timeoutTimer.C:
+			t.Fatal("timed out waiting for NGAP response")
+		case <-ticker.C:
+		}
+	}
+}
+
 func init() {
 	// Initializing AMF Context from config.
 	testAmfConfig := "../util/testdata/amfcfg.yaml"
@@ -87,23 +108,19 @@ func TestHandleNGSetupRequest(t *testing.T) {
 
 	conn := &ngaputil.TestConn{}
 	for _, test := range testTable {
+		conn.Reset()
 		testNGSetupReq, err := ngaputil.GetNGSetupRequest(test.gnbId, test.bitLength, test.gnbName, test.tac)
 		if err != nil {
 			t.Log("Failed to to create NGSetupRequest")
 			return
 		}
 		ngap.Dispatch(conn, testNGSetupReq)
-		time.Sleep(2 * time.Second)
-		// conn.data holds the NGAP response message
-		if len(conn.Data) == 0 {
-			t.Error("Unexpected message drop")
-			return
-		}
+		response := waitForConnData(t, conn, 2*time.Second)
 
 		// The first byte of the NGAPPDU indicates the type of NGAP Message
-		if conn.Data[0] != test.want {
+		if response[0] != test.want {
 			t.Error("Test case", test.testId, "failed.  Want:",
-				ngaputil.MessageTypeMap[test.want], ",  Got:", ngaputil.MessageTypeMap[conn.Data[0]])
+				ngaputil.MessageTypeMap[test.want], ",  Got:", ngaputil.MessageTypeMap[response[0]])
 		}
 	}
 }

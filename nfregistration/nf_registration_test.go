@@ -12,6 +12,8 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,6 +21,30 @@ import (
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 )
+
+func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, message string) {
+	t.Helper()
+	timeoutTimer := time.NewTimer(timeout)
+	defer timeoutTimer.Stop()
+
+	select {
+	case <-signal:
+	case <-timeoutTimer.C:
+		t.Fatal(message)
+	}
+}
+
+func currentKeepAliveTimer() *time.Timer {
+	keepAliveTimerMutex.Lock()
+	defer keepAliveTimerMutex.Unlock()
+	return keepAliveTimer
+}
+
+func cleanupNfRegistrationService(t *testing.T, cancel context.CancelFunc, serviceDone <-chan struct{}) {
+	t.Helper()
+	cancel()
+	waitForSignal(t, serviceDone, time.Second, "timed out waiting for NF registration service to stop")
+}
 
 func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *testing.T) {
 	isDeregisterNFCalled := false
@@ -63,10 +89,20 @@ func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *t
 
 			ch := make(chan []nfConfigApi.AccessAndMobility, 1)
 			ctx := t.Context()
-			go StartNfRegistrationService(ctx, ch)
+			serviceDone := make(chan struct{})
+			go func() {
+				defer close(serviceDone)
+				StartNfRegistrationService(ctx, ch)
+			}()
 			ch <- []nfConfigApi.AccessAndMobility{}
+			timeoutTimer := time.NewTimer(1 * time.Second)
+			defer timeoutTimer.Stop()
 
-			time.Sleep(100 * time.Millisecond)
+			select {
+			case <-serviceDone:
+			case <-timeoutTimer.C:
+				t.Fatal("timed out waiting for NF registration service to stop")
+			}
 
 			if keepAliveTimer != nil {
 				t.Errorf("expected keepAliveTimer to be nil after stopKeepAliveTimer")
@@ -84,23 +120,41 @@ func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *t
 func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTimer(t *testing.T) {
 	keepAliveTimer = nil
 	originalSendRegisterNFInstance := consumer.SendRegisterNFInstance
-	defer func() {
+	originalRegisterNF := registerNF
+	t.Cleanup(func() {
 		consumer.SendRegisterNFInstance = originalSendRegisterNFInstance
+		registerNF = originalRegisterNF
 		if keepAliveTimer != nil {
 			keepAliveTimer.Stop()
 		}
-	}()
+	})
 
 	registrations := []nfConfigApi.AccessAndMobility{}
+	var registrationsMu sync.Mutex
+	registerDone := make(chan struct{})
+	var registerDoneOnce sync.Once
 	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
 		profile := models.NfProfile{HeartBeatTimer: 60}
+		registrationsMu.Lock()
 		registrations = append(registrations, accessAndMobilityConfig...)
+		registrationsMu.Unlock()
 		return profile, "", nil
+	}
+	registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
+		defer registerDoneOnce.Do(func() { close(registerDone) })
+		originalRegisterNF(registerCtx, newAccessAndMobilityConfig)
 	}
 
 	ch := make(chan []nfConfigApi.AccessAndMobility, 1)
-	ctx := t.Context()
-	go StartNfRegistrationService(ctx, ch)
+	ctx, cancel := context.WithCancel(t.Context())
+	serviceDone := make(chan struct{})
+	go func() {
+		defer close(serviceDone)
+		StartNfRegistrationService(ctx, ch)
+	}()
+	t.Cleanup(func() {
+		cleanupNfRegistrationService(t, cancel, serviceDone)
+	})
 	newConfig := []nfConfigApi.AccessAndMobility{
 		{
 			PlmnId: *nfConfigApi.NewPlmnId("001", "01"),
@@ -110,34 +164,59 @@ func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTi
 	}
 	ch <- newConfig
 
-	time.Sleep(100 * time.Millisecond)
-	if keepAliveTimer == nil {
+	waitForSignal(t, registerDone, time.Second, "timed out waiting for NF registration to complete")
+
+	if currentKeepAliveTimer() == nil {
 		t.Errorf("expected keepAliveTimer to be initialized by startKeepAliveTimer")
 	}
+	registrationsMu.Lock()
 	if !reflect.DeepEqual(registrations, newConfig) {
 		t.Errorf("expected %+v config, received %+v", newConfig, registrations)
 	}
+	registrationsMu.Unlock()
 }
 
 func TestNfRegistrationService_ConfigChanged_RetryIfRegisterNFFails(t *testing.T) {
 	originalSendRegisterNFInstance := consumer.SendRegisterNFInstance
-	defer func() {
+	originalRegisterNF := registerNF
+	t.Cleanup(func() {
 		consumer.SendRegisterNFInstance = originalSendRegisterNFInstance
+		registerNF = originalRegisterNF
 		if keepAliveTimer != nil {
 			keepAliveTimer.Stop()
 		}
-	}()
+	})
 
-	called := 0
+	var called atomic.Int32
+	registerAttempts := make(chan struct{}, 2)
+	registerDone := make(chan struct{})
+	var registerDoneOnce sync.Once
 	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
 		profile := models.NfProfile{HeartBeatTimer: 60}
-		called++
+		called.Add(1)
+		select {
+		case registerAttempts <- struct{}{}:
+		default:
+		}
 		return profile, "", errors.New("mock error")
+	}
+	registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
+		defer registerDoneOnce.Do(func() { close(registerDone) })
+		originalRegisterNF(registerCtx, newAccessAndMobilityConfig)
 	}
 
 	ch := make(chan []nfConfigApi.AccessAndMobility, 1)
-	ctx := t.Context()
-	go StartNfRegistrationService(ctx, ch)
+	ctx, cancel := context.WithCancel(t.Context())
+	serviceDone := make(chan struct{})
+	go func() {
+		defer close(serviceDone)
+		StartNfRegistrationService(ctx, ch)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		waitForSignal(t, registerDone, time.Second, "timed out waiting for register loop to stop")
+		waitForSignal(t, serviceDone, time.Second, "timed out waiting for NF registration service to stop")
+	})
 	ch <- []nfConfigApi.AccessAndMobility{
 		{
 			PlmnId: *nfConfigApi.NewPlmnId("001", "01"),
@@ -146,38 +225,51 @@ func TestNfRegistrationService_ConfigChanged_RetryIfRegisterNFFails(t *testing.T
 		},
 	}
 
-	time.Sleep(2 * retryTime)
+	waitForSignal(t, registerAttempts, retryTime+time.Second, "timed out waiting for first register attempt")
+	waitForSignal(t, registerAttempts, retryTime+time.Second, "timed out waiting for retry register attempt")
 
-	if called < 2 {
+	if called.Load() < 2 {
 		t.Errorf("expected to retry register to NRF")
 	}
-	t.Logf("Tried %v times", called)
+	t.Logf("Tried %v times", called.Load())
 }
 
 func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCancelled(t *testing.T) {
 	originalRegisterNf := registerNF
-	defer func() {
+	t.Cleanup(func() {
 		registerNF = originalRegisterNf
 		if keepAliveTimer != nil {
 			keepAliveTimer.Stop()
 		}
-	}()
+	})
 
+	var registrationsMu sync.Mutex
 	var registrations []struct {
 		ctx    context.Context
 		config []nfConfigApi.AccessAndMobility
 	}
+	registrationStarted := make(chan struct{}, 2)
 	registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
+		registrationsMu.Lock()
 		registrations = append(registrations, struct {
 			ctx    context.Context
 			config []nfConfigApi.AccessAndMobility
 		}{registerCtx, newAccessAndMobilityConfig})
+		registrationsMu.Unlock()
+		registrationStarted <- struct{}{}
 		<-registerCtx.Done() // Wait until registration is cancelled
 	}
 
 	ch := make(chan []nfConfigApi.AccessAndMobility, 1)
-	ctx := t.Context()
-	go StartNfRegistrationService(ctx, ch)
+	ctx, cancel := context.WithCancel(t.Context())
+	serviceDone := make(chan struct{})
+	go func() {
+		defer close(serviceDone)
+		StartNfRegistrationService(ctx, ch)
+	}()
+	t.Cleanup(func() {
+		cleanupNfRegistrationService(t, cancel, serviceDone)
+	})
 	firstConfig := []nfConfigApi.AccessAndMobility{
 		{
 			PlmnId: *nfConfigApi.NewPlmnId("001", "01"),
@@ -187,10 +279,12 @@ func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCance
 	}
 	ch <- firstConfig
 
-	time.Sleep(10 * time.Millisecond)
+	waitForSignal(t, registrationStarted, time.Second, "timed out waiting for first registration")
+	registrationsMu.Lock()
 	if len(registrations) != 1 {
 		t.Errorf("expected one registration to the NRF")
 	}
+	registrationsMu.Unlock()
 
 	secondConfig := []nfConfigApi.AccessAndMobility{
 		{
@@ -200,7 +294,8 @@ func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCance
 		},
 	}
 	ch <- secondConfig
-	time.Sleep(10 * time.Millisecond)
+	waitForSignal(t, registrationStarted, time.Second, "timed out waiting for second registration")
+	registrationsMu.Lock()
 	if len(registrations) != 2 {
 		t.Errorf("expected 2 registrations to the NRF")
 	}
@@ -225,6 +320,7 @@ func TestNfRegistrationService_WhenConfigChanged_ThenPreviousRegistrationIsCance
 	if !reflect.DeepEqual(registrations[1].config, secondConfig) {
 		t.Errorf("expected %+v config, received %+v", secondConfig, registrations)
 	}
+	registrationsMu.Unlock()
 }
 
 func TestHeartbeatNF_Success(t *testing.T) {
