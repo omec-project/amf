@@ -60,6 +60,34 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 		}
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
+
+	// If EventChannel is nil (e.g. UE context restored from DB after restart),
+	// call the procedure directly — it already handles CM-IDLE/paging correctly.
+	if ue.EventChannel == nil {
+		logger.ProducerLog.Warnln("EventChannel is nil for UE, invoking N1N2MessageTransferProcedure directly")
+		rspData, locHeader, pd, txErr := N1N2MessageTransferProcedure(ueContextID, reqUri, n1n2MessageTransferRequest)
+		if pd != nil {
+			return httpwrapper.NewResponse(int(pd.Status), nil, pd)
+		} else if txErr != nil {
+			return httpwrapper.NewResponse(int(txErr.Error.Status), nil, txErr)
+		} else if rspData != nil {
+			switch rspData.Cause {
+			case models.N1N2MessageTransferCause_N1_MSG_NOT_TRANSFERRED:
+				fallthrough
+			case models.N1N2MessageTransferCause_N1_N2_TRANSFER_INITIATED:
+				return httpwrapper.NewResponse(http.StatusOK, nil, rspData)
+			case models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE:
+				headers := http.Header{"Location": {locHeader}}
+				return httpwrapper.NewResponse(http.StatusAccepted, headers, rspData)
+			}
+		}
+		problemDetails = &models.ProblemDetails{
+			Status: http.StatusForbidden,
+			Cause:  "UNSPECIFIED",
+		}
+		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	}
+
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
 		ReqUri:      reqUri,
@@ -440,6 +468,16 @@ func HandleN1N2MessageTransferStatusRequest(request *httpwrapper.Request) *httpw
 		}
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
+
+	if ue.EventChannel == nil {
+		logger.CommLog.Warnln("EventChannel is nil for UE, invoking N1N2MessageTransferStatusProcedure directly")
+		status, pd := N1N2MessageTransferStatusProcedure(ueContextID, reqUri)
+		if pd != nil {
+			return httpwrapper.NewResponse(int(pd.Status), nil, pd)
+		}
+		return httpwrapper.NewResponse(http.StatusOK, nil, &status)
+	}
+
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
 		ReqUri:      reqUri,
@@ -505,6 +543,16 @@ func HandleN1N2MessageSubscirbeRequest(request *httpwrapper.Request) *httpwrappe
 		}
 		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
 	}
+
+	if ue.EventChannel == nil {
+		logger.CommLog.Warnln("EventChannel is nil for UE, invoking N1N2MessageSubscribeProcedure directly")
+		createdData, pd := N1N2MessageSubscribeProcedure(ueContextID, ueN1N2InfoSubscriptionCreateData)
+		if pd != nil {
+			return httpwrapper.NewResponse(int(pd.Status), nil, pd)
+		}
+		return httpwrapper.NewResponse(http.StatusCreated, nil, createdData)
+	}
+
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
 		ReqUri:      "",
