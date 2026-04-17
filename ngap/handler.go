@@ -1386,6 +1386,16 @@ func HandleLocationReportingFailureIndication(ran *context.AmfRan, message *ngap
 		}
 	}
 
+	if cause == nil {
+		ran.Log.Errorln("Cause is nil")
+		return
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RanUeNgapID is nil")
+		return
+	}
+
 	printAndGetCause(ran, cause)
 
 	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -2885,6 +2895,11 @@ func HandleRRCInactiveTransitionReport(ran *context.AmfRan, message *ngapType.NG
 		}
 	}
 
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RanUeNgapID is nil")
+		return
+	}
+
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
 		ran.Log.Warnf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
@@ -4145,6 +4160,21 @@ func HandleUplinkUEAssociatedNRPPATransport(ran *context.AmfRan, message *ngapTy
 				return
 			}
 		}
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RanUeNgapID is nil")
+		return
+	}
+
+	if routingID == nil {
+		ran.Log.Errorln("routingID is nil")
+		return
+	}
+
+	if nRPPaPDU == nil {
+		ran.Log.Errorln("nRPPaPDU is nil")
+		return
 	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
