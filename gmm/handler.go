@@ -566,7 +566,11 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		ue.GmmLog.Debugf("No Identity")
 	case nasMessage.MobileIdentity5GSTypeSuci:
 		var plmnId string
-		ue.Suci, plmnId = nasConvert.SuciToString(mobileIdentity5GSContents)
+		var err error
+		ue.Suci, plmnId, err = nasConvert.SuciToString(mobileIdentity5GSContents)
+		if err != nil {
+			return fmt.Errorf("decode SUCI failed: %w", err)
+		}
 		ue.PlmnId = util.PlmnIdStringToModels(plmnId)
 		ue.GmmLog.Debugf("SUCI: %s", ue.Suci)
 	case nasMessage.MobileIdentity5GSType5gGuti:
@@ -1512,7 +1516,11 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 	switch nasConvert.GetTypeOfIdentity(mobileIdentityContents[0]) { // get type of identity
 	case nasMessage.MobileIdentity5GSTypeSuci:
 		var plmnId string
-		ue.Suci, plmnId = nasConvert.SuciToString(mobileIdentityContents)
+		var err error
+		ue.Suci, plmnId, err = nasConvert.SuciToString(mobileIdentityContents)
+		if err != nil {
+			return fmt.Errorf("decode SUCI failed: %w", err)
+		}
 		ue.PlmnId = util.PlmnIdStringToModels(plmnId)
 		ue.GmmLog.Debugf("get SUCI: %s", ue.Suci)
 	case nasMessage.MobileIdentity5GSType5gGuti:

@@ -148,7 +148,11 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 }
 
 func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
-	ranId := ngapConvert.RanIdToModels(*ranNodeId)
+	ranId, err := ngapConvert.RanIdToModels(*ranNodeId)
+	if err != nil {
+		logger.ContextLog.Errorf("set RanId failed: %+v", err)
+		return
+	}
 	ran.RanPresent = ranNodeId.Present
 	ran.RanId = &ranId
 
