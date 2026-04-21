@@ -1066,7 +1066,9 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			case ngapType.AMFPagingTargetPresentGlobalRANNodeID:
 				recommendedRanNode.Present = context.RecommendRanNodePresentRanNode
 				recommendedRanNode.GlobalRanNodeId = new(models.GlobalRanNodeId)
-				// TODO: recommendedRanNode.GlobalRanNodeId = ngapConvert.RanIdToModels(item.AMFPagingTarget.GlobalRANNodeID)
+				// TODO: Convert item.AMFPagingTarget.GlobalRANNodeID with
+				// globalRanNodeID, err := ngapConvert.RanIdToModels(item.AMFPagingTarget.GlobalRANNodeID),
+				// handle err, then assign recommendedRanNode.GlobalRanNodeId = &globalRanNodeID.
 			case ngapType.AMFPagingTargetPresentTAI:
 				recommendedRanNode.Present = context.RecommendRanNodePresentTAI
 				tai, err := ngapConvert.TaiToModels(*item.AMFPagingTarget.TAI)
@@ -3664,6 +3666,13 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 	targetRanNodeId, err := ngapConvert.RanIdToModels(targetID.TargetRANNodeID.GlobalRANNodeID)
 	if err != nil {
 		sourceUe.Log.Errorf("decode target RAN node ID failed: %+v", err)
+		cause = &ngapType.Cause{
+			Present: ngapType.CausePresentProtocol,
+			Protocol: &ngapType.CauseProtocol{
+				Value: ngapType.CauseProtocolPresentSemanticError,
+			},
+		}
+		ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
 		return
 	}
 	targetRan, ok := aMFSelf.AmfRanFindByRanID(targetRanNodeId)
@@ -3680,6 +3689,13 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		tai, err := ngapConvert.TaiToModels(targetID.TargetRANNodeID.SelectedTAI)
 		if err != nil {
 			sourceUe.Log.Errorf("decode selected TAI failed: %+v", err)
+			cause = &ngapType.Cause{
+				Present: ngapType.CausePresentMisc,
+				Misc: &ngapType.CauseMisc{
+					Value: ngapType.CauseMiscPresentUnspecified,
+				},
+			}
+			ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
 			return
 		}
 		targetId := models.NgRanTargetId{
