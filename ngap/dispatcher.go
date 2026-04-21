@@ -30,6 +30,11 @@ import (
 var tracer = otel.Tracer("amf/ngap")
 
 func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage) {
+	if sctplbMsg == nil {
+		logger.NgapLog.Errorln("dispatchLb received nil SCTP LB message")
+		return
+	}
+
 	logger.NgapLog.Infof("dispatchLb GnbId:%v GnbIp: %v %T", sctplbMsg.GnbId, sctplbMsg.GnbIpAddr, Amf2RanMsgChan)
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
@@ -51,6 +56,11 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 		ran.Log = logger.NgapLog.With(logger.FieldRanAddr, sctplbMsg.GnbIpAddr)
 		ran.GnbIp = sctplbMsg.GnbIpAddr
 		logger.NgapLog.Infoln("dispatchLb, Create new Amf RAN with GnbIpAddress", sctplbMsg.GnbIpAddr)
+	}
+
+	if ran == nil {
+		logger.NgapLog.Errorln("dispatchLb could not resolve or create RAN context")
+		return
 	}
 
 	if len(sctplbMsg.Msg) == 0 {
@@ -122,6 +132,11 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 }
 
 func Dispatch(conn net.Conn, msg []byte) {
+	if conn == nil {
+		logger.NgapLog.Errorln("dispatch received nil connection")
+		return
+	}
+
 	var ran *context.AmfRan
 	amfSelf := context.AMF_Self()
 
@@ -175,6 +190,15 @@ func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
 }
 
 func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+	if pdu == nil {
+		if ran != nil && ran.Log != nil {
+			ran.Log.Errorln("DispatchNgapMsg received nil NGAP PDU")
+		} else {
+			logger.NgapLog.Errorln("DispatchNgapMsg received nil NGAP PDU")
+		}
+		return
+	}
+
 	var code int64
 	switch pdu.Present {
 	case ngapType.NGAPPDUPresentInitiatingMessage:
@@ -219,7 +243,11 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
 		if initiatingMessage == nil {
-			ran.Log.Errorln("Initiating Message is nil")
+			if ran != nil && ran.Log != nil {
+				ran.Log.Errorln("Initiating Message is nil")
+			} else {
+				logger.NgapLog.Errorln("Initiating Message is nil")
+			}
 			return
 		}
 
@@ -281,7 +309,11 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
 		successfulOutcome := pdu.SuccessfulOutcome
 		if successfulOutcome == nil {
-			ran.Log.Errorln("successful Outcome is nil")
+			if ran != nil && ran.Log != nil {
+				ran.Log.Errorln("successful Outcome is nil")
+			} else {
+				logger.NgapLog.Errorln("successful Outcome is nil")
+			}
 			return
 		}
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
@@ -316,7 +348,11 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		unsuccessfulOutcome := pdu.UnsuccessfulOutcome
 		if unsuccessfulOutcome == nil {
-			ran.Log.Errorln("unsuccessful Outcome is nil")
+			if ran != nil && ran.Log != nil {
+				ran.Log.Errorln("unsuccessful Outcome is nil")
+			} else {
+				logger.NgapLog.Errorln("unsuccessful Outcome is nil")
+			}
 			return
 		}
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,

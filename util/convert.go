@@ -40,10 +40,19 @@ func SeparateAmfId(amfid string) (regionId, setId, ptrId string, err error) {
 	return
 }
 
-func PlmnIdStringToModels(plmnId string) (plmnID models.PlmnId) {
+func PlmnIdStringToModels(plmnId string) (plmnID models.PlmnId, err error) {
+	if len(plmnId) < 5 || len(plmnId) > 6 {
+		return models.PlmnId{}, fmt.Errorf("invalid PLMN ID length %d", len(plmnId))
+	}
+	for _, digit := range plmnId {
+		if digit < '0' || digit > '9' {
+			return models.PlmnId{}, fmt.Errorf("invalid PLMN ID %q", plmnId)
+		}
+	}
+
 	plmnID.Mcc = plmnId[:3]
 	plmnID.Mnc = plmnId[3:]
-	return
+	return plmnID, nil
 }
 
 func TACConfigToModels(intString string) (hexString string) {

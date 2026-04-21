@@ -185,6 +185,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 		}
 	} else if msg.GmmHeader.GetMessageType() == nas.MsgTypeDeregistrationRequestUEOriginatingDeregistration {
 		mobileIdentity5GSContents := msg.DeregistrationRequestUEOriginatingDeregistration.GetMobileIdentity5GSContents()
+		if len(mobileIdentity5GSContents) == 0 {
+			logger.CommLog.Errorln("MobileIdentity5GSContents is empty")
+			return nil
+		}
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Deregistraion Request Message: %v", guti)

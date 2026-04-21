@@ -32,6 +32,22 @@ import (
 	mi "github.com/omec-project/util/metricinfo"
 )
 
+func findRanUeByRanNgapID(ran *context.AmfRan, ranUENGAPID *ngapType.RANUENGAPID) *context.RanUe {
+	if ranUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID is nil")
+		return nil
+	}
+	return ran.RanUeFindByRanUeNgapID(ranUENGAPID.Value)
+}
+
+func findRanUeByAmfNgapID(ran *context.AmfRan, aMFUENGAPID *ngapType.AMFUENGAPID) *context.RanUe {
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID is nil")
+		return nil
+	}
+	return context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+}
+
 func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context.RanUe, *ngapType.AMFUENGAPID) {
 	amfSelf := context.AMF_Self()
 
@@ -82,11 +98,11 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					ran.Log.Debugln("decode IE 5G-S-TMSI")
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 			if ranUe == nil {
 				var err error
 
-				if fiveGSTMSI != nil {
+				if fiveGSTMSI != nil && rANUENGAPID != nil {
 					servedGuami := amfSelf.ServedGuamiList[0]
 
 					// <5G-S-TMSI> := <AMF Set ID><AMF Pointer><5G-TMSI>
@@ -134,7 +150,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 		case ngapType.ProcedureCodeHandoverCancel:
 			ngapMsg := initiatingMessage.Value.HandoverCancel
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
@@ -151,7 +167,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 		case ngapType.ProcedureCodeUEContextReleaseRequest:
 			ngapMsg := initiatingMessage.Value.UEContextReleaseRequest
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
@@ -173,9 +189,9 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					}
 				}
 			}
-			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 			if ranUe == nil {
-				ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+				ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 			}
 		case ngapType.ProcedureCodeNASNonDeliveryIndication:
 			ngapMsg := initiatingMessage.Value.NASNonDeliveryIndication
@@ -193,7 +209,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 		case ngapType.ProcedureCodeLocationReportingFailureIndication:
 		case ngapType.ProcedureCodeErrorIndication:
 		case ngapType.ProcedureCodeUERadioCapabilityInfoIndication:
@@ -212,7 +228,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeHandoverNotification:
 			ngapMsg := initiatingMessage.Value.HandoverNotify
@@ -266,7 +282,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodePathSwitchRequest:
 			ngapMsg := initiatingMessage.Value.PathSwitchRequest
@@ -282,7 +298,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					}
 				}
 			}
-			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 		case ngapType.ProcedureCodeLocationReport:
 		case ngapType.ProcedureCodeUplinkUEAssociatedNRPPaTransport:
 		case ngapType.ProcedureCodeUplinkRANConfigurationTransfer:
@@ -300,7 +316,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					}
 				}
 			}
-			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 		case ngapType.ProcedureCodeCellTrafficTrace:
 		case ngapType.ProcedureCodeUplinkRANStatusTransfer:
 		case ngapType.ProcedureCodeUplinkNonUEAssociatedNRPPaTransport:
@@ -329,7 +345,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					}
 				}
 			}
-			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 
 		case ngapType.ProcedureCodePDUSessionResourceRelease:
 			ngapMsg := successfulOutcome.Value.PDUSessionResourceReleaseResponse
@@ -347,7 +363,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeUERadioCapabilityCheck:
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
@@ -367,7 +383,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeUEContextModification:
 			ngapMsg := successfulOutcome.Value.UEContextModificationResponse
@@ -385,7 +401,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodePDUSessionResourceSetup:
 			ngapMsg := successfulOutcome.Value.PDUSessionResourceSetupResponse
@@ -403,7 +419,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodePDUSessionResourceModify:
 			ngapMsg := successfulOutcome.Value.PDUSessionResourceModifyResponse
@@ -437,7 +453,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					}
 				}
 			}
-			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 		}
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		unsuccessfulOutcome := message.UnsuccessfulOutcome
@@ -463,7 +479,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeUEContextModification:
 			ngapMsg := unsuccessfulOutcome.Value.UEContextModificationFailure
@@ -481,7 +497,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
 			ngapMsg := unsuccessfulOutcome.Value.HandoverFailure
@@ -497,7 +513,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					}
 				}
 			}
-			ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 		}
 	}
 	return ranUe, aMFUENGAPID
@@ -580,6 +596,13 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	}
 	if pagingDRX != nil {
 		ran.Log.Debugf("PagingDRX[%d]", pagingDRX.Value)
+	}
+	if supportedTAList == nil {
+		ran.Log.Warnln("NG-Setup failure: SupportedTAList is missing")
+		cause.Present = ngapType.CausePresentMisc
+		cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+		ngap_message.SendNGSetupFailure(ran, cause)
+		return
 	}
 
 	// Clearing any existing contents of ran.SupportedTAList
@@ -809,6 +832,10 @@ func HandleNGReset(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			}
 		}
 	}
+	if resetType == nil {
+		ran.Log.Errorln("ResetType is missing")
+		return
+	}
 
 	printAndGetCause(ran, cause)
 
@@ -850,6 +877,7 @@ func HandleNGReset(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				if ueAssociatedLogicalNGConnectionItem.RANUENGAPID != nil {
 					ran.Log.Warnf("RanUeNgapID[%d]", ueAssociatedLogicalNGConnectionItem.RANUENGAPID.Value)
 				}
+				continue
 			}
 
 			err := ranUe.Remove()
@@ -1357,6 +1385,10 @@ func HandleUERadioCapabilityCheckResponse(ran *context.AmfRan, message *ngapType
 			criticalityDiagnostics = ie.Value.CriticalityDiagnostics
 			ran.Log.Debugln("decode IE CriticalityDiagnostics")
 		}
+	}
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RanUeNgapID is missing")
+		return
 	}
 
 	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -2245,6 +2277,14 @@ func HandlePDUSessionResourceModifyIndication(ctx ctxt.Context, ran *context.Amf
 		ngap_message.SendErrorIndication(ran, nil, nil, nil, &criticalityDiagnostics)
 		return
 	}
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RanUeNgapID is missing")
+		return
+	}
+	if pduSessionResourceModifyIndicationList == nil {
+		ran.Log.Errorln("PDUSessionResourceModifyListModInd is missing")
+		return
+	}
 
 	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
@@ -2277,6 +2317,7 @@ func HandlePDUSessionResourceModifyIndication(ctx ctxt.Context, ran *context.Amf
 		smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 		if !ok {
 			ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+			continue
 		}
 		response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 			models.N2SmInfoType_PDU_RES_MOD_IND, transfer)
@@ -3012,6 +3053,14 @@ func HandleHandoverNotify(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 			}
 		}
 	}
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID is missing")
+		return
+	}
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID is missing")
+		return
+	}
 
 	targetUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 
@@ -3324,12 +3373,17 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 		criticalityDiagnostics := buildCriticalityDiagnostics(&procedureCode, &triggeringMessage,
 			&procedureCriticality, &iesCriticalityDiagnostics)
 		ngap_message.SendErrorIndication(ran, nil, nil, nil, &criticalityDiagnostics)
+		return
 	}
 
 	if criticalityDiagnostics != nil {
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID is missing")
+		return
+	}
 	targetUe := context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
 	if targetUe == nil {
 		ran.Log.Errorf("No UE Context[AMFUENGAPID: %d]", aMFUENGAPID.Value)
@@ -4046,6 +4100,13 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 			ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
 		}
 	}
+	if supportedTAList == nil {
+		ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
+		cause.Present = ngapType.CausePresentMisc
+		cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+		ngap_message.SendRanConfigurationUpdateFailure(ran, cause, nil)
+		return
+	}
 
 	for i := 0; i < len(supportedTAList.List); i++ {
 		supportedTAItem := supportedTAList.List[i]
@@ -4380,6 +4441,18 @@ func HandleLocationReport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			}
 		}
 	}
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RanUeNgapID is missing")
+		return
+	}
+	if userLocationInformation == nil {
+		ran.Log.Warnln("userLocationInformation is missing")
+		return
+	}
+	if locationReportingRequestType == nil {
+		ran.Log.Warnln("LocationReportingRequestType is missing")
+		return
+	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
@@ -4400,6 +4473,10 @@ func HandleLocationReport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 
 	case ngapType.EventTypePresentUePresenceInAreaOfInterest:
 		ranUe.Log.Debugln("to report UE presence in the area of interest")
+		if uEPresenceInAreaOfInterestList == nil {
+			ran.Log.Warnln("UEPresenceInAreaOfInterestList is missing")
+			return
+		}
 		for _, uEPresenceInAreaOfInterestItem := range uEPresenceInAreaOfInterestList.List {
 			uEPresence := uEPresenceInAreaOfInterestItem.UEPresence.Value
 			referenceID := uEPresenceInAreaOfInterestItem.LocationReportingReferenceID.Value
@@ -4818,27 +4895,54 @@ func HandleCellTrafficTrace(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 }
 
 func printAndGetCause(ran *context.AmfRan, cause *ngapType.Cause) (present int, value aper.Enumerated) {
+	if ran == nil {
+		return 0, 0
+	}
+	if cause == nil {
+		ran.Log.Errorln("Cause is nil")
+		return 0, 0
+	}
 	present = cause.Present
 	switch cause.Present {
 	case ngapType.CausePresentRadioNetwork:
+		if cause.RadioNetwork == nil {
+			ran.Log.Errorln("Cause RadioNetwork is nil")
+			return present, 0
+		}
 		ran.Log.Warnf("Cause RadioNetwork[%d]", cause.RadioNetwork.Value)
 		value = cause.RadioNetwork.Value
 	case ngapType.CausePresentTransport:
+		if cause.Transport == nil {
+			ran.Log.Errorln("Cause Transport is nil")
+			return present, 0
+		}
 		ran.Log.Warnf("Cause Transport[%d]", cause.Transport.Value)
 		value = cause.Transport.Value
 	case ngapType.CausePresentProtocol:
+		if cause.Protocol == nil {
+			ran.Log.Errorln("Cause Protocol is nil")
+			return present, 0
+		}
 		ran.Log.Warnf("Cause Protocol[%d]", cause.Protocol.Value)
 		value = cause.Protocol.Value
 	case ngapType.CausePresentNas:
+		if cause.Nas == nil {
+			ran.Log.Errorln("Cause Nas is nil")
+			return present, 0
+		}
 		ran.Log.Warnf("Cause Nas[%d]", cause.Nas.Value)
 		value = cause.Nas.Value
 	case ngapType.CausePresentMisc:
+		if cause.Misc == nil {
+			ran.Log.Errorln("Cause Misc is nil")
+			return present, 0
+		}
 		ran.Log.Warnf("Cause Misc[%d]", cause.Misc.Value)
 		value = cause.Misc.Value
 	default:
 		ran.Log.Errorf("Invalid Cause group[%d]", cause.Present)
 	}
-	return
+	return present, value
 }
 
 func printCriticalityDiagnostics(ran *context.AmfRan, criticalityDiagnostics *ngapType.CriticalityDiagnostics) {
