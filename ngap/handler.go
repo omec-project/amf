@@ -564,7 +564,15 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		}
 	}
 	if globalRANNodeID != nil {
-		ran.SetRanId(globalRANNodeID)
+		if err := ran.SetRanId(globalRANNodeID); err != nil {
+			ran.Log.Errorf("%v", err)
+			cause.Present = ngapType.CausePresentMisc
+			cause.Misc = &ngapType.CauseMisc{
+				Value: ngapType.CauseMiscPresentUnspecified,
+			}
+			ngap_message.SendNGSetupFailure(ran, cause)
+			return
+		}
 	}
 
 	if rANNodeName != nil {
@@ -592,7 +600,8 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
 				continue
 			}
-			supportedTAI.Tai.PlmnId = &plmnId
+			plmnIdCopy := plmnId
+			supportedTAI.Tai.PlmnId = &plmnIdCopy
 			capOfSNssaiList := cap(supportedTAI.SNssaiList)
 			for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
 				tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
@@ -1018,7 +1027,8 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 					skipRecommendedCell = true
 					break
 				}
-				recommendedCell.NgRanCGI.NRCGI.PlmnId = &plmnID
+				plmnIDCopy := plmnID
+				recommendedCell.NgRanCGI.NRCGI.PlmnId = &plmnIDCopy
 				recommendedCell.NgRanCGI.NRCGI.NrCellId = ngapConvert.BitStringToHex(&item.NGRANCGI.NRCGI.NRCellIdentity.Value)
 			case ngapType.NGRANCGIPresentEUTRACGI:
 				recommendedCell.NgRanCGI.Present = context.NgRanCgiPresentEUTRACGI
@@ -1029,7 +1039,8 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 					skipRecommendedCell = true
 					break
 				}
-				recommendedCell.NgRanCGI.EUTRACGI.PlmnId = &plmnID
+				plmnIDCopy := plmnID
+				recommendedCell.NgRanCGI.EUTRACGI.PlmnId = &plmnIDCopy
 				recommendedCell.NgRanCGI.EUTRACGI.EutraCellId = ngapConvert.BitStringToHex(
 					&item.NGRANCGI.EUTRACGI.EUTRACellIdentity.Value)
 			}
@@ -4033,7 +4044,8 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
 				continue
 			}
-			supportedTAI.Tai.PlmnId = &plmnId
+			plmnIdCopy := plmnId
+			supportedTAI.Tai.PlmnId = &plmnIdCopy
 			capOfSNssaiList := cap(supportedTAI.SNssaiList)
 			for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
 				tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]

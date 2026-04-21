@@ -600,6 +600,49 @@ func TestPickSnssai(t *testing.T) {
 	}
 }
 
+func TestHandleRegistrationRequestInvalidSuci(t *testing.T) {
+	ue := &context.AmfUe{
+		GmmLog: zap.NewNop().Sugar(),
+		RanUe: map[models.AccessType]*context.RanUe{
+			models.AccessType__3_GPP_ACCESS: {},
+		},
+		OnGoing: map[models.AccessType]*context.OnGoingProcedureWithPrio{
+			models.AccessType__3_GPP_ACCESS: {},
+		},
+	}
+
+	registrationRequest := nasMessage.NewRegistrationRequest(0)
+	registrationRequest.SetRegistrationType5GS(nasMessage.RegistrationType5GSInitialRegistration)
+	registrationRequest.MobileIdentity5GS.SetLen(1)
+	registrationRequest.MobileIdentity5GS.Buffer = []byte{0x01}
+
+	err := HandleRegistrationRequest(ctxt.Background(), ue, models.AccessType__3_GPP_ACCESS, 0, registrationRequest)
+	if err == nil {
+		t.Fatal("expected error for invalid SUCI")
+	}
+	if !strings.Contains(err.Error(), "decode SUCI failed") {
+		t.Fatalf("expected wrapped SUCI decode error, got %v", err)
+	}
+}
+
+func TestHandleIdentityResponseInvalidSuci(t *testing.T) {
+	ue := &context.AmfUe{
+		GmmLog: zap.NewNop().Sugar(),
+	}
+
+	identityResponse := nasMessage.NewIdentityResponse(0)
+	identityResponse.SetLen(1)
+	identityResponse.Buffer = []byte{0x01}
+
+	err := HandleIdentityResponse(ue, identityResponse)
+	if err == nil {
+		t.Fatal("expected error for invalid SUCI")
+	}
+	if !strings.Contains(err.Error(), "decode SUCI failed") {
+		t.Fatalf("expected wrapped SUCI decode error, got %v", err)
+	}
+}
+
 func TestPickDNN(t *testing.T) {
 	tests := []struct {
 		name     string
