@@ -12,7 +12,9 @@
 package metrics
 
 import (
+	"encoding/hex"
 	"net/http"
+	"unicode/utf8"
 
 	"github.com/omec-project/amf/logger"
 	"github.com/prometheus/client_golang/prometheus"
@@ -71,10 +73,29 @@ func InitMetrics() {
 
 // IncrementNgapMsgStats increments message level stats
 func IncrementNgapMsgStats(amfID, msgType, direction, result, reason string) {
+	amfID = sanitizeLabelValue(amfID)
+	msgType = sanitizeLabelValue(msgType)
+	direction = sanitizeLabelValue(direction)
+	result = sanitizeLabelValue(result)
+	reason = sanitizeLabelValue(reason)
 	amfStats.ngapMsg.WithLabelValues(amfID, msgType, direction, result, reason).Inc()
+}
+
+// sanitizeLabelValue ensures a string is valid UTF-8 for use as Prometheus label value
+func sanitizeLabelValue(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+	// If not valid UTF-8, convert to hex representation with prefix
+	// to make it clear this is sanitized data
+	return "hex:" + hex.EncodeToString([]byte(s))
 }
 
 // SetGnbSessProfileStats maintains Session profile info
 func SetGnbSessProfileStats(id, ip, state, tac string, count uint64) {
+	id = sanitizeLabelValue(id)
+	ip = sanitizeLabelValue(ip)
+	state = sanitizeLabelValue(state)
+	tac = sanitizeLabelValue(tac)
 	amfStats.gnbSessionProfile.WithLabelValues(id, ip, state, tac).Set(float64(count))
 }

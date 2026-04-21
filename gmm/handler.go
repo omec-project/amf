@@ -571,7 +571,13 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		if err != nil {
 			return fmt.Errorf("decode SUCI failed: %w", err)
 		}
-		ue.PlmnId = util.PlmnIdStringToModels(plmnId)
+		plmnID, err := util.PlmnIdStringToModels(plmnId)
+		if err != nil {
+			err = fmt.Errorf("invalid SUCI: %w", err)
+			ue.GmmLog.Errorln(err)
+			return err
+		}
+		ue.PlmnId = plmnID
 		ue.GmmLog.Debugf("SUCI: %s", ue.Suci)
 	case nasMessage.MobileIdentity5GSType5gGuti:
 		guamiFromUeGutiTmp, guti := nasConvert.GutiToString(mobileIdentity5GSContents)
@@ -1521,7 +1527,13 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 		if err != nil {
 			return fmt.Errorf("decode SUCI failed: %w", err)
 		}
-		ue.PlmnId = util.PlmnIdStringToModels(plmnId)
+		plmnID, err := util.PlmnIdStringToModels(plmnId)
+		if err != nil {
+			err = fmt.Errorf("invalid SUCI: %w", err)
+			ue.GmmLog.Errorln(err)
+			return err
+		}
+		ue.PlmnId = plmnID
 		ue.GmmLog.Debugf("get SUCI: %s", ue.Suci)
 	case nasMessage.MobileIdentity5GSType5gGuti:
 		if ue.MacFailed {

@@ -24,6 +24,21 @@ import (
 	"go.uber.org/zap"
 )
 
+func TestHandleIdentityResponseRejectsMalformedSuci(t *testing.T) {
+	ue := &context.AmfUe{GmmLog: zap.NewNop().Sugar()}
+	identityResponse := nasMessage.NewIdentityResponse(0)
+	identityResponse.SetLen(1)
+	identityResponse.Buffer[0] = nasMessage.MobileIdentity5GSTypeSuci
+
+	err := HandleIdentityResponse(ue, identityResponse)
+	if err == nil {
+		t.Fatal("expected malformed SUCI identity response to fail")
+	}
+	if !strings.Contains(err.Error(), "invalid SUCI") {
+		t.Fatalf("expected invalid SUCI error, got %v", err)
+	}
+}
+
 func newFuzzUE(fd *FuzzData) *context.AmfUe {
 	ue := &context.AmfUe{
 		GmmLog:       zap.NewNop().Sugar(),
