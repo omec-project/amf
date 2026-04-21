@@ -87,8 +87,8 @@ github.com/montanaflynn/stats v0.7.1 h1:etflOAAHORrCC44V+aR6Ftzort912ZU+YLiSTuV8
 github.com/montanaflynn/stats v0.7.1/go.mod h1:etXPPgVO6n31NxCd9KQUMvCM+ve0ruNzt6R8Bnaayow=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/omec-project/nas v1.8.4 h1:rd9wxotRlBtRXbhOY4rMY9RNNfmWnDSF/FNwpAUrXDg=
-github.com/omec-project/nas v1.8.4/go.mod h1:4XtmXx41ggYZACk9HJmpW49TMOryfDHpJ2Qc79Dd40c=
+github.com/omec-project/nas v1.8.5 h1:Nygct+nqTDMsUPJB3Q08LxGAh7CDBu4zOjLzkd1zSy8=
+github.com/omec-project/nas v1.8.5/go.mod h1:4XtmXx41ggYZACk9HJmpW49TMOryfDHpJ2Qc79Dd40c=
 github.com/omec-project/ngap v1.8.2 h1:nAz+c96mCWdspwzRYJOIx4Ix1A0yzbtICc0VDChq5Pk=
 github.com/omec-project/ngap v1.8.2/go.mod h1:gW9RZG0uKb8aRicjz4tM6QZ+GnmoCdCuv0oyBJNPf5s=
 github.com/omec-project/openapi v1.7.1 h1:JTQ3ScKjOd83nhtS7eYKwyvR2EuoZrAUII1xBlGLeYs=
