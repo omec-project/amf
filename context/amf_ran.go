@@ -147,8 +147,11 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 	return nil
 }
 
-func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
-	ranId := ngapConvert.RanIdToModels(*ranNodeId)
+func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
+	ranId, err := ngapConvert.RanIdToModels(*ranNodeId)
+	if err != nil {
+		return fmt.Errorf("set RanId failed: %w", err)
+	}
 	ran.RanPresent = ranNodeId.Present
 	ran.RanId = &ranId
 
@@ -166,6 +169,7 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) {
 		}
 	}
 	ran.Log.Debugf("set RanId: %+v, GnbId: %s, AnType: %s", ran.RanId, ran.GnbId, ran.AnType)
+	return nil
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {

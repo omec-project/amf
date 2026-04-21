@@ -167,7 +167,11 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		}
 
 		tAI := locationInfoEUTRA.TAI
-		plmnID := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
+		plmnID, err := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
+		if err != nil {
+			ranUe.Log.Errorf("decode EUTRA TAI PLMN failed: %+v", err)
+			return
+		}
 		tac := hex.EncodeToString(tAI.TAC.Value)
 
 		if ranUe.Location.EutraLocation.Tai == nil {
@@ -178,7 +182,11 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Tai = *ranUe.Location.EutraLocation.Tai
 
 		eUTRACGI := locationInfoEUTRA.EUTRACGI
-		ePlmnID := ngapConvert.PlmnIdToModels(eUTRACGI.PLMNIdentity)
+		ePlmnID, err := ngapConvert.PlmnIdToModels(eUTRACGI.PLMNIdentity)
+		if err != nil {
+			ranUe.Log.Errorf("decode EUTRA CGI PLMN failed: %+v", err)
+			return
+		}
 		eutraCellID := ngapConvert.BitStringToHex(&eUTRACGI.EUTRACellIdentity.Value)
 
 		if ranUe.Location.EutraLocation.Ecgi == nil {
@@ -205,7 +213,11 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		}
 
 		tAI := locationInfoNR.TAI
-		plmnID := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
+		plmnID, err := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
+		if err != nil {
+			ranUe.Log.Errorf("decode NR TAI PLMN failed: %+v", err)
+			return
+		}
 		tac := hex.EncodeToString(tAI.TAC.Value)
 
 		if ranUe.Location.NrLocation.Tai == nil {
@@ -216,7 +228,11 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Tai = deepcopy.Copy(*ranUe.Location.NrLocation.Tai).(models.Tai)
 
 		nRCGI := locationInfoNR.NRCGI
-		nRPlmnID := ngapConvert.PlmnIdToModels(nRCGI.PLMNIdentity)
+		nRPlmnID, err := ngapConvert.PlmnIdToModels(nRCGI.PLMNIdentity)
+		if err != nil {
+			ranUe.Log.Errorf("decode NR CGI PLMN failed: %+v", err)
+			return
+		}
 		nRCellID := ngapConvert.BitStringToHex(&nRCGI.NRCellIdentity.Value)
 
 		if ranUe.Location.NrLocation.Ncgi == nil {

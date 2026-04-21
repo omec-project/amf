@@ -163,7 +163,11 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 				}
 			}
 		} else if nasMessage.MobileIdentity5GSTypeSuci == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
-			suci, _ := nasConvert.SuciToString(mobileIdentity5GSContents)
+			suci, _, err := nasConvert.SuciToString(mobileIdentity5GSContents)
+			if err != nil {
+				logger.CommLog.Warnf("failed to decode SUCI from Registration Request mobile identity: %+v", err)
+				return nil
+			}
 			// UeContext found based on SUCI which means context is exist in Network
 			// (AMF) but not present in UE. Hence, AMF clear the existing context
 			ue, _ = context.AMF_Self().AmfUeFindBySuci(suci)

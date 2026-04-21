@@ -564,7 +564,15 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		}
 	}
 	if globalRANNodeID != nil {
-		ran.SetRanId(globalRANNodeID)
+		if err := ran.SetRanId(globalRANNodeID); err != nil {
+			ran.Log.Errorf("%v", err)
+			cause.Present = ngapType.CausePresentMisc
+			cause.Misc = &ngapType.CauseMisc{
+				Value: ngapType.CauseMiscPresentUnspecified,
+			}
+			ngap_message.SendNGSetupFailure(ran, cause)
+			return
+		}
 	}
 
 	if rANNodeName != nil {
@@ -587,13 +595,23 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			supportedTAI := context.NewSupportedTAI()
 			supportedTAI.Tai.Tac = tac
 			broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
-			plmnId := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
-			supportedTAI.Tai.PlmnId = &plmnId
+			plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
+			if err != nil {
+				ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
+				continue
+			}
+			plmnIdCopy := plmnId
+			supportedTAI.Tai.PlmnId = &plmnIdCopy
 			capOfSNssaiList := cap(supportedTAI.SNssaiList)
 			for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
 				tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
 				if len(supportedTAI.SNssaiList) < capOfSNssaiList {
-					supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI))
+					snssai, err := ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI)
+					if err != nil {
+						ran.Log.Errorf("decode supported TA S-NSSAI failed: %+v", err)
+						continue
+					}
+					supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, snssai)
 				} else {
 					break
 				}
@@ -997,21 +1015,38 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		recommendedCells := &amfUe.InfoOnRecommendedCellsAndRanNodesForPaging.RecommendedCells
 		for _, item := range infoOnRecommendedCellsAndRANNodesForPaging.RecommendedCellsForPaging.RecommendedCellList.List {
 			recommendedCell := context.RecommendedCell{}
+			skipRecommendedCell := false
 
 			switch item.NGRANCGI.Present {
 			case ngapType.NGRANCGIPresentNRCGI:
 				recommendedCell.NgRanCGI.Present = context.NgRanCgiPresentNRCGI
 				recommendedCell.NgRanCGI.NRCGI = new(models.Ncgi)
-				plmnID := ngapConvert.PlmnIdToModels(item.NGRANCGI.NRCGI.PLMNIdentity)
-				recommendedCell.NgRanCGI.NRCGI.PlmnId = &plmnID
+				plmnID, err := ngapConvert.PlmnIdToModels(item.NGRANCGI.NRCGI.PLMNIdentity)
+				if err != nil {
+					ran.Log.Errorf("decode recommended NR CGI PLMN failed: %+v", err)
+					skipRecommendedCell = true
+					break
+				}
+				plmnIDCopy := plmnID
+				recommendedCell.NgRanCGI.NRCGI.PlmnId = &plmnIDCopy
 				recommendedCell.NgRanCGI.NRCGI.NrCellId = ngapConvert.BitStringToHex(&item.NGRANCGI.NRCGI.NRCellIdentity.Value)
 			case ngapType.NGRANCGIPresentEUTRACGI:
 				recommendedCell.NgRanCGI.Present = context.NgRanCgiPresentEUTRACGI
 				recommendedCell.NgRanCGI.EUTRACGI = new(models.Ecgi)
-				plmnID := ngapConvert.PlmnIdToModels(item.NGRANCGI.EUTRACGI.PLMNIdentity)
-				recommendedCell.NgRanCGI.EUTRACGI.PlmnId = &plmnID
+				plmnID, err := ngapConvert.PlmnIdToModels(item.NGRANCGI.EUTRACGI.PLMNIdentity)
+				if err != nil {
+					ran.Log.Errorf("decode recommended EUTRA CGI PLMN failed: %+v", err)
+					skipRecommendedCell = true
+					break
+				}
+				plmnIDCopy := plmnID
+				recommendedCell.NgRanCGI.EUTRACGI.PlmnId = &plmnIDCopy
 				recommendedCell.NgRanCGI.EUTRACGI.EutraCellId = ngapConvert.BitStringToHex(
 					&item.NGRANCGI.EUTRACGI.EUTRACellIdentity.Value)
+			}
+
+			if skipRecommendedCell {
+				continue
 			}
 
 			if item.TimeStayedInCell != nil {
@@ -1031,10 +1066,16 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			case ngapType.AMFPagingTargetPresentGlobalRANNodeID:
 				recommendedRanNode.Present = context.RecommendRanNodePresentRanNode
 				recommendedRanNode.GlobalRanNodeId = new(models.GlobalRanNodeId)
-				// TODO: recommendedRanNode.GlobalRanNodeId = ngapConvert.RanIdToModels(item.AMFPagingTarget.GlobalRANNodeID)
+				// TODO: Convert item.AMFPagingTarget.GlobalRANNodeID with
+				// globalRanNodeID, err := ngapConvert.RanIdToModels(item.AMFPagingTarget.GlobalRANNodeID),
+				// handle err, then assign recommendedRanNode.GlobalRanNodeId = &globalRanNodeID.
 			case ngapType.AMFPagingTargetPresentTAI:
 				recommendedRanNode.Present = context.RecommendRanNodePresentTAI
-				tai := ngapConvert.TaiToModels(*item.AMFPagingTarget.TAI)
+				tai, err := ngapConvert.TaiToModels(*item.AMFPagingTarget.TAI)
+				if err != nil {
+					ran.Log.Errorf("decode recommended paging TAI failed: %+v", err)
+					continue
+				}
 				recommendedRanNode.Tai = &tai
 			}
 			*recommendedRanNodes = append(*recommendedRanNodes, recommendedRanNode)
@@ -3622,7 +3663,18 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		return
 	}
 	aMFSelf := context.AMF_Self()
-	targetRanNodeId := ngapConvert.RanIdToModels(targetID.TargetRANNodeID.GlobalRANNodeID)
+	targetRanNodeId, err := ngapConvert.RanIdToModels(targetID.TargetRANNodeID.GlobalRANNodeID)
+	if err != nil {
+		sourceUe.Log.Errorf("decode target RAN node ID failed: %+v", err)
+		cause = &ngapType.Cause{
+			Present: ngapType.CausePresentProtocol,
+			Protocol: &ngapType.CauseProtocol{
+				Value: ngapType.CauseProtocolPresentSemanticError,
+			},
+		}
+		ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
+		return
+	}
 	targetRan, ok := aMFSelf.AmfRanFindByRanID(targetRanNodeId)
 	if !ok {
 		// handover between different AMF
@@ -3634,7 +3686,18 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 	} else {
 		// Handover in same AMF
 		sourceUe.HandOverType.Value = handoverType.Value
-		tai := ngapConvert.TaiToModels(targetID.TargetRANNodeID.SelectedTAI)
+		tai, err := ngapConvert.TaiToModels(targetID.TargetRANNodeID.SelectedTAI)
+		if err != nil {
+			sourceUe.Log.Errorf("decode selected TAI failed: %+v", err)
+			cause = &ngapType.Cause{
+				Present: ngapType.CausePresentMisc,
+				Misc: &ngapType.CauseMisc{
+					Value: ngapType.CauseMiscPresentUnspecified,
+				},
+			}
+			ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
+			return
+		}
 		targetId := models.NgRanTargetId{
 			RanNodeId: &targetRanNodeId,
 			Tai:       &tai,
@@ -3992,13 +4055,23 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 			supportedTAI := context.NewSupportedTAI()
 			supportedTAI.Tai.Tac = tac
 			broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
-			plmnId := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
-			supportedTAI.Tai.PlmnId = &plmnId
+			plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
+			if err != nil {
+				ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
+				continue
+			}
+			plmnIdCopy := plmnId
+			supportedTAI.Tai.PlmnId = &plmnIdCopy
 			capOfSNssaiList := cap(supportedTAI.SNssaiList)
 			for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
 				tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
 				if len(supportedTAI.SNssaiList) < capOfSNssaiList {
-					supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI))
+					snssai, err := ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI)
+					if err != nil {
+						ran.Log.Errorf("decode supported TA S-NSSAI failed: %+v", err)
+						continue
+					}
+					supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, snssai)
 				} else {
 					break
 				}
@@ -4085,7 +4158,11 @@ func HandleUplinkRanConfigurationTransfer(ran *context.AmfRan, message *ngapType
 	}
 
 	if sONConfigurationTransferUL != nil {
-		targetRanNodeID := ngapConvert.RanIdToModels(sONConfigurationTransferUL.TargetRANNodeID.GlobalRANNodeID)
+		targetRanNodeID, err := ngapConvert.RanIdToModels(sONConfigurationTransferUL.TargetRANNodeID.GlobalRANNodeID)
+		if err != nil {
+			ran.Log.Errorf("decode target RAN node ID failed: %+v", err)
+			return
+		}
 
 		if targetRanNodeID.GNbId.GNBValue != "" {
 			ran.Log.Debugf("targerRanID [%s]", targetRanNodeID.GNbId.GNBValue)
@@ -4708,11 +4785,19 @@ func HandleCellTrafficTrace(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 
 	switch nGRANCGI.Present {
 	case ngapType.NGRANCGIPresentNRCGI:
-		plmnID := ngapConvert.PlmnIdToModels(nGRANCGI.NRCGI.PLMNIdentity)
+		plmnID, err := ngapConvert.PlmnIdToModels(nGRANCGI.NRCGI.PLMNIdentity)
+		if err != nil {
+			ranUe.Log.Errorf("decode NRCGI PLMN failed: %+v", err)
+			break
+		}
 		cellID := ngapConvert.BitStringToHex(&nGRANCGI.NRCGI.NRCellIdentity.Value)
 		ranUe.Log.Debugf("NRCGI[plmn: %s, cellID: %s]", plmnID, cellID)
 	case ngapType.NGRANCGIPresentEUTRACGI:
-		plmnID := ngapConvert.PlmnIdToModels(nGRANCGI.EUTRACGI.PLMNIdentity)
+		plmnID, err := ngapConvert.PlmnIdToModels(nGRANCGI.EUTRACGI.PLMNIdentity)
+		if err != nil {
+			ranUe.Log.Errorf("decode EUTRACGI PLMN failed: %+v", err)
+			break
+		}
 		cellID := ngapConvert.BitStringToHex(&nGRANCGI.EUTRACGI.EUTRACellIdentity.Value)
 		ranUe.Log.Debugf("EUTRACGI[plmn: %s, cellID: %s]", plmnID, cellID)
 	}
