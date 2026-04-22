@@ -563,9 +563,9 @@ func HandleN1N2MessageSubscirbeRequest(request *httpwrapper.Request) *httpwrappe
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
-	var n1n2MessageRspData *models.UeN1N2InfoSubscriptionCreateData
+	var n1n2MessageRspData *models.UeN1N2InfoSubscriptionCreatedData
 	if msg.RespData != nil {
-		n1n2MessageRspData = msg.RespData.(*models.UeN1N2InfoSubscriptionCreateData)
+		n1n2MessageRspData = msg.RespData.(*models.UeN1N2InfoSubscriptionCreatedData)
 	}
 	// ueN1N2InfoSubscriptionCreatedData, problemDetails := N1N2MessageSubscribeProcedure(ueContextID, ueN1N2InfoSubscriptionCreateData)
 	if msg.ProblemDetails != nil {
