@@ -184,6 +184,18 @@ func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRa
 	return ranId
 }
 
+func (ran *AmfRan) ConvertN3iwfIdToRanId(n3iwfId string) (ranNodeId *models.GlobalRanNodeId) {
+	ranId := &models.GlobalRanNodeId{}
+	val := strings.Split(n3iwfId, ":")
+	if len(val) != 3 {
+		return nil
+	}
+	ranId.PlmnId = &models.PlmnId{Mcc: val[0], Mnc: val[1]}
+	ranId.N3IwfId = val[2]
+	ran.RanPresent = RanPresentN3IwfId
+	return ranId
+}
+
 func (ran *AmfRan) RanID() string {
 	switch ran.RanPresent {
 	case RanPresentGNbId:

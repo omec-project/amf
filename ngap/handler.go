@@ -1648,7 +1648,11 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 						rsp.AmfId = os.Getenv("HOSTNAME")
 						/* TODO for this release setting pod ip to simplify logic in sctplb */
 						rsp.RedirectId = id.PodIp
-						rsp.GnbId = ran.GnbId
+						if ran.RanPresent == context.RanPresentN3IwfId {
+							rsp.N3IwfId = ran.GnbId
+						} else {
+							rsp.GnbId = ran.GnbId
+						}
 						rsp.Msg = sctplbMsg.Msg
 						if ranUe != nil && ranUe.AmfUe != nil {
 							ranUe.AmfUe.Remove()

@@ -22,6 +22,7 @@ import (
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/ngap"
 	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/openapi/models"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -47,6 +48,16 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 			ran = amfSelf.NewAmfRanId(sctplbMsg.GnbId)
 			ran.Amf2RanMsgChan = Amf2RanMsgChan
 			logger.NgapLog.Infof("dispatchLb, Create new Amf RAN", sctplbMsg.GnbId)
+		}
+	} else if sctplbMsg.N3IwfId != "" {
+		var ok bool
+		ran, ok = amfSelf.AmfRanFindByGnbId(sctplbMsg.N3IwfId)
+		if !ok {
+			logger.NgapLog.Infof("create a new NG connection for N3IWF: %s", sctplbMsg.N3IwfId)
+			ran = amfSelf.NewAmfRanId(sctplbMsg.N3IwfId)
+			ran.RanId = ran.ConvertN3iwfIdToRanId(sctplbMsg.N3IwfId)
+			ran.AnType = models.AccessType_NON_3_GPP_ACCESS
+			ran.Amf2RanMsgChan = Amf2RanMsgChan
 		}
 	} else if sctplbMsg.GnbIpAddr != "" {
 		logger.NgapLog.Infoln("GnbIpAddress received but no GnbId")
@@ -94,7 +105,11 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 				/* TODO set only pod name, for this release setting pod ip to simplify logic in sctplb */
 				logger.NgapLog.Infof("dispatchLb, amfNgapId: %v is not for this amf instance, redirect to amf instance: %v %v", ngapId.Value, id.PodName, id.PodIp)
 				rsp.RedirectId = id.PodIp
-				rsp.GnbId = ran.GnbId
+				if ran.RanPresent == context.RanPresentN3IwfId {
+					rsp.N3IwfId = ran.GnbId
+				} else {
+					rsp.GnbId = ran.GnbId
+				}
 				rsp.Msg = make([]byte, len(sctplbMsg.Msg))
 				copy(rsp.Msg, sctplbMsg.Msg)
 				ran.Amf2RanMsgChan = Amf2RanMsgChan
