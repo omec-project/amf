@@ -626,6 +626,18 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	ue.Location = ue.RanUe[anType].Location
 	ue.Tai = ue.RanUe[anType].Tai
 
+	switch anType {
+	case models.AccessType__3_GPP_ACCESS:
+		switch {
+		case ue.Location.NrLocation != nil:
+			ue.RatType = models.RatType_NR
+		case ue.Location.EutraLocation != nil:
+			ue.RatType = models.RatType_EUTRA
+		}
+	case models.AccessType_NON_3_GPP_ACCESS:
+		ue.RatType = models.RatType_WLAN
+	}
+
 	// Check TAI
 	taiList := make([]models.Tai, len(amfSelf.SupportTaiLists))
 	copy(taiList, amfSelf.SupportTaiLists)

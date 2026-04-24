@@ -134,7 +134,9 @@ func CreateUEContextProcedure(ueContextID string, createUeContextRequest models.
 	ue.UdmGroupId = ueContextCreateData.UeContext.UdmGroupId
 	ue.AusfGroupId = ueContextCreateData.UeContext.AusfGroupId
 	// ueContextCreateData.UeContext.HpcfId
-	ue.RatType = ueContextCreateData.UeContext.RestrictedRatList[0] // minItem = -1
+	// RestrictedRatList contains RAT types the UE cannot use, so it must
+	// not be copied into ue.RatType. RatType is set from the access type
+	// during HandleRegistrationRequest (gmm/handler.go).
 	// ueContextCreateData.UeContext.ForbiddenAreaList
 	// ueContextCreateData.UeContext.ServiceAreaRestriction
 	// ueContextCreateData.UeContext.RestrictedCoreNwTypeList
