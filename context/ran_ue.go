@@ -15,6 +15,7 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/ngap/v2"
 	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2"
@@ -47,8 +48,9 @@ type RanUe struct {
 	TargetUe            *RanUe  `json:"-"`
 
 	/* UserLocation*/
-	Tai      models.Tai
-	Location models.UserLocation
+	Tai       models.Tai
+	Location  models.UserLocation
+	NtnAccess *NtnAccessInfo `json:"-"`
 	/* context about udm */
 	SupportVoPSn3gpp  bool       `json:"-"`
 	SupportVoPS       bool       `json:"-"`
@@ -237,12 +239,21 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		if locationInfoNR.TimeStamp != nil {
 			ranUe.Location.NrLocation.AgeOfLocationInformation = openapi.PtrInt32(ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value))
 		}
+
+		// NTN detection runs only after the NR location has parsed cleanly,
+		// so a malformed message (early return above) does not desync NTN
+		// state from the stored location/Tai.
+		ranUe.updateNtnAccess(ngap.HasUserLocationInformationNRExtension(locationInfoNR, ngapType.ProtocolIEIDNRNTNTAIInformation))
+
 		if ranUe.AmfUe != nil {
 			if ranUe.AmfUe.Tai != ranUe.Tai {
 				ranUe.AmfUe.LocationChanged = true
 			}
 			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
 			ranUe.AmfUe.Tai = deepcopy.Copy(ranUe.AmfUe.Location.NrLocation.Tai).(models.Tai)
+			if ranUe.NtnAccess != nil {
+				ranUe.AmfUe.NtnAccess = deepcopy.Copy(ranUe.NtnAccess).(*NtnAccessInfo)
+			}
 		}
 	case ngapType.UserLocationInformationPresentUserLocationInformationN3IWF:
 		locationInfoN3IWF := userLocationInformation.UserLocationInformationN3IWF

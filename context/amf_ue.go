@@ -101,6 +101,7 @@ type AmfUe struct {
 	EventSubscriptionsInfo map[string]*AmfUeEventSubscription `json:"eventSubscriptionInfo,omitempty"`
 	/* User Location*/
 	RatType                  models.RatType      `json:"ratType,omitempty"`
+	NtnAccess                *NtnAccessInfo      `json:"ntnAccess,omitempty"`
 	Location                 models.UserLocation `json:"location,omitempty"`
 	Tai                      models.Tai          `json:"tai,omitempty"`
 	LocationChanged          bool                `json:"locationChanged,omitempty"`
