@@ -46,8 +46,9 @@ type RanUe struct {
 	TargetUe            *RanUe  `json:"-"`
 
 	/* UserLocation*/
-	Tai      models.Tai
-	Location models.UserLocation
+	Tai       models.Tai
+	Location  models.UserLocation
+	NtnAccess *NtnAccessInfo `json:"-"`
 	/* context about udm */
 	SupportVoPSn3gpp  bool       `json:"-"`
 	SupportVoPS       bool       `json:"-"`
@@ -212,6 +213,16 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			ranUe.Location.NrLocation = new(models.NrLocation)
 		}
 
+		if ntnDetected := nrLocationHasNtnExt(locationInfoNR); ntnDetected {
+			if ranUe.NtnAccess == nil {
+				ranUe.NtnAccess = &NtnAccessInfo{}
+			}
+			if !ranUe.NtnAccess.Detected {
+				ranUe.NtnAccess.Detected = true
+				ranUe.Log.Debugf("NR NTN access detected (NRNTN-TAI-Information extension present)")
+			}
+		}
+
 		tAI := locationInfoNR.TAI
 		plmnID, err := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
 		if err != nil {
@@ -250,6 +261,9 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			}
 			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
 			ranUe.AmfUe.Tai = deepcopy.Copy(*ranUe.AmfUe.Location.NrLocation.Tai).(models.Tai)
+			if ranUe.NtnAccess != nil {
+				ranUe.AmfUe.NtnAccess = deepcopy.Copy(ranUe.NtnAccess).(*NtnAccessInfo)
+			}
 		}
 	case ngapType.UserLocationInformationPresentUserLocationInformationN3IWF:
 		locationInfoN3IWF := userLocationInformation.UserLocationInformationN3IWF
