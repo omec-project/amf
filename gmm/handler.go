@@ -866,7 +866,12 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 
 	registrationRequest := ue.RegistrationRequest
 	if registrationRequest == nil {
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
+		ranUe := ue.RanUe[anType]
+		if ranUe != nil {
+			gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMMProtocolErrorUnspecified, "")
+		} else {
+			ue.GmmLog.Errorf("registration request is nil and no RAN UE is available for access type %s to send Registration Reject", anType)
+		}
 		return fmt.Errorf("registration request is nil")
 	}
 

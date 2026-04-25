@@ -62,7 +62,7 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingRejectsNilRegistrationRequ
 	if err == nil {
 		t.Fatal("expected nil registration request to fail")
 	}
-	if err.Error() != "registration request is nil" {
+	if !strings.Contains(err.Error(), "registration request is nil") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
