@@ -39,6 +39,34 @@ func TestHandleIdentityResponseRejectsUndecodableSuci(t *testing.T) {
 	}
 }
 
+func TestHandleMobilityAndPeriodicRegistrationUpdatingRejectsNilRegistrationRequest(t *testing.T) {
+	ue := &context.AmfUe{
+		GmmLog:       zap.NewNop().Sugar(),
+		NASLog:       zap.NewNop().Sugar(),
+		RanUe:        make(map[models.AccessType]*context.RanUe),
+		AllowedNssai: make(map[models.AccessType][]models.AllowedSnssai),
+		State:        make(map[models.AccessType]*fsm.State),
+	}
+	ran := &context.AmfRan{
+		AnType: models.AccessType__3_GPP_ACCESS,
+		Log:    zap.NewNop().Sugar(),
+	}
+	ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{
+		AmfUe: ue,
+		Ran:   ran,
+		Log:   zap.NewNop().Sugar(),
+	}
+	ue.State[models.AccessType_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+
+	err := HandleMobilityAndPeriodicRegistrationUpdating(ctxt.Background(), ue, models.AccessType__3_GPP_ACCESS)
+	if err == nil {
+		t.Fatal("expected nil registration request to fail")
+	}
+	if err.Error() != "registration request is nil" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func newFuzzUE(fd *FuzzData) *context.AmfUe {
 	ue := &context.AmfUe{
 		GmmLog:       zap.NewNop().Sugar(),
