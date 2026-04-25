@@ -702,7 +702,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		getSubscribedNssai(ctx, ue)
 	}
 
-	if err := handleRequestedNssai(ctx, ue, anType); err != nil {
+	if err := handleRequestedNssai(ctx, ue, ue.RegistrationRequest, anType); err != nil {
 		return err
 	}
 
@@ -834,7 +834,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	amfSelf.AllocateRegistrationArea(ue, anType)
 	ue.GmmLog.Debugf("Use original GUTI[%s]", ue.Guti)
 
-	assignLadnInfo(ue, anType)
+	assignLadnInfo(ue, ue.RegistrationRequest, anType)
 
 	amfSelf.AddAmfUeToUePool(ue, ue.Supi)
 	ue.T3502Value = amfSelf.T3502Value
@@ -864,10 +864,21 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
 	ue.GmmLog.Infoln("Handle MobilityAndPeriodicRegistrationUpdating")
 
+	registrationRequest := ue.RegistrationRequest
+	if registrationRequest == nil {
+		ranUe := ue.RanUe[anType]
+		if ranUe != nil {
+			gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMMProtocolErrorUnspecified, "")
+		} else {
+			ue.GmmLog.Errorf("registration request is nil and no RAN UE is available for access type %s to send Registration Reject", anType)
+		}
+		return fmt.Errorf("registration request is nil")
+	}
+
 	amfSelf := context.AMF_Self()
 
-	if ue.RegistrationRequest.UpdateType5GS != nil {
-		if ue.RegistrationRequest.GetNGRanRcu() == nasMessage.NGRanRadioCapabilityUpdateNeeded {
+	if registrationRequest.UpdateType5GS != nil {
+		if registrationRequest.GetNGRanRcu() == nasMessage.NGRanRadioCapabilityUpdateNeeded {
 			ue.UeRadioCapability = ""
 			ue.UeRadioCapabilityForPaging = nil
 		}
@@ -878,12 +889,12 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		getSubscribedNssai(ctx, ue)
 	}
 
-	if err := handleRequestedNssai(ctx, ue, anType); err != nil {
+	if err := handleRequestedNssai(ctx, ue, registrationRequest, anType); err != nil {
 		return err
 	}
 
-	if ue.RegistrationRequest.Capability5GMM != nil {
-		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
+	if registrationRequest.Capability5GMM != nil {
+		ue.Capability5GMM = *registrationRequest.Capability5GMM
 	} else {
 		if ue.RegistrationType5GS != nasMessage.RegistrationType5GSPeriodicRegistrationUpdating {
 			gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
@@ -891,15 +902,15 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		}
 	}
 
-	storeLastVisitedRegisteredTAI(ue, ue.RegistrationRequest.LastVisitedRegisteredTAI)
+	storeLastVisitedRegisteredTAI(ue, registrationRequest.LastVisitedRegisteredTAI)
 
-	if ue.RegistrationRequest.MICOIndication != nil {
+	if registrationRequest.MICOIndication != nil {
 		ue.GmmLog.Warnf("Receive MICO Indication[RAAI: %d], Not Supported",
-			ue.RegistrationRequest.GetRAAI())
+			registrationRequest.GetRAAI())
 	}
 
 	// TODO: Negotiate DRX value if need (TS 23.501 5.4.5)
-	negotiateDRXParameters(ue, ue.RegistrationRequest.RequestedDRXParameters)
+	negotiateDRXParameters(ue, registrationRequest.RequestedDRXParameters)
 
 	// TODO (step 10 optional): send Namf_Communication_RegistrationCompleteNotify to old AMF if need
 	// if ue.ServingAmfChanged {
@@ -926,8 +937,8 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	ctxList := ngapType.PDUSessionResourceSetupListCxtReq{}
 	suList := ngapType.PDUSessionResourceSetupListSUReq{}
 
-	if ue.RegistrationRequest.UplinkDataStatus != nil {
-		uplinkDataPsi := nasConvert.PSIToBooleanArray(ue.RegistrationRequest.UplinkDataStatus.Buffer)
+	if registrationRequest.UplinkDataStatus != nil {
+		uplinkDataPsi := nasConvert.PSIToBooleanArray(registrationRequest.UplinkDataStatus.Buffer)
 		reactivationResult = new([16]bool)
 		allowReEstablishPduSession := true
 
@@ -993,9 +1004,9 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	}
 
 	var pduSessionStatus *[16]bool
-	if ue.RegistrationRequest.PDUSessionStatus != nil {
+	if registrationRequest.PDUSessionStatus != nil {
 		pduSessionStatus = new([16]bool)
-		psiArray := nasConvert.PSIToBooleanArray(ue.RegistrationRequest.PDUSessionStatus.Buffer)
+		psiArray := nasConvert.PSIToBooleanArray(registrationRequest.PDUSessionStatus.Buffer)
 		for psi := 1; psi <= 15; psi++ {
 			pduSessionId := int32(psi)
 			if smContext, ok := ue.SmContextFindByPDUSessionID(pduSessionId); ok {
@@ -1021,8 +1032,8 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		}
 	}
 
-	if ue.RegistrationRequest.AllowedPDUSessionStatus != nil {
-		allowedPsis := nasConvert.PSIToBooleanArray(ue.RegistrationRequest.AllowedPDUSessionStatus.Buffer)
+	if registrationRequest.AllowedPDUSessionStatus != nil {
+		allowedPsis := nasConvert.PSIToBooleanArray(registrationRequest.AllowedPDUSessionStatus.Buffer)
 		if ue.N1N2Message != nil {
 			requestData := ue.N1N2Message.Request.JsonData
 			n1Msg := ue.N1N2Message.Request.BinaryDataN1Message
@@ -1139,7 +1150,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	// }
 
 	amfSelf.AllocateRegistrationArea(ue, anType)
-	assignLadnInfo(ue, anType)
+	assignLadnInfo(ue, registrationRequest, anType)
 
 	// TODO: GUTI reassignment if need (based on operator poilcy)
 	// TODO: T3512/Non3GPP de-registration timer reassignment if need (based on operator policy)
@@ -1312,11 +1323,11 @@ func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) {
 }
 
 // TS 23.502 4.2.2.2.3 Registration with AMF Re-allocation
-func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
+func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationRequest *nasMessage.RegistrationRequest, anType models.AccessType) error {
 	amfSelf := context.AMF_Self()
 
-	if ue.RegistrationRequest.RequestedNSSAI != nil {
-		requestedNssai, err := nasConvert.RequestedNssaiToModels(ue.RegistrationRequest.RequestedNSSAI)
+	if registrationRequest != nil && registrationRequest.RequestedNSSAI != nil {
+		requestedNssai, err := nasConvert.RequestedNssaiToModels(registrationRequest.RequestedNSSAI)
 		if err != nil {
 			return fmt.Errorf("decode failed at RequestedNSSAI[%s]", err)
 		}
@@ -1433,7 +1444,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				}
 
 				var n1Message bytes.Buffer
-				ue.RegistrationRequest.EncodeRegistrationRequest(&n1Message)
+				registrationRequest.EncodeRegistrationRequest(&n1Message)
 				callback.SendN1MessageNotifyAtAMFReAllocation(ue, n1Message.Bytes(), &registerContext)
 			} else {
 				// Condition (B) Step 7: initial AMF can not find Target AMF via NRF -> Send Reroute NAS Request to RAN
@@ -1461,14 +1472,14 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	return nil
 }
 
-func assignLadnInfo(ue *context.AmfUe, accessType models.AccessType) {
+func assignLadnInfo(ue *context.AmfUe, registrationRequest *nasMessage.RegistrationRequest, accessType models.AccessType) {
 	amfSelf := context.AMF_Self()
 
 	ue.LadnInfo = nil
-	if ue.RegistrationRequest.LADNIndication != nil {
+	if registrationRequest != nil && registrationRequest.LADNIndication != nil {
 		ue.LadnInfo = make([]context.LADN, 0)
 		// request for LADN information
-		if ue.RegistrationRequest.LADNIndication.GetLen() == 0 {
+		if registrationRequest.LADNIndication.GetLen() == 0 {
 			if ue.HasWildCardSubscribedDNN() {
 				for _, ladn := range amfSelf.LadnPool {
 					if ue.TaiListInRegistrationArea(ladn.TaiLists, accessType) {
@@ -1487,7 +1498,7 @@ func assignLadnInfo(ue *context.AmfUe, accessType models.AccessType) {
 				}
 			}
 		} else {
-			requestedLadnList := nasConvert.LadnToModels(ue.RegistrationRequest.GetLADNDNNValue())
+			requestedLadnList := nasConvert.LadnToModels(registrationRequest.GetLADNDNNValue())
 			for _, requestedLadn := range requestedLadnList {
 				if ladn, ok := amfSelf.LadnPool[requestedLadn]; ok {
 					if ue.TaiListInRegistrationArea(ladn.TaiLists, accessType) {
