@@ -864,10 +864,15 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
 	ue.GmmLog.Infoln("Handle MobilityAndPeriodicRegistrationUpdating")
 
+	registrationRequest := ue.RegistrationRequest
+	if registrationRequest == nil {
+		return fmt.Errorf("registration request is nil")
+	}
+
 	amfSelf := context.AMF_Self()
 
-	if ue.RegistrationRequest.UpdateType5GS != nil {
-		if ue.RegistrationRequest.GetNGRanRcu() == nasMessage.NGRanRadioCapabilityUpdateNeeded {
+	if registrationRequest.UpdateType5GS != nil {
+		if registrationRequest.GetNGRanRcu() == nasMessage.NGRanRadioCapabilityUpdateNeeded {
 			ue.UeRadioCapability = ""
 			ue.UeRadioCapabilityForPaging = nil
 		}
@@ -882,8 +887,8 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		return err
 	}
 
-	if ue.RegistrationRequest.Capability5GMM != nil {
-		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
+	if registrationRequest.Capability5GMM != nil {
+		ue.Capability5GMM = *registrationRequest.Capability5GMM
 	} else {
 		if ue.RegistrationType5GS != nasMessage.RegistrationType5GSPeriodicRegistrationUpdating {
 			gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
@@ -891,15 +896,15 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		}
 	}
 
-	storeLastVisitedRegisteredTAI(ue, ue.RegistrationRequest.LastVisitedRegisteredTAI)
+	storeLastVisitedRegisteredTAI(ue, registrationRequest.LastVisitedRegisteredTAI)
 
-	if ue.RegistrationRequest.MICOIndication != nil {
+	if registrationRequest.MICOIndication != nil {
 		ue.GmmLog.Warnf("Receive MICO Indication[RAAI: %d], Not Supported",
-			ue.RegistrationRequest.GetRAAI())
+			registrationRequest.GetRAAI())
 	}
 
 	// TODO: Negotiate DRX value if need (TS 23.501 5.4.5)
-	negotiateDRXParameters(ue, ue.RegistrationRequest.RequestedDRXParameters)
+	negotiateDRXParameters(ue, registrationRequest.RequestedDRXParameters)
 
 	// TODO (step 10 optional): send Namf_Communication_RegistrationCompleteNotify to old AMF if need
 	// if ue.ServingAmfChanged {
@@ -926,8 +931,8 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	ctxList := ngapType.PDUSessionResourceSetupListCxtReq{}
 	suList := ngapType.PDUSessionResourceSetupListSUReq{}
 
-	if ue.RegistrationRequest.UplinkDataStatus != nil {
-		uplinkDataPsi := nasConvert.PSIToBooleanArray(ue.RegistrationRequest.UplinkDataStatus.Buffer)
+	if registrationRequest.UplinkDataStatus != nil {
+		uplinkDataPsi := nasConvert.PSIToBooleanArray(registrationRequest.UplinkDataStatus.Buffer)
 		reactivationResult = new([16]bool)
 		allowReEstablishPduSession := true
 
@@ -993,9 +998,9 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	}
 
 	var pduSessionStatus *[16]bool
-	if ue.RegistrationRequest.PDUSessionStatus != nil {
+	if registrationRequest.PDUSessionStatus != nil {
 		pduSessionStatus = new([16]bool)
-		psiArray := nasConvert.PSIToBooleanArray(ue.RegistrationRequest.PDUSessionStatus.Buffer)
+		psiArray := nasConvert.PSIToBooleanArray(registrationRequest.PDUSessionStatus.Buffer)
 		for psi := 1; psi <= 15; psi++ {
 			pduSessionId := int32(psi)
 			if smContext, ok := ue.SmContextFindByPDUSessionID(pduSessionId); ok {
@@ -1021,8 +1026,8 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		}
 	}
 
-	if ue.RegistrationRequest.AllowedPDUSessionStatus != nil {
-		allowedPsis := nasConvert.PSIToBooleanArray(ue.RegistrationRequest.AllowedPDUSessionStatus.Buffer)
+	if registrationRequest.AllowedPDUSessionStatus != nil {
+		allowedPsis := nasConvert.PSIToBooleanArray(registrationRequest.AllowedPDUSessionStatus.Buffer)
 		if ue.N1N2Message != nil {
 			requestData := ue.N1N2Message.Request.JsonData
 			n1Msg := ue.N1N2Message.Request.BinaryDataN1Message
