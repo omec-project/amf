@@ -15,6 +15,7 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/ngap"
 	"github.com/omec-project/ngap/ngapConvert"
 	"github.com/omec-project/ngap/ngapType"
 	"github.com/omec-project/openapi/models"
@@ -46,8 +47,9 @@ type RanUe struct {
 	TargetUe            *RanUe  `json:"-"`
 
 	/* UserLocation*/
-	Tai      models.Tai
-	Location models.UserLocation
+	Tai       models.Tai
+	Location  models.UserLocation
+	NtnAccess *NtnAccessInfo `json:"-"`
 	/* context about udm */
 	SupportVoPSn3gpp  bool       `json:"-"`
 	SupportVoPS       bool       `json:"-"`
@@ -212,6 +214,8 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			ranUe.Location.NrLocation = new(models.NrLocation)
 		}
 
+		ranUe.updateNtnAccess(ngap.HasUserLocationInformationNRExtension(locationInfoNR, ngapType.ProtocolIEIDNRNTNTAIInformation))
+
 		tAI := locationInfoNR.TAI
 		plmnID, err := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
 		if err != nil {
@@ -250,6 +254,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			}
 			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
 			ranUe.AmfUe.Tai = deepcopy.Copy(*ranUe.AmfUe.Location.NrLocation.Tai).(models.Tai)
+			ranUe.AmfUe.NtnAccess = deepcopy.Copy(ranUe.NtnAccess).(*NtnAccessInfo)
 		}
 	case ngapType.UserLocationInformationPresentUserLocationInformationN3IWF:
 		locationInfoN3IWF := userLocationInformation.UserLocationInformationN3IWF
