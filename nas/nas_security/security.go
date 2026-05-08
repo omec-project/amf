@@ -369,9 +369,9 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 
 func GetBearerType(accessType models.AccessType) uint8 {
 	switch accessType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.ACCESSTYPE__3_GPP_ACCESS:
 		return security.Bearer3GPP
-	case models.AccessType_NON_3_GPP_ACCESS:
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
 		return security.BearerNon3GPP
 	default:
 		return security.OnlyOneBearer

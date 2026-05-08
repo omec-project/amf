@@ -72,7 +72,7 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		// we dont call this function when AMF restarts. So we
 		// need to set the AnType from stored Information.
 		if amfSelf.EnableSctpLb {
-			ue.Ran.AnType = models.AccessType__3_GPP_ACCESS
+			ue.Ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 		}
 		ue.AmfUe.AttachRanUe(ue)
 
@@ -94,7 +94,7 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		return
 	}
 	if amfSelf.EnableSctpLb {
-		ue.Ran.AnType = models.AccessType__3_GPP_ACCESS
+		ue.Ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	}
 
 	msg, err := nas_security.Decode(ue.AmfUe, ue.Ran.AnType, nasPdu)

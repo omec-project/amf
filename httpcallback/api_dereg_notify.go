@@ -14,6 +14,7 @@ import (
 	"github.com/omec-project/amf/producer"
 	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -23,24 +24,15 @@ func HTTPDeregistrationNotification(c *gin.Context) {
 	requestBody, err := c.GetRawData()
 	if err != nil {
 		logger.CallbackLog.Errorf("Get Request Body error: %+v", err)
-		problemDetail := models.ProblemDetails{
-			Title:  "System failure",
-			Status: http.StatusInternalServerError,
-			Detail: err.Error(),
-			Cause:  "SYSTEM_FAILURE",
-		}
+		problemDetail := utils.ProblemDetailsSystemFailure(err.Error())
 		c.JSON(http.StatusInternalServerError, problemDetail)
 		return
 	}
 
-	err = openapi.Deserialize(&deregistrationData, requestBody, "application/json")
+	err = openapi.Decode(&deregistrationData, requestBody, "application/json")
 	if err != nil {
 		problemDetail := "[Request Body] " + err.Error()
-		rsp := models.ProblemDetails{
-			Title:  "Malformed request syntax",
-			Status: http.StatusBadRequest,
-			Detail: problemDetail,
-		}
+		rsp := utils.ProblemDetailsMalformedRequestSyntax(problemDetail)
 		logger.CallbackLog.Errorln(problemDetail)
 		c.JSON(http.StatusBadRequest, rsp)
 		return
@@ -52,16 +44,12 @@ func HTTPDeregistrationNotification(c *gin.Context) {
 	}
 	rsp := producer.HandleDeregistrationNotification(c.Request.Context(), req)
 
-	responseBody, err := openapi.Serialize(rsp.Body, "application/json")
+	responseBody, err := openapi.SetBody(rsp.Body, "application/json")
 	if err != nil {
 		logger.CallbackLog.Errorln(err)
-		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
-		}
+		problemDetails := utils.ProblemDetailsSystemFailure(err.Error())
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(rsp.Status, "application/json", responseBody)
+		c.Data(rsp.Status, "application/json", responseBody.Bytes())
 	}
 }

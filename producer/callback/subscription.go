@@ -12,18 +12,24 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/Namf_Communication"
 	"github.com/omec-project/openapi/models"
 )
 
-func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
+func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models.Guami) {
 	amfSelf := amf_context.AMF_Self()
 
 	amfSelf.AMFStatusSubscriptions.Range(func(key, value interface{}) bool {
-		subscriptionData := value.(models.SubscriptionData)
+		subscriptionData := value.(models.SubscriptionDataAmf)
 
-		configuration := Namf_Communication.NewConfiguration()
-		client := Namf_Communication.NewAPIClient(configuration)
+		cfg := Namf_Communication.NewConfiguration()
+		serverConfig := &cfg.Servers[0]
+		if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+			apiRootVar.DefaultValue = subscriptionData.AmfStatusUri
+			serverConfig.Variables["apiRoot"] = apiRootVar
+		}
+		client := Namf_Communication.NewAPIClient(cfg)
 		amfStatusNotification := models.AmfStatusChangeNotification{}
 		amfStatusInfo := models.AmfStatusInfo{}
 
@@ -37,17 +43,18 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 		}
 
 		amfStatusInfo = models.AmfStatusInfo{
-			StatusChange:     (models.StatusChange)(amfStatus),
-			TargetAmfRemoval: "",
-			TargetAmfFailure: "",
+			StatusChange:     amfStatus,
+			TargetAmfRemoval: openapi.PtrString(""),
+			TargetAmfFailure: openapi.PtrString(""),
 		}
 
 		amfStatusNotification.AmfStatusInfoList = append(amfStatusNotification.AmfStatusInfoList, amfStatusInfo)
-		uri := subscriptionData.AmfStatusUri
 
-		logger.ProducerLog.Infof("[AMF] Send Amf Status Change Notify to %s", uri)
-		httpResponse, err := client.AmfStatusChangeCallbackDocumentApiServiceCallbackDocumentApi.
-			AmfStatusChangeNotify(context.Background(), uri, amfStatusNotification)
+		logger.ProducerLog.Infof("[AMF] Send Amf Status Change Notify to %s", subscriptionData.AmfStatusUri)
+		apiAmfStatusChangeNotifyRequest := client.SubscriptionsCollectionCollectionCallbackAmfStatusChangeAPI.AmfStatusChangeNotifyOnSubscriptionUpdate(context.Background())
+		apiAmfStatusChangeNotifyRequest = apiAmfStatusChangeNotifyRequest.AmfStatusChangeNotification(amfStatusNotification)
+		httpResponse, err := client.SubscriptionsCollectionCollectionCallbackAmfStatusChangeAPI.
+			AmfStatusChangeNotifyOnSubscriptionUpdateExecute(apiAmfStatusChangeNotifyRequest)
 		if err != nil {
 			if httpResponse == nil {
 				logger.HttpLog.Errorln(err.Error())

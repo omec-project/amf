@@ -20,13 +20,28 @@ import (
 	"github.com/omec-project/util/drsm"
 )
 
+func resolveStableAmfNfId(configuration *factory.Configuration) string {
+	if nfID := os.Getenv("NF_ID"); nfID != "" {
+		return nfID
+	}
+	if configuration != nil {
+		if configuration.AmfName != "" {
+			return configuration.AmfName
+		}
+		if configuration.Sbi != nil && configuration.Sbi.RegisterIPv4 != "" {
+			return configuration.Sbi.RegisterIPv4
+		}
+	}
+	return uuid.New().String()
+}
+
 func InitDrsm() (drsm.DrsmInterface, error) {
 	podname := os.Getenv("HOSTNAME")
 	podip := os.Getenv("POD_IP")
 	logger.UtilLog.Infof("NfId Instance: %v", context.AMF_Self().NfId)
 	podId := drsm.PodId{PodName: podname, PodInstance: context.AMF_Self().NfId, PodIp: podip}
 	logger.UtilLog.Debugf("PodId: %v", podId)
-	dbUrl := "mongodb://mongodb-arbiter-headless"
+	dbUrl := "mongodb://mongodb-headless"
 	if factory.AmfConfig.Configuration.Mongodb != nil &&
 		factory.AmfConfig.Configuration.Mongodb.Url != "" {
 		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
@@ -43,7 +58,7 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 	if amfContext.NfId == "" {
-		amfContext.NfId = uuid.New().String()
+		amfContext.NfId = resolveStableAmfNfId(configuration)
 	}
 
 	if configuration.AmfName != "" {
@@ -66,7 +81,10 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	amfContext.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			amfContext.RegisterIPv4 = os.Getenv("POD_IP")
+			amfContext.RegisterIPv4 = os.Getenv(sbi.RegisterIPv4)
+			if amfContext.RegisterIPv4 == "" {
+				amfContext.RegisterIPv4 = sbi.RegisterIPv4
+			}
 		}
 		if sbi.Port != 0 {
 			amfContext.SBIPort = sbi.Port

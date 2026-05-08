@@ -218,13 +218,13 @@ func (amf *AMF) Start() {
 	oam.AddService(router)
 	for _, serviceName := range factory.AmfConfig.Configuration.ServiceNameList {
 		switch models.ServiceName(serviceName) {
-		case models.ServiceName_NAMF_COMM:
+		case models.SERVICENAME_NAMF_COMM:
 			communication.AddService(router)
-		case models.ServiceName_NAMF_EVTS:
+		case models.SERVICENAME_NAMF_EVTS:
 			eventexposure.AddService(router)
-		case models.ServiceName_NAMF_MT:
+		case models.SERVICENAME_NAMF_MT:
 			mt.AddService(router)
-		case models.ServiceName_NAMF_LOC:
+		case models.SERVICENAME_NAMF_LOC:
 			location.AddService(router)
 		}
 	}
@@ -380,7 +380,7 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup, tr
 
 	ngap_service.Stop()
 
-	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+	callback.SendAmfStatusChangeNotify(models.STATUSCHANGE_AMF_UNAVAILABLE, amfSelf.ServedGuamiList)
 
 	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v any) bool {
 		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {

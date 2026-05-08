@@ -10,10 +10,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/antihax/optional"
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Nudm_SubscriberDataManagement"
+	"github.com/omec-project/openapi/Nudm_SDM"
 	"github.com/omec-project/openapi/models"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -34,21 +33,23 @@ func PutUpuAck(ctx context.Context, ue *amf_context.AmfUe, upuMacIue string) err
 		attribute.String("upu.mac.iue", upuMacIue),
 	)
 
-	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmSDMUri)
-	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
+	configuration := Nudm_SDM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmSDMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Nudm_SDM.NewAPIClient(configuration)
 
 	ackInfo := models.AcknowledgeInfo{
-		UpuMacIue: upuMacIue,
-	}
-	upuOpt := Nudm_SubscriberDataManagement.PutUpuAckParamOpts{
-		AcknowledgeInfo: optional.NewInterface(ackInfo),
+		UpuMacIue: openapi.PtrString(upuMacIue),
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateApi.PutUpuAck(ctx, ue.Supi, &upuOpt)
+	apiUpuAckRequest := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAck(ctx, ue.Supi)
+	apiUpuAckRequest = apiUpuAckRequest.AcknowledgeInfo(ackInfo)
+	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAckExecute(apiUpuAckRequest)
 	return err
 }
 
@@ -64,21 +65,24 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmSDMUri)
-	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
-
-	getAmDataParamOpt := Nudm_SubscriberDataManagement.GetAmDataParamOpts{
-		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
+	configuration := Nudm_SDM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmSDMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
 	}
+	client := Nudm_SDM.NewAPIClient(configuration)
+
+	plmnId := models.NewPlmnIdNid(ue.PlmnId.Mcc, ue.PlmnId.Mnc)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	data, httpResp, localErr := client.AccessAndMobilitySubscriptionDataRetrievalApi.GetAmData(
-		ctx, ue.Supi, &getAmDataParamOpt)
+	apiGetAmDataRequest := client.AccessAndMobilitySubscriptionDataRetrievalAPI.GetAmData(ctx, ue.Supi)
+	apiGetAmDataRequest = apiGetAmDataRequest.PlmnId(*plmnId)
+	data, httpResp, localErr := client.AccessAndMobilitySubscriptionDataRetrievalAPI.GetAmDataExecute(apiGetAmDataRequest)
 	if localErr == nil {
-		ue.AccessAndMobilitySubscriptionData = &data
+		ue.AccessAndMobilitySubscriptionData = data
 		if len(data.Gpsis) > 0 {
 			ue.Gpsi = data.Gpsis[0] // TODO: select GPSI
 		} else {
@@ -89,8 +93,11 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("server no response")
 	}
@@ -109,26 +116,32 @@ func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDet
 		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmSDMUri)
-	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
-
-	paramOpt := Nudm_SubscriberDataManagement.GetSmfSelectDataParamOpts{
-		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
+	configuration := Nudm_SDM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmSDMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
 	}
+	client := Nudm_SDM.NewAPIClient(configuration)
+
+	plmnId := models.NewPlmnId(ue.PlmnId.Mcc, ue.PlmnId.Mnc)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	data, httpResp, localErr := client.SMFSelectionSubscriptionDataRetrievalApi.GetSmfSelectData(ctx, ue.Supi, &paramOpt)
+	apiGetSmfSelDataRequest := client.SMFSelectionSubscriptionDataRetrievalAPI.GetSmfSelData(ctx, ue.Supi)
+	apiGetSmfSelDataRequest = apiGetSmfSelDataRequest.PlmnId(*plmnId)
+	data, httpResp, localErr := client.SMFSelectionSubscriptionDataRetrievalAPI.GetSmfSelDataExecute(apiGetSmfSelDataRequest)
 	if localErr == nil {
-		ue.SmfSelectionData = &data
+		ue.SmfSelectionData = data
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("server no response")
 	}
@@ -148,22 +161,30 @@ func SDMGetUeContextInSmfData(ctx context.Context, ue *amf_context.AmfUe) (probl
 		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmSDMUri)
-	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
+	configuration := Nudm_SDM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmSDMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Nudm_SDM.NewAPIClient(configuration)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	data, httpResp, localErr := client.UEContextInSMFDataRetrievalApi.GetUeContextInSmfData(ctx, ue.Supi, nil)
+	apiGetUeCtxInSmfDataRequest := client.UEContextInSMFDataRetrievalAPI.GetUeCtxInSmfData(ctx, ue.Supi)
+	data, httpResp, localErr := client.UEContextInSMFDataRetrievalAPI.GetUeCtxInSmfDataExecute(apiGetUeCtxInSmfDataRequest)
 	if localErr == nil {
-		ue.UeContextInSmfData = &data
+		ue.UeContextInSmfData = data
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("server no response")
 	}
@@ -183,9 +204,13 @@ func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmSDMUri)
-	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
+	configuration := Nudm_SDM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmSDMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Nudm_SDM.NewAPIClient(configuration)
 
 	amfSelf := amf_context.AMF_Self()
 	sdmSubscription := models.SdmSubscription{
@@ -195,7 +220,9 @@ func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	_, httpResp, localErr := client.SubscriptionCreationApi.Subscribe(ctx, ue.Supi, sdmSubscription)
+	apiSubscribeRequest := client.SubscriptionCreationAPI.Subscribe(ctx, ue.Supi)
+	apiSubscribeRequest = apiSubscribeRequest.SdmSubscription(sdmSubscription)
+	_, httpResp, localErr := client.SubscriptionCreationAPI.SubscribeExecute(apiSubscribeRequest)
 	if localErr == nil {
 		return nil, nil
 	} else if httpResp != nil {
@@ -203,8 +230,11 @@ func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("server no response")
 	}
@@ -223,35 +253,38 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Nudm_SubscriberDataManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmSDMUri)
-	client := Nudm_SubscriberDataManagement.NewAPIClient(configuration)
-
-	paramOpt := Nudm_SubscriberDataManagement.GetNssaiParamOpts{
-		PlmnId: optional.NewInterface(ue.PlmnId.Mcc + ue.PlmnId.Mnc),
+	configuration := Nudm_SDM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmSDMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
 	}
+	client := Nudm_SDM.NewAPIClient(configuration)
+
+	plmnId := models.NewPlmnId(ue.PlmnId.Mcc, ue.PlmnId.Mnc)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalApi.GetNssai(ctx, ue.Supi, &paramOpt)
+	apiGetNSSAIRequest := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAI(ctx, ue.Supi)
+	apiGetNSSAIRequest = apiGetNSSAIRequest.PlmnId(*plmnId)
+	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAIExecute(apiGetNSSAIRequest)
 	if localErr == nil {
 		for _, defaultSnssai := range nssai.DefaultSingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{
-				SubscribedSnssai: &models.Snssai{
+				SubscribedSnssai: models.Snssai{
 					Sst: defaultSnssai.Sst,
 					Sd:  defaultSnssai.Sd,
 				},
-				DefaultIndication: true,
+				DefaultIndication: openapi.PtrBool(true),
 			}
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
 		for _, snssai := range nssai.SingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{
-				SubscribedSnssai: &models.Snssai{
+				SubscribedSnssai: models.Snssai{
 					Sst: snssai.Sst,
 					Sd:  snssai.Sd,
 				},
-				DefaultIndication: false,
+				DefaultIndication: openapi.PtrBool(false),
 			}
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
@@ -260,8 +293,11 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("Could not contact UDM at %v, %+v", ue.NudmSDMUri, localErr)
 	}

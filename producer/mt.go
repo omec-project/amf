@@ -38,10 +38,9 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	amfSelf := context.AMF_Self()
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -60,7 +59,8 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	// ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
 	//	infoClassQuery, supportedFeaturesQuery)
 	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		status := msg.ProblemDetails.(models.ProblemDetails).Status
+		return httpwrapper.NewResponse(int(*status), nil, msg.ProblemDetails.(models.ProblemDetails))
 	} else {
 		return httpwrapper.NewResponse(http.StatusOK, nil, ueContextInfo)
 	}
@@ -73,25 +73,24 @@ func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery stri
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
 		return nil, problemDetails
 	}
 
-	ueContextInfo := new(models.UeContextInfo)
+	ueContextInfo := models.NewUeContextInfo()
 
 	// TODO: Error Status 307, 403 in TS29.518 Table 6.3.3.3.3.1-3
 	anType := ue.GetAnType()
 	if anType != "" && infoClassQuery != "" {
 		ranUe := ue.RanUe[anType]
-		ueContextInfo.AccessType = anType
-		ueContextInfo.LastActTime = ranUe.LastActTime
-		ueContextInfo.RatType = ue.RatType
-		ueContextInfo.SupportedFeatures = ranUe.SupportedFeatures
-		ueContextInfo.SupportVoPS = ranUe.SupportVoPS
-		ueContextInfo.SupportVoPSn3gpp = ranUe.SupportVoPSn3gpp
+		ueContextInfo.SetAccessType(anType)
+		ueContextInfo.SetLastActTime(*ranUe.LastActTime)
+		ueContextInfo.SetRatType(ue.RatType)
+		ueContextInfo.SetSupportedFeatures(ranUe.SupportedFeatures)
+		ueContextInfo.SetSupportVoPS(ranUe.SupportVoPS)
+		ueContextInfo.SetSupportVoPSn3gpp(ranUe.SupportVoPSn3gpp)
 	}
 
 	return ueContextInfo, nil

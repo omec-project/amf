@@ -12,28 +12,48 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Nudm_UEContextManagement"
+	"github.com/omec-project/openapi/Nudm_UECM"
 	"github.com/omec-project/openapi/models"
 	"go.opentelemetry.io/otel/attribute"
 )
 
+func ensureRatType(ue *amf_context.AmfUe, accessType models.AccessType) models.RatType {
+	if ue.RatType != "" {
+		return ue.RatType
+	}
+
+	switch accessType {
+	case models.ACCESSTYPE__3_GPP_ACCESS:
+		ue.RatType = models.RATTYPE_NR
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
+		ue.RatType = models.RATTYPE_WLAN
+	}
+
+	return ue.RatType
+}
+
 func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType models.AccessType, initialRegistrationInd bool) (
 	*models.ProblemDetails, error,
 ) {
-	configuration := Nudm_UEContextManagement.NewConfiguration()
-	configuration.SetBasePath(ue.NudmUECMUri)
-	client := Nudm_UEContextManagement.NewAPIClient(configuration)
+	configuration := Nudm_UECM.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NudmUECMUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Nudm_UECM.NewAPIClient(configuration)
 
 	amfSelf := amf_context.AMF_Self()
 
 	switch accessType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.ACCESSTYPE__3_GPP_ACCESS:
+		ratType := ensureRatType(ue, accessType)
 		registrationData := models.Amf3GppAccessRegistration{
 			AmfInstanceId:          amfSelf.NfId,
-			InitialRegistrationInd: initialRegistrationInd,
-			Guami:                  &amfSelf.ServedGuamiList[0],
-			RatType:                ue.RatType,
-			ImsVoPs:                models.ImsVoPs_HOMOGENEOUS_NON_SUPPORT,
+			InitialRegistrationInd: openapi.PtrBool(initialRegistrationInd),
+			Guami:                  amfSelf.ServedGuamiList[0],
+			RatType:                ratType,
+			ImsVoPs:                models.IMSVOPS_HOMOGENEOUS_NON_SUPPORT.Ptr(),
 		}
 		gppAccessCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
@@ -49,24 +69,29 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 		)
 
-		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessApi.Registration(gppAccessCtx, ue.Supi, registrationData)
+		apiCall3GppRegistrationRequest := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistration(gppAccessCtx, ue.Supi)
+		apiCall3GppRegistrationRequest = apiCall3GppRegistrationRequest.Amf3GppAccessRegistration(registrationData)
+		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistrationExecute(apiCall3GppRegistrationRequest)
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {
 			if httpResp.Status != localErr.Error() {
 				return nil, localErr
 			}
-			problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-			return &problem, nil
+			if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+				return &problem, nil
+			}
+			return nil, localErr
 		} else {
 			return nil, openapi.ReportError("server no response")
 		}
 
-	case models.AccessType_NON_3_GPP_ACCESS:
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
+		ratType := ensureRatType(ue, accessType)
 		registrationData := models.AmfNon3GppAccessRegistration{
 			AmfInstanceId: amfSelf.NfId,
-			Guami:         &amfSelf.ServedGuamiList[0],
-			RatType:       ue.RatType,
+			Guami:         amfSelf.ServedGuamiList[0],
+			RatType:       ratType,
 		}
 
 		non3gppAccessCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -83,15 +108,19 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 		)
 
-		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessApi.Register(non3gppAccessCtx, ue.Supi, registrationData)
+		apiNon3GppRegistrationRequest := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistration(non3gppAccessCtx, ue.Supi)
+		apiNon3GppRegistrationRequest = apiNon3GppRegistrationRequest.AmfNon3GppAccessRegistration(registrationData)
+		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistrationExecute(apiNon3GppRegistrationRequest)
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {
 			if httpResp.Status != localErr.Error() {
 				return nil, localErr
 			}
-			problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-			return &problem, nil
+			if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+				return &problem, nil
+			}
+			return nil, localErr
 		} else {
 			return nil, openapi.ReportError("server no response")
 		}

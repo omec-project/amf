@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/omec-project/amf/consumer"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 )
@@ -133,12 +134,12 @@ func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTi
 	var registrationsMu sync.Mutex
 	registerDone := make(chan struct{})
 	var registerDoneOnce sync.Once
-	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
-		profile := models.NfProfile{HeartBeatTimer: 60}
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
+		profile := models.NFProfile{HeartBeatTimer: openapi.PtrInt32(60)}
 		registrationsMu.Lock()
 		registrations = append(registrations, accessAndMobilityConfig...)
 		registrationsMu.Unlock()
-		return profile, "", nil
+		return &profile, "", nil
 	}
 	registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
 		defer registerDoneOnce.Do(func() { close(registerDone) })
@@ -191,14 +192,14 @@ func TestNfRegistrationService_ConfigChanged_RetryIfRegisterNFFails(t *testing.T
 	registerAttempts := make(chan struct{}, 2)
 	registerDone := make(chan struct{})
 	var registerDoneOnce sync.Once
-	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
-		profile := models.NfProfile{HeartBeatTimer: 60}
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
+		profile := models.NFProfile{HeartBeatTimer: openapi.PtrInt32(60)}
 		called.Add(1)
 		select {
 		case registerAttempts <- struct{}{}:
 		default:
 		}
-		return profile, "", errors.New("mock error")
+		return &profile, "", errors.New("mock error")
 	}
 	registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
 		defer registerDoneOnce.Do(func() { close(registerDone) })
@@ -336,13 +337,13 @@ func TestHeartbeatNF_Success(t *testing.T) {
 		}
 	}()
 
-	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (models.NfProfile, *models.ProblemDetails, error) {
-		return models.NfProfile{}, nil, nil
+	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
+		return &models.NFProfile{}, nil, nil
 	}
-	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
 		calledRegister = true
-		profile := models.NfProfile{HeartBeatTimer: 60}
-		return profile, "", nil
+		profile := models.NFProfile{HeartBeatTimer: openapi.PtrInt32(60)}
+		return &profile, "", nil
 	}
 	accessAndMobilityConfig := []nfConfigApi.AccessAndMobility{}
 	heartbeatNF(t.Context(), accessAndMobilityConfig)
@@ -368,14 +369,14 @@ func TestHeartbeatNF_WhenNfUpdateFails_ThenNfRegistersIsCalled(t *testing.T) {
 		}
 	}()
 
-	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (models.NfProfile, *models.ProblemDetails, error) {
-		return models.NfProfile{}, nil, errors.New("mock error")
+	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
+		return &models.NFProfile{}, nil, errors.New("mock error")
 	}
 
-	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (models.NfProfile, string, error) {
-		profile := models.NfProfile{HeartBeatTimer: 60}
+	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
+		profile := models.NFProfile{HeartBeatTimer: openapi.PtrInt32(60)}
 		calledRegister = true
-		return profile, "", nil
+		return &profile, "", nil
 	}
 
 	accessAndMobilityConfig := []nfConfigApi.AccessAndMobility{}

@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 )
@@ -73,21 +74,21 @@ func TestUpdateAMFContext(t *testing.T) {
 			},
 			expectedSupportTaiLists: []models.Tai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					Tac:    "1",
 				},
 			},
 			expectedServedGuamiList: []models.Guami{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 					AmfId:  "cafe00",
 				},
 			},
 			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: "01"},
+						{Sst: 1, Sd: openapi.PtrString("01")},
 					},
 				},
 			},
@@ -104,15 +105,15 @@ func TestUpdateAMFContext(t *testing.T) {
 			expectedSupportTaiLists: []models.Tai{},
 			expectedServedGuamiList: []models.Guami{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 					AmfId:  "cafe00",
 				},
 			},
 			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: "01"},
+						{Sst: 1, Sd: openapi.PtrString("01")},
 					},
 				},
 			},
@@ -133,35 +134,35 @@ func TestUpdateAMFContext(t *testing.T) {
 			},
 			expectedServedGuamiList: []models.Guami{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 					AmfId:  "cafe00",
 				},
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
+					PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "02"},
 					AmfId:  "cafe00",
 				},
 			},
 			expectedSupportTaiLists: []models.Tai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					Tac:    "1",
 				},
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "02"},
 					Tac:    "2",
 				},
 			},
 			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: "01"},
+						{Sst: 1, Sd: openapi.PtrString("01")},
 					},
 				},
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "02"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "02"},
 					SNssaiList: []models.Snssai{
-						{Sst: 2, Sd: "01"},
+						{Sst: 2, Sd: openapi.PtrString("01")},
 					},
 				},
 			},
@@ -182,26 +183,26 @@ func TestUpdateAMFContext(t *testing.T) {
 			},
 			expectedSupportTaiLists: []models.Tai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					Tac:    "1",
 				},
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					Tac:    "2",
 				},
 			},
 			expectedServedGuamiList: []models.Guami{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 					AmfId:  "cafe00",
 				},
 			},
 			expectedPlmnSupportList: []models.PlmnSnssai{
 				{
-					PlmnId: &models.PlmnId{Mcc: "001", Mnc: "01"},
+					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: "01"},
-						{Sst: 2, Sd: "01"},
+						{Sst: 1, Sd: openapi.PtrString("01")},
+						{Sst: 2, Sd: openapi.PtrString("01")},
 					},
 				},
 			},

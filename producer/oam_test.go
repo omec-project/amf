@@ -14,6 +14,7 @@ import (
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
 )
@@ -27,25 +28,25 @@ func init() {
 	util.InitAmfContext(self)
 	self.ServedGuamiList = []models.Guami{
 		{
-			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			PlmnId: models.PlmnIdNid{Mcc: "208", Mnc: "93"},
 			AmfId:  "cafe00",
 		},
 	}
 	self.SupportTaiLists = []models.Tai{
 		{
-			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			Tac:    "1",
 		},
 	}
 	self.PlmnSupportList = []models.PlmnSnssai{
 		{
-			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			SNssaiList: []models.Snssai{
 				{
-					Sst: 1, Sd: "010203",
+					Sst: 1, Sd: openapi.PtrString("010203"),
 				},
 				{
-					Sst: 1, Sd: "112233",
+					Sst: 1, Sd: openapi.PtrString("112233"),
 				},
 			},
 		},
@@ -77,7 +78,7 @@ func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 			setupUE: func(self *context.AMFContext) *context.AmfUe {
 				amfUe := self.NewAmfUe("imsi-208930100007497")
 				// Set UE to registered state
-				amfUe.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+				amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 				return amfUe
 			},
 			expectedDeregisteredInitiatedCount: 1,

@@ -156,14 +156,14 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
 	ran.RanId = &ranId
 
 	// Setting RanId in String format with ":" separation of each field
-	if ranId.PlmnId != nil {
+	if ranId.PlmnId.GetMcc() != "" && ranId.PlmnId.GetMnc() != "" {
 		ran.GnbId = ranId.PlmnId.Mcc + ":" + ranId.PlmnId.Mnc + ":"
 	}
 	if ranNodeId.Present == ngapType.GlobalRANNodeIDPresentGlobalN3IWFID {
-		ran.AnType = models.AccessType_NON_3_GPP_ACCESS
-		ran.GnbId += ranId.N3IwfId
+		ran.AnType = models.ACCESSTYPE_NON_3_GPP_ACCESS
+		ran.GnbId += ranId.GetN3IwfId()
 	} else {
-		ran.AnType = models.AccessType__3_GPP_ACCESS
+		ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 		if ranId.GNbId != nil {
 			ran.GnbId += ranId.GNbId.GNBValue
 		}
@@ -173,13 +173,14 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
-	ranId := &models.GlobalRanNodeId{}
+	ranId := models.NewGlobalRanNodeIdWithDefaults()
 	val := strings.Split(gnbId, ":")
 	if len(val) != 3 {
 		return nil
 	}
-	ranId.PlmnId = &models.PlmnId{Mcc: val[0], Mnc: val[1]}
-	ranId.GNbId = &models.GNbId{GNBValue: val[2]}
+	ranId.PlmnId = models.PlmnId{Mcc: val[0], Mnc: val[1]}
+	ranId.GNbId = models.NewGNbIdWithDefaults()
+	ranId.GNbId.SetGNBValue(val[2])
 	ran.RanPresent = RanPresentGNbId
 	return ranId
 }
@@ -187,11 +188,11 @@ func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRa
 func (ran *AmfRan) RanID() string {
 	switch ran.RanPresent {
 	case RanPresentGNbId:
-		return fmt.Sprintf("<PlmnID: %+v, GNbID: %s>", *ran.RanId.PlmnId, ran.RanId.GNbId.GNBValue)
+		return fmt.Sprintf("<PlmnID: %+v, GNbID: %s>", ran.RanId.GetPlmnId(), ran.RanId.GNbId.GetGNBValue())
 	case RanPresentN3IwfId:
-		return fmt.Sprintf("<PlmnID: %+v, N3IwfID: %s>", *ran.RanId.PlmnId, ran.RanId.N3IwfId)
+		return fmt.Sprintf("<PlmnID: %+v, N3IwfID: %s>", ran.RanId.GetPlmnId(), ran.RanId.GetN3IwfId())
 	case RanPresentNgeNbId:
-		return fmt.Sprintf("<PlmnID: %+v, NgeNbID: %s>", *ran.RanId.PlmnId, ran.RanId.NgeNbId)
+		return fmt.Sprintf("<PlmnID: %+v, NgeNbID: %s>", ran.RanId.GetPlmnId(), ran.RanId.GetNgeNbId())
 	default:
 		return ""
 	}

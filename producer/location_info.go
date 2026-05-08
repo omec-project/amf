@@ -12,6 +12,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/httpwrapper"
 )
@@ -36,10 +37,9 @@ func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper
 
 	amfSelf := context.AMF_Self()
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 
@@ -58,7 +58,8 @@ func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper
 	}
 	// provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
 	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		status := msg.ProblemDetails.(*models.ProblemDetails).Status
+		return httpwrapper.NewResponse(int(*status), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return httpwrapper.NewResponse(http.StatusOK, nil, provideLocInfo)
 	}
@@ -71,40 +72,38 @@ func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContex
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
 		return nil, problemDetails
 	}
 
 	anType := ue.GetAnType()
 	if anType == "" {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
 		return nil, problemDetails
 	}
 
-	provideLocInfo := new(models.ProvideLocInfo)
+	provideLocInfo := models.NewProvideLocInfo()
 
 	ranUe := ue.RanUe[anType]
-	if requestLocInfo.Req5gsLoc || requestLocInfo.ReqCurrentLoc {
-		provideLocInfo.CurrentLoc = true
+	if requestLocInfo.GetReq5gsLoc() || requestLocInfo.GetReqCurrentLoc() {
+		provideLocInfo.CurrentLoc = openapi.PtrBool(true)
 		provideLocInfo.Location = &ue.Location
 	}
 
-	if requestLocInfo.ReqRatType {
-		provideLocInfo.RatType = ue.RatType
+	if requestLocInfo.GetReqRatType() {
+		provideLocInfo.RatType = &ue.RatType
 	}
 
-	if requestLocInfo.ReqTimeZone {
-		provideLocInfo.Timezone = ue.TimeZone
+	if requestLocInfo.GetReqTimeZone() {
+		provideLocInfo.Timezone = openapi.PtrString(ue.TimeZone)
 	}
 
-	if requestLocInfo.SupportedFeatures != "" {
-		provideLocInfo.SupportedFeatures = ranUe.SupportedFeatures
+	if requestLocInfo.GetSupportedFeatures() != "" {
+		provideLocInfo.SupportedFeatures = openapi.PtrString(ranUe.SupportedFeatures)
 	}
 	return provideLocInfo, nil
 }

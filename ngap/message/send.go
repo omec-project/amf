@@ -607,7 +607,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 	// if err != nil {
 	// 	ngaplog.Errorf("build Paging failed: %s", err.Error())
 	// }
-	taiList := ue.RegistrationArea[models.AccessType__3_GPP_ACCESS]
+	taiList := ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS]
 	context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
 		ran := value.(*context.AmfRan)
 		for _, item := range ran.SupportedTAList {
@@ -638,8 +638,8 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 		}, func() {
 			ue.GmmLog.Warnf("T3513 expires %d times, abort paging procedure", cfg.MaxRetryTimes)
 			ue.T3513 = nil // clear the timer
-			if ue.GetOnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
-				callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
+			if ue.GetOnGoing(models.ACCESSTYPE__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
+				callback.SendN1N2TransferFailureNotification(ue, models.N1N2MESSAGETRANSFERCAUSE_UE_NOT_RESPONDING)
 			}
 		})
 	}

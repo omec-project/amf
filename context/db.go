@@ -175,13 +175,13 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUe = ue
-	AMF_Self().RanUePool.Store(ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId, ue.RanUe[models.AccessType__3_GPP_ACCESS])
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUe = ue
+	AMF_Self().RanUePool.Store(ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId, ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS])
 	AMF_Self().UePool.Store(ue.Supi, ue)
 	ue.EventChannel = nil
-	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
-	ue.TxLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId))
+	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId))
+	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId))
+	ue.TxLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId))
 	ue.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
@@ -209,7 +209,7 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 	if ranUe != nil {
 		return ranUe
 	}
-	return ue.RanUe[models.AccessType__3_GPP_ACCESS]
+	return ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS]
 }
 
 func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
@@ -231,7 +231,7 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	if ranUe != nil {
 		return ranUe
 	}
-	return ue.RanUe[models.AccessType__3_GPP_ACCESS]
+	return ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS]
 }
 
 func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {

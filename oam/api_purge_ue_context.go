@@ -35,7 +35,8 @@ func HTTPPurgeUEContext(c *gin.Context) {
 			ue.EventChannel.SubmitMessage(sbiMsg)
 			msg := <-sbiMsg.Result
 			if msg.ProblemDetails != nil {
-				c.JSON(int(msg.ProblemDetails.(models.ProblemDetails).Status), msg.ProblemDetails)
+				status := msg.ProblemDetails.(models.ProblemDetails).Status
+				c.JSON(int(*status), msg.ProblemDetails)
 			} else {
 				c.JSON(http.StatusOK, nil)
 			}

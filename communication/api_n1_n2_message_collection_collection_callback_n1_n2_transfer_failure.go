@@ -25,9 +25,9 @@ import (
 	"github.com/omec-project/amf/logger"
 )
 
-// Post /non-ue-n2-messages/subscriptions
-// Namf_Communication Non UE N2 Info Subscribe service Operation
-func HTTPNonUeN2InfoSubscribe(c *gin.Context) {
-	logger.CommLog.Warnln("Handle Post /non-ue-n2-messages/subscriptions is not implemented")
+// Post /:$request.body#/n1n2FailureTxfNotifURI
+// Namf_Communication N1N2Transfer Failure Notification service Operation
+func HTTPN1N2TransferFailureNotification(c *gin.Context) {
+	logger.CommLog.Warnln("Handle Post /:$request.body#/n1n2FailureTxfNotifURI is not implemented")
 	c.String(http.StatusNotImplemented, "501 not implemented")
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/nasMessage"
 	"github.com/omec-project/nas/nasType"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/fsm"
 	"go.uber.org/zap"
@@ -48,17 +49,17 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingRejectsNilRegistrationRequ
 		State:        make(map[models.AccessType]*fsm.State),
 	}
 	ran := &context.AmfRan{
-		AnType: models.AccessType__3_GPP_ACCESS,
+		AnType: models.ACCESSTYPE__3_GPP_ACCESS,
 		Log:    zap.NewNop().Sugar(),
 	}
-	ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{
 		AmfUe: ue,
 		Ran:   ran,
 		Log:   zap.NewNop().Sugar(),
 	}
-	ue.State[models.AccessType_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
 
-	err := HandleMobilityAndPeriodicRegistrationUpdating(ctxt.Background(), ue, models.AccessType__3_GPP_ACCESS)
+	err := HandleMobilityAndPeriodicRegistrationUpdating(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS)
 	if err == nil {
 		t.Fatal("expected nil registration request to fail")
 	}
@@ -80,11 +81,11 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 		ue.SubscribedNssai = make([]models.SubscribedSnssai, fd.SubscribedNssaiLength)
 		for i := range ue.SubscribedNssai {
 			ue.SubscribedNssai[i] = models.SubscribedSnssai{
-				SubscribedSnssai: &models.Snssai{
+				SubscribedSnssai: models.Snssai{
 					Sst: int32(i + 1),
-					Sd:  fmt.Sprintf("SD%d", i),
+					Sd:  openapi.PtrString(fmt.Sprintf("SD%d", i)),
 				},
-				DefaultIndication: i == 0, // Make the first one default
+				DefaultIndication: openapi.PtrBool(i == 0), // Make the first one default
 			}
 		}
 	}
@@ -94,14 +95,14 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 		allowedSlices := make([]models.AllowedSnssai, fd.AllowedNssaiLength)
 		for i := range allowedSlices {
 			allowedSlices[i] = models.AllowedSnssai{
-				AllowedSnssai: &models.Snssai{
+				AllowedSnssai: models.Snssai{
 					Sst: int32(i + 1),
-					Sd:  fmt.Sprintf("SD%d", i),
+					Sd:  openapi.PtrString(fmt.Sprintf("SD%d", i)),
 				},
 			}
 		}
-		ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] = allowedSlices
-		ue.AllowedNssai[models.AccessType_NON_3_GPP_ACCESS] = allowedSlices
+		ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = allowedSlices
+		ue.AllowedNssai[models.ACCESSTYPE_NON_3_GPP_ACCESS] = allowedSlices
 	}
 
 	// Setup RegistrationRequest
@@ -203,12 +204,12 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 	ue.Non3gppDeregistrationTimerValue = int(fd.Non3gppDeregTimerValueMs)
 
 	// Setup RanUe
-	ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
-	ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+	ue.RanUe[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 
-	ue.State[models.AccessType_NON_3_GPP_ACCESS] = &fsm.State{}
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &fsm.State{}
 	if fd.StateRegistered {
-		ue.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Registered)
+		ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Registered)
 	}
 
 	// Setup AmPolicyAssociation
@@ -223,17 +224,17 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 		var restrictionType models.RestrictionType
 		switch fd.RestrictionType {
 		case 0:
-			restrictionType = models.RestrictionType_ALLOWED_AREAS
+			restrictionType = models.RESTRICTIONTYPE_ALLOWED_AREAS
 		case 1:
-			restrictionType = models.RestrictionType_NOT_ALLOWED_AREAS
+			restrictionType = models.RESTRICTIONTYPE_NOT_ALLOWED_AREAS
 		default:
-			restrictionType = models.RestrictionType_ALLOWED_AREAS
+			restrictionType = models.RESTRICTIONTYPE_ALLOWED_AREAS
 		}
 
 		ue.AmPolicyAssociation = &models.PolicyAssociation{
 			ServAreaRes: &models.ServiceAreaRestriction{
-				RestrictionType: restrictionType,
-				MaxNumOfTAs:     int32(fd.MaxNumOfTAs),
+				RestrictionType: restrictionType.Ptr(),
+				MaxNumOfTAs:     openapi.PtrInt32(int32(fd.MaxNumOfTAs)),
 				Areas:           areas,
 			},
 		}
@@ -391,7 +392,7 @@ func TestSendNotForwarded(t *testing.T) {
 		{
 			name:         "no RanUe",
 			hasRanUe:     false,
-			accessType:   models.AccessType__3_GPP_ACCESS,
+			accessType:   models.ACCESSTYPE__3_GPP_ACCESS,
 			payload:      nil,
 			pduSessionID: 7,
 			wantCalls:    0,
@@ -399,7 +400,7 @@ func TestSendNotForwarded(t *testing.T) {
 		{
 			name:         "with RanUe 3GPP",
 			hasRanUe:     true,
-			accessType:   models.AccessType__3_GPP_ACCESS,
+			accessType:   models.ACCESSTYPE__3_GPP_ACCESS,
 			payload:      []byte{0x01},
 			pduSessionID: 7,
 			wantCalls:    1,
@@ -407,7 +408,7 @@ func TestSendNotForwarded(t *testing.T) {
 		{
 			name:         "with RanUe NON_3GPP",
 			hasRanUe:     true,
-			accessType:   models.AccessType_NON_3_GPP_ACCESS,
+			accessType:   models.ACCESSTYPE_NON_3_GPP_ACCESS,
 			payload:      []byte{0x02},
 			pduSessionID: 15,
 			wantCalls:    1,
@@ -491,7 +492,7 @@ func TestPickSnssai(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
 			},
-			accessType:  models.AccessType__3_GPP_ACCESS,
+			accessType:  models.ACCESSTYPE__3_GPP_ACCESS,
 			expectedSst: 1,
 			expectedSd:  "112233",
 			expectError: false,
@@ -510,12 +511,12 @@ func TestPickSnssai(t *testing.T) {
 					RanUe:        make(map[models.AccessType]*context.RanUe),
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
-				ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: &models.Snssai{Sst: 2, Sd: "010203"}},
+				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
+					{AllowedSnssai: models.Snssai{Sst: 2, Sd: openapi.PtrString("010203")}},
 				}
 				return ue
 			},
-			accessType:  models.AccessType__3_GPP_ACCESS,
+			accessType:  models.ACCESSTYPE__3_GPP_ACCESS,
 			expectedSst: 2,
 			expectedSd:  "010203",
 			expectError: false,
@@ -536,7 +537,7 @@ func TestPickSnssai(t *testing.T) {
 					// No AllowedNssai for the access type
 				}
 			},
-			accessType:  models.AccessType__3_GPP_ACCESS,
+			accessType:  models.ACCESSTYPE__3_GPP_ACCESS,
 			expectError: true,
 		},
 		{
@@ -557,7 +558,7 @@ func TestPickSnssai(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
 			},
-			accessType:  models.AccessType__3_GPP_ACCESS,
+			accessType:  models.ACCESSTYPE__3_GPP_ACCESS,
 			expectedSst: 5,
 			expectedSd:  "abcdef",
 			expectError: false,
@@ -576,13 +577,13 @@ func TestPickSnssai(t *testing.T) {
 					RanUe:        make(map[models.AccessType]*context.RanUe),
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
-				ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: &models.Snssai{Sst: 3, Sd: "111111"}},
-					{AllowedSnssai: &models.Snssai{Sst: 2, Sd: "222222"}},
+				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
+					{AllowedSnssai: models.Snssai{Sst: 3, Sd: openapi.PtrString("111111")}},
+					{AllowedSnssai: models.Snssai{Sst: 2, Sd: openapi.PtrString("222222")}},
 				}
 				return ue
 			},
-			accessType:  models.AccessType__3_GPP_ACCESS,
+			accessType:  models.ACCESSTYPE__3_GPP_ACCESS,
 			expectedSst: 3,
 			expectedSd:  "111111",
 			expectError: false,
@@ -601,12 +602,12 @@ func TestPickSnssai(t *testing.T) {
 					RanUe:        make(map[models.AccessType]*context.RanUe),
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
-				ue.AllowedNssai[models.AccessType_NON_3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: &models.Snssai{Sst: 3, Sd: "fedcba"}},
+				ue.AllowedNssai[models.ACCESSTYPE_NON_3_GPP_ACCESS] = []models.AllowedSnssai{
+					{AllowedSnssai: models.Snssai{Sst: 3, Sd: openapi.PtrString("fedcba")}},
 				}
 				return ue
 			},
-			accessType:  models.AccessType_NON_3_GPP_ACCESS,
+			accessType:  models.ACCESSTYPE_NON_3_GPP_ACCESS,
 			expectedSst: 3,
 			expectedSd:  "fedcba",
 			expectError: false,
@@ -632,12 +633,12 @@ func TestPickSnssai(t *testing.T) {
 				return
 			}
 
-			if got.Sst != tt.expectedSst {
-				t.Errorf("expected SST %d, got %d", tt.expectedSst, got.Sst)
+			if got.GetSst() != tt.expectedSst {
+				t.Errorf("expected SST %d, got %d", tt.expectedSst, got.GetSst())
 			}
 
-			if got.Sd != tt.expectedSd {
-				t.Errorf("expected SD %s, got %s", tt.expectedSd, got.Sd)
+			if got.GetSd() != tt.expectedSd {
+				t.Errorf("expected SD %s, got %s", tt.expectedSd, got.GetSd())
 			}
 		})
 	}
@@ -647,10 +648,10 @@ func TestHandleRegistrationRequestInvalidSuci(t *testing.T) {
 	ue := &context.AmfUe{
 		GmmLog: zap.NewNop().Sugar(),
 		RanUe: map[models.AccessType]*context.RanUe{
-			models.AccessType__3_GPP_ACCESS: {},
+			models.ACCESSTYPE__3_GPP_ACCESS: {},
 		},
 		OnGoing: map[models.AccessType]*context.OnGoingProcedureWithPrio{
-			models.AccessType__3_GPP_ACCESS: {},
+			models.ACCESSTYPE__3_GPP_ACCESS: {},
 		},
 	}
 
@@ -659,7 +660,7 @@ func TestHandleRegistrationRequestInvalidSuci(t *testing.T) {
 	registrationRequest.MobileIdentity5GS.SetLen(1)
 	registrationRequest.MobileIdentity5GS.Buffer = []byte{0x01}
 
-	err := HandleRegistrationRequest(ctxt.Background(), ue, models.AccessType__3_GPP_ACCESS, 0, registrationRequest)
+	err := HandleRegistrationRequest(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS, 0, registrationRequest)
 	if err == nil {
 		t.Fatal("expected error for invalid SUCI")
 	}
@@ -707,7 +708,7 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: "112233"},
+			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
 			expected: "internet-1",
 		},
 		{
@@ -723,13 +724,13 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: "112233"},
+			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
 			expected: "internet",
 		},
 		{
 			name: "picks default DNN from SmfSelectionData when available",
 			setupUE: func() *context.AmfUe {
-				sn := models.Snssai{Sst: 1, Sd: "112233"}
+				sn := models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")}
 				key := util.SnssaiModelsToHex(sn)
 
 				return &context.AmfUe{
@@ -738,11 +739,11 @@ func TestPickDNN(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"internet-1"}},
 					SmfSelectionData: &models.SmfSelectionSubscriptionData{
-						SubscribedSnssaiInfos: map[string]models.SnssaiInfo{
+						SubscribedSnssaiInfos: &map[string]models.SnssaiInfo{
 							key: {
 								DnnInfos: []models.DnnInfo{
-									{Dnn: "ims", DefaultDnnIndicator: true},
-									{Dnn: "internet-x", DefaultDnnIndicator: false},
+									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("ims")}, DefaultDnnIndicator: openapi.PtrBool(true)},
+									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
 								},
 							},
 						},
@@ -752,13 +753,13 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: "112233"},
+			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
 			expected: "ims",
 		},
 		{
 			name: "falls back to support list when no default DNN indicator is true",
 			setupUE: func() *context.AmfUe {
-				sn := models.Snssai{Sst: 2, Sd: "aabbcc"}
+				sn := models.Snssai{Sst: 2, Sd: openapi.PtrString("aabbcc")}
 				key := util.SnssaiModelsToHex(sn)
 
 				return &context.AmfUe{
@@ -767,11 +768,11 @@ func TestPickDNN(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"internet-2"}},
 					SmfSelectionData: &models.SmfSelectionSubscriptionData{
-						SubscribedSnssaiInfos: map[string]models.SnssaiInfo{
+						SubscribedSnssaiInfos: &map[string]models.SnssaiInfo{
 							key: {
 								DnnInfos: []models.DnnInfo{
-									{Dnn: "internet-x", DefaultDnnIndicator: false},
-									{Dnn: "internet-y", DefaultDnnIndicator: false},
+									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
+									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-y")}, DefaultDnnIndicator: openapi.PtrBool(false)},
 								},
 							},
 						},
@@ -781,13 +782,13 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 2, Sd: "aabbcc"},
+			snssai:   models.Snssai{Sst: 2, Sd: openapi.PtrString("aabbcc")},
 			expected: "internet-2",
 		},
 		{
 			name: "falls back to support list when SmfSelectionData has no matching SNSSAI",
 			setupUE: func() *context.AmfUe {
-				differentSn := models.Snssai{Sst: 99, Sd: "ffffff"}
+				differentSn := models.Snssai{Sst: 99, Sd: openapi.PtrString("ffffff")}
 				differentKey := util.SnssaiModelsToHex(differentSn)
 
 				return &context.AmfUe{
@@ -796,10 +797,10 @@ func TestPickDNN(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"fallback-dnn"}},
 					SmfSelectionData: &models.SmfSelectionSubscriptionData{
-						SubscribedSnssaiInfos: map[string]models.SnssaiInfo{
+						SubscribedSnssaiInfos: &map[string]models.SnssaiInfo{
 							differentKey: {
 								DnnInfos: []models.DnnInfo{
-									{Dnn: "other-dnn", DefaultDnnIndicator: true},
+									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("other-dnn")}, DefaultDnnIndicator: openapi.PtrBool(true)},
 								},
 							},
 						},
@@ -809,7 +810,7 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: "112233"},
+			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
 			expected: "fallback-dnn",
 		},
 		{
@@ -826,7 +827,7 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: "112233"},
+			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
 			expected: "test-dnn",
 		},
 	}
@@ -864,7 +865,7 @@ func Test_Transport5GSMMessage(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			an:         models.AccessType__3_GPP_ACCESS,
+			an:         models.ACCESSTYPE__3_GPP_ACCESS,
 			wantErrSub: "pdu session id is nil",
 			wantCalls:  0,
 		},
@@ -880,10 +881,10 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an:         models.AccessType__3_GPP_ACCESS,
+			an:         models.ACCESSTYPE__3_GPP_ACCESS,
 			wantErrSub: "ssc mode3 operation has not been implemented",
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 			},
 			wantCalls: 1, wantCause: &causeNotFwd,
 		},
@@ -895,9 +896,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ul.SetPduSessionID2Value(1)
 				return ul
 			},
-			an: models.AccessType_NON_3_GPP_ACCESS,
+			an: models.ACCESSTYPE_NON_3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType_NON_3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 			},
 			wantNilErr: true, wantCalls: 0,
 		},
@@ -913,9 +914,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an: models.AccessType__3_GPP_ACCESS,
+			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 			},
 			wantNilErr: true, wantCalls: 1, wantCause: &causeNotFwd,
 		},
@@ -931,11 +932,11 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an: models.AccessType__3_GPP_ACCESS,
+			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 				sm := context.NewSmContext(3)
-				sm.SetAccessType(models.AccessType__3_GPP_ACCESS)
+				sm.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 				ue.StoreSmContext(3, sm)
 			},
 			wantNilErr: true, wantCalls: 1, wantCause: &causeNotFwd,
@@ -952,7 +953,7 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an:         models.AccessType__3_GPP_ACCESS,
+			an:         models.ACCESSTYPE__3_GPP_ACCESS,
 			wantNilErr: true, wantCalls: 0,
 		},
 		{
@@ -967,9 +968,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an: models.AccessType__3_GPP_ACCESS,
+			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 			},
 			wantErrSub: "ue doesn't have allowedNssai",
 			wantCalls:  0,
@@ -986,9 +987,9 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an: models.AccessType__3_GPP_ACCESS,
+			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 				ue.UeContextInSmfData = nil
 			},
 			wantNilErr: true, wantCalls: 1, wantCause: &causeNotFwd,
@@ -1024,18 +1025,18 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an: models.AccessType__3_GPP_ACCESS,
+			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 
 				// Add allowed NSSAI to prevent error
-				ue.AllowedNssai[models.AccessType__3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: &models.Snssai{Sst: 1, Sd: "112233"}},
+				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
+					{AllowedSnssai: models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")}},
 				}
 
 				// Add UeContextInSmfData to prevent nil pointer issues
 				ue.UeContextInSmfData = &models.UeContextInSmfData{
-					PduSessions: make(map[string]models.PduSession),
+					PduSessions: new(map[string]models.PduSession),
 				}
 			},
 			wantNilErr: true,
@@ -1053,11 +1054,11 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				return ul
 			},
-			an: models.AccessType__3_GPP_ACCESS,
+			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
-				ue.RanUe[models.AccessType__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
+				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
 				ue.UeContextInSmfData = &models.UeContextInSmfData{
-					PduSessions: make(map[string]models.PduSession),
+					PduSessions: new(map[string]models.PduSession),
 				}
 			},
 			wantNilErr: true,
@@ -1211,11 +1212,11 @@ func FuzzHandleInitialRegistration(f *testing.F) {
 		var anType models.AccessType
 		switch fuzzData.AccessType % 3 {
 		case 0:
-			anType = models.AccessType__3_GPP_ACCESS
+			anType = models.ACCESSTYPE__3_GPP_ACCESS
 		case 1:
-			anType = models.AccessType_NON_3_GPP_ACCESS
+			anType = models.ACCESSTYPE_NON_3_GPP_ACCESS
 		default:
-			anType = models.AccessType__3_GPP_ACCESS
+			anType = models.ACCESSTYPE__3_GPP_ACCESS
 		}
 
 		// Track test execution
@@ -1394,7 +1395,7 @@ func BenchmarkHandleInitialRegistration(b *testing.B) {
 							panicCount++
 						}
 					}()
-					if err := HandleInitialRegistration(ctx, ue, models.AccessType__3_GPP_ACCESS); err != nil {
+					if err := HandleInitialRegistration(ctx, ue, models.ACCESSTYPE__3_GPP_ACCESS); err != nil {
 						errorCount++
 					}
 				}()

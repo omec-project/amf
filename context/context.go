@@ -21,6 +21,7 @@ import (
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/openapi/nfConfigApi"
 	"github.com/omec-project/util/drsm"
@@ -39,11 +40,11 @@ func init() {
 	AMF_Self().LadnPool = make(map[string]*LADN)
 	AMF_Self().EventSubscriptionIDGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
 	AMF_Self().Name = "amf"
-	AMF_Self().UriScheme = models.UriScheme_HTTPS
+	AMF_Self().UriScheme = models.URISCHEME_HTTPS
 	AMF_Self().RelativeCapacity = 0xff
 	AMF_Self().ServedGuamiList = make([]models.Guami, 0, MaxNumOfServedGuamiList)
 	AMF_Self().PlmnSupportList = make([]models.PlmnSnssai, 0, maxNumOfPLMNs)
-	AMF_Self().NfService = make(map[models.ServiceName]models.NfService)
+	AMF_Self().NfService = make(map[models.ServiceName]models.NFService)
 	AMF_Self().NetworkName.Full = "aether"
 	if !AMF_Self().EnableDbStore {
 		tmsiGenerator = idgenerator.NewGenerator(1, math.MaxInt32)
@@ -67,7 +68,7 @@ type AMFContext struct {
 	RelativeCapacity                int64
 	NfId                            string
 	Name                            string
-	NfService                       map[models.ServiceName]models.NfService // nfservice that amf support
+	NfService                       map[models.ServiceName]models.NFService // nfservice that amf support
 	UriScheme                       models.UriScheme
 	BindingIPv4                     string
 	SBIPort                         int
@@ -204,7 +205,7 @@ func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.Acc
 	}
 }
 
-func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.SubscriptionData) (subscriptionID string) {
+func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.SubscriptionDataAmf) (subscriptionID string) {
 	var id int32
 	var err error
 	if context.EnableDbStore {
@@ -225,9 +226,9 @@ func (context *AMFContext) NewAMFStatusSubscription(subscriptionData models.Subs
 }
 
 // Return Value: (subscriptionData *models.SubScriptionData, ok bool)
-func (context *AMFContext) FindAMFStatusSubscription(subscriptionID string) (*models.SubscriptionData, bool) {
+func (context *AMFContext) FindAMFStatusSubscription(subscriptionID string) (*models.SubscriptionDataAmf, bool) {
 	if value, ok := context.AMFStatusSubscriptions.Load(subscriptionID); ok {
-		subscriptionData := value.(models.SubscriptionData)
+		subscriptionData := value.(models.SubscriptionDataAmf)
 		return &subscriptionData, ok
 	} else {
 		return nil, false
@@ -557,23 +558,23 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 	versionUri := "v" + tmpVersion[0]
 	for index, nameString := range serivceName {
 		name := models.ServiceName(nameString)
-		context.NfService[name] = models.NfService{
+		context.NfService[name] = models.NFService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
-			Versions: &[]models.NfServiceVersion{
+			Versions: []models.NFServiceVersion{
 				{
 					ApiFullVersion:  version,
 					ApiVersionInUri: versionUri,
 				},
 			},
 			Scheme:          context.UriScheme,
-			NfServiceStatus: models.NfServiceStatus_REGISTERED,
-			ApiPrefix:       context.GetIPv4Uri(),
-			IpEndPoints: &[]models.IpEndPoint{
+			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
+			ApiPrefix:       openapi.PtrString(context.GetIPv4Uri()),
+			IpEndPoints: []models.IpEndPoint{
 				{
-					Ipv4Address: context.RegisterIPv4,
-					Transport:   models.TransportProtocol_TCP,
-					Port:        int32(context.SBIPort),
+					Ipv4Address: openapi.PtrString(context.RegisterIPv4),
+					Transport:   models.TRANSPORTPROTOCOL_TCP.Ptr(),
+					Port:        openapi.PtrInt32(int32(context.SBIPort)),
 				},
 			},
 		}
@@ -609,7 +610,7 @@ func (context *AMFContext) Reset() {
 	context.ServedGuamiList = context.ServedGuamiList[:0]
 	context.RelativeCapacity = 0xff
 	context.NfId = ""
-	context.UriScheme = models.UriScheme_HTTPS
+	context.UriScheme = models.URISCHEME_HTTPS
 	context.SBIPort = 0
 	context.BindingIPv4 = ""
 	context.RegisterIPv4 = ""
@@ -660,7 +661,7 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 			Sst: plmnSnssaiTacs.Snssai.Sst,
 		}
 		if plmnSnssaiTacs.Snssai.GetSd() != "" {
-			newSnssai.Sd = *plmnSnssaiTacs.Snssai.Sd
+			newSnssai.Sd = plmnSnssaiTacs.Snssai.Sd
 		}
 		if newPlmnSupportItemsMap[newPlmn] == nil {
 			newPlmnSupportItemsMap[newPlmn] = map[models.Snssai]struct{}{}
@@ -672,7 +673,7 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 		}
 		for _, tac := range plmnSnssaiTacs.Tacs {
 			newTai := models.Tai{
-				PlmnId: &newPlmn,
+				PlmnId: newPlmn,
 				Tac:    tac,
 			}
 			newSupportedTais = append(newSupportedTais, newTai)
@@ -692,13 +693,16 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]stru
 		}
 		sortSNssaiList(snssaiList)
 		plmnSnssai := models.PlmnSnssai{
-			PlmnId:     &plmn,
+			PlmnId:     plmn,
 			SNssaiList: snssaiList,
 		}
 		plmnSnssaiList = append(plmnSnssaiList, plmnSnssai)
 		newGuami := models.Guami{
-			PlmnId: &plmn,
-			AmfId:  factory.AmfConfig.Configuration.AmfId,
+			PlmnId: models.PlmnIdNid{
+				Mcc: plmn.GetMcc(),
+				Mnc: plmn.GetMnc(),
+			},
+			AmfId: factory.AmfConfig.Configuration.AmfId,
 		}
 		newGuamiList = append(newGuamiList, newGuami)
 	}
@@ -725,9 +729,9 @@ func sortSNssaiList(snssaiList []models.Snssai) {
 			return snssaiList[i].Sst < snssaiList[j].Sst
 		}
 		if snssaiList[i].Sd != snssaiList[j].Sd {
-			return snssaiList[i].Sd != ""
+			return snssaiList[i].GetSd() != ""
 		}
-		return snssaiList[i].Sd < snssaiList[j].Sd
+		return snssaiList[i].GetSd() < snssaiList[j].GetSd()
 	})
 }
 

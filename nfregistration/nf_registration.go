@@ -84,7 +84,7 @@ var registerNF = func(registerCtx context.Context, newAccessAndMobilityConfig []
 				continue
 			}
 			logger.NrfRegistrationLog.Infoln("register AMF instance to NRF with updated profile succeeded")
-			startKeepAliveTimer(registerCtx, nfProfile.HeartBeatTimer, newAccessAndMobilityConfig)
+			startKeepAliveTimer(registerCtx, nfProfile.GetHeartBeatTimer(), newAccessAndMobilityConfig)
 			return
 		}
 	}
@@ -104,9 +104,9 @@ func heartbeatNF(registerCtx context.Context, accessAndMobilityConfig []nfConfig
 
 	patchItem := []models.PatchItem{
 		{
-			Op:    "replace",
-			Path:  "/nfStatus",
-			Value: "REGISTERED",
+			Op:    models.PATCHOPERATION_REPLACE,
+			Path:  "/nfstatus",
+			Value: models.NFSTATUS_REGISTERED,
 		},
 	}
 	nfProfile, problemDetails, err := consumer.SendUpdateNFInstance(patchItem)
@@ -122,7 +122,7 @@ func heartbeatNF(registerCtx context.Context, accessAndMobilityConfig []nfConfig
 	} else {
 		logger.NrfRegistrationLog.Debugln("AMF update NF instance (heartbeat) succeeded")
 	}
-	startKeepAliveTimer(registerCtx, nfProfile.HeartBeatTimer, accessAndMobilityConfig)
+	startKeepAliveTimer(registerCtx, nfProfile.GetHeartBeatTimer(), accessAndMobilityConfig)
 }
 
 func shouldRegister(problemDetails *models.ProblemDetails, err error) bool {
@@ -160,7 +160,7 @@ func startKeepAliveTimer(registerCtx context.Context, profileHeartbeatTimer int3
 	heartbeatFunction := func() { heartbeatNF(registerCtx, accessAndMobilityConfig) }
 	// AfterFunc starts timer and waits for keepAliveTimer to elapse and then calls heartbeatNF function
 	keepAliveTimer = afterFunc(time.Duration(heartbeatTimer)*time.Second, heartbeatFunction)
-	logger.NrfRegistrationLog.Debugf("started heartbeat timer: %v sec", heartbeatTimer)
+	logger.NrfRegistrationLog.Debugf("started heartbeat timer: %d sec", heartbeatTimer)
 }
 
 func stopKeepAliveTimer() {

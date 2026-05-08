@@ -7,11 +7,13 @@ package producer
 
 import (
 	"net/http"
+	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi"
 	"github.com/omec-project/openapi/models"
 	"github.com/omec-project/util/httpwrapper"
 )
@@ -23,12 +25,11 @@ func HandleCreateAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 	if createdEventSubscription != nil {
 		return httpwrapper.NewResponse(http.StatusCreated, nil, createdEventSubscription)
 	} else if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
-		problemDetails = &models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "UNSPECIFIED_NF_FAILURE",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusInternalServerError)
+		problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 }
@@ -39,59 +40,56 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 ) {
 	amfSelf := context.AMF_Self()
 
-	createdEventSubscription := &models.AmfCreatedEventSubscription{}
-	subscription := createEventSubscription.Subscription
+	subscription := createEventSubscription.GetSubscription()
 
-	if subscription == nil {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "SUBSCRIPTION_EMPTY",
-		}
+	if reflect.DeepEqual(subscription, models.AmfEventSubscription{}) {
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("SUBSCRIPTION_EMPTY")
 		return nil, problemDetails
 	}
 
-	contextEventSubscription := &context.AMFContextEventSubscription{}
-	contextEventSubscription.EventSubscription = *subscription
+	contextEventSubscription := context.AMFContextEventSubscription{}
+	contextEventSubscription.EventSubscription = subscription
 	var isImmediate bool
 	var immediateFlags []bool
 	var reportlist []models.AmfEventReport
 
 	id, err := amfSelf.EventSubscriptionIDGenerator.Allocate()
 	if err != nil {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "UNSPECIFIED_NF_FAILURE",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusInternalServerError)
+		problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
 		return nil, problemDetails
 	}
 	newSubscriptionID := strconv.Itoa(int(id))
 
 	// store subscription in context
 	ueEventSubscription := context.AmfUeEventSubscription{}
-	ueEventSubscription.EventSubscription = &contextEventSubscription.EventSubscription
+	// TODO: GA: Review the constructor of NewExtAmfEventSubscription. Is there anything else missing?
+	extAmfEventSubscription := models.NewExtAmfEventSubscription(contextEventSubscription.EventSubscription.GetEventList(), contextEventSubscription.EventSubscription.GetEventNotifyUri(), contextEventSubscription.EventSubscription.GetNotifyCorrelationId(), contextEventSubscription.EventSubscription.GetNfId())
+	ueEventSubscription.EventSubscription = extAmfEventSubscription
 	ueEventSubscription.Timestamp = time.Now().UTC()
 
-	if subscription.Options != nil && subscription.Options.Trigger == models.AmfEventTrigger_CONTINUOUS {
-		ueEventSubscription.RemainReports = new(int32)
-		*ueEventSubscription.RemainReports = subscription.Options.MaxReports
+	if subscription.Options != nil && subscription.Options.Trigger == models.AMFEVENTTRIGGER_CONTINUOUS {
+		ueEventSubscription.RemainReports = subscription.Options.MaxReports
 	}
 
 	if subscription.EventList == nil {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "SUBSCRIPTION_EVENTLIST_EMPTY",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("SUBSCRIPTION_EVENTLIST_EMPTY")
 		return nil, problemDetails
 	}
 
-	for _, events := range *subscription.EventList {
-		immediateFlags = append(immediateFlags, events.ImmediateFlag)
-		if events.ImmediateFlag {
+	for _, events := range subscription.EventList {
+		immediateFlags = append(immediateFlags, events.GetImmediateFlag())
+		if events.GetImmediateFlag() {
 			isImmediate = true
 		}
 	}
 
-	if subscription.AnyUE {
+	if subscription.GetAnyUE() {
 		contextEventSubscription.IsAnyUe = true
 		ueEventSubscription.AnyUe = true
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
@@ -101,12 +99,12 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.Supi)
 			return true
 		})
-	} else if subscription.GroupId != "" {
+	} else if subscription.GetGroupId() != "" {
 		contextEventSubscription.IsGroupUe = true
 		ueEventSubscription.AnyUe = true
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
-			if ue.GroupID == subscription.GroupId {
+			if ue.GroupID == subscription.GetGroupId() {
 				ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
 				*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
 				contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.Supi)
@@ -114,11 +112,10 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			return true
 		})
 	} else {
-		if ue, ok := amfSelf.AmfUeFindBySupi(subscription.Supi); !ok {
-			problemDetails := &models.ProblemDetails{
-				Status: http.StatusForbidden,
-				Cause:  "UE_NOT_SERVED_BY_AMF",
-			}
+		if ue, ok := amfSelf.AmfUeFindBySupi(subscription.GetSupi()); !ok {
+			problemDetails := models.NewProblemDetails()
+			problemDetails.SetStatus(http.StatusForbidden)
+			problemDetails.SetCause("UE_NOT_SERVED_BY_AMF")
 			return nil, problemDetails
 		} else {
 			ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
@@ -131,15 +128,13 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	if subscription.Options != nil {
 		contextEventSubscription.Expiry = subscription.Options.Expiry
 	}
-	amfSelf.NewEventSubscription(newSubscriptionID, contextEventSubscription)
+	amfSelf.NewEventSubscription(newSubscriptionID, &contextEventSubscription)
 
 	// build response
-
-	createdEventSubscription.Subscription = subscription
-	createdEventSubscription.SubscriptionId = newSubscriptionID
+	createdEventSubscription := models.NewAmfCreatedEventSubscription(subscription, newSubscriptionID)
 
 	// for immediate use
-	if subscription.AnyUE {
+	if subscription.GetAnyUE() {
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
 			if isImmediate {
@@ -147,7 +142,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			}
 			for i, flag := range immediateFlags {
 				if flag {
-					report, ok := NewAmfEventReport(ue, (*subscription.EventList)[i].Type, newSubscriptionID)
+					report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
 					if ok {
 						reportlist = append(reportlist, report)
 					}
@@ -159,16 +154,16 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			}
 			return true
 		})
-	} else if subscription.GroupId != "" {
+	} else if subscription.GetGroupId() != "" {
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
 			if isImmediate {
 				subReports(ue, newSubscriptionID)
 			}
-			if ue.GroupID == subscription.GroupId {
+			if ue.GroupID == subscription.GetGroupId() {
 				for i, flag := range immediateFlags {
 					if flag {
-						report, ok := NewAmfEventReport(ue, (*subscription.EventList)[i].Type, newSubscriptionID)
+						report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
 						if ok {
 							reportlist = append(reportlist, report)
 						}
@@ -182,13 +177,13 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			return true
 		})
 	} else {
-		ue, _ := amfSelf.AmfUeFindBySupi(subscription.Supi)
+		ue, _ := amfSelf.AmfUeFindBySupi(subscription.GetSupi())
 		if isImmediate {
 			subReports(ue, newSubscriptionID)
 		}
 		for i, flag := range immediateFlags {
 			if flag {
-				report, ok := NewAmfEventReport(ue, (*subscription.EventList)[i].Type, newSubscriptionID)
+				report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
 				if ok {
 					reportlist = append(reportlist, report)
 				}
@@ -217,7 +212,7 @@ func HandleDeleteAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 
 	problemDetails := DeleteAMFEventSubscriptionProcedure(subscriptionID)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusOK, nil, nil)
 	}
@@ -228,10 +223,9 @@ func DeleteAMFEventSubscriptionProcedure(subscriptionID string) *models.ProblemD
 
 	subscription, ok := amfSelf.FindEventSubscription(subscriptionID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "SUBSCRIPTION_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("SUBSCRIPTION_NOT_FOUND")
 		return problemDetails
 	}
 
@@ -255,12 +249,11 @@ func HandleModifyAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 	if updatedEventSubscription != nil {
 		return httpwrapper.NewResponse(http.StatusOK, nil, updatedEventSubscription)
 	} else if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
-		problemDetails = &models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "UNSPECIFIED_NF_FAILURE",
-		}
+		problemDetails = models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusInternalServerError)
+		problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 }
@@ -274,55 +267,53 @@ func ModifyAMFEventSubscriptionProcedure(
 
 	contextSubscription, ok := amfSelf.FindEventSubscription(subscriptionID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "SUBSCRIPTION_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("SUBSCRIPTION_NOT_FOUND")
 		return nil, problemDetails
 	}
 
-	if modifySubscriptionRequest.OptionItem != nil {
-		contextSubscription.Expiry = modifySubscriptionRequest.OptionItem.Value
-	} else if modifySubscriptionRequest.SubscriptionItemInner != nil {
+	if modifySubscriptionRequest.ArrayOfAmfUpdateEventOptionItem != nil {
+		expiry0 := (*modifySubscriptionRequest.ArrayOfAmfUpdateEventOptionItem)[0].GetValue()
+		contextSubscription.Expiry = &expiry0
+	} else if modifySubscriptionRequest.ArrayOfAmfUpdateEventSubscriptionItem != nil {
 		subscription := &contextSubscription.EventSubscription
 		if !contextSubscription.IsAnyUe && !contextSubscription.IsGroupUe {
-			if _, ok := amfSelf.AmfUeFindBySupi(subscription.Supi); !ok {
-				problemDetails := &models.ProblemDetails{
-					Status: http.StatusForbidden,
-					Cause:  "UE_NOT_SERVED_BY_AMF",
-				}
+			if _, ok := amfSelf.AmfUeFindBySupi(subscription.GetSupi()); !ok {
+				problemDetails := models.NewProblemDetails()
+				problemDetails.SetStatus(http.StatusForbidden)
+				problemDetails.SetCause("UE_NOT_SERVED_BY_AMF")
 				return nil, problemDetails
 			}
 		}
-		op := modifySubscriptionRequest.SubscriptionItemInner.Op
-		index, err := strconv.Atoi(modifySubscriptionRequest.SubscriptionItemInner.Path[11:])
+		arrayOfAmfUpdateEventSubscriptionItem := (*modifySubscriptionRequest.ArrayOfAmfUpdateEventSubscriptionItem)[0]
+		op := arrayOfAmfUpdateEventSubscriptionItem.GetOp()
+		index, err := strconv.Atoi(arrayOfAmfUpdateEventSubscriptionItem.Path[11:])
 		if err != nil {
-			problemDetails := &models.ProblemDetails{
-				Status: http.StatusInternalServerError,
-				Cause:  "UNSPECIFIED_NF_FAILURE",
-			}
+			problemDetails := models.NewProblemDetails()
+			problemDetails.SetStatus(http.StatusInternalServerError)
+			problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
 			return nil, problemDetails
 		}
-		lists := (*subscription.EventList)
-		eventlistLen := len(*subscription.EventList)
+		lists := (subscription.EventList)
+		eventlistLen := len(subscription.EventList)
 		switch op {
 		case "replace":
-			event := *modifySubscriptionRequest.SubscriptionItemInner.Value
+			event := arrayOfAmfUpdateEventSubscriptionItem.GetValue()
 			if index < eventlistLen {
-				(*subscription.EventList)[index] = event
+				(subscription.EventList)[index] = event
 			}
 		case "remove":
 			if index < eventlistLen {
-				*subscription.EventList = append(lists[:index], lists[index+1:]...)
+				subscription.EventList = append(lists[:index], lists[index+1:]...)
 			}
 		case "add":
-			event := *modifySubscriptionRequest.SubscriptionItemInner.Value
-			*subscription.EventList = append(lists, event)
+			subscription.EventList = append(lists, arrayOfAmfUpdateEventSubscriptionItem.GetValue())
 		}
 	}
 
 	updatedEventSubscription := &models.AmfUpdatedEventSubscription{
-		Subscription: &contextSubscription.EventSubscription,
+		Subscription: contextSubscription.EventSubscription,
 	}
 	return updatedEventSubscription, nil
 }
@@ -335,7 +326,7 @@ func subReports(ue *context.AmfUe, subscriptionId string) {
 	*remainReport--
 }
 
-// DO NOT handle AmfEventType_PRESENCE_IN_AOI_REPORT and AmfEventType_UES_IN_AREA_REPORT(about area)
+// DO NOT handle AMFEVENTTYPE_PRESENCE_IN_AOI_REPORT and AMFEVENTTYPE_UES_IN_AREA_REPORT(about area)
 func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscriptionId string) (
 	report models.AmfEventReport, ok bool,
 ) {
@@ -344,63 +335,64 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 		return report, ok
 	}
 
-	report.AnyUe = ueSubscription.AnyUe
-	report.Supi = ue.Supi
+	report.AnyUe = openapi.PtrBool(ueSubscription.AnyUe)
+	report.Supi = openapi.PtrString(ue.Supi)
 	report.Type = Type
-	report.TimeStamp = &ueSubscription.Timestamp
-	report.State = new(models.AmfEventState)
+	report.TimeStamp = ueSubscription.Timestamp
+	report.State = models.AmfEventState{}
 	mode := ueSubscription.EventSubscription.Options
 	if mode == nil {
 		report.State.Active = true
-	} else if mode.Trigger == models.AmfEventTrigger_ONE_TIME {
+	} else if mode.Trigger == models.AMFEVENTTRIGGER_ONE_TIME {
 		report.State.Active = false
 	} else if *ueSubscription.RemainReports <= 0 {
 		report.State.Active = false
 	} else {
-		report.State.Active = getDuration(mode.Expiry, &report.State.RemainDuration)
+		report.State.Active = getDuration(mode.Expiry, report.State.RemainDuration)
 		if report.State.Active {
-			report.State.RemainReports = *ueSubscription.RemainReports
+			report.State.RemainReports = ueSubscription.RemainReports
 		}
 	}
 
 	switch Type {
-	case models.AmfEventType_LOCATION_REPORT:
+	case models.AMFEVENTTYPE_LOCATION_REPORT:
 		report.Location = &ue.Location
-	// case models.AmfEventType_PRESENCE_IN_AOI_REPORT:
+	// case models.AMFEVENTTYPE_PRESENCE_IN_AOI_REPORT:
 	// report.AreaList = (*subscription.EventList)[eventIndex].AreaList
-	case models.AmfEventType_TIMEZONE_REPORT:
-		report.Timezone = ue.TimeZone
-	case models.AmfEventType_ACCESS_TYPE_REPORT:
+	case models.AMFEVENTTYPE_TIMEZONE_REPORT:
+		report.Timezone = openapi.PtrString(ue.TimeZone)
+	case models.AMFEVENTTYPE_ACCESS_TYPE_REPORT:
 		for accessType, state := range ue.State {
 			if state.Is(context.Registered) {
 				report.AccessTypeList = append(report.AccessTypeList, accessType)
 			}
 		}
-	case models.AmfEventType_REGISTRATION_STATE_REPORT:
+	case models.AMFEVENTTYPE_REGISTRATION_STATE_REPORT:
 		var rmInfos []models.RmInfo
 		for accessType, state := range ue.State {
 			rmInfo := models.RmInfo{
-				RmState:    models.RmState_DEREGISTERED,
+				RmState:    models.RMSTATE_DEREGISTERED,
 				AccessType: accessType,
 			}
 			if state.Is(context.Registered) {
-				rmInfo.RmState = models.RmState_REGISTERED
+				rmInfo.RmState = models.RMSTATE_REGISTERED
 			}
 			rmInfos = append(rmInfos, rmInfo)
 		}
 		report.RmInfoList = rmInfos
-	case models.AmfEventType_CONNECTIVITY_STATE_REPORT:
+	case models.AMFEVENTTYPE_CONNECTIVITY_STATE_REPORT:
 		report.CmInfoList = ue.GetCmInfo()
-	case models.AmfEventType_REACHABILITY_REPORT:
-		report.Reachability = ue.Reachability
-	case models.AmfEventType_SUBSCRIBED_DATA_REPORT:
-		report.SubscribedData = &ue.SubscribedData
-	case models.AmfEventType_COMMUNICATION_FAILURE_REPORT:
+	case models.AMFEVENTTYPE_REACHABILITY_REPORT:
+		report.Reachability = &ue.Reachability
+	// TODO: GA: Need to check the content of SubscribedData
+	// case models.AMFEVENTTYPE_SUBSCRIBED_DATA_REPORT:
+	// 	report.SubscribedData = &ue.SubscribedData
+	case models.AMFEVENTTYPE_COMMUNICATION_FAILURE_REPORT:
 		// TODO : report.CommFailure
-	case models.AmfEventType_SUBSCRIPTION_ID_CHANGE:
-		report.SubscriptionId = subscriptionId
-	case models.AmfEventType_SUBSCRIPTION_ID_ADDITION:
-		report.SubscriptionId = subscriptionId
+	case models.AMFEVENTTYPE_SUBSCRIPTION_ID_CHANGE:
+		report.SubscriptionId = openapi.PtrString(subscriptionId)
+	case models.AMFEVENTTYPE_SUBSCRIPTION_ID_ADDITION:
+		report.SubscriptionId = openapi.PtrString(subscriptionId)
 	}
 	return report, ok
 }

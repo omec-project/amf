@@ -20,47 +20,44 @@ import (
 )
 
 func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
-	ueContext.Supi = ue.Supi
-	ueContext.SupiUnauthInd = ue.UnauthenticatedSupi
+	ueContext.Supi = openapi.PtrString(ue.Supi)
+	ueContext.SupiUnauthInd = openapi.PtrBool(ue.UnauthenticatedSupi)
 
 	if ue.Gpsi != "" {
 		ueContext.GpsiList = append(ueContext.GpsiList, ue.Gpsi)
 	}
 
 	if ue.Pei != "" {
-		ueContext.Pei = ue.Pei
+		ueContext.Pei = openapi.PtrString(ue.Pei)
 	}
 
 	if ue.UdmGroupId != "" {
-		ueContext.UdmGroupId = ue.UdmGroupId
+		ueContext.UdmGroupId = openapi.PtrString(ue.UdmGroupId)
 	}
 
 	if ue.AusfGroupId != "" {
-		ueContext.AusfGroupId = ue.AusfGroupId
+		ueContext.AusfGroupId = openapi.PtrString(ue.AusfGroupId)
 	}
 
 	if ue.RoutingIndicator != "" {
-		ueContext.RoutingIndicator = ue.RoutingIndicator
+		ueContext.RoutingIndicator = openapi.PtrString(ue.RoutingIndicator)
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
-		if ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr != nil {
-			ueContext.SubUeAmbr = &models.Ambr{
-				Uplink:   ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink,
-				Downlink: ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink,
-			}
+		if ambr, ok := ue.AccessAndMobilitySubscriptionData.GetSubscribedUeAmbrOk(); ok {
+			ueContext.SubUeAmbr = models.NewAmbr(ambr.GetUplink(), ambr.GetDownlink())
 		}
-		if ue.AccessAndMobilitySubscriptionData.RfspIndex != 0 {
-			ueContext.SubRfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
+		if ue.AccessAndMobilitySubscriptionData.GetRfspIndex() != 0 {
+			ueContext.SubRfsp = openapi.PtrInt32(ue.AccessAndMobilitySubscriptionData.GetRfspIndex())
 		}
 	}
 
 	if ue.PcfId != "" {
-		ueContext.PcfId = ue.PcfId
+		ueContext.PcfId = openapi.PtrString(ue.PcfId)
 	}
 
 	if ue.AmPolicyUri != "" {
-		ueContext.PcfAmPolicyUri = ue.AmPolicyUri
+		ueContext.PcfAmPolicyUri = openapi.PtrString(ue.AmPolicyUri)
 	}
 
 	if ue.AmPolicyAssociation != nil {
@@ -76,22 +73,27 @@ func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
 	}
 
 	if ue.TraceData != nil {
-		ueContext.TraceData = ue.TraceData
+		traceData := models.NewNullableTraceData(ue.TraceData)
+		ueContext.TraceData = *traceData
 	}
 	return ueContext
 }
 
-func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTriggers []models.AmPolicyReqTrigger) {
+func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTriggers []models.PolicyReqTrigger) {
 	for _, trigger := range triggers {
 		switch trigger {
-		case models.RequestTrigger_LOC_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_LOCATION_CHANGE)
-		case models.RequestTrigger_PRA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_PRA_CHANGE)
-		case models.RequestTrigger_SERV_AREA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_SARI_CHANGE)
-		case models.RequestTrigger_RFSP_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_RFSP_INDEX_CHANGE)
+		case models.REQUESTTRIGGER_LOC_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_LOCATION_CHANGE)
+		case models.REQUESTTRIGGER_PRA_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_PRA_CHANGE)
+		// case models.REQUESTTRIGGER_SERV_AREA_CH:
+		// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_SARI_CHANGE)
+		// case models.REQUESTTRIGGER_RFSP_CH:
+		// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_RFSP_INDEX_CHANGE)
+		// TODO: GA: Review the above two policies that were removed in Rel-18
+		default:
+			logger.ContextLog.Errorf("Policy trigger is %v", trigger)
+			panic("Policy trigger error")
 		}
 	}
 	return
@@ -113,7 +115,11 @@ func UEContextTransferRequest(
 	)
 
 	configuration := Namf_Communication.NewConfiguration()
-	configuration.SetBasePath(ue.TargetAmfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.TargetAmfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Namf_Communication.NewAPIClient(configuration)
 
 	ueContextTransferReqData := models.UeContextTransferReqData{
@@ -121,19 +127,15 @@ func UEContextTransferRequest(
 		AccessType: accessType,
 	}
 
-	req := models.UeContextTransferRequest{
-		JsonData: &ueContextTransferReqData,
-	}
-	if transferReason == models.TransferReason_INIT_REG || transferReason == models.TransferReason_MOBI_REG {
+	if transferReason == models.TRANSFERREASON_INIT_REG || transferReason == models.TRANSFERREASON_MOBI_REG {
 		var buf bytes.Buffer
 		ue.RegistrationRequest.EncodeRegistrationRequest(&buf)
 		ueContextTransferReqData.RegRequest = &models.N1MessageContainer{
-			N1MessageClass: models.N1MessageClass__5_GMM,
-			N1MessageContent: &models.RefToBinaryData{
+			N1MessageClass: models.N1MESSAGECLASS__5_GMM,
+			N1MessageContent: models.RefToBinaryData{
 				ContentId: "n1Msg",
 			},
 		}
-		req.BinaryDataN1Message = buf.Bytes()
 	}
 
 	// guti format is defined at TS 29.518 Table 6.1.3.2.2-1 5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}
@@ -141,18 +143,24 @@ func UEContextTransferRequest(
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	res, httpResp, localErr := client.IndividualUeContextDocumentApi.UEContextTransfer(ctx, ueContextId, req)
+	apiUEContextTransferRequest := client.IndividualUeContextDocumentAPI.UEContextTransfer(ctx, ueContextId)
+	apiUEContextTransferRequest = apiUEContextTransferRequest.UeContextTransferReqData(ueContextTransferReqData)
+	ueContextTransferResponse, httpResp, localErr := client.IndividualUeContextDocumentAPI.UEContextTransferExecute(apiUEContextTransferRequest)
 	if localErr == nil {
-		ueContextTransferRspData = res.JsonData
-		logger.ConsumerLog.Debugf("UeContextTransferRspData: %+v", *ueContextTransferRspData)
+		if ueContextTransferResponse != nil {
+			ueContextTransferRspData = ueContextTransferResponse
+		}
+		logger.ConsumerLog.Debugf("UeContextTransferRspData: %+v", ueContextTransferRspData)
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			err = localErr
 			return ueContextTransferRspData, problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
 	}
@@ -175,14 +183,20 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 	)
 
 	configuration := Namf_Communication.NewConfiguration()
-	configuration.SetBasePath(ue.TargetAmfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.TargetAmfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Namf_Communication.NewAPIClient(configuration)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
-	res, httpResp, localErr := client.IndividualUeContextDocumentApi.RegistrationStatusUpdate(ctx, ueContextId, request)
+	apiRegistrationStatusUpdateRequest := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdate(ctx, ueContextId)
+	apiRegistrationStatusUpdateRequest = apiRegistrationStatusUpdateRequest.UeRegStatusUpdateReqData(request)
+	res, httpResp, localErr := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdateExecute(apiRegistrationStatusUpdateRequest)
 	if localErr == nil {
 		regStatusTransferComplete = res.RegStatusTransferComplete
 	} else if httpResp != nil {
@@ -190,8 +204,11 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 			err = localErr
 			return regStatusTransferComplete, problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
 	}
