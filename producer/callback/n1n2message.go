@@ -8,6 +8,7 @@ package callback
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -18,6 +19,36 @@ import (
 	"github.com/omec-project/openapi/v2/Namf_Communication"
 	"github.com/omec-project/openapi/v2/models"
 )
+
+func createTempBinaryFile(data []byte) (*os.File, error) {
+	tmpFile, err := os.CreateTemp("", "prefix")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return nil, err
+	}
+	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return nil, err
+	}
+	return tmpFile, nil
+}
+
+func cleanupTempBinaryFile(tmpFile *os.File) {
+	if tmpFile == nil {
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		logger.ProducerLog.Errorln(err)
+	}
+	if err := os.Remove(tmpFile.Name()); err != nil {
+		logger.ProducerLog.Errorln(err)
+	}
+}
 
 func SendN1N2TransferFailureNotification(ue *amf_context.AmfUe, cause models.N1N2MessageTransferCause) {
 	if ue.N1N2Message == nil {
@@ -76,18 +107,12 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 			}
 			client := Namf_Communication.NewAPIClient(cfg)
 
-			// Create a temporary file
-			tmpFile, err := os.CreateTemp("", "prefix")
+			tmpFile, err := createTempBinaryFile(n1Msg)
 			if err != nil {
-				logger.ProducerLog.Errorln(err)
+				logger.ProducerLog.Errorln(fmt.Errorf("create N1 message temp file: %w", err))
+				return true
 			}
-			defer tmpFile.Close()
-			if _, err = tmpFile.Write(n1Msg); err != nil {
-				logger.ProducerLog.Errorln(err)
-			}
-			if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
-				logger.ProducerLog.Errorln(err)
-			}
+			defer cleanupTempBinaryFile(tmpFile)
 
 			jsonData := models.N1MessageNotification{
 				N1NotifySubscriptionId: openapi.PtrString(strconv.Itoa(int(subscriptionID))),
@@ -139,18 +164,12 @@ func SendN1MessageNotifyAtAMFReAllocation(
 	}
 	client := Namf_Communication.NewAPIClient(cfg)
 
-	// Create a temporary file
-	tmpFile, err := os.CreateTemp("", "prefix")
+	tmpFile, err := createTempBinaryFile(n1Msg)
 	if err != nil {
-		logger.ProducerLog.Errorln(err)
+		logger.ProducerLog.Errorln(fmt.Errorf("create AMF re-allocation N1 message temp file: %w", err))
+		return
 	}
-	defer tmpFile.Close()
-	if _, err = tmpFile.Write(n1Msg); err != nil {
-		logger.ProducerLog.Errorln(err)
-	}
-	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
-		logger.ProducerLog.Errorln(err)
-	}
+	defer cleanupTempBinaryFile(tmpFile)
 
 	jsonData := models.N1MessageNotification{
 		N1MessageContainer: models.N1MessageContainer{

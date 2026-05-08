@@ -40,7 +40,7 @@ func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper
 		problemDetails := models.NewProblemDetails()
 		problemDetails.SetStatus(http.StatusNotFound)
 		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
 	}
 
 	sbiMsg := context.SbiMsg{
@@ -58,8 +58,12 @@ func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper
 	}
 	// provideLocInfo, problemDetails := ProvideLocationInfoProcedure(requestLocInfo, ueContextID)
 	if msg.ProblemDetails != nil {
-		status := msg.ProblemDetails.(*models.ProblemDetails).Status
-		return httpwrapper.NewResponse(int(*status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		problemDetails := msg.ProblemDetails.(*models.ProblemDetails)
+		status := problemDetails.GetStatus()
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		return httpwrapper.NewResponse(int(status), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusOK, nil, provideLocInfo)
 	}

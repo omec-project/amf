@@ -23,7 +23,7 @@ func SearchNFServiceUri(nfProfile models.NFProfileDiscovery, serviceName models.
 					nfUri = service.GetFqdn()
 				} else if service.GetApiPrefix() != "" {
 					nfUri = service.GetApiPrefix()
-				} else if service.IpEndPoints != nil {
+				} else if len(service.IpEndPoints) > 0 {
 					point := (service.IpEndPoints)[0]
 					if point.GetIpv4Address() != "" {
 						nfUri = getSbiUri(service.Scheme, point.GetIpv4Address(), point.GetPort())

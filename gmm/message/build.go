@@ -178,8 +178,10 @@ func BuildAuthenticationRequest(ue *context.AmfUe) ([]byte, error) {
 		copy(tmpArray[:], autn[0:16])
 		authenticationRequest.SetAUTN(tmpArray)
 	case models.AUTHTYPE_EAP_AKA_PRIME:
-		eapMsg := ue.AuthenticationCtx.GetVar5gAuthData().String
-		rawEapMsg, err := base64.StdEncoding.DecodeString(*eapMsg)
+		if ue.AuthenticationCtx == nil || ue.AuthenticationCtx.Var5gAuthData.String == nil {
+			return nil, fmt.Errorf("5gAuthData does not contain an EAP-AKA' payload")
+		}
+		rawEapMsg, err := base64.StdEncoding.DecodeString(*ue.AuthenticationCtx.GetVar5gAuthData().String)
 		if err != nil {
 			return nil, err
 		}

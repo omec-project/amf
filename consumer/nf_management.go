@@ -30,7 +30,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	profile.NfInstanceId = amfCtx.NfId
 	profile.NfType = models.NFTYPE_AMF
 	profile.NfStatus = models.NFSTATUS_REGISTERED
-	plmns := make([]models.PlmnId, len(accessAndMobilityConfig))
+	plmns := make([]models.PlmnId, 0, len(accessAndMobilityConfig))
 	for _, accessAndMobilityData := range accessAndMobilityConfig {
 		nfPlmn := models.PlmnId{
 			Mcc: accessAndMobilityData.PlmnId.GetMcc(),

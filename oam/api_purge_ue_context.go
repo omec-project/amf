@@ -35,8 +35,12 @@ func HTTPPurgeUEContext(c *gin.Context) {
 			ue.EventChannel.SubmitMessage(sbiMsg)
 			msg := <-sbiMsg.Result
 			if msg.ProblemDetails != nil {
-				status := msg.ProblemDetails.(models.ProblemDetails).Status
-				c.JSON(int(*status), msg.ProblemDetails)
+				problemDetails := msg.ProblemDetails.(models.ProblemDetails)
+				status := problemDetails.GetStatus()
+				if status == 0 {
+					status = http.StatusInternalServerError
+				}
+				c.JSON(int(status), msg.ProblemDetails)
 			} else {
 				c.JSON(http.StatusOK, nil)
 			}
