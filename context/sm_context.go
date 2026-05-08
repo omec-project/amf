@@ -10,8 +10,8 @@ package context
 import (
 	"sync"
 
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 type SmContext struct {

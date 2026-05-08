@@ -14,8 +14,8 @@ import (
 	"github.com/omec-project/amf/ngap"
 	ngaputil "github.com/omec-project/amf/ngap/util"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func waitForConnData(t *testing.T, conn *ngaputil.TestConn, timeout time.Duration) []byte {

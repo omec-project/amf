@@ -12,8 +12,8 @@ import (
 	"strconv"
 
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func SnssaiModelsToHex(snssai models.Snssai) string {

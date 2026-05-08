@@ -7,7 +7,7 @@
 package ngapmsgtypes
 
 import (
-	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/ngap/v2/ngapType"
 )
 
 var NgapMsg map[int64]string

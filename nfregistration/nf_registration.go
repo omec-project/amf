@@ -15,8 +15,8 @@ import (
 
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/models"
-	"github.com/omec-project/openapi/nfConfigApi"
+	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
 
 var (

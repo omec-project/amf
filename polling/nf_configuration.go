@@ -17,7 +17,7 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/nfConfigApi"
+	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
 
 const (

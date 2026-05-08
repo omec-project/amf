@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 package consumer
 
 import (
@@ -14,7 +17,7 @@ import (
 	"testing"
 
 	amf_context "github.com/omec-project/amf/context"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 const updateSmContextPath = "/nsmf-pdusession/v1/sm-contexts/ctx-ref/modify"

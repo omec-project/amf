@@ -15,7 +15,7 @@ import (
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/ngap"
+	"github.com/omec-project/ngap/v2"
 )
 
 type NGAPHandler struct {

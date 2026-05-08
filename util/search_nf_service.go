@@ -8,7 +8,7 @@ package util
 import (
 	"fmt"
 
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func SearchNFServiceUri(nfProfile models.NFProfileDiscovery, serviceName models.ServiceName,

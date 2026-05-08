@@ -17,10 +17,10 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/nas/nasType"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/nas/v2/nasType"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"go.uber.org/zap"
 )

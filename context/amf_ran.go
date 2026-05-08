@@ -16,9 +16,9 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/ngap/ngapConvert"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/ngap/v2/ngapConvert"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 	mi "github.com/omec-project/util/metricinfo"
 	"go.uber.org/zap"
 )

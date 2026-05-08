@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/omec-project/ngap"
-	"github.com/omec-project/ngap/aper"
-	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/ngap/v2"
+	"github.com/omec-project/ngap/v2/aper"
+	"github.com/omec-project/ngap/v2/ngapType"
 )
 
 // ASN.1 Basic-PER encoded values

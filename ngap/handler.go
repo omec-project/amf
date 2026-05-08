@@ -24,12 +24,12 @@ import (
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas/nasMessage"
-	libngap "github.com/omec-project/ngap"
-	"github.com/omec-project/ngap/aper"
-	"github.com/omec-project/ngap/ngapConvert"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	libngap "github.com/omec-project/ngap/v2"
+	"github.com/omec-project/ngap/v2/aper"
+	"github.com/omec-project/ngap/v2/ngapConvert"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 	mi "github.com/omec-project/util/metricinfo"
 )
 

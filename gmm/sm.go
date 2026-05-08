@@ -15,10 +15,10 @@ import (
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/nas/security"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/nas/v2/security"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 )
 

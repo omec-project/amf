@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/context"
-	"github.com/omec-project/ngap/ngapType"
+	"github.com/omec-project/ngap/v2/ngapType"
 	"go.uber.org/zap"
 )
 

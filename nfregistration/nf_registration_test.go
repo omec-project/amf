@@ -18,9 +18,9 @@ import (
 	"time"
 
 	"github.com/omec-project/amf/consumer"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/models"
-	"github.com/omec-project/openapi/nfConfigApi"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
 
 func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, message string) {

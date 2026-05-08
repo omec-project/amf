@@ -12,9 +12,9 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/ngap/aper"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/ngap/v2/aper"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func SendToRan(ran *context.AmfRan, packet []byte) {

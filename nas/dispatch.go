@@ -12,8 +12,8 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/gmm"
-	"github.com/omec-project/nas"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

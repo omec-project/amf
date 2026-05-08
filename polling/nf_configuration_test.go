@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/omec-project/openapi/nfConfigApi"
+	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
 
 func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, message string) {

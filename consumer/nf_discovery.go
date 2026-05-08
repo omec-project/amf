@@ -13,10 +13,10 @@ import (
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Nnrf_NFDiscovery"
-	"github.com/omec-project/openapi/models"
-	nrfCache "github.com/omec-project/openapi/nrfcache"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/Nnrf_NFDiscovery"
+	"github.com/omec-project/openapi/v2/models"
+	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
 	"go.opentelemetry.io/otel/attribute"
 )
 

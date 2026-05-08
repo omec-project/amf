@@ -23,12 +23,12 @@ import (
 	"github.com/omec-project/amf/nas"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas/nasConvert"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/models"
-	nrfCache "github.com/omec-project/openapi/nrfcache"
+	"github.com/omec-project/nas/v2/nasConvert"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
+	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
 	"github.com/omec-project/util/httpwrapper"
 )
 

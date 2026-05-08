@@ -14,7 +14,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu []byte) {

@@ -15,8 +15,8 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/nas/security"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/security"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/drsm"
 )
 
