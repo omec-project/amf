@@ -231,3 +231,27 @@ func TestUpdateAMFContext(t *testing.T) {
 		})
 	}
 }
+
+func TestSortSNssaiListOrdersBySstThenSdWithEmptyLast(t *testing.T) {
+	snssaiList := []models.Snssai{
+		{Sst: 1, Sd: openapi.PtrString("bbbbbb")},
+		{Sst: 1},
+		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
+		{Sst: 2},
+		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
+	}
+
+	sortSNssaiList(snssaiList)
+
+	expected := []models.Snssai{
+		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
+		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
+		{Sst: 1, Sd: openapi.PtrString("bbbbbb")},
+		{Sst: 1},
+		{Sst: 2},
+	}
+
+	if !reflect.DeepEqual(snssaiList, expected) {
+		t.Fatalf("unexpected SNSSAI order: got %+v want %+v", snssaiList, expected)
+	}
+}

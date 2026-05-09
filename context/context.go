@@ -728,10 +728,15 @@ func sortSNssaiList(snssaiList []models.Snssai) {
 		if snssaiList[i].Sst != snssaiList[j].Sst {
 			return snssaiList[i].Sst < snssaiList[j].Sst
 		}
-		if snssaiList[i].Sd != snssaiList[j].Sd {
-			return snssaiList[i].GetSd() != ""
+		iSd := snssaiList[i].GetSd()
+		jSd := snssaiList[j].GetSd()
+		if iSd == "" || jSd == "" {
+			if iSd == jSd {
+				return false
+			}
+			return jSd == ""
 		}
-		return snssaiList[i].GetSd() < snssaiList[j].GetSd()
+		return iSd < jSd
 	})
 }
 

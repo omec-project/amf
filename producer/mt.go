@@ -90,11 +90,15 @@ func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery stri
 	if anType != "" && infoClassQuery != "" {
 		ranUe := ue.RanUe[anType]
 		ueContextInfo.SetAccessType(anType)
-		ueContextInfo.SetLastActTime(*ranUe.LastActTime)
+		if ranUe != nil {
+			if ranUe.LastActTime != nil {
+				ueContextInfo.SetLastActTime(*ranUe.LastActTime)
+			}
+			ueContextInfo.SetSupportedFeatures(ranUe.SupportedFeatures)
+			ueContextInfo.SetSupportVoPS(ranUe.SupportVoPS)
+			ueContextInfo.SetSupportVoPSn3gpp(ranUe.SupportVoPSn3gpp)
+		}
 		ueContextInfo.SetRatType(ue.RatType)
-		ueContextInfo.SetSupportedFeatures(ranUe.SupportedFeatures)
-		ueContextInfo.SetSupportVoPS(ranUe.SupportVoPS)
-		ueContextInfo.SetSupportVoPSn3gpp(ranUe.SupportVoPSn3gpp)
 	}
 
 	return ueContextInfo, nil

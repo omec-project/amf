@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	amf_context "github.com/omec-project/amf/context"
@@ -126,10 +127,20 @@ func UEContextTransferRequest(
 		Reason:     transferReason,
 		AccessType: accessType,
 	}
+	var regRequestFile *os.File
 
 	if transferReason == models.TRANSFERREASON_INIT_REG || transferReason == models.TRANSFERREASON_MOBI_REG {
 		var buf bytes.Buffer
 		ue.RegistrationRequest.EncodeRegistrationRequest(&buf)
+
+		regRequestFile, err = createBinaryPayloadTempFile(buf.Bytes())
+		if err != nil {
+			return ueContextTransferRspData, problemDetails, err
+		}
+		if regRequestFile != nil {
+			defer os.Remove(regRequestFile.Name())
+		}
+
 		ueContextTransferReqData.RegRequest = &models.N1MessageContainer{
 			N1MessageClass: models.N1MESSAGECLASS__5_GMM,
 			N1MessageContent: models.RefToBinaryData{
@@ -145,6 +156,9 @@ func UEContextTransferRequest(
 	defer cancel()
 	apiUEContextTransferRequest := client.IndividualUeContextDocumentAPI.UEContextTransfer(ctx, ueContextId)
 	apiUEContextTransferRequest = apiUEContextTransferRequest.UeContextTransferReqData(ueContextTransferReqData)
+	if regRequestFile != nil {
+		apiUEContextTransferRequest = apiUEContextTransferRequest.BinaryDataN1Message(regRequestFile)
+	}
 	ueContextTransferResponse, httpResp, localErr := client.IndividualUeContextDocumentAPI.UEContextTransferExecute(apiUEContextTransferRequest)
 	if localErr == nil {
 		if ueContextTransferResponse != nil {
