@@ -59,7 +59,7 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	// ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
 	//	infoClassQuery, supportedFeaturesQuery)
 	if msg.ProblemDetails != nil {
-		problemDetails := msg.ProblemDetails.(models.ProblemDetails)
+		problemDetails := msg.ProblemDetails.(*models.ProblemDetails)
 		status := problemDetails.GetStatus()
 		if status == 0 {
 			status = http.StatusInternalServerError

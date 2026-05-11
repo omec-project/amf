@@ -120,3 +120,32 @@ func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildUEContextUsesProvidedAccessType(t *testing.T) {
+	self := context.AMF_Self()
+	ue := self.NewAmfUe("imsi-208930100007498")
+	defer ue.Remove()
+
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Registered)
+
+	smContext := context.NewSmContext(10)
+	smContext.SetAccessType(models.ACCESSTYPE_NON_3_GPP_ACCESS)
+	smContext.SetSmContextRef("sm-context-ref")
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")})
+	smContext.SetDnn("internet")
+	ue.SmContextList.Store(smContext.PduSessionID(), smContext)
+
+	ueContext := buildUEContext(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
+	if ueContext == nil {
+		t.Fatal("expected UE context for non-3GPP access")
+	}
+	if ueContext.AccessType != models.ACCESSTYPE_NON_3_GPP_ACCESS {
+		t.Fatalf("expected access type %s, got %s", models.ACCESSTYPE_NON_3_GPP_ACCESS, ueContext.AccessType)
+	}
+	if len(ueContext.PduSessions) != 1 {
+		t.Fatalf("expected 1 PDU session, got %d", len(ueContext.PduSessions))
+	}
+	if ueContext.PduSessions[0].Sd != "112233" {
+		t.Fatalf("expected SD 112233, got %s", ueContext.PduSessions[0].Sd)
+	}
+}

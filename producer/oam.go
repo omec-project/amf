@@ -132,11 +132,12 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 		ue.SmContextList.Range(func(key, value interface{}) bool {
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == accessType {
+				snssai := smContext.Snssai()
 				pduSession := PduSession{
 					PduSessionId: strconv.Itoa(int(smContext.PduSessionID())),
 					SmContextRef: smContext.SmContextRef(),
-					Sst:          strconv.Itoa(int(smContext.Snssai().Sst)),
-					Sd:           smContext.SnssaiVal.GetSd(),
+					Sst:          strconv.Itoa(int(snssai.GetSst())),
+					Sd:           snssai.GetSd(),
 					Dnn:          smContext.Dnn(),
 				}
 				ueContext.PduSessions = append(ueContext.PduSessions, pduSession)
@@ -197,7 +198,7 @@ func OAMRegisteredUEContextProcedure(supi string) (UEContexts, *models.ProblemDe
 func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext {
 	if ue.State[accessType].Is(context.Registered) {
 		ueContext := &UEContext{
-			AccessType: models.ACCESSTYPE__3_GPP_ACCESS,
+			AccessType: accessType,
 			Supi:       ue.Supi,
 			Guti:       ue.Guti,
 			Mcc:        ue.Tai.PlmnId.Mcc,
@@ -208,11 +209,12 @@ func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext 
 		ue.SmContextList.Range(func(key, value interface{}) bool {
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == accessType {
+				snssai := smContext.Snssai()
 				pduSession := PduSession{
 					PduSessionId: strconv.Itoa(int(smContext.PduSessionID())),
 					SmContextRef: smContext.SmContextRef(),
-					Sst:          strconv.Itoa(int(smContext.Snssai().Sst)),
-					Sd:           smContext.SnssaiVal.GetSd(),
+					Sst:          strconv.Itoa(int(snssai.GetSst())),
+					Sd:           snssai.GetSd(),
 					Dnn:          smContext.Dnn(),
 				}
 				ueContext.PduSessions = append(ueContext.PduSessions, pduSession)

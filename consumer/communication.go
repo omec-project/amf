@@ -139,6 +139,7 @@ func UEContextTransferRequest(
 		}
 		if regRequestFile != nil {
 			defer os.Remove(regRequestFile.Name())
+			defer regRequestFile.Close()
 		}
 
 		ueContextTransferReqData.RegRequest = &models.N1MessageContainer{

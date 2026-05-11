@@ -696,8 +696,9 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 			transferReason = models.TRANSFERREASON_MOBI_REG
 		}
 
-		searchOpt := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-		searchOpt = searchOpt.Guami(guamiFromUeGuti)
+		searchOpt := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
+			return request.Guami(guamiFromUeGuti)
+		}
 		err := consumer.SearchAmfCommunicationInstance(ctx, ue, amfSelf.NrfUri, models.NFTYPE_AMF, models.NFTYPE_AMF, searchOpt)
 		if err != nil {
 			ue.GmmLog.Errorf("[GMM] %+v", err)
@@ -807,10 +808,11 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		}
 	}
 
-	param := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-	param = param.Supi(ue.Supi)
+	configureSearchPCFRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
+		return request.Supi(ue.Supi)
+	}
 	for {
-		resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_PCF, models.NFTYPE_AMF, param)
+		resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_PCF, models.NFTYPE_AMF, configureSearchPCFRequest)
 		if err != nil {
 			ue.GmmLog.Error("AMF can not select an PCF by NRF")
 		} else {
@@ -1296,9 +1298,10 @@ func communicateWithUDM(ctx ctxt.Context, ue *context.AmfUe, accessType models.A
 
 	// UDM selection described in TS 23.501 6.3.8
 	// TODO: consider udm group id, Routing ID part of SUCI, GPSI or External Group ID (e.g., by the NEF)
-	param := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-	param = param.Supi(ue.Supi)
-	resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_UDM, models.NFTYPE_AMF, param)
+	configureSearchUDMRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
+		return request.Supi(ue.Supi)
+	}
+	resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_UDM, models.NFTYPE_AMF, configureSearchUDMRequest)
 	if err != nil {
 		return fmt.Errorf("AMF can not select an UDM by NRF")
 	}
@@ -1359,10 +1362,11 @@ func communicateWithUDM(ctx ctxt.Context, ue *context.AmfUe, accessType models.A
 
 func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) {
 	amfSelf := context.AMF_Self()
-	param := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-	param = param.Supi(ue.Supi)
+	configureSearchUDMRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
+		return request.Supi(ue.Supi)
+	}
 	for {
-		err := consumer.SearchUdmSdmInstance(ctx, ue, amfSelf.NrfUri, models.NFTYPE_UDM, models.NFTYPE_AMF, param)
+		err := consumer.SearchUdmSdmInstance(ctx, ue, amfSelf.NrfUri, models.NFTYPE_UDM, models.NFTYPE_AMF, configureSearchUDMRequest)
 		if err != nil {
 			ue.GmmLog.Errorf("AMF can not select an Nudm_SDM Instance by NRF[Error: %+v]", err)
 			time.Sleep(2 * time.Second)
@@ -1410,7 +1414,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 		if needSliceSelection {
 			if ue.NssfUri == "" {
 				for {
-					err := consumer.SearchNssfNSSelectionInstance(ctx, ue, amfSelf.NrfUri, models.NFTYPE_NSSF, models.NFTYPE_AMF, Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{})
+					err := consumer.SearchNssfNSSelectionInstance(ctx, ue, amfSelf.NrfUri, models.NFTYPE_NSSF, models.NFTYPE_AMF, nil)
 					if err != nil {
 						ue.GmmLog.Errorf("AMF can not select an NSSF Instance by NRF[Error: %+v]", err)
 						time.Sleep(2 * time.Second)
@@ -1444,8 +1448,11 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 			}
 
 			// Step 6
-			searchTargetAmfQueryParam := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-			if ue.NetworkSliceInfo != nil {
+			searchTargetAmfQueryParam := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
+				if ue.NetworkSliceInfo == nil {
+					return request
+				}
+
 				netwotkSliceInfo := ue.NetworkSliceInfo
 				if netwotkSliceInfo.GetTargetAmfSet() != "" {
 					// TS 29.531
@@ -1459,20 +1466,22 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 					}
 
 					if !reflect.DeepEqual(guami.PlmnId, targetAmfPlmnId) {
-						searchTargetAmfQueryParam = searchTargetAmfQueryParam.TargetPlmnList([]models.PlmnId{targetAmfPlmnId})
+						request = request.TargetPlmnList([]models.PlmnId{targetAmfPlmnId})
 						plmnId := models.PlmnId{
 							Mcc: guami.PlmnId.GetMcc(),
 							Mnc: guami.PlmnId.GetMnc(),
 						}
-						searchTargetAmfQueryParam = searchTargetAmfQueryParam.RequesterPlmnList([]models.PlmnId{plmnId})
+						request = request.RequesterPlmnList([]models.PlmnId{plmnId})
 					}
 
-					searchTargetAmfQueryParam = searchTargetAmfQueryParam.AmfRegionId(targetAmfSetToken[2])
-					searchTargetAmfQueryParam = searchTargetAmfQueryParam.AmfSetId(targetAmfSetToken[3])
+					request = request.AmfRegionId(targetAmfSetToken[2])
+					request = request.AmfSetId(targetAmfSetToken[3])
 				} else if len(netwotkSliceInfo.CandidateAmfList) > 0 {
 					// TODO: select candidate Amf based on local poilcy
-					searchTargetAmfQueryParam = searchTargetAmfQueryParam.TargetNfInstanceId(netwotkSliceInfo.CandidateAmfList[0])
+					request = request.TargetNfInstanceId(netwotkSliceInfo.CandidateAmfList[0])
 				}
+
+				return request
 			}
 
 			err = consumer.SearchAmfCommunicationInstance(ctx, ue, amfSelf.NrfUri,
@@ -1714,8 +1723,7 @@ func AuthenticationProcedure(ctx ctxt.Context, ue *context.AmfUe, accessType mod
 	amfSelf := context.AMF_Self()
 
 	// TODO: consider ausf group id, Routing ID part of SUCI
-	param := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-	resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_AUSF, models.NFTYPE_AMF, param)
+	resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_AUSF, models.NFTYPE_AMF, nil)
 	if err != nil {
 		ue.GmmLog.Error("AMF can not select an AUSF by NRF")
 		return false, err

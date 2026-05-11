@@ -94,7 +94,7 @@ func SelectSmf(
 	if nsiInformation == nil {
 		const maxRetries = 10
 		for i := range maxRetries {
-			if err := SearchNssfNSSelectionInstance(ctx, ue, nrfUri, models.NFTYPE_NSSF, models.NFTYPE_AMF, Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}); err != nil {
+			if err := SearchNssfNSSelectionInstance(ctx, ue, nrfUri, models.NFTYPE_NSSF, models.NFTYPE_AMF, nil); err != nil {
 				ue.GmmLog.Errorf("AMF cannot select an NSSF instance via NRF [error: %+v]", err)
 				if i == maxRetries-1 {
 					return nil, nasMessage.Cause5GMMPayloadWasNotForwarded,
@@ -133,23 +133,25 @@ func SelectSmf(
 		}
 	}
 
-	param := Nnrf_NFDiscovery.ApiSearchNFInstancesRequest{}
-	param = param.ServiceNames([]models.ServiceName{models.SERVICENAME_NSMF_PDUSESSION})
-	param = param.Dnn(dnn)
-	param = param.Snssais([]models.Snssai{snssai})
-	if ue.PlmnId.Mcc != "" {
-		param = param.TargetPlmnList([]models.PlmnId{ue.PlmnId})
+	configureSearchSMFRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
+		request = request.ServiceNames([]models.ServiceName{models.SERVICENAME_NSMF_PDUSESSION})
+		request = request.Dnn(dnn)
+		request = request.Snssais([]models.Snssai{snssai})
+		if ue.PlmnId.Mcc != "" {
+			request = request.TargetPlmnList([]models.PlmnId{ue.PlmnId})
+		}
+		return request
 	}
 
 	ue.GmmLog.Debugf("Search SMF from NRF[%s]", nrfUri)
 
-	result, err := SendSearchNFInstances(ctx, nrfUri, models.NFTYPE_SMF, models.NFTYPE_AMF, param)
+	result, err := SendSearchNFInstances(ctx, nrfUri, models.NFTYPE_SMF, models.NFTYPE_AMF, configureSearchSMFRequest)
 	if err != nil {
 		return nil, nasMessage.Cause5GMMPayloadWasNotForwarded, err
 	}
 	if len(result.NfInstances) == 0 && amf_context.AMF_Self().EnableNrfCaching {
 		ue.GmmLog.Warnf("SMF discovery via NRF cache returned no instances, retrying direct NRF query")
-		directResult, directErr := SendNfDiscoveryToNrf(ctx, nrfUri, models.NFTYPE_SMF, models.NFTYPE_AMF, param)
+		directResult, directErr := SendNfDiscoveryToNrf(ctx, nrfUri, models.NFTYPE_SMF, models.NFTYPE_AMF, configureSearchSMFRequest)
 		if directErr != nil {
 			ue.GmmLog.Errorf("Direct SMF discovery retry failed: %+v", directErr)
 		} else if directResult != nil {
