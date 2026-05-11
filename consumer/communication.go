@@ -93,8 +93,8 @@ func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTrig
 		// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_RFSP_INDEX_CHANGE)
 		// TODO: GA: Review the above two policies that were removed in Rel-18
 		default:
-			logger.ContextLog.Errorf("Policy trigger is %v", trigger)
-			panic("Policy trigger error")
+			logger.ContextLog.Errorf("Ignoring unknown policy trigger: %v", trigger)
+			continue
 		}
 	}
 	return

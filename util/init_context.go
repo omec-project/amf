@@ -29,6 +29,9 @@ func resolveStableAmfNfId(configuration *factory.Configuration) string {
 			return configuration.AmfName
 		}
 		if configuration.Sbi != nil && configuration.Sbi.RegisterIPv4 != "" {
+			if registerIPv4 := os.Getenv(configuration.Sbi.RegisterIPv4); registerIPv4 != "" {
+				return registerIPv4
+			}
 			return configuration.Sbi.RegisterIPv4
 		}
 	}
