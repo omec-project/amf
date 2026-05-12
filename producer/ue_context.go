@@ -10,6 +10,7 @@ import (
 	ctxt "context"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/omec-project/amf/consumer"
@@ -20,6 +21,24 @@ import (
 	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
+
+func createTempBinaryFile(data []byte) (*os.File, error) {
+	tmpFile, err := os.CreateTemp("", "prefix")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return nil, err
+	}
+	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return nil, err
+	}
+	return tmpFile, nil
+}
 
 func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	switch msg := msg.(type) {
@@ -355,12 +374,15 @@ func UEContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 				ContentId: "n2Info",
 			},
 		})
-		b := []byte(ue.UeRadioCapability)
-		binaryDataN2Information, err := io.ReadAll(ueContextTransferResponse.GetBinaryDataN2Information())
+		tmpFile, err := createTempBinaryFile([]byte(ue.UeRadioCapability))
 		if err != nil {
-			logger.ProducerLog.Errorf("read binaryDataN2Information failed: %+v", err)
+			logger.ProducerLog.Errorf("create binaryDataN2Information failed: %+v", err)
+			problemDetails := models.NewProblemDetails()
+			problemDetails.SetStatus(http.StatusInternalServerError)
+			problemDetails.SetCause("SYSTEM_FAILURE")
+			return nil, problemDetails
 		}
-		copy(binaryDataN2Information, b)
+		ueContextTransferResponse.BinaryDataN2Information = &tmpFile
 	case models.TRANSFERREASON_MOBI_REG_UE_VALIDATED:
 		ueContextTransferRspData.SetUeContext(buildUEContextModel(ue))
 
@@ -389,12 +411,15 @@ func UEContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 				ContentId: "n2Info",
 			},
 		}
-		b := []byte(ue.UeRadioCapability)
-		binaryDataN2Information, err := io.ReadAll(ueContextTransferResponse.GetBinaryDataN2Information())
+		tmpFile, err := createTempBinaryFile([]byte(ue.UeRadioCapability))
 		if err != nil {
-			logger.ProducerLog.Errorf("read binaryDataN2Information failed: %+v", err)
+			logger.ProducerLog.Errorf("create binaryDataN2Information failed: %+v", err)
+			problemDetails := models.NewProblemDetails()
+			problemDetails.SetStatus(http.StatusInternalServerError)
+			problemDetails.SetCause("SYSTEM_FAILURE")
+			return nil, problemDetails
 		}
-		copy(binaryDataN2Information, b)
+		ueContextTransferResponse.BinaryDataN2Information = &tmpFile
 	default:
 		logger.ProducerLog.Warnf("Invalid Transfer Reason: %+v", ueContextTransferReqData.GetReason())
 		problemDetails := models.NewProblemDetails()
@@ -439,8 +464,8 @@ func buildUEContextModel(ue *context.AmfUe) models.UeContext {
 		if ue.AccessAndMobilitySubscriptionData.HasSubscribedUeAmbr() {
 			ueContext.SubUeAmbr = models.NewAmbr(ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetUplink(), ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetDownlink())
 		}
-		if *ue.AccessAndMobilitySubscriptionData.RfspIndex.Get() != 0 {
-			ueContext.SetSubRfsp(*ue.AccessAndMobilitySubscriptionData.RfspIndex.Get())
+		if rfspIndex, ok := ue.AccessAndMobilitySubscriptionData.GetRfspIndexOk(); ok && rfspIndex != nil && *rfspIndex != 0 {
+			ueContext.SetSubRfsp(*rfspIndex)
 		}
 	}
 

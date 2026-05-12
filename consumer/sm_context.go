@@ -200,14 +200,14 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", "prefix")
 	if err != nil {
-		logger.ConsumerLog.Errorln(err)
+		return response, smContextRef, errorResponse, problemDetail, err
 	}
-	defer tmpFile.Close()
+	defer cleanupBinaryPayloadTempFile(tmpFile)
 	if _, err = tmpFile.Write(nasPdu); err != nil {
-		logger.ConsumerLog.Errorln(err)
+		return response, smContextRef, errorResponse, problemDetail, err
 	}
 	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
-		logger.ConsumerLog.Errorln(err)
+		return response, smContextRef, errorResponse, problemDetail, err
 	}
 
 	configuration := Nsmf_PDUSession.NewConfiguration()
@@ -536,7 +536,7 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 		return response, errorResponse, problemDetail, err
 	}
 	if tmpN1File != nil {
-		defer os.Remove(tmpN1File.Name())
+		defer cleanupBinaryPayloadTempFile(tmpN1File)
 	}
 
 	tmpN2File, err := createBinaryPayloadTempFile(n2Info)
@@ -544,7 +544,7 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 		return response, errorResponse, problemDetail, err
 	}
 	if tmpN2File != nil {
-		defer os.Remove(tmpN2File.Name())
+		defer cleanupBinaryPayloadTempFile(tmpN2File)
 	}
 
 	apiUpdateSmContextRequest := client.IndividualSMContextAPI.UpdateSmContext(ctx, smContext.SmContextRef())
@@ -584,7 +584,7 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 				return response, errorResponse, problemDetail, err
 			}
 			if tmpN1File != nil {
-				defer os.Remove(tmpN1File.Name())
+				defer cleanupBinaryPayloadTempFile(tmpN1File)
 			}
 
 			tmpN2File, err = createBinaryPayloadTempFile(n2Info)
@@ -592,7 +592,7 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 				return response, errorResponse, problemDetail, err
 			}
 			if tmpN2File != nil {
-				defer os.Remove(tmpN2File.Name())
+				defer cleanupBinaryPayloadTempFile(tmpN2File)
 			}
 
 			apiUpdateSmContextRequest := client.IndividualSMContextAPI.UpdateSmContext(retryCtx, smContext.SmContextRef())
@@ -688,6 +688,18 @@ func createBinaryPayloadTempFile(payload []byte) (*os.File, error) {
 	}
 
 	return tmpFile, nil
+}
+
+func cleanupBinaryPayloadTempFile(tmpFile *os.File) {
+	if tmpFile == nil {
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		logger.ConsumerLog.Errorln(err)
+	}
+	if err := os.Remove(tmpFile.Name()); err != nil {
+		logger.ConsumerLog.Errorln(err)
+	}
 }
 
 // Release SmContext Request
