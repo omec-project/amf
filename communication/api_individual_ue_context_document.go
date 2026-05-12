@@ -42,8 +42,9 @@ var (
 // Post /ue-contexts/:ueContextId/cancel-relocate
 // Namf_Communication CancelRelocateUEContext service Operation
 func HTTPCancelRelocateUEContext(c *gin.Context) {
-	logger.CommLog.Warnln("Handle Post /ue-contexts/:ueContextId/cancel-relocate is not implemented")
-	c.String(http.StatusNotImplemented, "501 not implemented")
+	detail := "Handle Post /ue-contexts/:ueContextId/cancel-relocate is not implemented"
+	logger.CommLog.Warnln(detail)
+	writeNotImplementedProblem(c, detail)
 }
 
 // Put /ue-contexts/:ueContextId
@@ -220,8 +221,9 @@ func HTTPReleaseUEContext(c *gin.Context) {
 // Post /ue-contexts/:ueContextId/relocate
 // Namf_Communication RelocateUEContext service Operation
 func HTTPRelocateUEContext(c *gin.Context) {
-	logger.CommLog.Warnln("Handle Post /ue-contexts/:ueContextId/relocate is not implemented")
-	c.String(http.StatusNotImplemented, "501 not implemented")
+	detail := "Handle Post /ue-contexts/:ueContextId/relocate is not implemented"
+	logger.CommLog.Warnln(detail)
+	writeNotImplementedProblem(c, detail)
 }
 
 // Post /ue-contexts/:ueContextId/transfer

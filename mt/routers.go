@@ -25,6 +25,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi/v2/models"
 	utilLogger "github.com/omec-project/util/logger"
 )
 
@@ -85,7 +86,15 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 
 // Default handler for not yet implemented routes
 func DefaultHandleFunc(c *gin.Context) {
-	c.String(http.StatusNotImplemented, "501 not implemented")
+	writeNotImplementedProblem(c, "This API route is not implemented")
+}
+
+func writeNotImplementedProblem(c *gin.Context, detail string) {
+	problemDetails := models.NewProblemDetails()
+	problemDetails.SetStatus(http.StatusNotImplemented)
+	problemDetails.SetCause("NOT_IMPLEMENTED")
+	problemDetails.SetDetail(detail)
+	c.JSON(http.StatusNotImplemented, problemDetails)
 }
 
 func shouldSkipRoute(pattern string) bool {

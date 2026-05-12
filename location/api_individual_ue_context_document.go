@@ -34,8 +34,9 @@ import (
 // Post /:ueContextId/cancel-pos-info
 // Namf_Location CancelLocation service operation
 func HTTPCancelLocation(c *gin.Context) {
-	logger.CommLog.Warnln("Handle Post /:ueContextId/cancel-pos-info is not implemented")
-	c.String(http.StatusNotImplemented, "501 not implemented")
+	detail := "Handle Post /:ueContextId/cancel-pos-info is not implemented"
+	logger.CommLog.Warnln(detail)
+	writeNotImplementedProblem(c, detail)
 }
 
 // Post /:ueContextId/provide-loc-info
@@ -79,6 +80,7 @@ func HTTPProvideLocationInfo(c *gin.Context) {
 // Post /:ueContextId/provide-pos-info
 // Namf_Location ProvidePositioningInfo service Operation
 func HTTPProvidePositioningInfo(c *gin.Context) {
-	logger.CommLog.Warnln("Handle Post /:ueContextId/provide-pos-info is not implemented")
-	c.String(http.StatusNotImplemented, "501 not implemented")
+	detail := "Handle Post /:ueContextId/provide-pos-info is not implemented"
+	logger.CommLog.Warnln(detail)
+	writeNotImplementedProblem(c, detail)
 }
