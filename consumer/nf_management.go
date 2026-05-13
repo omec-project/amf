@@ -70,7 +70,11 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 		err = fmt.Errorf("AMF Address is empty")
 		return profile, err
 	}
-	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfCtx.RegisterIPv4)
+	if registerIPv4 := amfCtx.RegisterIPv4Address(); registerIPv4 != "" {
+		profile.Ipv4Addresses = append(profile.Ipv4Addresses, registerIPv4)
+	} else if fqdn := amfCtx.RegisterFQDN(); fqdn != "" {
+		profile.Fqdn = openapi.PtrString(fqdn)
+	}
 	services := []models.NFService{}
 	for _, nfService := range amfCtx.NfService {
 		services = append(services, nfService)
@@ -80,7 +84,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	}
 
 	defaultNotificationSubscription := models.DefaultNotificationSubscription{
-		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetIPv4Uri()),
+		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetSbiUri()),
 		NotificationType: models.NOTIFICATIONTYPE_N1_MESSAGES,
 		N1MessageClass:   models.N1MESSAGECLASS__5_GMM.Ptr(),
 	}

@@ -550,7 +550,25 @@ func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 }
 
 func (context *AMFContext) GetIPv4Uri() string {
+	return context.GetSbiUri()
+}
+
+func (context *AMFContext) GetSbiUri() string {
 	return fmt.Sprintf("%s://%s:%d", context.UriScheme, context.RegisterIPv4, context.SBIPort)
+}
+
+func (context *AMFContext) RegisterIPv4Address() string {
+	if ip := net.ParseIP(context.RegisterIPv4); ip != nil && ip.To4() != nil {
+		return context.RegisterIPv4
+	}
+	return ""
+}
+
+func (context *AMFContext) RegisterFQDN() string {
+	if context.RegisterIPv4Address() != "" {
+		return ""
+	}
+	return context.RegisterIPv4
 }
 
 func (context *AMFContext) InitNFService(serivceName []string, version string) {
@@ -558,7 +576,7 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 	versionUri := "v" + tmpVersion[0]
 	for index, nameString := range serivceName {
 		name := models.ServiceName(nameString)
-		context.NfService[name] = models.NFService{
+		nfService := models.NFService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
 			Versions: []models.NFServiceVersion{
@@ -569,15 +587,20 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 			},
 			Scheme:          context.UriScheme,
 			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
-			ApiPrefix:       openapi.PtrString(context.GetIPv4Uri()),
+			ApiPrefix:       openapi.PtrString(context.GetSbiUri()),
 			IpEndPoints: []models.IpEndPoint{
 				{
-					Ipv4Address: openapi.PtrString(context.RegisterIPv4),
-					Transport:   models.TRANSPORTPROTOCOL_TCP.Ptr(),
-					Port:        openapi.PtrInt32(int32(context.SBIPort)),
+					Transport: models.TRANSPORTPROTOCOL_TCP.Ptr(),
+					Port:      openapi.PtrInt32(int32(context.SBIPort)),
 				},
 			},
 		}
+		if registerIPv4 := context.RegisterIPv4Address(); registerIPv4 != "" {
+			nfService.IpEndPoints[0].Ipv4Address = openapi.PtrString(registerIPv4)
+		} else if fqdn := context.RegisterFQDN(); fqdn != "" {
+			nfService.Fqdn = openapi.PtrString(fqdn)
+		}
+		context.NfService[name] = nfService
 	}
 }
 

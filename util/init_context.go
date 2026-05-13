@@ -51,19 +51,19 @@ func resolveRegisterIPv4(registerIPv4 string) string {
 		return ""
 	}
 	if envRegisterIPv4 := os.Getenv(registerIPv4); envRegisterIPv4 != "" {
-		if isValidRegisterIPv4Literal(envRegisterIPv4) {
+		if isValidRegisterIPv4Value(envRegisterIPv4) {
 			return envRegisterIPv4
 		}
 		logger.UtilLog.Warnf("RegisterIPv4 env var %q does not contain a valid address: %q", registerIPv4, envRegisterIPv4)
 	}
-	if isValidRegisterIPv4Literal(registerIPv4) {
+	if isValidRegisterIPv4Value(registerIPv4) {
 		return registerIPv4
 	}
 	logger.UtilLog.Warnf("RegisterIPv4 value %q is not a valid address; using default", registerIPv4)
 	return ""
 }
 
-func isValidRegisterIPv4Literal(registerIPv4 string) bool {
+func isValidRegisterIPv4Value(registerIPv4 string) bool {
 	if ip := net.ParseIP(registerIPv4); ip != nil {
 		return ip.To4() != nil
 	}

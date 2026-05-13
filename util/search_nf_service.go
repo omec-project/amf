@@ -17,10 +17,14 @@ func SearchNFServiceUri(nfProfile models.NFProfileDiscovery, serviceName models.
 	if nfProfile.NfServices != nil {
 		for _, service := range nfProfile.NfServices {
 			if service.ServiceName == serviceName && service.NfServiceStatus == nfServiceStatus {
+				port := int32(0)
+				if len(service.IpEndPoints) > 0 {
+					port = service.IpEndPoints[0].GetPort()
+				}
 				if nfProfile.GetFqdn() != "" {
-					nfUri = nfProfile.GetFqdn()
+					nfUri = getSbiUri(service.Scheme, nfProfile.GetFqdn(), port)
 				} else if service.GetFqdn() != "" {
-					nfUri = service.GetFqdn()
+					nfUri = getSbiUri(service.Scheme, service.GetFqdn(), port)
 				} else if service.GetApiPrefix() != "" {
 					nfUri = service.GetApiPrefix()
 				} else if len(service.IpEndPoints) > 0 {
