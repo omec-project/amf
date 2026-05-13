@@ -19,6 +19,7 @@ func TestResolveRegisterIPv4(t *testing.T) {
 		expected string
 	}{
 		{name: "literal ip", input: "127.0.0.1", expected: "127.0.0.1"},
+		{name: "ipv6 literal rejected", input: "2001:db8::1", expected: ""},
 		{name: "service hostname", input: "amf", expected: "amf"},
 		{name: "env var ip", input: "AMF_REGISTER_IP", expected: "10.10.0.1"},
 		{name: "env var hostname", input: "AMF_REGISTER_HOST", expected: "amf.namespace.svc.cluster.local"},

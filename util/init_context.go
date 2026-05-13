@@ -64,7 +64,10 @@ func resolveRegisterIPv4(registerIPv4 string) string {
 }
 
 func isValidRegisterIPv4Literal(registerIPv4 string) bool {
-	return net.ParseIP(registerIPv4) != nil || registerIPv4HostnamePattern.MatchString(registerIPv4)
+	if ip := net.ParseIP(registerIPv4); ip != nil {
+		return ip.To4() != nil
+	}
+	return registerIPv4HostnamePattern.MatchString(registerIPv4)
 }
 
 func InitDrsm() (drsm.DrsmInterface, error) {
