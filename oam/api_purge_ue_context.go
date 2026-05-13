@@ -1,11 +1,11 @@
+// Copyright (c) 2026 Intel Corporation
 // SPDX-FileCopyrightText: 2022 Open Networking Foundation <info@opennetworking.org>
-//
 // SPDX-License-Identifier: Apache-2.0
-//
 
 package oam
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -13,8 +13,31 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
 	"github.com/omec-project/openapi/v2/models"
+	openapiUtils "github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
+
+func purgeUEContextProblemDetailsResponse(problemDetails any) (int, any) {
+	switch details := problemDetails.(type) {
+	case *models.ProblemDetails:
+		status := details.GetStatus()
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		return int(status), details
+	case models.ProblemDetails:
+		status := details.GetStatus()
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		return int(status), details
+	default:
+		fallback := openapiUtils.ProblemDetailsSystemFailure(
+			fmt.Sprintf("unexpected ProblemDetails type %T in purge UE context response", problemDetails),
+		)
+		return http.StatusInternalServerError, fallback
+	}
+}
 
 func HTTPPurgeUEContext(c *gin.Context) {
 	setCorsHeader(c)
@@ -35,22 +58,8 @@ func HTTPPurgeUEContext(c *gin.Context) {
 			ue.EventChannel.SubmitMessage(sbiMsg)
 			msg := <-sbiMsg.Result
 			if msg.ProblemDetails != nil {
-				switch problemDetails := msg.ProblemDetails.(type) {
-				case *models.ProblemDetails:
-					status := problemDetails.GetStatus()
-					if status == 0 {
-						status = http.StatusInternalServerError
-					}
-					c.JSON(int(status), problemDetails)
-				case models.ProblemDetails:
-					status := problemDetails.GetStatus()
-					if status == 0 {
-						status = http.StatusInternalServerError
-					}
-					c.JSON(int(status), problemDetails)
-				default:
-					c.JSON(http.StatusInternalServerError, nil)
-				}
+				status, body := purgeUEContextProblemDetailsResponse(msg.ProblemDetails)
+				c.JSON(status, body)
 			} else {
 				c.JSON(http.StatusOK, nil)
 			}
