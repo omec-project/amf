@@ -36,11 +36,9 @@ func resolveStableAmfNfId(configuration *factory.Configuration) string {
 			return uuid.NewSHA1(uuid.NameSpaceOID, []byte(configuration.AmfName)).String()
 		}
 		if configuration.Sbi != nil && configuration.Sbi.RegisterIPv4 != "" {
-			registerIPv4 := configuration.Sbi.RegisterIPv4
-			if envRegisterIPv4 := os.Getenv(configuration.Sbi.RegisterIPv4); envRegisterIPv4 != "" {
-				registerIPv4 = envRegisterIPv4
+			if registerIPv4 := resolveRegisterIPv4(configuration.Sbi.RegisterIPv4); registerIPv4 != "" {
+				return uuid.NewSHA1(uuid.NameSpaceOID, []byte(registerIPv4)).String()
 			}
-			return uuid.NewSHA1(uuid.NameSpaceOID, []byte(registerIPv4)).String()
 		}
 	}
 	return uuid.New().String()

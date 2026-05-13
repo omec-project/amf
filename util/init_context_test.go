@@ -6,6 +6,9 @@ package util
 import (
 	"os"
 	"testing"
+
+	"github.com/google/uuid"
+	"github.com/omec-project/amf/factory"
 )
 
 func TestResolveRegisterIPv4(t *testing.T) {
@@ -39,4 +42,26 @@ func TestResolveRegisterIPv4(t *testing.T) {
 	if _, ok := os.LookupEnv("POD_IP"); ok {
 		t.Fatal("expected POD_IP to remain unset in this test")
 	}
+}
+
+func TestResolveStableAmfNfId(t *testing.T) {
+	t.Run("uses resolved register IPv4", func(t *testing.T) {
+		cfg := &factory.Configuration{Sbi: &factory.Sbi{RegisterIPv4: "amf"}}
+		want := uuid.NewSHA1(uuid.NameSpaceOID, []byte("amf")).String()
+		if got := resolveStableAmfNfId(cfg); got != want {
+			t.Fatalf("resolveStableAmfNfId() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("unresolved env placeholder falls back to random uuid", func(t *testing.T) {
+		cfg := &factory.Configuration{Sbi: &factory.Sbi{RegisterIPv4: "POD_IP"}}
+		unexpected := uuid.NewSHA1(uuid.NameSpaceOID, []byte("POD_IP")).String()
+		got := resolveStableAmfNfId(cfg)
+		if got == unexpected {
+			t.Fatalf("resolveStableAmfNfId() unexpectedly hashed unresolved placeholder: %q", got)
+		}
+		if _, err := uuid.Parse(got); err != nil {
+			t.Fatalf("resolveStableAmfNfId() returned invalid uuid %q: %v", got, err)
+		}
+	})
 }

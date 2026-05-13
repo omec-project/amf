@@ -12,7 +12,6 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/Namf_Communication"
 	"github.com/omec-project/openapi/v2/models"
 )
@@ -43,8 +42,6 @@ func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models
 		}
 
 		amfStatusInfo.StatusChange = amfStatus
-		amfStatusInfo.TargetAmfRemoval = openapi.PtrString("")
-		amfStatusInfo.TargetAmfFailure = openapi.PtrString("")
 
 		amfStatusNotification.AmfStatusInfoList = append(amfStatusNotification.AmfStatusInfoList, amfStatusInfo)
 
