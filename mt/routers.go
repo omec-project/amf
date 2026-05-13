@@ -53,7 +53,7 @@ func NewRouter() *gin.Engine {
 	return router
 }
 
-// AddService add routes to existing gin engine.
+// AddService adds routes to an existing gin engine.
 func AddService(engine *gin.Engine) *gin.RouterGroup {
 	group := engine.Group("/namf-mt/v1")
 	for _, route := range getRoutes() {
