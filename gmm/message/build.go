@@ -148,7 +148,8 @@ func BuildAuthenticationRequest(ue *context.AmfUe) ([]byte, error) {
 
 	switch ue.AuthenticationCtx.AuthType {
 	case models.AUTHTYPE__5_G_AKA:
-		var tmpArray [16]byte
+		const authParamLen = 16
+		var tmpArray [authParamLen]byte
 		av5gAka, err := ExtractAv5gAka(ue.AuthenticationCtx)
 		if err != nil {
 			logger.GmmLog.Error(err.Error())
@@ -159,23 +160,23 @@ func BuildAuthenticationRequest(ue *context.AmfUe) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		if len(rand) < len(tmpArray) {
-			return nil, fmt.Errorf("decoded RAND too short: got %d bytes", len(rand))
+		if len(rand) != len(tmpArray) {
+			return nil, fmt.Errorf("decoded RAND must be %d bytes, got %d", len(tmpArray), len(rand))
 		}
 		authenticationRequest.AuthenticationParameterRAND = nasType.NewAuthenticationParameterRAND(nasMessage.AuthenticationRequestAuthenticationParameterRANDType)
-		copy(tmpArray[:], rand[0:16])
+		copy(tmpArray[:], rand)
 		authenticationRequest.SetRANDValue(tmpArray)
 
 		autn, err := hex.DecodeString(av5gAka.Autn)
 		if err != nil {
 			return nil, err
 		}
-		if len(autn) < len(tmpArray) {
-			return nil, fmt.Errorf("decoded AUTN too short: got %d bytes", len(autn))
+		if len(autn) != len(tmpArray) {
+			return nil, fmt.Errorf("decoded AUTN must be %d bytes, got %d", len(tmpArray), len(autn))
 		}
 		authenticationRequest.AuthenticationParameterAUTN = nasType.NewAuthenticationParameterAUTN(nasMessage.AuthenticationRequestAuthenticationParameterAUTNType)
-		authenticationRequest.AuthenticationParameterAUTN.SetLen(uint8(len(autn)))
-		copy(tmpArray[:], autn[0:16])
+		authenticationRequest.AuthenticationParameterAUTN.SetLen(uint8(len(tmpArray)))
+		copy(tmpArray[:], autn)
 		authenticationRequest.SetAUTN(tmpArray)
 	case models.AUTHTYPE_EAP_AKA_PRIME:
 		if ue.AuthenticationCtx == nil || ue.AuthenticationCtx.Var5gAuthData.String == nil {

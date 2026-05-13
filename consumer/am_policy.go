@@ -43,14 +43,18 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 	policyAssociationRequest := models.PolicyAssociationRequest{
 		NotificationUri: amfSelf.GetIPv4Uri() + "/namf-callback/v1/am-policy/",
 		Supi:            ue.Supi,
-		Pei:             openapi.PtrString(ue.Pei),
-		Gpsi:            openapi.PtrString(ue.Gpsi),
 		AccessType:      &anType,
 		ServingPlmn: &models.PlmnIdNid{
 			Mcc: ue.PlmnId.GetMcc(),
 			Mnc: ue.PlmnId.GetMnc(),
 		},
 		Guami: &amfSelf.ServedGuamiList[0],
+	}
+	if ue.Pei != "" {
+		policyAssociationRequest.Pei = openapi.PtrString(ue.Pei)
+	}
+	if ue.Gpsi != "" {
+		policyAssociationRequest.Gpsi = openapi.PtrString(ue.Gpsi)
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
