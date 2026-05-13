@@ -4,7 +4,6 @@
 package util
 
 import (
-	"os"
 	"testing"
 
 	"github.com/google/uuid"
@@ -15,6 +14,7 @@ func TestResolveRegisterIPv4(t *testing.T) {
 	t.Setenv("AMF_REGISTER_IP", "10.10.0.1")
 	t.Setenv("AMF_REGISTER_HOST", "amf.namespace.svc.cluster.local")
 	t.Setenv("INVALID_REGISTER_IP", "http://amf")
+	t.Setenv("POD_IP", "")
 
 	tests := []struct {
 		name     string
@@ -37,10 +37,6 @@ func TestResolveRegisterIPv4(t *testing.T) {
 				t.Fatalf("resolveRegisterIPv4(%q) = %q, want %q", test.input, got, test.expected)
 			}
 		})
-	}
-
-	if _, ok := os.LookupEnv("POD_IP"); ok {
-		t.Fatal("expected POD_IP to remain unset in this test")
 	}
 }
 
