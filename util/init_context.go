@@ -22,17 +22,21 @@ import (
 
 func resolveStableAmfNfId(configuration *factory.Configuration) string {
 	if nfID := os.Getenv("NF_ID"); nfID != "" {
-		return nfID
+		if _, err := uuid.Parse(nfID); err == nil {
+			return nfID
+		}
+		return uuid.NewSHA1(uuid.NameSpaceOID, []byte(nfID)).String()
 	}
 	if configuration != nil {
 		if configuration.AmfName != "" {
-			return configuration.AmfName
+			return uuid.NewSHA1(uuid.NameSpaceOID, []byte(configuration.AmfName)).String()
 		}
 		if configuration.Sbi != nil && configuration.Sbi.RegisterIPv4 != "" {
-			if registerIPv4 := os.Getenv(configuration.Sbi.RegisterIPv4); registerIPv4 != "" {
-				return registerIPv4
+			registerIPv4 := configuration.Sbi.RegisterIPv4
+			if envRegisterIPv4 := os.Getenv(configuration.Sbi.RegisterIPv4); envRegisterIPv4 != "" {
+				registerIPv4 = envRegisterIPv4
 			}
-			return configuration.Sbi.RegisterIPv4
+			return uuid.NewSHA1(uuid.NameSpaceOID, []byte(registerIPv4)).String()
 		}
 	}
 	return uuid.New().String()

@@ -35,12 +35,22 @@ func HTTPPurgeUEContext(c *gin.Context) {
 			ue.EventChannel.SubmitMessage(sbiMsg)
 			msg := <-sbiMsg.Result
 			if msg.ProblemDetails != nil {
-				problemDetails := msg.ProblemDetails.(models.ProblemDetails)
-				status := problemDetails.GetStatus()
-				if status == 0 {
-					status = http.StatusInternalServerError
+				switch problemDetails := msg.ProblemDetails.(type) {
+				case *models.ProblemDetails:
+					status := problemDetails.GetStatus()
+					if status == 0 {
+						status = http.StatusInternalServerError
+					}
+					c.JSON(int(status), problemDetails)
+				case models.ProblemDetails:
+					status := problemDetails.GetStatus()
+					if status == 0 {
+						status = http.StatusInternalServerError
+					}
+					c.JSON(int(status), problemDetails)
+				default:
+					c.JSON(http.StatusInternalServerError, nil)
 				}
-				c.JSON(int(status), msg.ProblemDetails)
 			} else {
 				c.JSON(http.StatusOK, nil)
 			}
