@@ -24,6 +24,8 @@ import (
 
 var registerIPv4HostnamePattern = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)$`)
 
+const defaultDrsmMongoURL = "mongodb://mongodb-arbiter-headless"
+
 func resolveStableAmfNfId(configuration *factory.Configuration) string {
 	if nfID := os.Getenv("NF_ID"); nfID != "" {
 		if _, err := uuid.Parse(nfID); err == nil {
@@ -68,17 +70,20 @@ func isValidRegisterIPv4Literal(registerIPv4 string) bool {
 	return registerIPv4HostnamePattern.MatchString(registerIPv4)
 }
 
+func resolveDrsmMongoURL(configuration *factory.Configuration) string {
+	if configuration != nil && configuration.Mongodb != nil && configuration.Mongodb.Url != "" {
+		return configuration.Mongodb.Url
+	}
+	return defaultDrsmMongoURL
+}
+
 func InitDrsm() (drsm.DrsmInterface, error) {
 	podname := os.Getenv("HOSTNAME")
 	podip := os.Getenv("POD_IP")
 	logger.UtilLog.Infof("NfId Instance: %v", context.AMF_Self().NfId)
 	podId := drsm.PodId{PodName: podname, PodInstance: context.AMF_Self().NfId, PodIp: podip}
 	logger.UtilLog.Debugf("PodId: %v", podId)
-	dbUrl := "mongodb://mongodb-headless"
-	if factory.AmfConfig.Configuration.Mongodb != nil &&
-		factory.AmfConfig.Configuration.Mongodb.Url != "" {
-		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
-	}
+	dbUrl := resolveDrsmMongoURL(factory.AmfConfig.Configuration)
 	opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
 	db := drsm.DbInfo{Url: dbUrl, Name: factory.AmfConfig.Configuration.AmfDBName}
 
