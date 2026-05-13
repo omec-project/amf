@@ -42,11 +42,9 @@ func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models
 			}
 		}
 
-		amfStatusInfo = models.AmfStatusInfo{
-			StatusChange:     amfStatus,
-			TargetAmfRemoval: openapi.PtrString(""),
-			TargetAmfFailure: openapi.PtrString(""),
-		}
+		amfStatusInfo.StatusChange = amfStatus
+		amfStatusInfo.TargetAmfRemoval = openapi.PtrString("")
+		amfStatusInfo.TargetAmfFailure = openapi.PtrString("")
 
 		amfStatusNotification.AmfStatusInfoList = append(amfStatusNotification.AmfStatusInfoList, amfStatusInfo)
 

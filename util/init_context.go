@@ -8,7 +8,9 @@
 package util
 
 import (
+	"net"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +21,8 @@ import (
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/drsm"
 )
+
+var registerIPv4HostnamePattern = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)$`)
 
 func resolveStableAmfNfId(configuration *factory.Configuration) string {
 	if nfID := os.Getenv("NF_ID"); nfID != "" {
@@ -40,6 +44,27 @@ func resolveStableAmfNfId(configuration *factory.Configuration) string {
 		}
 	}
 	return uuid.New().String()
+}
+
+func resolveRegisterIPv4(registerIPv4 string) string {
+	if registerIPv4 == "" {
+		return ""
+	}
+	if envRegisterIPv4 := os.Getenv(registerIPv4); envRegisterIPv4 != "" {
+		if isValidRegisterIPv4Literal(envRegisterIPv4) {
+			return envRegisterIPv4
+		}
+		logger.UtilLog.Warnf("RegisterIPv4 env var %q does not contain a valid address: %q", registerIPv4, envRegisterIPv4)
+	}
+	if isValidRegisterIPv4Literal(registerIPv4) {
+		return registerIPv4
+	}
+	logger.UtilLog.Warnf("RegisterIPv4 value %q is not a valid address; using default", registerIPv4)
+	return ""
+}
+
+func isValidRegisterIPv4Literal(registerIPv4 string) bool {
+	return net.ParseIP(registerIPv4) != nil || registerIPv4HostnamePattern.MatchString(registerIPv4)
 }
 
 func InitDrsm() (drsm.DrsmInterface, error) {
@@ -88,9 +113,8 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	amfContext.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			amfContext.RegisterIPv4 = os.Getenv(sbi.RegisterIPv4)
-			if amfContext.RegisterIPv4 == "" {
-				amfContext.RegisterIPv4 = sbi.RegisterIPv4
+			if registerIPv4 := resolveRegisterIPv4(sbi.RegisterIPv4); registerIPv4 != "" {
+				amfContext.RegisterIPv4 = registerIPv4
 			}
 		}
 		if sbi.Port != 0 {
