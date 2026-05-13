@@ -106,7 +106,7 @@ func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContex
 		provideLocInfo.Timezone = openapi.PtrString(ue.TimeZone)
 	}
 
-	if requestLocInfo.GetSupportedFeatures() != "" {
+	if ranUe != nil && requestLocInfo.GetSupportedFeatures() != "" {
 		provideLocInfo.SupportedFeatures = openapi.PtrString(ranUe.SupportedFeatures)
 	}
 	return provideLocInfo, nil
