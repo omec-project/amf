@@ -251,8 +251,16 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 
 		ipv4Addr, ipv6Addr := ngapConvert.IPAddressToString(ip)
 
-		ranUe.Location.N3gaLocation.UeIpv4Addr = openapi.PtrString(ipv4Addr)
-		ranUe.Location.N3gaLocation.UeIpv6Addr = openapi.PtrString(ipv6Addr)
+		if ipv4Addr != "" {
+			ranUe.Location.N3gaLocation.UeIpv4Addr = openapi.PtrString(ipv4Addr)
+		} else {
+			ranUe.Location.N3gaLocation.UeIpv4Addr = nil
+		}
+		if ipv6Addr != "" {
+			ranUe.Location.N3gaLocation.UeIpv6Addr = openapi.PtrString(ipv6Addr)
+		} else {
+			ranUe.Location.N3gaLocation.UeIpv6Addr = nil
+		}
 		ranUe.Location.N3gaLocation.PortNumber = openapi.PtrInt32(ngapConvert.PortNumberToInt(port))
 		// N3GPP TAI is operator-specific
 		// TODO: define N3GPP TAI
