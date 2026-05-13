@@ -255,3 +255,27 @@ func TestSortSNssaiListOrdersBySstThenSdWithEmptyLast(t *testing.T) {
 		t.Fatalf("unexpected SNSSAI order: got %+v want %+v", snssaiList, expected)
 	}
 }
+
+func TestConvertAccessAndMobilityListDeduplicatesSnssaiByValue(t *testing.T) {
+	firstSd := openapi.PtrString("112233")
+	secondSd := openapi.PtrString("112233")
+	_, plmnSnssaiList, _ := ConvertAccessAndMobilityList([]nfConfigApi.AccessAndMobility{
+		{
+			PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
+			Snssai: nfConfigApi.Snssai{Sst: 1, Sd: firstSd},
+			Tacs:   []string{"000001"},
+		},
+		{
+			PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
+			Snssai: nfConfigApi.Snssai{Sst: 1, Sd: secondSd},
+			Tacs:   []string{"000002"},
+		},
+	})
+
+	if len(plmnSnssaiList) != 1 {
+		t.Fatalf("unexpected PLMN-SNSSAI list: %+v", plmnSnssaiList)
+	}
+	if len(plmnSnssaiList[0].SNssaiList) != 1 {
+		t.Fatalf("expected one deduplicated SNSSAI, got %+v", plmnSnssaiList[0].SNssaiList)
+	}
+}

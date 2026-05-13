@@ -650,7 +650,7 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 	newSupportedTais := []models.Tai{}
 	var newPlmnSnssaiList []models.PlmnSnssai
 	var newGuamiList []models.Guami
-	newPlmnSupportItemsMap := make(map[models.PlmnId]map[models.Snssai]struct{})
+	newPlmnSupportItemsMap := make(map[models.PlmnId]map[string]models.Snssai)
 
 	for _, plmnSnssaiTacs := range newConfig {
 		newPlmn := models.PlmnId{
@@ -664,9 +664,9 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 			newSnssai.Sd = plmnSnssaiTacs.Snssai.Sd
 		}
 		if newPlmnSupportItemsMap[newPlmn] == nil {
-			newPlmnSupportItemsMap[newPlmn] = map[models.Snssai]struct{}{}
+			newPlmnSupportItemsMap[newPlmn] = map[string]models.Snssai{}
 		}
-		newPlmnSupportItemsMap[newPlmn][newSnssai] = struct{}{}
+		newPlmnSupportItemsMap[newPlmn][fmt.Sprintf("%d:%s", newSnssai.GetSst(), newSnssai.GetSd())] = newSnssai
 		if len(plmnSnssaiTacs.Tacs) == 0 {
 			logger.ContextLog.Warnf("empty TACs for %+v (SNssai: %+v)", plmnSnssaiTacs.PlmnId, plmnSnssaiTacs.Snssai)
 			continue
@@ -683,12 +683,12 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 	return newSupportedTais, newPlmnSnssaiList, newGuamiList
 }
 
-func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[models.Snssai]struct{}) ([]models.PlmnSnssai, []models.Guami) {
+func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[string]models.Snssai) ([]models.PlmnSnssai, []models.Guami) {
 	plmnSnssaiList := make([]models.PlmnSnssai, 0, len(plmnSnssaiMap))
 	newGuamiList := []models.Guami{}
 	for plmn, snssaiSet := range plmnSnssaiMap {
 		snssaiList := make([]models.Snssai, 0, len(snssaiSet))
-		for snssai := range snssaiSet {
+		for _, snssai := range snssaiSet {
 			snssaiList = append(snssaiList, snssai)
 		}
 		sortSNssaiList(snssaiList)
