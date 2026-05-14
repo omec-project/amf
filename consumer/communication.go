@@ -9,7 +9,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	amf_context "github.com/omec-project/amf/context"
@@ -115,14 +118,6 @@ func UEContextTransferRequest(
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Namf_Communication.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = ue.TargetAmfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	client := Namf_Communication.NewAPIClient(configuration)
-
 	ueContextTransferReqData := models.UeContextTransferReqData{
 		Reason:     transferReason,
 		AccessType: accessType,
@@ -155,29 +150,51 @@ func UEContextTransferRequest(
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	apiUEContextTransferRequest := client.IndividualUeContextDocumentAPI.UEContextTransfer(ctx, ueContextId)
-	apiUEContextTransferRequest = apiUEContextTransferRequest.UeContextTransferReqData(ueContextTransferReqData)
+	requestURI := fmt.Sprintf("%s/namf-comm/v1/ue-contexts/%s/transfer",
+		strings.TrimRight(ue.TargetAmfUri, "/"), url.PathEscape(ueContextId))
+	requestBody := &bytes.Buffer{}
+	contentType := "application/json"
 	if regRequestFile != nil {
-		apiUEContextTransferRequest = apiUEContextTransferRequest.BinaryDataN1Message(regRequestFile)
+		ueContextTransferRequest := models.NewUEContextTransferRequest()
+		ueContextTransferRequest.SetJsonData(ueContextTransferReqData)
+		ueContextTransferRequest.SetBinaryDataN1Message(regRequestFile)
+		contentType, err = openapi.MultipartEncode(ueContextTransferRequest, requestBody)
+	} else {
+		requestBody, err = openapi.SetBody(ueContextTransferReqData, contentType)
 	}
-	ueContextTransferResponse, httpResp, localErr := client.IndividualUeContextDocumentAPI.UEContextTransferExecute(apiUEContextTransferRequest)
-	if localErr == nil {
-		if ueContextTransferResponse != nil {
-			ueContextTransferRspData = ueContextTransferResponse
-		}
-		logger.ConsumerLog.Debugf("UeContextTransferRspData: %+v", ueContextTransferRspData)
-	} else if httpResp != nil {
-		if httpResp.Status != localErr.Error() {
-			err = localErr
+	if err != nil {
+		return ueContextTransferRspData, problemDetails, err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURI, bytes.NewReader(requestBody.Bytes()))
+	if err != nil {
+		return ueContextTransferRspData, problemDetails, err
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json, multipart/related, application/problem+json")
+
+	httpResp, localErr := http.DefaultClient.Do(req)
+	if localErr != nil {
+		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
+		return ueContextTransferRspData, problemDetails, err
+	}
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode < http.StatusMultipleChoices {
+		ueContextTransferResponse := models.NewUEContextTransfer200Response()
+		if err = decodeSuccessResponseBody(httpResp, ueContextTransferResponse); err != nil {
 			return ueContextTransferRspData, problemDetails, err
 		}
-		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
-			problemDetails = &problem
-		} else {
-			err = localErr
+		if ueContextTransferResponse.JsonData != nil {
+			ueContextTransferRspData = ueContextTransferResponse.JsonData
 		}
-	} else {
-		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
+		logger.ConsumerLog.Debugf("UeContextTransferRspData: %+v", ueContextTransferRspData)
+		return ueContextTransferRspData, problemDetails, nil
+	}
+
+	problemDetails = models.NewProblemDetails()
+	if err = decodeSuccessResponseBody(httpResp, problemDetails); err != nil {
+		return ueContextTransferRspData, nil, err
 	}
 	return ueContextTransferRspData, problemDetails, err
 }

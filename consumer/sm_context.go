@@ -182,6 +182,7 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 ) {
 	ctx, span := tracer.Start(ctx, "HTTP POST smf/sm-contexts")
 	defer span.End()
+	snssai := smContext.Snssai()
 
 	span.SetAttributes(
 		attribute.String("http.method", "POST"),
@@ -191,8 +192,8 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 		attribute.String("smf.nf.id", smContext.SmfID()),
 		attribute.String("smf.uri", smContext.SmfUri()),
 		attribute.String("smf.pdu.session.id", strconv.Itoa(int(smContext.PduSessionID()))),
-		attribute.String("smf.snssai.sst", strconv.Itoa(int(smContext.Snssai().Sst))),
-		attribute.String("smf.snssai.sd", *smContext.Snssai().Sd),
+		attribute.String("smf.snssai.sst", strconv.Itoa(int(snssai.GetSst()))),
+		attribute.String("smf.snssai.sd", snssai.GetSd()),
 	)
 
 	smContextCreateData := buildCreateSmContextRequest(ue, smContext, nil)

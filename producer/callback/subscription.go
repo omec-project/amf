@@ -12,7 +12,6 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2/Namf_Communication"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -21,14 +20,6 @@ func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models
 
 	amfSelf.AMFStatusSubscriptions.Range(func(key, value interface{}) bool {
 		subscriptionData := value.(models.SubscriptionDataAmf)
-
-		cfg := Namf_Communication.NewConfiguration()
-		serverConfig := &cfg.Servers[0]
-		if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-			apiRootVar.DefaultValue = subscriptionData.AmfStatusUri
-			serverConfig.Variables["apiRoot"] = apiRootVar
-		}
-		client := Namf_Communication.NewAPIClient(cfg)
 		amfStatusNotification := models.AmfStatusChangeNotification{}
 		amfStatusInfo := models.AmfStatusInfo{}
 
@@ -46,17 +37,9 @@ func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models
 		amfStatusNotification.AmfStatusInfoList = append(amfStatusNotification.AmfStatusInfoList, amfStatusInfo)
 
 		logger.ProducerLog.Infof("[AMF] Send Amf Status Change Notify to %s", subscriptionData.AmfStatusUri)
-		apiAmfStatusChangeNotifyRequest := client.SubscriptionsCollectionCollectionCallbackAmfStatusChangeAPI.AmfStatusChangeNotifyOnSubscriptionUpdate(context.Background())
-		apiAmfStatusChangeNotifyRequest = apiAmfStatusChangeNotifyRequest.AmfStatusChangeNotification(amfStatusNotification)
-		httpResponse, err := client.SubscriptionsCollectionCollectionCallbackAmfStatusChangeAPI.
-			AmfStatusChangeNotifyOnSubscriptionUpdateExecute(apiAmfStatusChangeNotifyRequest)
-		if err != nil {
-			if httpResponse == nil {
-				logger.HttpLog.Errorln(err.Error())
-			} else if err.Error() != httpResponse.Status {
-				logger.HttpLog.Errorln(err.Error())
-			}
-		}
+		httpResponse, err := postCallbackJSON(context.Background(), subscriptionData.AmfStatusUri, amfStatusNotification)
+		defer closeCallbackResponseBody(httpResponse)
+		logCallbackResponseError(httpResponse, err)
 		return true
 	})
 }
