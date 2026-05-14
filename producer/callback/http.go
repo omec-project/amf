@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2"
 )
 
-var callbackHTTPClient = &http.Client{}
+const callbackHTTPTimeout = 30 * time.Second
+
+var callbackHTTPClient = &http.Client{Timeout: callbackHTTPTimeout}
 
 func postCallbackJSON(ctx context.Context, callbackURI string, payload any) (*http.Response, error) {
 	body, err := openapi.SetBody(payload, "application/json")
