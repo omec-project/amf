@@ -1,8 +1,8 @@
+// Copyright (c) 2026 Intel Corporation
+
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
-//
 // SPDX-License-Identifier: Apache-2.0
-//
 
 package message
 
@@ -20,6 +20,41 @@ import (
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 )
+
+const maxAllowedNSSAIItems = 8
+
+func buildAllowedNSSAIFromAllowedSnssai(snssais []models.AllowedSnssai) (*ngapType.AllowedNSSAI, error) {
+	allowedNSSAI := new(ngapType.AllowedNSSAI)
+	seen := make(map[string]struct{}, len(snssais))
+
+	for _, allowedSnssai := range snssais {
+		if err := appendAllowedNSSAIItem(allowedNSSAI, allowedSnssai.AllowedSnssai, seen); err != nil {
+			return nil, err
+		}
+	}
+
+	return allowedNSSAI, nil
+}
+
+func appendAllowedNSSAIItem(
+	allowedNSSAI *ngapType.AllowedNSSAI,
+	snssai models.Snssai,
+	seen map[string]struct{},
+) error {
+	key := fmt.Sprintf("%d-%s", snssai.Sst, snssai.GetSd())
+	if _, ok := seen[key]; ok {
+		return nil
+	}
+	if len(allowedNSSAI.List) >= maxAllowedNSSAIItems {
+		return fmt.Errorf("allowed NSSAI count exceeds NGAP max %d", maxAllowedNSSAIItems)
+	}
+
+	allowedNSSAIItem := ngapType.AllowedNSSAIItem{}
+	allowedNSSAIItem.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
+	allowedNSSAI.List = append(allowedNSSAI.List, allowedNSSAIItem)
+	seen[key] = struct{}{}
+	return nil
+}
 
 func IncrementNGAPMsgCount(pdu ngapType.NGAPPDU) {
 	if pdu.InitiatingMessage != nil {
@@ -981,16 +1016,11 @@ func BuildInitialContextSetupRequest(
 	ie.Id.Value = ngapType.ProtocolIEIDAllowedNSSAI
 	ie.Criticality.Value = ngapType.CriticalityPresentReject
 	ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentAllowedNSSAI
-	ie.Value.AllowedNSSAI = new(ngapType.AllowedNSSAI)
-
-	allowedNSSAI := ie.Value.AllowedNSSAI
-
-	for _, allowedSnssai := range amfUe.AllowedNssai[anType] {
-		allowedNSSAIItem := ngapType.AllowedNSSAIItem{}
-		ngapSnssai := ngapConvert.SNssaiToNgap(allowedSnssai.AllowedSnssai)
-		allowedNSSAIItem.SNSSAI = ngapSnssai
-		allowedNSSAI.List = append(allowedNSSAI.List, allowedNSSAIItem)
+	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(amfUe.AllowedNssai[anType])
+	if err != nil {
+		return nil, err
 	}
+	ie.Value.AllowedNSSAI = allowedNSSAI
 
 	initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 
@@ -1512,16 +1542,11 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	ie.Id.Value = ngapType.ProtocolIEIDAllowedNSSAI
 	ie.Criticality.Value = ngapType.CriticalityPresentReject
 	ie.Value.Present = ngapType.HandoverRequestIEsPresentAllowedNSSAI
-	ie.Value.AllowedNSSAI = new(ngapType.AllowedNSSAI)
-
-	allowedNSSAI := ie.Value.AllowedNSSAI
-	for _, snssaiItem := range amfSelf.PlmnSupportList[0].SNssaiList {
-		allowedNSSAIItem := ngapType.AllowedNSSAIItem{}
-
-		ngapSnssai := ngapConvert.SNssaiToNgap(snssaiItem)
-		allowedNSSAIItem.SNSSAI = ngapSnssai
-		allowedNSSAI.List = append(allowedNSSAI.List, allowedNSSAIItem)
+	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(amfUe.AllowedNssai[ue.Ran.AnType])
+	if err != nil {
+		return nil, err
 	}
+	ie.Value.AllowedNSSAI = allowedNSSAI
 
 	handoverRequestIEs.List = append(handoverRequestIEs.List, ie)
 
@@ -1614,8 +1639,6 @@ func BuildPathSwitchRequestAcknowledge(
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
 	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
 ) ([]byte, error) {
-	amfSelf := context.AMF_Self()
-
 	var pdu ngapType.NGAPPDU
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
 	pdu.SuccessfulOutcome = new(ngapType.SuccessfulOutcome)
@@ -1730,17 +1753,11 @@ func BuildPathSwitchRequestAcknowledge(
 	ie.Id.Value = ngapType.ProtocolIEIDAllowedNSSAI
 	ie.Criticality.Value = ngapType.CriticalityPresentReject
 	ie.Value.Present = ngapType.PathSwitchRequestAcknowledgeIEsPresentAllowedNSSAI
-	ie.Value.AllowedNSSAI = new(ngapType.AllowedNSSAI)
-
-	allowedNSSAI := ie.Value.AllowedNSSAI
-	// plmnSupportList[0] is serving plmn
-	for _, modelSnssai := range amfSelf.PlmnSupportList[0].SNssaiList {
-		allowedNSSAIItem := ngapType.AllowedNSSAIItem{}
-
-		ngapSnssai := ngapConvert.SNssaiToNgap(modelSnssai)
-		allowedNSSAIItem.SNSSAI = ngapSnssai
-		allowedNSSAI.List = append(allowedNSSAI.List, allowedNSSAIItem)
+	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(ue.AmfUe.AllowedNssai[ue.Ran.AnType])
+	if err != nil {
+		return nil, err
 	}
+	ie.Value.AllowedNSSAI = allowedNSSAI
 	pathSwitchRequestAckIEs.List = append(pathSwitchRequestAckIEs.List, ie)
 
 	// Core Network Assistance Information (optional)
