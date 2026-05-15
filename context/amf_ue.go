@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-present Intel Corporation
+// Copyright (c) 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -507,18 +507,30 @@ func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
 
 func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	/* detach any RanUe associated to it */
-	oldRanUe := ue.RanUe[ranUe.Ran.AnType]
-	ue.RanUe[ranUe.Ran.AnType] = ranUe
+	anType := ranUe.Ran.AnType
+	oldRanUe := ue.RanUe[anType]
+	if oldRanUe == ranUe {
+		ranUe.AmfUe = ue
+		ue.updateAttachedRanUeLogs(ranUe)
+		return
+	}
+	ue.RanUe[anType] = ranUe
 	ranUe.AmfUe = ue
 
-	go func() {
-		time.Sleep(time.Second * 2)
-		if oldRanUe != nil {
-			logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
-			oldRanUe.AmfUe = nil
-		}
-	}()
+	if oldRanUe != nil {
+		go func(oldRanUe *RanUe, anType models.AccessType) {
+			time.Sleep(time.Second * 2)
+			if oldRanUe.AmfUe == ue && ue.RanUe[anType] != oldRanUe {
+				logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
+				oldRanUe.AmfUe = nil
+			}
+		}(oldRanUe, anType)
+	}
 
+	ue.updateAttachedRanUeLogs(ranUe)
+}
+
+func (ue *AmfUe) updateAttachedRanUeLogs(ranUe *RanUe) {
 	// set log information
 	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
