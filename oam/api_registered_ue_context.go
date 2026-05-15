@@ -11,8 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -33,17 +33,13 @@ func HTTPRegisteredUEContext(c *gin.Context) {
 
 	rsp := producer.HandleOAMRegisteredUEContext(req)
 
-	responseBody, err := openapi.Serialize(rsp.Body, "application/json")
+	responseBody, err := openapi.SetBody(rsp.Body, "application/json")
 	if err != nil {
 		logger.MtLog.Errorln(err)
-		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
-		}
+		problemDetails := utils.ProblemDetailsSystemFailure(err.Error())
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(rsp.Status, "application/json", responseBody)
+		c.Data(rsp.Status, "application/json", responseBody.Bytes())
 	}
 }
 
@@ -54,16 +50,12 @@ func HTTPGetActiveUes(c *gin.Context) {
 
 	rsp := producer.HandleOAMActiveUEContextsFromDB(req)
 
-	responseBody, err := openapi.Serialize(rsp.Body, "application/json")
+	responseBody, err := openapi.SetBody(rsp.Body, "application/json")
 	if err != nil {
 		logger.MtLog.Errorln(err)
-		problemDetails := models.ProblemDetails{
-			Status: http.StatusInternalServerError,
-			Cause:  "SYSTEM_FAILURE",
-			Detail: err.Error(),
-		}
+		problemDetails := utils.ProblemDetailsSystemFailure(err.Error())
 		c.JSON(http.StatusInternalServerError, problemDetails)
 	} else {
-		c.Data(rsp.Status, "application/json", responseBody)
+		c.Data(rsp.Status, "application/json", responseBody.Bytes())
 	}
 }

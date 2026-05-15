@@ -3,16 +3,15 @@ module github.com/omec-project/amf
 go 1.25.0
 
 require (
-	github.com/antihax/optional v1.0.0
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/nas v1.9.0
-	github.com/omec-project/ngap v1.9.1
-	github.com/omec-project/openapi v1.7.1
+	github.com/omec-project/nas/v2 v2.0.0
+	github.com/omec-project/ngap/v2 v2.0.0
+	github.com/omec-project/openapi/v2 v2.0.0
 	github.com/omec-project/util v1.7.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/urfave/cli/v3 v3.8.0
@@ -46,7 +45,6 @@ require (
 	github.com/go-playground/validator/v10 v10.30.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
-	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -90,4 +88,5 @@ require (
 	golang.org/x/text v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260401024825-9d38bb4040a9 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260401024825-9d38bb4040a9 // indirect
+	gopkg.in/validator.v2 v2.0.1 // indirect
 )

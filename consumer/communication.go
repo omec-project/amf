@@ -9,58 +9,59 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
 	"time"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Namf_Communication"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/Namf_Communication"
+	"github.com/omec-project/openapi/v2/models"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
-	ueContext.Supi = ue.Supi
-	ueContext.SupiUnauthInd = ue.UnauthenticatedSupi
+	ueContext.Supi = openapi.PtrString(ue.Supi)
+	ueContext.SupiUnauthInd = openapi.PtrBool(ue.UnauthenticatedSupi)
 
 	if ue.Gpsi != "" {
 		ueContext.GpsiList = append(ueContext.GpsiList, ue.Gpsi)
 	}
 
 	if ue.Pei != "" {
-		ueContext.Pei = ue.Pei
+		ueContext.Pei = openapi.PtrString(ue.Pei)
 	}
 
 	if ue.UdmGroupId != "" {
-		ueContext.UdmGroupId = ue.UdmGroupId
+		ueContext.UdmGroupId = openapi.PtrString(ue.UdmGroupId)
 	}
 
 	if ue.AusfGroupId != "" {
-		ueContext.AusfGroupId = ue.AusfGroupId
+		ueContext.AusfGroupId = openapi.PtrString(ue.AusfGroupId)
 	}
 
 	if ue.RoutingIndicator != "" {
-		ueContext.RoutingIndicator = ue.RoutingIndicator
+		ueContext.RoutingIndicator = openapi.PtrString(ue.RoutingIndicator)
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
-		if ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr != nil {
-			ueContext.SubUeAmbr = &models.Ambr{
-				Uplink:   ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink,
-				Downlink: ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink,
-			}
+		if ambr, ok := ue.AccessAndMobilitySubscriptionData.GetSubscribedUeAmbrOk(); ok {
+			ueContext.SubUeAmbr = models.NewAmbr(ambr.GetUplink(), ambr.GetDownlink())
 		}
-		if ue.AccessAndMobilitySubscriptionData.RfspIndex != 0 {
-			ueContext.SubRfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
+		if ue.AccessAndMobilitySubscriptionData.GetRfspIndex() != 0 {
+			ueContext.SubRfsp = openapi.PtrInt32(ue.AccessAndMobilitySubscriptionData.GetRfspIndex())
 		}
 	}
 
 	if ue.PcfId != "" {
-		ueContext.PcfId = ue.PcfId
+		ueContext.PcfId = openapi.PtrString(ue.PcfId)
 	}
 
 	if ue.AmPolicyUri != "" {
-		ueContext.PcfAmPolicyUri = ue.AmPolicyUri
+		ueContext.PcfAmPolicyUri = openapi.PtrString(ue.AmPolicyUri)
 	}
 
 	if ue.AmPolicyAssociation != nil {
@@ -76,22 +77,27 @@ func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
 	}
 
 	if ue.TraceData != nil {
-		ueContext.TraceData = ue.TraceData
+		traceData := models.NewNullableTraceData(ue.TraceData)
+		ueContext.TraceData = *traceData
 	}
 	return ueContext
 }
 
-func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTriggers []models.AmPolicyReqTrigger) {
+func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTriggers []models.PolicyReqTrigger) {
 	for _, trigger := range triggers {
 		switch trigger {
-		case models.RequestTrigger_LOC_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_LOCATION_CHANGE)
-		case models.RequestTrigger_PRA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_PRA_CHANGE)
-		case models.RequestTrigger_SERV_AREA_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_SARI_CHANGE)
-		case models.RequestTrigger_RFSP_CH:
-			amPolicyReqTriggers = append(amPolicyReqTriggers, models.AmPolicyReqTrigger_RFSP_INDEX_CHANGE)
+		case models.REQUESTTRIGGER_LOC_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_LOCATION_CHANGE)
+		case models.REQUESTTRIGGER_PRA_CH:
+			amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_PRA_CHANGE)
+		// case models.REQUESTTRIGGER_SERV_AREA_CH:
+		// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_SARI_CHANGE)
+		// case models.REQUESTTRIGGER_RFSP_CH:
+		// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_RFSP_INDEX_CHANGE)
+		// TODO: GA: Review the above two policies that were removed in Rel-18
+		default:
+			logger.ConsumerLog.Errorf("ignoring unknown policy trigger: %v", trigger)
+			continue
 		}
 	}
 	return
@@ -112,28 +118,31 @@ func UEContextTransferRequest(
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Namf_Communication.NewConfiguration()
-	configuration.SetBasePath(ue.TargetAmfUri)
-	client := Namf_Communication.NewAPIClient(configuration)
-
 	ueContextTransferReqData := models.UeContextTransferReqData{
 		Reason:     transferReason,
 		AccessType: accessType,
 	}
+	var regRequestFile *os.File
 
-	req := models.UeContextTransferRequest{
-		JsonData: &ueContextTransferReqData,
-	}
-	if transferReason == models.TransferReason_INIT_REG || transferReason == models.TransferReason_MOBI_REG {
+	if transferReason == models.TRANSFERREASON_INIT_REG || transferReason == models.TRANSFERREASON_MOBI_REG {
 		var buf bytes.Buffer
 		ue.RegistrationRequest.EncodeRegistrationRequest(&buf)
+
+		regRequestFile, err = createBinaryPayloadTempFile(buf.Bytes())
+		if err != nil {
+			return ueContextTransferRspData, problemDetails, err
+		}
+		if regRequestFile != nil {
+			defer os.Remove(regRequestFile.Name())
+			defer regRequestFile.Close()
+		}
+
 		ueContextTransferReqData.RegRequest = &models.N1MessageContainer{
-			N1MessageClass: models.N1MessageClass__5_GMM,
-			N1MessageContent: &models.RefToBinaryData{
+			N1MessageClass: models.N1MESSAGECLASS__5_GMM,
+			N1MessageContent: models.RefToBinaryData{
 				ContentId: "n1Msg",
 			},
 		}
-		req.BinaryDataN1Message = buf.Bytes()
 	}
 
 	// guti format is defined at TS 29.518 Table 6.1.3.2.2-1 5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}
@@ -141,20 +150,51 @@ func UEContextTransferRequest(
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
+	requestURI := fmt.Sprintf("%s/namf-comm/v1/ue-contexts/%s/transfer",
+		strings.TrimRight(ue.TargetAmfUri, "/"), url.PathEscape(ueContextId))
+	requestBody := &bytes.Buffer{}
+	contentType := "application/json"
+	if regRequestFile != nil {
+		ueContextTransferRequest := models.NewUEContextTransferRequest()
+		ueContextTransferRequest.SetJsonData(ueContextTransferReqData)
+		ueContextTransferRequest.SetBinaryDataN1Message(regRequestFile)
+		contentType, err = openapi.MultipartEncode(ueContextTransferRequest, requestBody)
+	} else {
+		requestBody, err = openapi.SetBody(ueContextTransferReqData, contentType)
+	}
+	if err != nil {
+		return ueContextTransferRspData, problemDetails, err
+	}
 
-	res, httpResp, localErr := client.IndividualUeContextDocumentApi.UEContextTransfer(ctx, ueContextId, req)
-	if localErr == nil {
-		ueContextTransferRspData = res.JsonData
-		logger.ConsumerLog.Debugf("UeContextTransferRspData: %+v", *ueContextTransferRspData)
-	} else if httpResp != nil {
-		if httpResp.Status != localErr.Error() {
-			err = localErr
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURI, bytes.NewReader(requestBody.Bytes()))
+	if err != nil {
+		return ueContextTransferRspData, problemDetails, err
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", "application/json, multipart/related, application/problem+json")
+
+	httpResp, localErr := http.DefaultClient.Do(req)
+	if localErr != nil {
+		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
+		return ueContextTransferRspData, problemDetails, err
+	}
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode < http.StatusMultipleChoices {
+		ueContextTransferResponse := models.NewUEContextTransfer200Response()
+		if err = decodeSuccessResponseBody(httpResp, ueContextTransferResponse); err != nil {
 			return ueContextTransferRspData, problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
-	} else {
-		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
+		if ueContextTransferResponse.JsonData != nil {
+			ueContextTransferRspData = ueContextTransferResponse.JsonData
+		}
+		logger.ConsumerLog.Debugf("UeContextTransferRspData: %+v", ueContextTransferRspData)
+		return ueContextTransferRspData, problemDetails, nil
+	}
+
+	problemDetails = models.NewProblemDetails()
+	if err = decodeSuccessResponseBody(httpResp, problemDetails); err != nil {
+		return ueContextTransferRspData, nil, err
 	}
 	return ueContextTransferRspData, problemDetails, err
 }
@@ -175,14 +215,20 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 	)
 
 	configuration := Namf_Communication.NewConfiguration()
-	configuration.SetBasePath(ue.TargetAmfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.TargetAmfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Namf_Communication.NewAPIClient(configuration)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
-	res, httpResp, localErr := client.IndividualUeContextDocumentApi.RegistrationStatusUpdate(ctx, ueContextId, request)
+	apiRegistrationStatusUpdateRequest := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdate(ctx, ueContextId)
+	apiRegistrationStatusUpdateRequest = apiRegistrationStatusUpdateRequest.UeRegStatusUpdateReqData(request)
+	res, httpResp, localErr := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdateExecute(apiRegistrationStatusUpdateRequest)
 	if localErr == nil {
 		regStatusTransferComplete = res.RegStatusTransferComplete
 	} else if httpResp != nil {
@@ -190,8 +236,11 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 			err = localErr
 			return regStatusTransferComplete, problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("%s: server no response", ue.TargetAmfUri)
 	}

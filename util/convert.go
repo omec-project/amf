@@ -12,13 +12,13 @@ import (
 	"strconv"
 
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func SnssaiModelsToHex(snssai models.Snssai) string {
-	sst := fmt.Sprintf("%02x", snssai.Sst)
-	return sst + snssai.Sd
+	sst := fmt.Sprintf("%02x", snssai.GetSst())
+	return sst + snssai.GetSd()
 }
 
 func SeparateAmfId(amfid string) (regionId, setId, ptrId string, err error) {
@@ -67,9 +67,9 @@ func TACConfigToModels(intString string) (hexString string) {
 
 func AnTypeToNas(anType models.AccessType) uint8 {
 	switch anType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.ACCESSTYPE__3_GPP_ACCESS:
 		return nasMessage.AccessType3GPP
-	case models.AccessType_NON_3_GPP_ACCESS:
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
 		return nasMessage.AccessTypeNon3GPP
 	}
 

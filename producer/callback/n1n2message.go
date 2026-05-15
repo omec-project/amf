@@ -8,42 +8,70 @@ package callback
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"os"
 	"strconv"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/Namf_Communication"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
 )
+
+func createTempBinaryFile(data []byte) (*os.File, error) {
+	tmpFile, err := os.CreateTemp("", "prefix")
+	if err != nil {
+		return nil, err
+	}
+	if _, err = tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return nil, err
+	}
+	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return nil, err
+	}
+	return tmpFile, nil
+}
+
+func cleanupTempBinaryFile(tmpFile *os.File) {
+	if tmpFile == nil {
+		return
+	}
+	if err := tmpFile.Close(); err != nil {
+		logger.ProducerLog.Errorln(err)
+	}
+	if err := os.Remove(tmpFile.Name()); err != nil {
+		logger.ProducerLog.Errorln(err)
+	}
+}
 
 func SendN1N2TransferFailureNotification(ue *amf_context.AmfUe, cause models.N1N2MessageTransferCause) {
 	if ue.N1N2Message == nil {
+		logger.CallbackLog.Warnln("N1N2 Message Transfer Failure Notification not sent")
 		return
 	}
 	n1n2Message := ue.N1N2Message
-	uri := n1n2Message.Request.JsonData.N1n2FailureTxfNotifURI
-	if n1n2Message.Status == models.N1N2MessageTransferCause_ATTEMPTING_TO_REACH_UE && uri != "" {
-		configuration := Namf_Communication.NewConfiguration()
-		client := Namf_Communication.NewAPIClient(configuration)
-
-		n1N2MsgTxfrFailureNotification := models.N1N2MsgTxfrFailureNotification{
-			Cause:          cause,
-			N1n2MsgDataUri: n1n2Message.ResourceUri,
-		}
-
-		httpResponse, err := client.N1N2MessageTransferStatusNotificationCallbackDocumentApi.
-			N1N2TransferFailureNotification(context.Background(), uri, n1N2MsgTxfrFailureNotification)
-
-		if err != nil {
-			if httpResponse == nil {
-				logger.HttpLog.Errorln(err.Error())
-			} else if err.Error() != httpResponse.Status {
-				logger.HttpLog.Errorln(err.Error())
-			}
-		} else {
-			ue.N1N2Message = nil
-		}
+	uri := n1n2Message.Request.JsonData.GetN1n2FailureTxfNotifURI()
+	if n1n2Message.Status != models.N1N2MESSAGETRANSFERCAUSE_ATTEMPTING_TO_REACH_UE || uri == "" {
+		logger.CallbackLog.Warnln("N1N2 Message Transfer Failure Notification not sent")
+		return
 	}
+
+	n1N2MsgTxfrFailureNotification := models.N1N2MsgTxfrFailureNotification{
+		Cause:          cause,
+		N1n2MsgDataUri: n1n2Message.ResourceUri,
+	}
+	httpResponse, err := postCallbackJSON(context.Background(), uri, n1N2MsgTxfrFailureNotification)
+	defer closeCallbackResponseBody(httpResponse)
+	if err == nil && httpResponse != nil && httpResponse.StatusCode < 300 {
+		ue.N1N2Message = nil
+		return
+	}
+	logCallbackResponseError(httpResponse, err)
 }
 
 func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n1Msg []byte,
@@ -53,31 +81,31 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 		subscriptionID := key.(int64)
 		subscription := value.(models.UeN1N2InfoSubscriptionCreateData)
 
-		if subscription.N1NotifyCallbackUri != "" && subscription.N1MessageClass == n1class {
-			configuration := Namf_Communication.NewConfiguration()
-			client := Namf_Communication.NewAPIClient(configuration)
-			n1MessageNotify := models.N1MessageNotify{
-				JsonData: &models.N1MessageNotification{
-					N1NotifySubscriptionId: strconv.Itoa(int(subscriptionID)),
-					N1MessageContainer: &models.N1MessageContainer{
-						N1MessageClass: subscription.N1MessageClass,
-						N1MessageContent: &models.RefToBinaryData{
-							ContentId: "n1Msg",
-						},
-					},
-					RegistrationCtxtContainer: registerContext,
-				},
-				BinaryDataN1Message: n1Msg,
-			}
-			httpResponse, err := client.N1MessageNotifyCallbackDocumentApiServiceCallbackDocumentApi.
-				N1MessageNotify(context.Background(), subscription.N1NotifyCallbackUri, n1MessageNotify)
+		if subscription.GetN1NotifyCallbackUri() != "" && subscription.GetN1MessageClass() == n1class {
+			tmpFile, err := createTempBinaryFile(n1Msg)
 			if err != nil {
-				if httpResponse == nil {
-					logger.HttpLog.Errorln(err.Error())
-				} else if err.Error() != httpResponse.Status {
-					logger.HttpLog.Errorln(err.Error())
-				}
+				logger.ProducerLog.Errorln(fmt.Errorf("create N1 message temp file: %w", err))
+				return true
 			}
+			defer cleanupTempBinaryFile(tmpFile)
+
+			jsonData := models.N1MessageNotification{
+				N1NotifySubscriptionId: openapi.PtrString(strconv.Itoa(int(subscriptionID))),
+				N1MessageContainer: models.N1MessageContainer{
+					N1MessageClass: subscription.GetN1MessageClass(),
+					N1MessageContent: models.RefToBinaryData{
+						ContentId: "n1Msg",
+					},
+				},
+				RegistrationCtxtContainer: registerContext,
+			}
+
+			n1MessageNotifyRequest := models.NewN1MessageNotifyRequest()
+			n1MessageNotifyRequest.SetJsonData(jsonData)
+			n1MessageNotifyRequest.SetBinaryDataN1Message(tmpFile)
+			httpResponse, err := postCallbackMultipart(context.Background(), subscription.GetN1NotifyCallbackUri(), n1MessageNotifyRequest)
+			defer closeCallbackResponseBody(httpResponse)
+			logCallbackResponseError(httpResponse, err)
 		}
 		return true
 	})
@@ -87,38 +115,36 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 func SendN1MessageNotifyAtAMFReAllocation(
 	ue *amf_context.AmfUe, n1Msg []byte, registerContext *models.RegistrationContextContainer,
 ) {
-	configuration := Namf_Communication.NewConfiguration()
-	client := Namf_Communication.NewAPIClient(configuration)
-
-	n1MessageNotify := models.N1MessageNotify{
-		JsonData: &models.N1MessageNotification{
-			N1MessageContainer: &models.N1MessageContainer{
-				N1MessageClass: models.N1MessageClass__5_GMM,
-				N1MessageContent: &models.RefToBinaryData{
-					ContentId: "n1Msg",
-				},
-			},
-			RegistrationCtxtContainer: registerContext,
-		},
-		BinaryDataN1Message: n1Msg,
-	}
-
 	var callbackUri string
 	for _, subscription := range ue.TargetAmfProfile.DefaultNotificationSubscriptions {
-		if subscription.NotificationType == models.NotificationType_N1_MESSAGES &&
-			subscription.N1MessageClass == models.N1MessageClass__5_GMM {
-			callbackUri = subscription.CallbackUri
+		if subscription.GetNotificationType() == models.NOTIFICATIONTYPE_N1_MESSAGES &&
+			subscription.GetN1MessageClass() == models.N1MESSAGECLASS__5_GMM {
+			callbackUri = subscription.GetCallbackUri()
 			break
 		}
 	}
 
-	httpResp, err := client.N1MessageNotifyCallbackDocumentApiServiceCallbackDocumentApi.
-		N1MessageNotify(context.Background(), callbackUri, n1MessageNotify)
+	tmpFile, err := createTempBinaryFile(n1Msg)
 	if err != nil {
-		if httpResp == nil {
-			logger.HttpLog.Errorln(err.Error())
-		} else if err.Error() != httpResp.Status {
-			logger.HttpLog.Errorln(err.Error())
-		}
+		logger.ProducerLog.Errorln(fmt.Errorf("create AMF re-allocation N1 message temp file: %w", err))
+		return
 	}
+	defer cleanupTempBinaryFile(tmpFile)
+
+	jsonData := models.N1MessageNotification{
+		N1MessageContainer: models.N1MessageContainer{
+			N1MessageClass: models.N1MESSAGECLASS__5_GMM,
+			N1MessageContent: models.RefToBinaryData{
+				ContentId: "n1Msg",
+			},
+		},
+		RegistrationCtxtContainer: registerContext,
+	}
+
+	n1MessageNotifyRequest := models.NewN1MessageNotifyRequest()
+	n1MessageNotifyRequest.SetJsonData(jsonData)
+	n1MessageNotifyRequest.SetBinaryDataN1Message(tmpFile)
+	httpResponse, err := postCallbackMultipart(context.Background(), callbackUri, n1MessageNotifyRequest)
+	defer closeCallbackResponseBody(httpResponse)
+	logCallbackResponseError(httpResponse, err)
 }

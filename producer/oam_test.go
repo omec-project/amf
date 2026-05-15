@@ -14,7 +14,8 @@ import (
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 )
 
@@ -27,25 +28,25 @@ func init() {
 	util.InitAmfContext(self)
 	self.ServedGuamiList = []models.Guami{
 		{
-			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			PlmnId: models.PlmnIdNid{Mcc: "208", Mnc: "93"},
 			AmfId:  "cafe00",
 		},
 	}
 	self.SupportTaiLists = []models.Tai{
 		{
-			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			Tac:    "1",
 		},
 	}
 	self.PlmnSupportList = []models.PlmnSnssai{
 		{
-			PlmnId: &models.PlmnId{Mcc: "208", Mnc: "93"},
+			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			SNssaiList: []models.Snssai{
 				{
-					Sst: 1, Sd: "010203",
+					Sst: 1, Sd: openapi.PtrString("010203"),
 				},
 				{
-					Sst: 1, Sd: "112233",
+					Sst: 1, Sd: openapi.PtrString("112233"),
 				},
 			},
 		},
@@ -77,7 +78,7 @@ func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 			setupUE: func(self *context.AMFContext) *context.AmfUe {
 				amfUe := self.NewAmfUe("imsi-208930100007497")
 				// Set UE to registered state
-				amfUe.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+				amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 				return amfUe
 			},
 			expectedDeregisteredInitiatedCount: 1,
@@ -117,5 +118,34 @@ func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 
 			t.Logf("Test passed: %s", tt.description)
 		})
+	}
+}
+
+func TestBuildUEContextUsesProvidedAccessType(t *testing.T) {
+	self := context.AMF_Self()
+	ue := self.NewAmfUe("imsi-208930100007498")
+	defer ue.Remove()
+
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Registered)
+
+	smContext := context.NewSmContext(10)
+	smContext.SetAccessType(models.ACCESSTYPE_NON_3_GPP_ACCESS)
+	smContext.SetSmContextRef("sm-context-ref")
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")})
+	smContext.SetDnn("internet")
+	ue.SmContextList.Store(smContext.PduSessionID(), smContext)
+
+	ueContext := buildUEContext(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
+	if ueContext == nil {
+		t.Fatal("expected UE context for non-3GPP access")
+	}
+	if ueContext.AccessType != models.ACCESSTYPE_NON_3_GPP_ACCESS {
+		t.Fatalf("expected access type %s, got %s", models.ACCESSTYPE_NON_3_GPP_ACCESS, ueContext.AccessType)
+	}
+	if len(ueContext.PduSessions) != 1 {
+		t.Fatalf("expected 1 PDU session, got %d", len(ueContext.PduSessions))
+	}
+	if ueContext.PduSessions[0].Sd != "112233" {
+		t.Fatalf("expected SD 112233, got %s", ueContext.PduSessions[0].Sd)
 	}
 }

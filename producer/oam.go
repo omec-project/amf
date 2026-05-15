@@ -14,7 +14,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/httpwrapper"
 )
@@ -70,16 +70,16 @@ type ActiveUeContexts []ActiveUeContext
 func HandleOAMPurgeUEContextRequest(ctx ctxt.Context, supi, reqUri string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	amfSelf := context.AMF_Self()
 	if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
-		ueFsmState := ue.State[models.AccessType__3_GPP_ACCESS].Current()
+		ueFsmState := ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current()
 		switch ueFsmState {
 		case context.Deregistered:
 			logger.ProducerLog.Info("Removing the UE : ", fmt.Sprintln(ue.Supi))
 			ue.Remove()
 		case context.Registered:
 			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.Supi)
-			err := gmm.GmmFSM.SendEvent(ctx, ue.State[models.AccessType__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
+			err := gmm.GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
-				gmm.ArgAccessType: models.AccessType__3_GPP_ACCESS,
+				gmm.ArgAccessType: models.ACCESSTYPE__3_GPP_ACCESS,
 			})
 			if err != nil {
 				logger.ProducerLog.Errorf("Error sending deregistration event: %v", err)
@@ -96,7 +96,7 @@ func HandleOAMRegisteredUEContext(request *httpwrapper.Request) *httpwrapper.Res
 
 	ueContexts, problemDetails := OAMRegisteredUEContextProcedure(supi)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusOK, nil, ueContexts)
 	}
@@ -109,7 +109,7 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 
 	for _, ue := range ueList {
 		ueContext := &ActiveUeContext{
-			AccessType: models.AccessType__3_GPP_ACCESS,
+			AccessType: models.ACCESSTYPE__3_GPP_ACCESS,
 			Supi:       ue.Supi,
 			Guti:       ue.Guti,
 			Mcc:        ue.Tai.PlmnId.Mcc,
@@ -117,26 +117,27 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 			Tac:        ue.Tai.Tac,
 			Tmsi:       fmt.Sprintf("%08x", ue.Tmsi),
 		}
-		if ue.RanUe != nil && ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-			ueContext.RanUeNgapId = ue.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
-			ueContext.AmfUeNgapId = ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
+		if ue.RanUe != nil && ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
+			ueContext.RanUeNgapId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
+			ueContext.AmfUeNgapId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId
 
-			if ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran != nil {
-				ueContext.GnbId = ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
+			if ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran != nil {
+				ueContext.GnbId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran.GnbId
 			}
 		}
 		ueContext.AmfInstanceName = ue.AmfInstanceName
 		ueContext.AmfInstanceIp = ue.AmfInstanceIp
 
-		accessType := models.AccessType__3_GPP_ACCESS
+		accessType := models.ACCESSTYPE__3_GPP_ACCESS
 		ue.SmContextList.Range(func(key, value interface{}) bool {
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == accessType {
+				snssai := smContext.Snssai()
 				pduSession := PduSession{
 					PduSessionId: strconv.Itoa(int(smContext.PduSessionID())),
 					SmContextRef: smContext.SmContextRef(),
-					Sst:          strconv.Itoa(int(smContext.Snssai().Sst)),
-					Sd:           smContext.Snssai().Sd,
+					Sst:          strconv.Itoa(int(snssai.GetSst())),
+					Sd:           snssai.GetSd(),
 					Dnn:          smContext.Dnn(),
 				}
 				ueContext.PduSessions = append(ueContext.PduSessions, pduSession)
@@ -147,11 +148,10 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 	}
 
 	if len(ueList) == 0 {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueContexts)
@@ -163,29 +163,28 @@ func OAMRegisteredUEContextProcedure(supi string) (UEContexts, *models.ProblemDe
 
 	if supi != "" {
 		if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
-			ueContext := buildUEContext(ue, models.AccessType__3_GPP_ACCESS)
+			ueContext := buildUEContext(ue, models.ACCESSTYPE__3_GPP_ACCESS)
 			if ueContext != nil {
 				ueContexts = append(ueContexts, *ueContext)
 			}
-			ueContext = buildUEContext(ue, models.AccessType_NON_3_GPP_ACCESS)
+			ueContext = buildUEContext(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
 			if ueContext != nil {
 				ueContexts = append(ueContexts, *ueContext)
 			}
 		} else {
-			problemDetails := &models.ProblemDetails{
-				Status: http.StatusNotFound,
-				Cause:  "CONTEXT_NOT_FOUND",
-			}
+			problemDetails := models.NewProblemDetails()
+			problemDetails.SetStatus(http.StatusNotFound)
+			problemDetails.SetCause("CONTEXT_NOT_FOUND")
 			return nil, problemDetails
 		}
 	} else {
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
-			ueContext := buildUEContext(ue, models.AccessType__3_GPP_ACCESS)
+			ueContext := buildUEContext(ue, models.ACCESSTYPE__3_GPP_ACCESS)
 			if ueContext != nil {
 				ueContexts = append(ueContexts, *ueContext)
 			}
-			ueContext = buildUEContext(ue, models.AccessType_NON_3_GPP_ACCESS)
+			ueContext = buildUEContext(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
 			if ueContext != nil {
 				ueContexts = append(ueContexts, *ueContext)
 			}
@@ -199,7 +198,7 @@ func OAMRegisteredUEContextProcedure(supi string) (UEContexts, *models.ProblemDe
 func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext {
 	if ue.State[accessType].Is(context.Registered) {
 		ueContext := &UEContext{
-			AccessType: models.AccessType__3_GPP_ACCESS,
+			AccessType: accessType,
 			Supi:       ue.Supi,
 			Guti:       ue.Guti,
 			Mcc:        ue.Tai.PlmnId.Mcc,
@@ -210,11 +209,12 @@ func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext 
 		ue.SmContextList.Range(func(key, value interface{}) bool {
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == accessType {
+				snssai := smContext.Snssai()
 				pduSession := PduSession{
 					PduSessionId: strconv.Itoa(int(smContext.PduSessionID())),
 					SmContextRef: smContext.SmContextRef(),
-					Sst:          strconv.Itoa(int(smContext.Snssai().Sst)),
-					Sd:           smContext.Snssai().Sd,
+					Sst:          strconv.Itoa(int(snssai.GetSst())),
+					Sd:           snssai.GetSd(),
 					Dnn:          smContext.Dnn(),
 				}
 				ueContext.PduSessions = append(ueContext.PduSessions, pduSession)
@@ -223,9 +223,9 @@ func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext 
 		})
 
 		if ue.CmConnect(accessType) {
-			ueContext.CmState = models.CmState_CONNECTED
+			ueContext.CmState = models.CMSTATE_CONNECTED
 		} else {
-			ueContext.CmState = models.CmState_IDLE
+			ueContext.CmState = models.CMSTATE_IDLE
 		}
 		return ueContext
 	}

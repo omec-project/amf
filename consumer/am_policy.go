@@ -12,9 +12,9 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Npcf_AMPolicy"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/Npcf_AMPolicyControl"
+	"github.com/omec-project/openapi/v2/models"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -30,33 +30,43 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Npcf_AMPolicy.NewConfiguration()
-	configuration.SetBasePath(ue.PcfUri)
-	client := Npcf_AMPolicy.NewAPIClient(configuration)
+	configuration := Npcf_AMPolicyControl.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.PcfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Npcf_AMPolicyControl.NewAPIClient(configuration)
 
 	amfSelf := amf_context.AMF_Self()
 
 	policyAssociationRequest := models.PolicyAssociationRequest{
 		NotificationUri: amfSelf.GetIPv4Uri() + "/namf-callback/v1/am-policy/",
 		Supi:            ue.Supi,
-		Pei:             ue.Pei,
-		Gpsi:            ue.Gpsi,
-		AccessType:      anType,
-		ServingPlmn: &models.NetworkId{
-			Mcc: ue.PlmnId.Mcc,
-			Mnc: ue.PlmnId.Mnc,
+		AccessType:      &anType,
+		ServingPlmn: &models.PlmnIdNid{
+			Mcc: ue.PlmnId.GetMcc(),
+			Mnc: ue.PlmnId.GetMnc(),
 		},
 		Guami: &amfSelf.ServedGuamiList[0],
 	}
+	if ue.Pei != "" {
+		policyAssociationRequest.Pei = openapi.PtrString(ue.Pei)
+	}
+	if ue.Gpsi != "" {
+		policyAssociationRequest.Gpsi = openapi.PtrString(ue.Gpsi)
+	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
-		policyAssociationRequest.Rfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex
+		policyAssociationRequest.Rfsp = ue.AccessAndMobilitySubscriptionData.RfspIndex.Get()
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	res, httpResp, localErr := client.DefaultApi.PoliciesPost(ctx, policyAssociationRequest)
+	apiCreateIndividualAMPolicyAssociationRequest := client.AMPolicyAssociationsCollectionAPI.CreateIndividualAMPolicyAssociation(ctx)
+	apiCreateIndividualAMPolicyAssociationRequest = apiCreateIndividualAMPolicyAssociationRequest.PolicyAssociationRequest(policyAssociationRequest)
+	res, httpResp, localErr := client.AMPolicyAssociationsCollectionAPI.CreateIndividualAMPolicyAssociationExecute(apiCreateIndividualAMPolicyAssociationRequest)
 	if localErr == nil {
 		locationHeader := httpResp.Header.Get("Location")
 		logger.ConsumerLog.Debugf("location header: %+v", locationHeader)
@@ -66,14 +76,14 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 		match := re.FindStringSubmatch(locationHeader)
 
 		ue.PolicyAssociationId = match[0][10:]
-		ue.AmPolicyAssociation = &res
+		ue.AmPolicyAssociation = res
 
 		if res.Triggers != nil {
 			for _, trigger := range res.Triggers {
-				if trigger == models.RequestTrigger_LOC_CH {
+				if trigger == models.REQUESTTRIGGER_LOC_CH {
 					ue.RequestTriggerLocationChange = true
 				}
-				//if trigger == models.RequestTrigger_PRA_CH {
+				//if trigger == models.REQUESTTRIGGER_PRA_CH {
 				// TODO: Presence Reporting Area handling (TS 23.503 6.1.2.5, TS 23.501 5.6.11)
 				//}
 			}
@@ -85,8 +95,10 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 		if httpResp.Status != localErr.Error() {
 			return nil, localErr
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		return &problem, nil
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			return &problem, nil
+		}
+		return nil, localErr
 	} else {
 		return nil, openapi.ReportError("server no response")
 	}
@@ -107,29 +119,34 @@ func AMPolicyControlUpdate(ctx context.Context, ue *amf_context.AmfUe, updateReq
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Npcf_AMPolicy.NewConfiguration()
-	configuration.SetBasePath(ue.PcfUri)
-	client := Npcf_AMPolicy.NewAPIClient(configuration)
+	configuration := Npcf_AMPolicyControl.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.PcfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Npcf_AMPolicyControl.NewAPIClient(configuration)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	res, httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdUpdatePost(
-		ctx, ue.PolicyAssociationId, updateRequest)
+	apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest := client.IndividualAMPolicyAssociationDocumentAPI.ReportObservedEventTriggersForIndividualAMPolicyAssociation(ctx, ue.PolicyAssociationId)
+	apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest = apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest.PolicyAssociationUpdateRequest(updateRequest)
+	res, httpResp, localErr := client.IndividualAMPolicyAssociationDocumentAPI.ReportObservedEventTriggersForIndividualAMPolicyAssociationExecute(apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest)
 	if localErr == nil {
 		if res.ServAreaRes != nil {
 			ue.AmPolicyAssociation.ServAreaRes = res.ServAreaRes
 		}
-		if res.Rfsp != 0 {
+		if res.GetRfsp() != 0 {
 			ue.AmPolicyAssociation.Rfsp = res.Rfsp
 		}
 		ue.AmPolicyAssociation.Triggers = res.Triggers
 		ue.RequestTriggerLocationChange = false
 		for _, trigger := range res.Triggers {
-			if trigger == models.RequestTrigger_LOC_CH {
+			if trigger == models.REQUESTTRIGGER_LOC_CH {
 				ue.RequestTriggerLocationChange = true
 			}
-			// if trigger == models.RequestTrigger_PRA_CH {
+			// if trigger == models.REQUESTTRIGGER_PRA_CH {
 			// TODO: Presence Reporting Area handling (TS 23.503 6.1.2.5, TS 23.501 5.6.11)
 			// }
 		}
@@ -139,8 +156,11 @@ func AMPolicyControlUpdate(ctx context.Context, ue *amf_context.AmfUe, updateReq
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("server no response")
 	}
@@ -159,14 +179,19 @@ func AMPolicyControlDelete(ctx context.Context, ue *amf_context.AmfUe) (problemD
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
-	configuration := Npcf_AMPolicy.NewConfiguration()
-	configuration.SetBasePath(ue.PcfUri)
-	client := Npcf_AMPolicy.NewAPIClient(configuration)
+	configuration := Npcf_AMPolicyControl.NewConfiguration()
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.PcfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
+	client := Npcf_AMPolicyControl.NewAPIClient(configuration)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	httpResp, localErr := client.DefaultApi.PoliciesPolAssoIdDelete(ctx, ue.PolicyAssociationId)
+	apiDeleteIndividualAMPolicyAssociationRequest := client.IndividualAMPolicyAssociationDocumentAPI.DeleteIndividualAMPolicyAssociation(ctx, ue.PolicyAssociationId)
+	httpResp, localErr := client.IndividualAMPolicyAssociationDocumentAPI.DeleteIndividualAMPolicyAssociationExecute(apiDeleteIndividualAMPolicyAssociationRequest)
 	if localErr == nil {
 		ue.RemoveAmPolicyAssociation()
 	} else if httpResp != nil {
@@ -174,8 +199,11 @@ func AMPolicyControlDelete(ctx context.Context, ue *amf_context.AmfUe) (problemD
 			err = localErr
 			return problemDetails, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			problemDetails = &problem
+		} else {
+			err = localErr
+		}
 	} else {
 		err = openapi.ReportError("server no response")
 	}

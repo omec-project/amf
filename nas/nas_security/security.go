@@ -14,11 +14,11 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/nas"
-	"github.com/omec-project/nas/nasConvert"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/nas/security"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2"
+	"github.com/omec-project/nas/v2/nasConvert"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/nas/v2/security"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 var mutex sync.Mutex
@@ -369,9 +369,9 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 
 func GetBearerType(accessType models.AccessType) uint8 {
 	switch accessType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.ACCESSTYPE__3_GPP_ACCESS:
 		return security.Bearer3GPP
-	case models.AccessType_NON_3_GPP_ACCESS:
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
 		return security.BearerNon3GPP
 	default:
 		return security.OnlyOneBearer

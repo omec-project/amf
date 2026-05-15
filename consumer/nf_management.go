@@ -15,22 +15,22 @@ import (
 	amfContext "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Nnrf_NFManagement"
-	"github.com/omec-project/openapi/models"
-	"github.com/omec-project/openapi/nfConfigApi"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/Nnrf_NFManagement"
+	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/nfConfigApi"
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (profile models.NfProfile, err error) {
+func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (profile models.NFProfile, err error) {
 	if amfCtx == nil {
 		return profile, fmt.Errorf("amf context has not been intialized. NF profile cannot be built")
 	}
 	newSupportedTais, newPlmnSnssai, newGuamiList := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
 	profile.NfInstanceId = amfCtx.NfId
-	profile.NfType = models.NfType_AMF
-	profile.NfStatus = models.NfStatus_REGISTERED
-	plmns := make([]models.PlmnId, len(accessAndMobilityConfig))
+	profile.NfType = models.NFTYPE_AMF
+	profile.NfStatus = models.NFSTATUS_REGISTERED
+	plmns := make([]models.PlmnId, 0, len(accessAndMobilityConfig))
 	for _, accessAndMobilityData := range accessAndMobilityConfig {
 		nfPlmn := models.PlmnId{
 			Mcc: accessAndMobilityData.PlmnId.GetMcc(),
@@ -38,7 +38,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 		}
 		plmns = append(plmns, nfPlmn)
 	}
-	profile.PlmnList = &plmns
+	profile.PlmnList = plmns
 	perPlmnSnssaiList := []models.PlmnSnssai{}
 	for _, plmnSnssai := range newPlmnSnssai {
 		perPlmnSnssai := models.PlmnSnssai{
@@ -59,40 +59,44 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	}
 	amfInfo.AmfRegionId = regionId
 	amfInfo.AmfSetId = setId
-	amfInfo.GuamiList = &newGuamiList
+	amfInfo.GuamiList = newGuamiList
 	if len(newSupportedTais) == 0 {
 		err = fmt.Errorf("SupportTaiList is empty in AMF")
 		return profile, err
 	}
-	amfInfo.TaiList = &newSupportedTais
+	amfInfo.TaiList = newSupportedTais
 	profile.AmfInfo = &amfInfo
 	if amfCtx.RegisterIPv4 == "" {
 		err = fmt.Errorf("AMF Address is empty")
 		return profile, err
 	}
-	profile.Ipv4Addresses = append(profile.Ipv4Addresses, amfCtx.RegisterIPv4)
-	services := []models.NfService{}
+	if registerIPv4 := amfCtx.RegisterIPv4Address(); registerIPv4 != "" {
+		profile.Ipv4Addresses = append(profile.Ipv4Addresses, registerIPv4)
+	} else if fqdn := amfCtx.RegisterFQDN(); fqdn != "" {
+		profile.Fqdn = openapi.PtrString(fqdn)
+	}
+	services := []models.NFService{}
 	for _, nfService := range amfCtx.NfService {
 		services = append(services, nfService)
 	}
 	if len(services) > 0 {
-		profile.NfServices = &services
+		profile.NfServices = services
 	}
 
 	defaultNotificationSubscription := models.DefaultNotificationSubscription{
-		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetIPv4Uri()),
-		NotificationType: models.NotificationType_N1_MESSAGES,
-		N1MessageClass:   models.N1MessageClass__5_GMM,
+		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetSbiUri()),
+		NotificationType: models.NOTIFICATIONTYPE_N1_MESSAGES,
+		N1MessageClass:   models.N1MESSAGECLASS__5_GMM.Ptr(),
 	}
 	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
 	return profile, nil
 }
 
-var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (prof models.NfProfile, resourceNrfUri string, err error) {
+var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (prof *models.NFProfile, resourceNrfUri string, err error) {
 	self := amfContext.AMF_Self()
 	nfProfile, err := getNfProfile(self, accessAndMobilityConfig)
 	if err != nil {
-		return models.NfProfile{}, "", err
+		return &models.NFProfile{}, "", err
 	}
 
 	ctx, span := tracer.Start(ctx, "HTTP PUT nrf/nf-instances/{nfInstanceID}")
@@ -107,16 +111,20 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 	)
 
 	configuration := Nnrf_NFManagement.NewConfiguration()
-	configuration.SetBasePath(self.NrfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = self.NrfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
-	receivedNfProfile, res, err := client.NFInstanceIDDocumentApi.RegisterNFInstance(ctx, nfProfile.NfInstanceId, nfProfile)
-	logger.ConsumerLog.Debugf("RegisterNFInstance done using profile: %+v", nfProfile)
-
+	apiRegisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.RegisterNFInstance(ctx, nfProfile.NfInstanceId)
+	apiRegisterNFInstanceRequest = apiRegisterNFInstanceRequest.NFProfile(nfProfile)
+	receivedNfProfile, res, err := client.NFInstanceIDDocumentAPI.RegisterNFInstanceExecute(apiRegisterNFInstanceRequest)
 	if err != nil {
-		return models.NfProfile{}, "", err
+		return &models.NFProfile{}, "", err
 	}
 	if res == nil {
-		return models.NfProfile{}, "", fmt.Errorf("no response from server")
+		return &models.NFProfile{}, "", fmt.Errorf("no response from server")
 	}
 
 	switch res.StatusCode {
@@ -151,10 +159,15 @@ var SendDeregisterNFInstance = func(ctx context.Context) error {
 	)
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
-	configuration.SetBasePath(amfSelf.NrfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = amfSelf.NrfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 
-	res, err := client.NFInstanceIDDocumentApi.DeregisterNFInstance(ctx, amfSelf.NfId)
+	apiDeregisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.DeregisterNFInstance(ctx, amfSelf.NfId)
+	res, err := client.NFInstanceIDDocumentAPI.DeregisterNFInstanceExecute(apiDeregisterNFInstanceRequest)
 	if err != nil {
 		return err
 	}
@@ -167,37 +180,43 @@ var SendDeregisterNFInstance = func(ctx context.Context) error {
 	return fmt.Errorf("unexpected response code")
 }
 
-var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile models.NfProfile, problemDetails *models.ProblemDetails, err error) {
+var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile *models.NFProfile, problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Debugln("send Update NFInstance")
 
 	amfSelf := amfContext.AMF_Self()
 	configuration := Nnrf_NFManagement.NewConfiguration()
-	configuration.SetBasePath(amfSelf.NrfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = amfSelf.NrfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 
 	var res *http.Response
-	receivedNfProfile, res, err = client.NFInstanceIDDocumentApi.UpdateNFInstance(context.Background(), amfSelf.NfId, patchItem)
+	apiUpdateNFInstanceRequest := client.NFInstanceIDDocumentAPI.UpdateNFInstance(context.Background(), amfSelf.NfId)
+	apiUpdateNFInstanceRequest = apiUpdateNFInstanceRequest.PatchItem(patchItem)
+	receivedNfProfile, res, err = client.NFInstanceIDDocumentAPI.UpdateNFInstanceExecute(apiUpdateNFInstanceRequest)
 	if err != nil {
-		if openapiErr, ok := err.(openapi.GenericOpenAPIError); ok {
+		if openapiErr, ok := openapi.AsGenericOpenAPIError(err); ok {
 			if model := openapiErr.Model(); model != nil {
 				if problem, ok := model.(models.ProblemDetails); ok {
-					return models.NfProfile{}, &problem, nil
+					return &models.NFProfile{}, &problem, nil
 				}
 			}
 		}
-		return models.NfProfile{}, nil, err
+		return &models.NFProfile{}, nil, err
 	}
 
 	if res == nil {
-		return models.NfProfile{}, nil, fmt.Errorf("no response from server")
+		return &models.NFProfile{}, nil, fmt.Errorf("no response from server")
 	}
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNoContent {
 		return receivedNfProfile, nil, nil
 	}
-	return models.NfProfile{}, nil, fmt.Errorf("unexpected response code")
+	return &models.NFProfile{}, nil, fmt.Errorf("unexpected response code")
 }
 
-var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscriptionData models.NrfSubscriptionData) (nrfSubData models.NrfSubscriptionData, problemDetails *models.ProblemDetails, err error) {
+var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscriptionData models.SubscriptionData) (nrfSubData *models.SubscriptionData, problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Debugln("send Create Subscription")
 
 	ctx, span := tracer.Start(ctx, "HTTP POST nrf/subscriptions")
@@ -212,11 +231,17 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
-	configuration.SetBasePath(nrfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = nrfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 
 	var res *http.Response
-	nrfSubData, res, err = client.SubscriptionsCollectionApi.CreateSubscription(ctx, nrfSubscriptionData)
+	apiCreateSubscriptionRequest := client.SubscriptionsCollectionAPI.CreateSubscription(ctx)
+	apiCreateSubscriptionRequest = apiCreateSubscriptionRequest.SubscriptionData(nrfSubscriptionData)
+	nrfSubData, res, err = client.SubscriptionsCollectionAPI.CreateSubscriptionExecute(apiCreateSubscriptionRequest)
 	if err == nil {
 		return nrfSubData, problemDetails, err
 	} else if res != nil {
@@ -229,8 +254,11 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %s", res.Status)
 			return nrfSubData, problemDetails, err
 		}
-		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
+			problemDetails = &problem
+		} else {
+			return nrfSubData, problemDetails, err
+		}
 	} else {
 		err = fmt.Errorf("server no response")
 	}
@@ -254,11 +282,16 @@ var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (p
 
 	// Set client and set url
 	configuration := Nnrf_NFManagement.NewConfiguration()
-	configuration.SetBasePath(amfSelf.NrfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = amfSelf.NrfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
 	var res *http.Response
 
-	res, err = client.SubscriptionIDDocumentApi.RemoveSubscription(ctx, subscriptionId)
+	apiRemoveSubscriptionRequest := client.SubscriptionIDDocumentAPI.RemoveSubscription(ctx, subscriptionId)
+	res, err = client.SubscriptionIDDocumentAPI.RemoveSubscriptionExecute(apiRemoveSubscriptionRequest)
 	if err == nil {
 		return problemDetails, nil
 	} else if res != nil {
@@ -270,8 +303,11 @@ var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (p
 		if res.Status != err.Error() {
 			return problemDetails, err
 		}
-		problem := err.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		problemDetails = &problem
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
+			problemDetails = &problem
+		} else {
+			return problemDetails, err
+		}
 	} else {
 		err = fmt.Errorf("server no response")
 	}

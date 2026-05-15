@@ -12,18 +12,14 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/Namf_Communication"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
 )
 
-func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
+func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models.Guami) {
 	amfSelf := amf_context.AMF_Self()
 
 	amfSelf.AMFStatusSubscriptions.Range(func(key, value interface{}) bool {
-		subscriptionData := value.(models.SubscriptionData)
-
-		configuration := Namf_Communication.NewConfiguration()
-		client := Namf_Communication.NewAPIClient(configuration)
+		subscriptionData := value.(models.SubscriptionDataAmf)
 		amfStatusNotification := models.AmfStatusChangeNotification{}
 		amfStatusInfo := models.AmfStatusInfo{}
 
@@ -36,25 +32,14 @@ func SendAmfStatusChangeNotify(amfStatus string, guamiList []models.Guami) {
 			}
 		}
 
-		amfStatusInfo = models.AmfStatusInfo{
-			StatusChange:     (models.StatusChange)(amfStatus),
-			TargetAmfRemoval: "",
-			TargetAmfFailure: "",
-		}
+		amfStatusInfo.StatusChange = amfStatus
 
 		amfStatusNotification.AmfStatusInfoList = append(amfStatusNotification.AmfStatusInfoList, amfStatusInfo)
-		uri := subscriptionData.AmfStatusUri
 
-		logger.ProducerLog.Infof("[AMF] Send Amf Status Change Notify to %s", uri)
-		httpResponse, err := client.AmfStatusChangeCallbackDocumentApiServiceCallbackDocumentApi.
-			AmfStatusChangeNotify(context.Background(), uri, amfStatusNotification)
-		if err != nil {
-			if httpResponse == nil {
-				logger.HttpLog.Errorln(err.Error())
-			} else if err.Error() != httpResponse.Status {
-				logger.HttpLog.Errorln(err.Error())
-			}
-		}
+		logger.ProducerLog.Infof("[AMF] Send Amf Status Change Notify to %s", subscriptionData.AmfStatusUri)
+		httpResponse, err := postCallbackJSON(context.Background(), subscriptionData.AmfStatusUri, amfStatusNotification)
+		defer closeCallbackResponseBody(httpResponse)
+		logCallbackResponseError(httpResponse, err)
 		return true
 	})
 }

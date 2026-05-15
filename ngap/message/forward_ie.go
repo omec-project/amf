@@ -10,9 +10,9 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/ngap/ngapConvert"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/ngap/v2/ngapConvert"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func AppendPDUSessionResourceSetupListSUReq(list *ngapType.PDUSessionResourceSetupListSUReq,
@@ -147,7 +147,7 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 				tacList = append(tacList, tacNgap)
 			}
 		}
-		if ue.AmPolicyAssociation.ServAreaRes.RestrictionType == models.RestrictionType_ALLOWED_AREAS {
+		if ue.AmPolicyAssociation.ServAreaRes.GetRestrictionType() == models.RESTRICTIONTYPE_ALLOWED_AREAS {
 			item.AllowedTACs = new(ngapType.AllowedTACs)
 			item.AllowedTACs.List = append(item.AllowedTACs.List, tacList...)
 		} else {
@@ -162,7 +162,11 @@ func BuildIEMobilityRestrictionList(ue *context.AmfUe) ngapType.MobilityRestrict
 func BuildUnavailableGUAMIList(guamiList []models.Guami) (unavailableGUAMIList ngapType.UnavailableGUAMIList) {
 	for _, guami := range guamiList {
 		item := ngapType.UnavailableGUAMIItem{}
-		item.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(*guami.PlmnId)
+		plmnId := models.PlmnId{
+			Mcc: guami.PlmnId.Mcc,
+			Mnc: guami.PlmnId.Mnc,
+		}
+		item.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnId)
 		regionId, setId, ptrId := ngapConvert.AmfIdToNgap(guami.AmfId)
 		item.GUAMI.AMFRegionID.Value = regionId
 		item.GUAMI.AMFSetID.Value = setId

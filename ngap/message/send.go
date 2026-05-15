@@ -12,9 +12,9 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/ngap/aper"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/ngap/v2/aper"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func SendToRan(ran *context.AmfRan, packet []byte) {
@@ -607,7 +607,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 	// if err != nil {
 	// 	ngaplog.Errorf("build Paging failed: %s", err.Error())
 	// }
-	taiList := ue.RegistrationArea[models.AccessType__3_GPP_ACCESS]
+	taiList := ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS]
 	context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
 		ran := value.(*context.AmfRan)
 		for _, item := range ran.SupportedTAList {
@@ -638,8 +638,8 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 		}, func() {
 			ue.GmmLog.Warnf("T3513 expires %d times, abort paging procedure", cfg.MaxRetryTimes)
 			ue.T3513 = nil // clear the timer
-			if ue.GetOnGoing(models.AccessType__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
-				callback.SendN1N2TransferFailureNotification(ue, models.N1N2MessageTransferCause_UE_NOT_RESPONDING)
+			if ue.GetOnGoing(models.ACCESSTYPE__3_GPP_ACCESS).Procedure != context.OnGoingProcedureN2Handover {
+				callback.SendN1N2TransferFailureNotification(ue, models.N1N2MESSAGETRANSFERCAUSE_UE_NOT_RESPONDING)
 			}
 		})
 	}

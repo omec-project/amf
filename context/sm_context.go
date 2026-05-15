@@ -10,8 +10,8 @@ package context
 import (
 	"sync"
 
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 type SmContext struct {
@@ -40,7 +40,7 @@ type SmContext struct {
 	UlNASTransportVal *nasMessage.ULNASTransport
 	DuplicatedVal     bool
 
-	SmfProfiles []models.NfProfile
+	SmfProfiles []models.NFProfileDiscovery
 }
 
 func NewSmContext(pduSessionID int32) *SmContext {

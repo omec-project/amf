@@ -25,11 +25,11 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/nas/nasType"
-	"github.com/omec-project/nas/security"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/nas/v2/nasType"
+	"github.com/omec-project/nas/v2/security"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/idgenerator"
 	mi "github.com/omec-project/util/metricinfo"
@@ -84,8 +84,8 @@ type AmfUe struct {
 	RegistrationAcceptForNon3GPPAccess []byte                          `json:"registrationAcceptForNon3GPPAccess,omitempty"`
 	RetransmissionOfInitialNASMsg      bool                            `json:"retransmissionOfInitialNASMsg,omitempty"`
 	/* Used for AMF relocation */
-	TargetAmfProfile *models.NfProfile `json:"targetAmfProfile,omitempty"`
-	TargetAmfUri     string            `json:"targetAmfUri,omitempty"`
+	TargetAmfProfile *models.NFProfileDiscovery `json:"targetAmfProfile,omitempty"`
+	TargetAmfUri     string                     `json:"targetAmfUri,omitempty"`
 	/* Ue Identity*/
 	PlmnId              models.PlmnId `json:"plmnId,omitempty"`
 	Suci                string        `json:"suci,omitempty"`
@@ -112,7 +112,7 @@ type AmfUe struct {
 	NudmSDMUri                        string                                    `json:"nudmSDMUri,omitempty"`
 	SubscriptionDataValid             bool                                      `json:"subscriptionDataValid,omitempty"`
 	Reachability                      models.UeReachability                     `json:"reachability,omitempty"`
-	SubscribedData                    models.SubscribedData                     `json:"subscribedData,omitempty"`
+	SubscribedData                    models.AccessAndMobilitySubscriptionData  `json:"subscribedData,omitempty"`
 	SmfSelectionData                  *models.SmfSelectionSubscriptionData      `json:"smfSelectionData,omitempty"`
 	UeContextInSmfData                *models.UeContextInSmfData                `json:"ueContextInSmfData,omitempty"`
 	TraceData                         *models.TraceData                         `json:"traceData,omitempty"`
@@ -124,7 +124,7 @@ type AmfUe struct {
 	AusfId                            string                      `json:"ausfId,omitempty"`
 	AusfUri                           string                      `json:"ausfUri,omitempty"`
 	RoutingIndicator                  string                      `json:"routingIndicator,omitempty"`
-	AuthenticationCtx                 *models.UeAuthenticationCtx `json:"authenticationCtx,omitempty"`
+	AuthenticationCtx                 *models.UEAuthenticationCtx `json:"authenticationCtx,omitempty"`
 	AuthFailureCauseSynchFailureTimes int                         `json:"authFailureCauseSynchFailureTimes,omitempty"`
 	ABBA                              []uint8                     `json:"abba,omitempty"`
 	Kseaf                             string                      `json:"kseaf,omitempty"`
@@ -135,7 +135,7 @@ type AmfUe struct {
 	PolicyAssociationId          string                    `json:"policyAssociationId,omitempty"`
 	AmPolicyUri                  string                    `json:"amPolicyUri,omitempty"`
 	AmPolicyAssociation          *models.PolicyAssociation `json:"amPolicyAssociation,omitempty"`
-	RequestTriggerLocationChange bool                      `json:"requestTriggerLocationChange,omitempty"` // true if AmPolicyAssociation.Trigger contains RequestTrigger_LOC_CH
+	RequestTriggerLocationChange bool                      `json:"requestTriggerLocationChange,omitempty"` // true if AmPolicyAssociation.Trigger contains REQUESTTRIGGER_LOC_CH
 	ConfigurationUpdateMessage   []byte                    `json:"configurationUpdateMessage,omitempty"`
 	/* UeContextForHandover*/
 	HandoverNotifyUri string `json:"handoverNotifyUri,omitempty"`
@@ -224,11 +224,11 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	smCtxListVal := make(map[string]SmContext)
 	var ranUeNgapIDVal, amfUeNgapIDVal int64
 	var gnbId string
-	if ue.RanUe != nil && ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-		gnbId = ue.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
-		if ue.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-			ranUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
-			amfUeNgapIDVal = ue.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
+	if ue.RanUe != nil && ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
+		gnbId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran.GnbId
+		if ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
+			ranUeNgapIDVal = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
+			amfUeNgapIDVal = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId
 		}
 	}
 
@@ -400,7 +400,7 @@ type AmfUeEventSubscription struct {
 	Timestamp         time.Time
 	AnyUe             bool
 	RemainReports     *int32
-	EventSubscription *models.AmfEventSubscription
+	EventSubscription *models.ExtAmfEventSubscription
 }
 
 type N1N2Message struct {
@@ -447,8 +447,8 @@ type NGRANCGI struct {
 func (ue *AmfUe) init() {
 	ue.ServingAMF = AMF_Self()
 	ue.State = make(map[models.AccessType]*fsm.State)
-	ue.State[models.AccessType__3_GPP_ACCESS] = fsm.NewState(Deregistered)
-	ue.State[models.AccessType_NON_3_GPP_ACCESS] = fsm.NewState(Deregistered)
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(Deregistered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(Deregistered)
 	ue.UnauthenticatedSupi = true
 	ue.EventSubscriptionsInfo = make(map[string]*AmfUeEventSubscription)
 	ue.RanUe = make(map[models.AccessType]*RanUe)
@@ -457,10 +457,10 @@ func (ue *AmfUe) init() {
 	ue.N1N2MessageIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.N1N2MessageSubscribeIDGenerator = idgenerator.NewGenerator(1, 2147483647)
 	ue.OnGoing = make(map[models.AccessType]*OnGoingProcedureWithPrio)
-	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
-	ue.OnGoing[models.AccessType_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
-	ue.OnGoing[models.AccessType__3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
-	ue.OnGoing[models.AccessType__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
+	ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
+	ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = new(OnGoingProcedureWithPrio)
+	ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS].Procedure = OnGoingProcedureNothing
 	ue.ReleaseCause = make(map[models.AccessType]*CauseAll)
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
@@ -526,28 +526,28 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 }
 
 func (ue *AmfUe) GetAnType() models.AccessType {
-	if ue.CmConnect(models.AccessType__3_GPP_ACCESS) {
-		return models.AccessType__3_GPP_ACCESS
-	} else if ue.CmConnect(models.AccessType_NON_3_GPP_ACCESS) {
-		return models.AccessType_NON_3_GPP_ACCESS
+	if ue.CmConnect(models.ACCESSTYPE__3_GPP_ACCESS) {
+		return models.ACCESSTYPE__3_GPP_ACCESS
+	} else if ue.CmConnect(models.ACCESSTYPE_NON_3_GPP_ACCESS) {
+		return models.ACCESSTYPE_NON_3_GPP_ACCESS
 	}
 	return ""
 }
 
 func (ue *AmfUe) GetCmInfo() (cmInfos []models.CmInfo) {
 	var cmInfo models.CmInfo
-	cmInfo.AccessType = models.AccessType__3_GPP_ACCESS
+	cmInfo.AccessType = models.ACCESSTYPE__3_GPP_ACCESS
 	if ue.CmConnect(cmInfo.AccessType) {
-		cmInfo.CmState = models.CmState_CONNECTED
+		cmInfo.CmState = models.CMSTATE_CONNECTED
 	} else {
-		cmInfo.CmState = models.CmState_IDLE
+		cmInfo.CmState = models.CMSTATE_IDLE
 	}
 	cmInfos = append(cmInfos, cmInfo)
-	cmInfo.AccessType = models.AccessType_NON_3_GPP_ACCESS
+	cmInfo.AccessType = models.ACCESSTYPE_NON_3_GPP_ACCESS
 	if ue.CmConnect(cmInfo.AccessType) {
-		cmInfo.CmState = models.CmState_CONNECTED
+		cmInfo.CmState = models.CMSTATE_CONNECTED
 	} else {
-		cmInfo.CmState = models.CmState_IDLE
+		cmInfo.CmState = models.CMSTATE_IDLE
 	}
 	cmInfos = append(cmInfos, cmInfo)
 	return
@@ -555,7 +555,7 @@ func (ue *AmfUe) GetCmInfo() (cmInfos []models.CmInfo) {
 
 func (ue *AmfUe) InAllowedNssai(targetSNssai models.Snssai, anType models.AccessType) bool {
 	for _, allowedSnssai := range ue.AllowedNssai[anType] {
-		if reflect.DeepEqual(*allowedSnssai.AllowedSnssai, targetSNssai) {
+		if reflect.DeepEqual(allowedSnssai.AllowedSnssai, targetSNssai) {
 			return true
 		}
 	}
@@ -564,7 +564,7 @@ func (ue *AmfUe) InAllowedNssai(targetSNssai models.Snssai, anType models.Access
 
 func (ue *AmfUe) InSubscribedNssai(targetSNssai *models.Snssai) bool {
 	for _, sNssai := range ue.SubscribedNssai {
-		if reflect.DeepEqual(*sNssai.SubscribedSnssai, targetSNssai) {
+		if reflect.DeepEqual(sNssai.SubscribedSnssai, targetSNssai) {
 			return true
 		} else if sNssai.SubscribedSnssai.Sst == targetSNssai.Sst {
 			logger.ContextLog.Info("SST values match, SD values differ")
@@ -577,7 +577,7 @@ func (ue *AmfUe) InSubscribedNssai(targetSNssai *models.Snssai) bool {
 
 func (ue *AmfUe) GetNsiInformationFromSnssai(anType models.AccessType, snssai models.Snssai) *models.NsiInformation {
 	for _, allowedSnssai := range ue.AllowedNssai[anType] {
-		if reflect.DeepEqual(*allowedSnssai.AllowedSnssai, snssai) {
+		if reflect.DeepEqual(allowedSnssai.AllowedSnssai, snssai) {
 			// TODO: select NsiInformation based on operator policy
 			if len(allowedSnssai.NsiInformationList) != 0 {
 				return &allowedSnssai.NsiInformationList[0]
@@ -597,9 +597,9 @@ func (ue *AmfUe) TaiListInRegistrationArea(taiList []models.Tai, accessType mode
 }
 
 func (ue *AmfUe) HasWildCardSubscribedDNN() bool {
-	for _, snssaiInfo := range ue.SmfSelectionData.SubscribedSnssaiInfos {
+	for _, snssaiInfo := range ue.SmfSelectionData.GetSubscribedSnssaiInfos() {
 		for _, dnnInfo := range snssaiInfo.DnnInfos {
-			if dnnInfo.Dnn == "*" {
+			if *dnnInfo.GetDnn().String == "*" {
 				return true
 			}
 		}
@@ -682,7 +682,7 @@ func (ue *AmfUe) DerivateAnKey(anType models.AccessType) {
 	P0 := make([]byte, 4)
 	binary.BigEndian.PutUint32(P0, ue.ULCount.Get())
 	L0 := ueauth.KDFLen(P0)
-	if anType == models.AccessType_NON_3_GPP_ACCESS {
+	if anType == models.ACCESSTYPE_NON_3_GPP_ACCESS {
 		accessType = security.AccessTypeNon3GPP
 	}
 	P1 := []byte{accessType}
@@ -726,9 +726,9 @@ func (ue *AmfUe) DerivateNH(syncInput []byte) {
 func (ue *AmfUe) UpdateSecurityContext(anType models.AccessType) {
 	ue.DerivateAnKey(anType)
 	switch anType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.ACCESSTYPE__3_GPP_ACCESS:
 		ue.DerivateNH(ue.Kgnb)
-	case models.AccessType_NON_3_GPP_ACCESS:
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
 		ue.DerivateNH(ue.Kn3iwf)
 	}
 	ue.NCC = 1
@@ -827,64 +827,62 @@ func (ue *AmfUe) RemoveAmPolicyAssociation() {
 }
 
 func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
-	if ueContext.Supi != "" {
-		ue.Supi = ueContext.Supi
-		ue.UnauthenticatedSupi = ueContext.SupiUnauthInd
+	if ueContext.GetSupi() != "" {
+		ue.Supi = ueContext.GetSupi()
+		ue.UnauthenticatedSupi = ueContext.GetSupiUnauthInd()
 	}
 
-	if ueContext.Pei != "" {
-		ue.Pei = ueContext.Pei
+	if ueContext.GetPei() != "" {
+		ue.Pei = ueContext.GetPei()
 	}
 
-	if ueContext.UdmGroupId != "" {
-		ue.UdmGroupId = ueContext.UdmGroupId
+	if ueContext.GetUdmGroupId() != "" {
+		ue.UdmGroupId = ueContext.GetUdmGroupId()
 	}
 
-	if ueContext.AusfGroupId != "" {
-		ue.AusfGroupId = ueContext.AusfGroupId
+	if ueContext.GetAusfGroupId() != "" {
+		ue.AusfGroupId = ueContext.GetAusfGroupId()
 	}
 
-	if ueContext.RoutingIndicator != "" {
-		ue.RoutingIndicator = ueContext.RoutingIndicator
+	if ueContext.GetRoutingIndicator() != "" {
+		ue.RoutingIndicator = ueContext.GetRoutingIndicator()
 	}
 
 	if ueContext.SubUeAmbr != nil {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = models.NewAccessAndMobilitySubscriptionData()
 		}
-		if ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr == nil {
-			ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr = new(models.AmbrRm)
+		if !ue.AccessAndMobilitySubscriptionData.HasSubscribedUeAmbr() {
+			ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr = models.NewAmbrWithDefaults()
+		} else {
+			ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr = ueContext.SubUeAmbr
 		}
-
-		subAmbr := ue.AccessAndMobilitySubscriptionData.SubscribedUeAmbr
-		subAmbr.Uplink = ueContext.SubUeAmbr.Uplink
-		subAmbr.Downlink = ueContext.SubUeAmbr.Downlink
 	}
 
-	if ueContext.SubRfsp != 0 {
+	if ueContext.GetSubRfsp() != 0 {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = models.NewAccessAndMobilitySubscriptionData()
 		}
-		ue.AccessAndMobilitySubscriptionData.RfspIndex = ueContext.SubRfsp
+		ue.AccessAndMobilitySubscriptionData.SetRfspIndex(ueContext.GetSubRfsp())
 	}
 
 	if len(ueContext.RestrictedRatList) > 0 {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = models.NewAccessAndMobilitySubscriptionData()
 		}
 		ue.AccessAndMobilitySubscriptionData.RatRestrictions = ueContext.RestrictedRatList
 	}
 
 	if len(ueContext.ForbiddenAreaList) > 0 {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = models.NewAccessAndMobilitySubscriptionData()
 		}
 		ue.AccessAndMobilitySubscriptionData.ForbiddenAreas = ueContext.ForbiddenAreaList
 	}
 
 	if ueContext.ServiceAreaRestriction != nil {
 		if ue.AccessAndMobilitySubscriptionData == nil {
-			ue.AccessAndMobilitySubscriptionData = new(models.AccessAndMobilitySubscriptionData)
+			ue.AccessAndMobilitySubscriptionData = models.NewAccessAndMobilitySubscriptionData()
 		}
 		ue.AccessAndMobilitySubscriptionData.ServiceAreaRestriction = ueContext.ServiceAreaRestriction
 	}
@@ -892,43 +890,47 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 	if ueContext.SeafData != nil {
 		seafData := ueContext.SeafData
 
-		ue.NgKsi = *seafData.NgKsi
-		if seafData.KeyAmf != nil {
-			if seafData.KeyAmf.KeyType == models.KeyAmfType_KAMF {
+		ue.NgKsi = seafData.NgKsi
+		if seafData.GetKeyAmf().KeyType.IsValid() {
+			if seafData.KeyAmf.KeyType == models.KEYAMFTYPE_KAMF {
 				ue.Kamf = seafData.KeyAmf.KeyVal
 			}
 		}
-		if nh, err := hex.DecodeString(seafData.Nh); err != nil {
+		if nh, err := hex.DecodeString(seafData.GetNh()); err != nil {
 			logger.ContextLog.Error(err)
 			return
 		} else {
 			ue.NH = nh
 		}
-		ue.NCC = uint8(seafData.Ncc)
+		ue.NCC = uint8(seafData.GetNcc())
 	}
 
-	if ueContext.PcfId != "" {
-		ue.PcfId = ueContext.PcfId
+	if ueContext.GetPcfId() != "" {
+		ue.PcfId = ueContext.GetPcfId()
 	}
 
-	if ueContext.PcfAmPolicyUri != "" {
-		ue.AmPolicyUri = ueContext.PcfAmPolicyUri
+	if ueContext.GetPcfAmPolicyUri() != "" {
+		ue.AmPolicyUri = ueContext.GetPcfAmPolicyUri()
 	}
 
 	if len(ueContext.AmPolicyReqTriggerList) > 0 {
 		if ue.AmPolicyAssociation == nil {
-			ue.AmPolicyAssociation = new(models.PolicyAssociation)
+			ue.AmPolicyAssociation = models.NewPolicyAssociationWithDefaults()
 		}
 		for _, trigger := range ueContext.AmPolicyReqTriggerList {
 			switch trigger {
-			case models.AmPolicyReqTrigger_LOCATION_CHANGE:
-				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.RequestTrigger_LOC_CH)
-			case models.AmPolicyReqTrigger_PRA_CHANGE:
-				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.RequestTrigger_PRA_CH)
-			case models.AmPolicyReqTrigger_SARI_CHANGE:
-				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.RequestTrigger_SERV_AREA_CH)
-			case models.AmPolicyReqTrigger_RFSP_INDEX_CHANGE:
-				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.RequestTrigger_RFSP_CH)
+			case models.POLICYREQTRIGGER_LOCATION_CHANGE:
+				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_LOC_CH)
+			case models.POLICYREQTRIGGER_PRA_CHANGE:
+				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_PRA_CH)
+			// TODO: GA: Review the below two policies that were removed in Rel-18
+			// case models.POLICYREQTRIGGER_SARI_CHANGE:
+			// 	ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_SERV_AREA_CH)
+			// case models.POLICYREQTRIGGER_RFSP_INDEX_CHANGE:
+			// 	ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_RFSP_CH)
+			default:
+				logger.ContextLog.Errorf("Policy trigger is %v", trigger)
+				panic("Policy trigger error")
 			}
 		}
 	}
@@ -939,12 +941,12 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 				Mu:              new(sync.RWMutex),
 				PduSessionIDVal: pduSessionContext.PduSessionId,
 				SmContextRefVal: pduSessionContext.SmContextRef,
-				SnssaiVal:       *pduSessionContext.SNssai,
+				SnssaiVal:       pduSessionContext.SNssai,
 				DnnVal:          pduSessionContext.Dnn,
 				AccessTypeVal:   pduSessionContext.AccessType,
-				HSmfIDVal:       pduSessionContext.HsmfId,
-				VSmfIDVal:       pduSessionContext.VsmfId,
-				NsInstanceVal:   pduSessionContext.NsInstance,
+				HSmfIDVal:       pduSessionContext.GetHsmfId(),
+				VSmfIDVal:       pduSessionContext.GetVsmfId(),
+				NsInstanceVal:   pduSessionContext.GetNsInstance(),
 			}
 			ue.StoreSmContext(pduSessionContext.PduSessionId, &smContext)
 		}
@@ -952,46 +954,46 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 
 	if len(ueContext.MmContextList) > 0 {
 		for _, mmContext := range ueContext.MmContextList {
-			if mmContext.AccessType == models.AccessType__3_GPP_ACCESS {
+			if mmContext.AccessType == models.ACCESSTYPE__3_GPP_ACCESS {
 				if nasSecurityMode := mmContext.NasSecurityMode; nasSecurityMode != nil {
 					switch nasSecurityMode.IntegrityAlgorithm {
-					case models.IntegrityAlgorithm_NIA0:
+					case models.INTEGRITYALGORITHM_NIA0:
 						ue.IntegrityAlg = security.AlgIntegrity128NIA0
-					case models.IntegrityAlgorithm_NIA1:
+					case models.INTEGRITYALGORITHM_NIA1:
 						ue.IntegrityAlg = security.AlgIntegrity128NIA1
-					case models.IntegrityAlgorithm_NIA2:
+					case models.INTEGRITYALGORITHM_NIA2:
 						ue.IntegrityAlg = security.AlgIntegrity128NIA2
-					case models.IntegrityAlgorithm_NIA3:
+					case models.INTEGRITYALGORITHM_NIA3:
 						ue.IntegrityAlg = security.AlgIntegrity128NIA3
 					}
 
 					switch nasSecurityMode.CipheringAlgorithm {
-					case models.CipheringAlgorithm_NEA0:
+					case models.CIPHERINGALGORITHM_NEA0:
 						ue.CipheringAlg = security.AlgCiphering128NEA0
-					case models.CipheringAlgorithm_NEA1:
+					case models.CIPHERINGALGORITHM_NEA1:
 						ue.CipheringAlg = security.AlgCiphering128NEA1
-					case models.CipheringAlgorithm_NEA2:
+					case models.CIPHERINGALGORITHM_NEA2:
 						ue.CipheringAlg = security.AlgCiphering128NEA2
-					case models.CipheringAlgorithm_NEA3:
+					case models.CIPHERINGALGORITHM_NEA3:
 						ue.CipheringAlg = security.AlgCiphering128NEA3
 					}
 
-					if mmContext.NasDownlinkCount != 0 {
-						overflow := uint16((uint32(mmContext.NasDownlinkCount) & 0x00ffff00) >> 8)
-						sqn := uint8(uint32(mmContext.NasDownlinkCount & 0x000000ff))
+					if mmContext.GetNasDownlinkCount() != 0 {
+						overflow := uint16((uint32(mmContext.GetNasDownlinkCount()) & 0x00ffff00) >> 8)
+						sqn := uint8(uint32(mmContext.GetNasDownlinkCount() & 0x000000ff))
 						ue.DLCount.Set(overflow, sqn)
 					}
 
-					if mmContext.NasUplinkCount != 0 {
-						overflow := uint16((uint32(mmContext.NasUplinkCount) & 0x00ffff00) >> 8)
-						sqn := uint8(uint32(mmContext.NasUplinkCount & 0x000000ff))
+					if mmContext.GetNasUplinkCount() != 0 {
+						overflow := uint16((uint32(mmContext.GetNasUplinkCount()) & 0x00ffff00) >> 8)
+						sqn := uint8(uint32(mmContext.GetNasUplinkCount() & 0x000000ff))
 						ue.ULCount.Set(overflow, sqn)
 					}
 
 					// TS 29.518 Table 6.1.6.3.2.1
-					if mmContext.UeSecurityCapability != "" {
+					if mmContext.GetUeSecurityCapability() != "" {
 						// ue.SecurityCapabilities
-						buf, err := base64.StdEncoding.DecodeString(mmContext.UeSecurityCapability)
+						buf, err := base64.StdEncoding.DecodeString(mmContext.GetUeSecurityCapability())
 						if err != nil {
 							logger.ContextLog.Error(err)
 							return
@@ -1005,15 +1007,15 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 			if mmContext.AllowedNssai != nil {
 				for _, snssai := range mmContext.AllowedNssai {
 					allowedSnssai := models.AllowedSnssai{
-						AllowedSnssai: &snssai,
+						AllowedSnssai: snssai,
 					}
 					ue.AllowedNssai[mmContext.AccessType] = append(ue.AllowedNssai[mmContext.AccessType], allowedSnssai)
 				}
 			}
 		}
 	}
-	if ueContext.TraceData != nil {
-		ue.TraceData = ueContext.TraceData
+	if ueContext.TraceData.IsSet() {
+		ue.TraceData = ueContext.TraceData.Get()
 	}
 }
 
@@ -1079,7 +1081,7 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 		return
 	}
 
-	op := getPublishUeCtxtInfoOp(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
+	op := getPublishUeCtxtInfoOp(ueContext.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
 	kafkaSmCtxt := mi.CoreSubscriber{}
 
 	// Populate kafka sm ctxt struct
@@ -1088,13 +1090,13 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	kafkaSmCtxt.Guti = ueContext.Guti
 	kafkaSmCtxt.Tmsi = ueContext.Tmsi
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
-	if ueContext.RanUe != nil && ueContext.RanUe[models.AccessType__3_GPP_ACCESS] != nil {
-		kafkaSmCtxt.AmfNgapId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].AmfUeNgapId
-		kafkaSmCtxt.RanNgapId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].RanUeNgapId
-		kafkaSmCtxt.GnbId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].Ran.GnbId
-		kafkaSmCtxt.TacId = ueContext.RanUe[models.AccessType__3_GPP_ACCESS].Tai.Tac
+	if ueContext.RanUe != nil && ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
+		kafkaSmCtxt.AmfNgapId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId
+		kafkaSmCtxt.RanNgapId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
+		kafkaSmCtxt.GnbId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran.GnbId
+		kafkaSmCtxt.TacId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Tai.Tac
 	}
-	kafkaSmCtxt.AmfSubState = string(ueContext.State[models.AccessType__3_GPP_ACCESS].Current())
+	kafkaSmCtxt.AmfSubState = string(ueContext.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
 	ueState := ueContext.GetCmInfo()
 	kafkaSmCtxt.UeState = string(ueState[0].CmState)
 

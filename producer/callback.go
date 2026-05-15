@@ -9,7 +9,9 @@ package producer
 import (
 	ctxt "context"
 	"fmt"
+	"io"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -21,11 +23,12 @@ import (
 	"github.com/omec-project/amf/nas"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas/nasConvert"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
-	nrfCache "github.com/omec-project/openapi/nrfcache"
+	"github.com/omec-project/nas/v2/nasConvert"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/models"
+	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -62,12 +65,11 @@ func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Resp
 	amfSelf := context.AMF_Self()
 	ue, ok = amfSelf.AmfUeFindByGuti(guti)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("Guti[%s] Not Found", guti),
-		}
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("Guti[%s] Not Found", guti))
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
 	smContextStatusNotification := request.Body.(models.SmContextStatusNotification)
@@ -82,7 +84,7 @@ func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Resp
 	msg := <-sbiMsg.Result
 	// problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
 	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -95,25 +97,23 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 
 	ue, ok := amfSelf.AmfUeFindByGuti(guti)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("Guti[%s] Not Found", guti),
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("Guti[%s] Not Found", guti))
 		return problemDetails
 	}
 
 	smContext, ok := ue.SmContextFindByPDUSessionID(pduSessionID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("PDUSessionID[%d] Not Found", pduSessionID),
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("PDUSessionID[%d] Not Found", pduSessionID))
 		return problemDetails
 	}
 
-	if smContextStatusNotification.StatusInfo.ResourceStatus == models.ResourceStatus_RELEASED {
+	if smContextStatusNotification.StatusInfo.ResourceStatus == models.RESOURCESTATUS_RELEASED {
 		ue.ProducerLog.Debugf("release PDU Session[%d] (Cause: %s)", pduSessionID,
 			smContextStatusNotification.StatusInfo.Cause)
 
@@ -133,7 +133,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					snssai = nasConvert.SnssaiToModels(smContext.ULNASTransport().SNSSAI)
 				} else {
 					if allowedNssai, ok := ue.AllowedNssai[anType]; ok {
-						snssai = *allowedNssai[0].AllowedSnssai
+						snssai = allowedNssai[0].AllowedSnssai
 					} else {
 						ue.GmmLog.Errorln("UE doesn't have allowedNssai")
 						return
@@ -145,10 +145,10 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 				} else {
 					if ue.SmfSelectionData != nil {
 						snssaiStr := util.SnssaiModelsToHex(snssai)
-						if snssaiInfo, ok := ue.SmfSelectionData.SubscribedSnssaiInfos[snssaiStr]; ok {
+						if snssaiInfo, ok := ue.SmfSelectionData.GetSubscribedSnssaiInfos()[snssaiStr]; ok {
 							for _, dnnInfo := range snssaiInfo.DnnInfos {
-								if dnnInfo.DefaultDnnIndicator {
-									dnn = dnnInfo.Dnn
+								if dnnInfo.GetDefaultDnnIndicator() {
+									dnn = *dnnInfo.GetDnn().String
 								}
 							}
 						} else {
@@ -178,8 +178,12 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					// TODO: handle response(response N2SmInfo to RAN if exists)
 				} else if errResponse != nil {
 					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]", pduSessionID)
+					binaryDataN1SmMessage, err1 := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
+					if err1 != nil {
+						ue.ProducerLog.Errorf("read binaryDataN1SmMessage failed: %+v", err1)
+					}
 					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
-						nasMessage.PayloadContainerTypeN1SMInfo, errResponse.BinaryDataN1SmMessage, pduSessionID, 0, nil, 0)
+						nasMessage.PayloadContainerTypeN1SMInfo, binaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 				} else if err != nil {
 					ue.ProducerLog.Errorf("failed to create smContext[pduSessionID: %d], Error[%s]", pduSessionID, err.Error())
 				} else {
@@ -191,13 +195,12 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 			ue.SmContextList.Delete(pduSessionID)
 		}
 	} else {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "INVALID_MSG_FORMAT",
-			InvalidParams: []models.InvalidParam{
-				{Param: "StatusInfo.ResourceStatus", Reason: "invalid value"},
-			},
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("INVALID_MSG_FORMAT")
+		problemDetails.SetInvalidParams([]models.InvalidParam{
+			{Param: "StatusInfo.ResourceStatus", Reason: openapi.PtrString("invalid value")},
+		})
 		return problemDetails
 	}
 	return nil
@@ -214,12 +217,11 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *httpwrapper.Request) *http
 	amfSelf := context.AMF_Self()
 	ue, ok = amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
-		}
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: polAssoID,
@@ -233,7 +235,7 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *httpwrapper.Request) *http
 	// problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
 
 	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -246,11 +248,10 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
 		return problemDetails
 	}
 
@@ -258,10 +259,10 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 	ue.RequestTriggerLocationChange = false
 
 	for _, trigger := range policyUpdate.Triggers {
-		if trigger == models.RequestTrigger_LOC_CH {
+		if trigger == models.REQUESTTRIGGER_LOC_CH {
 			ue.RequestTriggerLocationChange = true
 		}
-		//if trigger == models.RequestTrigger_PRA_CH {
+		//if trigger == models.REQUESTTRIGGER_PRA_CH {
 		// TODO: Presence Reporting Area handling (TS 23.503 6.1.2.5, TS 23.501 5.6.11)
 		//}
 	}
@@ -270,7 +271,7 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 		ue.AmPolicyAssociation.ServAreaRes = policyUpdate.ServAreaRes
 	}
 
-	if policyUpdate.Rfsp != 0 {
+	if policyUpdate.GetRfsp() != 0 {
 		ue.AmPolicyAssociation.Rfsp = policyUpdate.Rfsp
 	}
 
@@ -278,18 +279,18 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 		// use go routine to write response first to ensure the order of the procedure
 		go func() {
 			// UE is CM-Connected State
-			if ue.CmConnect(models.AccessType__3_GPP_ACCESS) {
-				gmm_message.SendConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS, nil)
+			if ue.CmConnect(models.ACCESSTYPE__3_GPP_ACCESS) {
+				gmm_message.SendConfigurationUpdateCommand(ue, models.ACCESSTYPE__3_GPP_ACCESS, nil)
 				// UE is CM-IDLE => paging
 			} else {
-				message, err := gmm_message.BuildConfigurationUpdateCommand(ue, models.AccessType__3_GPP_ACCESS, nil)
+				message, err := gmm_message.BuildConfigurationUpdateCommand(ue, models.ACCESSTYPE__3_GPP_ACCESS, nil)
 				if err != nil {
 					logger.GmmLog.Errorf("Build Configuration Update Command Failed : %s", err.Error())
 					return
 				}
 
 				ue.ConfigurationUpdateMessage = message
-				ue.SetOnGoing(models.AccessType__3_GPP_ACCESS, &context.OnGoingProcedureWithPrio{
+				ue.SetOnGoing(models.ACCESSTYPE__3_GPP_ACCESS, &context.OnGoingProcedureWithPrio{
 					Procedure: context.OnGoingProcedurePaging,
 				})
 
@@ -316,12 +317,11 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *h
 	amfSelf := context.AMF_Self()
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
-		}
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: polAssoID,
@@ -335,7 +335,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *h
 
 	// problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
 	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -348,11 +348,10 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(ctx ctxt.Context, polAssoID s
 
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-			Detail: fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID),
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
 		return problemDetails
 	}
 
@@ -374,56 +373,54 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(ctx ctxt.Context, polAssoID s
 func HandleN1MessageNotify(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.ProducerLog.Infoln("[AMF] handle N1 Message Notify")
 
-	n1MessageNotify := request.Body.(models.N1MessageNotify)
+	n1MessageNotify := request.Body.(models.N1MessageNotifyRequest)
 
 	problemDetails := N1MessageNotifyProcedure(n1MessageNotify)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
 }
 
-func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.ProblemDetails {
+func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *models.ProblemDetails {
 	logger.ProducerLog.Debugf("n1MessageNotify: %+v", n1MessageNotify)
 
 	amfSelf := context.AMF_Self()
 
-	registrationCtxtContainer := n1MessageNotify.JsonData.RegistrationCtxtContainer
-	if registrationCtxtContainer.UeContext == nil {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "MANDATORY_IE_MISSING", // Defined in TS 29.500 5.2.7.2
-			Detail: "Missing IE [UeContext] in RegistrationCtxtContainer",
-		}
+	registrationCtxtContainer := n1MessageNotify.JsonData.GetRegistrationCtxtContainer()
+	if reflect.DeepEqual(registrationCtxtContainer.GetUeContext(), models.UeContext{}) {
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("MANDATORY_IE_MISSING") // Defined in TS 29.500 5.2.7.2
+		problemDetails.SetDetail("Missing IE [UeContext] in RegistrationCtxtContainer")
 		return problemDetails
 	}
 
-	ran, ok := amfSelf.AmfRanFindByRanID(*registrationCtxtContainer.RanNodeId)
+	ran, ok := amfSelf.AmfRanFindByRanID(*registrationCtxtContainer.RanNodeId.Get())
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "MANDATORY_IE_INCORRECT",
-			Detail: fmt.Sprintf("Can not find RAN[RanId: %+v]", *registrationCtxtContainer.RanNodeId),
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("MANDATORY_IE_INCORRECT")
+		problemDetails.SetDetail(fmt.Sprintf("can not find RAN[RanId: %+v]", *registrationCtxtContainer.RanNodeId.Get()))
 		return problemDetails
 	}
 
 	go func() {
 		var amfUe *context.AmfUe
 		ueContext := registrationCtxtContainer.UeContext
-		if ueContext.Supi != "" {
-			amfUe = amfSelf.NewAmfUe(ueContext.Supi)
+		if ueContext.GetSupi() != "" {
+			amfUe = amfSelf.NewAmfUe(ueContext.GetSupi())
 		} else {
 			amfUe = amfSelf.NewAmfUe("")
 		}
-		amfUe.CopyDataFromUeContextModel(*ueContext)
+		amfUe.CopyDataFromUeContextModel(ueContext)
 
 		ranUe := ran.RanUeFindByRanUeNgapID(int64(registrationCtxtContainer.AnN2ApId))
 
-		ranUe.Location = *registrationCtxtContainer.UserLocation
-		amfUe.Location = *registrationCtxtContainer.UserLocation
-		ranUe.UeContextRequest = registrationCtxtContainer.UeContextRequest
+		ranUe.Location = registrationCtxtContainer.GetUserLocation()
+		amfUe.Location = registrationCtxtContainer.GetUserLocation()
+		ranUe.UeContextRequest = registrationCtxtContainer.GetUeContextRequest()
 		ranUe.OldAmfName = registrationCtxtContainer.InitialAmfName
 
 		if registrationCtxtContainer.AllowedNssai != nil {
@@ -437,7 +434,11 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotify) *models.Pr
 
 		amfUe.AttachRanUe(ranUe)
 
-		nas.HandleNAS(ctxt.Background(), ranUe, ngapType.ProcedureCodeInitialUEMessage, n1MessageNotify.BinaryDataN1Message)
+		nasPdu, err := io.ReadAll(n1MessageNotify.GetBinaryDataN1Message())
+		if err != nil {
+			logger.ProducerLog.Errorf("read N1 Message Failed: %+v", err)
+		}
+		nas.HandleNAS(ctxt.Background(), ranUe, ngapType.ProcedureCodeInitialUEMessage, nasPdu)
 	}()
 	return nil
 }
@@ -449,7 +450,7 @@ func HandleNfSubscriptionStatusNotify(ctx ctxt.Context, request *httpwrapper.Req
 
 	problemDetails := NfSubscriptionStatusNotifyProcedure(ctx, notificationData)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -459,11 +460,10 @@ func NfSubscriptionStatusNotifyProcedure(ctx ctxt.Context, notificationData mode
 	logger.ProducerLog.Debugf("NfSubscriptionStatusNotify: %+v", notificationData)
 
 	if notificationData.Event == "" || notificationData.NfInstanceUri == "" {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "MANDATORY_IE_MISSING", // Defined in TS 29.510 6.1.6.2.17
-			Detail: "Missing IE [Event]/[NfInstanceUri] in NotificationData",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("MANDATORY_IE_MISSING") // Defined in TS 29.510 6.1.6.2.17
+		problemDetails.SetDetail("Missing IE [Event]/[NfInstanceUri] in NotificationData")
 		return problemDetails
 	}
 	nfInstanceId := notificationData.NfInstanceUri[strings.LastIndex(notificationData.NfInstanceUri, "/")+1:]
@@ -471,7 +471,7 @@ func NfSubscriptionStatusNotifyProcedure(ctx ctxt.Context, notificationData mode
 	logger.ProducerLog.Infof("Received Subscription Status Notification from NRF: %v", notificationData.Event)
 	// If nrf caching is enabled, go ahead and delete the entry from the cache.
 	// This will force the amf to do nf discovery and get the updated nf profile from the nrf.
-	if notificationData.Event == models.NotificationEventType_DEREGISTERED {
+	if notificationData.Event == models.NOTIFICATIONEVENTTYPE_NF_DEREGISTERED {
 		if context.AMF_Self().EnableNrfCaching {
 			ok := nrfCache.RemoveNfProfileFromNrfCache(nfInstanceId)
 			logger.ProducerLog.Debugf("nfinstance %v deleted from cache: %v", nfInstanceId, ok)
@@ -516,7 +516,7 @@ func HandleDeregistrationNotification(ctx ctxt.Context, request *httpwrapper.Req
 				ue.EventChannel.SubmitMessage(sbiMsg)
 				msg := <-sbiMsg.Result
 				if msg.ProblemDetails != nil {
-					return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).Status), nil, msg.ProblemDetails.(*models.ProblemDetails))
+					return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 				} else {
 					return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 				}
@@ -526,20 +526,18 @@ func HandleDeregistrationNotification(ctx ctxt.Context, request *httpwrapper.Req
 		}
 
 	case "":
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusBadRequest,
-			Cause:  "MANDATORY_IE_MISSING", // Defined in TS 29.503 6.2.5.2
-			Detail: "Missing IE [DeregReason] in DeregistrationData",
-		}
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusBadRequest)
+		problemDetails.SetCause("MANDATORY_IE_MISSING") // Defined in TS 29.503 6.2.5.2
+		problemDetails.SetDetail("Missing IE [DeregReason] in DeregistrationData")
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 
 	default:
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotImplemented,
-			Cause:  "NOT_IMPLEMENTED", // Defined in TS 29.503
-			Detail: "Unsupported [DeregReason] in DeregistrationData",
-		}
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotImplemented)
+		problemDetails.SetCause("NOT_IMPLEMENTED") // Defined in TS 29.503
+		problemDetails.SetDetail("Unsupported [DeregReason] in DeregistrationData")
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	return nil
 }

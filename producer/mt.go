@@ -12,7 +12,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -38,11 +38,10 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	amfSelf := context.AMF_Self()
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -60,7 +59,12 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	// ueContextInfo, problemDetails := ProvideDomainSelectionInfoProcedure(ueContextID,
 	//	infoClassQuery, supportedFeaturesQuery)
 	if msg.ProblemDetails != nil {
-		return httpwrapper.NewResponse(int(msg.ProblemDetails.(models.ProblemDetails).Status), nil, msg.ProblemDetails.(models.ProblemDetails))
+		problemDetails := msg.ProblemDetails.(*models.ProblemDetails)
+		status := problemDetails.GetStatus()
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		return httpwrapper.NewResponse(int(status), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusOK, nil, ueContextInfo)
 	}
@@ -73,25 +77,28 @@ func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery stri
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "CONTEXT_NOT_FOUND",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("CONTEXT_NOT_FOUND")
 		return nil, problemDetails
 	}
 
-	ueContextInfo := new(models.UeContextInfo)
+	ueContextInfo := models.NewUeContextInfo()
 
 	// TODO: Error Status 307, 403 in TS29.518 Table 6.3.3.3.3.1-3
 	anType := ue.GetAnType()
 	if anType != "" && infoClassQuery != "" {
 		ranUe := ue.RanUe[anType]
-		ueContextInfo.AccessType = anType
-		ueContextInfo.LastActTime = ranUe.LastActTime
-		ueContextInfo.RatType = ue.RatType
-		ueContextInfo.SupportedFeatures = ranUe.SupportedFeatures
-		ueContextInfo.SupportVoPS = ranUe.SupportVoPS
-		ueContextInfo.SupportVoPSn3gpp = ranUe.SupportVoPSn3gpp
+		ueContextInfo.SetAccessType(anType)
+		if ranUe != nil {
+			if ranUe.LastActTime != nil {
+				ueContextInfo.SetLastActTime(*ranUe.LastActTime)
+			}
+			ueContextInfo.SetSupportedFeatures(ranUe.SupportedFeatures)
+			ueContextInfo.SetSupportVoPS(ranUe.SupportVoPS)
+			ueContextInfo.SetSupportVoPSn3gpp(ranUe.SupportVoPSn3gpp)
+		}
+		ueContextInfo.SetRatType(ue.RatType)
 	}
 
 	return ueContextInfo, nil

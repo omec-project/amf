@@ -14,11 +14,11 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/msgtypes/ngapmsgtypes"
-	"github.com/omec-project/ngap"
-	"github.com/omec-project/ngap/aper"
-	"github.com/omec-project/ngap/ngapConvert"
-	"github.com/omec-project/ngap/ngapType"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/ngap/v2"
+	"github.com/omec-project/ngap/v2/aper"
+	"github.com/omec-project/ngap/v2/ngapConvert"
+	"github.com/omec-project/ngap/v2/ngapType"
+	"github.com/omec-project/openapi/v2/models"
 )
 
 func IncrementNGAPMsgCount(pdu ngapType.NGAPPDU) {
@@ -145,7 +145,11 @@ func BuildNGSetupResponse() ([]byte, error) {
 	servedGUAMIList := ie.Value.ServedGUAMIList
 	for _, guami := range amfSelf.ServedGuamiList {
 		servedGUAMIItem := ngapType.ServedGUAMIItem{}
-		servedGUAMIItem.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(*guami.PlmnId)
+		plmnId := models.PlmnId{
+			Mcc: guami.PlmnId.GetMcc(),
+			Mnc: guami.PlmnId.GetMnc(),
+		}
+		servedGUAMIItem.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnId)
 		regionId, setId, prtId := ngapConvert.AmfIdToNgap(guami.AmfId)
 		servedGUAMIItem.GUAMI.AMFRegionID.Value = regionId
 		servedGUAMIItem.GUAMI.AMFSetID.Value = setId
@@ -176,7 +180,7 @@ func BuildNGSetupResponse() ([]byte, error) {
 	pLMNSupportList := ie.Value.PLMNSupportList
 	for _, plmnItem := range amfSelf.PlmnSupportList {
 		pLMNSupportItem := ngapType.PLMNSupportItem{}
-		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(*plmnItem.PlmnId)
+		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnItem.PlmnId)
 		for _, snssai := range plmnItem.SNssaiList {
 			sliceSupportItem := ngapType.SliceSupportItem{}
 			sliceSupportItem.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
@@ -359,7 +363,7 @@ func BuildDownlinkNasTransport(ue *context.RanUe, nasPdu []byte,
 
 	// RAN Paging Priority (optional)
 	// Mobility Restriction List (optional)
-	if ue.Ran.AnType == models.AccessType__3_GPP_ACCESS && mobilityRestrictionList != nil {
+	if ue.Ran.AnType == models.ACCESSTYPE__3_GPP_ACCESS && mobilityRestrictionList != nil {
 		amfUe := ue.AmfUe
 		if amfUe == nil {
 			return nil, fmt.Errorf("amfUe is nil")
@@ -670,15 +674,12 @@ func BuildPDUSessionResourceSetupRequest(ue *context.RanUe, nasPdu []byte,
 
 	// ueAmbrUL & ueAmbrDL are set to the default value 1000000000 if the subscribed UE AMBR information is nil
 	var ueAmbrUL, ueAmbrDL int64
-	if ue.AmfUe == nil || ue.AmfUe.AccessAndMobilitySubscriptionData == nil || ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr == nil {
-		logger.NgapLog.Warn("Subscribed UE AMBR is nil; using default AMBR values (1000000000 UL, 1000000000 DL)")
+	if ue.AmfUe == nil || ue.AmfUe.AccessAndMobilitySubscriptionData == nil || !ue.AmfUe.AccessAndMobilitySubscriptionData.HasSubscribedUeAmbr() {
 		ueAmbrUL, ueAmbrDL = 1000000000, 1000000000
+		logger.NgapLog.Warnf("subscribed UE AMBR is nil; using default AMBR values (%d UL, %d DL)", ueAmbrUL, ueAmbrDL)
 	} else {
-		uplink := ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink
-		downlink := ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink
-
-		ueAmbrUL = ngapConvert.UEAmbrToInt64(uplink)
-		ueAmbrDL = ngapConvert.UEAmbrToInt64(downlink)
+		ueAmbrUL = ngapConvert.UEAmbrToInt64(ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetUplink())
+		ueAmbrDL = ngapConvert.UEAmbrToInt64(ue.AmfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetDownlink())
 	}
 
 	ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateUL.Value = ueAmbrUL
@@ -923,8 +924,8 @@ func BuildInitialContextSetupRequest(
 		ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentUEAggregateMaximumBitRate
 		ie.Value.UEAggregateMaximumBitRate = new(ngapType.UEAggregateMaximumBitRate)
 
-		ueAmbrUL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink)
-		ueAmbrDL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink)
+		ueAmbrUL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetUplink())
+		ueAmbrDL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetDownlink())
 		ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateUL.Value = ueAmbrUL
 		ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateDL.Value = ueAmbrDL
 
@@ -956,7 +957,11 @@ func BuildInitialContextSetupRequest(
 
 	servedGuami := amfSelf.ServedGuamiList[0]
 
-	*plmnID = ngapConvert.PlmnIdToNgap(*servedGuami.PlmnId)
+	plmnId := models.PlmnId{
+		Mcc: servedGuami.PlmnId.GetMcc(),
+		Mnc: servedGuami.PlmnId.GetMnc(),
+	}
+	*plmnID = ngapConvert.PlmnIdToNgap(plmnId)
 	amfRegionID.Value, amfSetID.Value, amfPtrID.Value = ngapConvert.AmfIdToNgap(servedGuami.AmfId)
 
 	initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
@@ -982,7 +987,7 @@ func BuildInitialContextSetupRequest(
 
 	for _, allowedSnssai := range amfUe.AllowedNssai[anType] {
 		allowedNSSAIItem := ngapType.AllowedNSSAIItem{}
-		ngapSnssai := ngapConvert.SNssaiToNgap(*allowedSnssai.AllowedSnssai)
+		ngapSnssai := ngapConvert.SNssaiToNgap(allowedSnssai.AllowedSnssai)
 		allowedNSSAIItem.SNSSAI = ngapSnssai
 		allowedNSSAI.List = append(allowedNSSAI.List, allowedNSSAIItem)
 	}
@@ -1030,9 +1035,9 @@ func BuildInitialContextSetupRequest(
 
 	securityKey := ie.Value.SecurityKey
 	switch ranUe.Ran.AnType {
-	case models.AccessType__3_GPP_ACCESS:
+	case models.ACCESSTYPE__3_GPP_ACCESS:
 		securityKey.Value = ngapConvert.ByteToBitString(amfUe.Kgnb, 256)
-	case models.AccessType_NON_3_GPP_ACCESS:
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
 		securityKey.Value = ngapConvert.ByteToBitString(amfUe.Kn3iwf, 256)
 	}
 
@@ -1053,7 +1058,7 @@ func BuildInitialContextSetupRequest(
 	}
 
 	// Mobility Restriction List (optional)
-	if anType == models.AccessType__3_GPP_ACCESS {
+	if anType == models.ACCESSTYPE__3_GPP_ACCESS {
 		ie = ngapType.InitialContextSetupRequestIEs{}
 		ie.Id.Value = ngapType.ProtocolIEIDMobilityRestrictionList
 		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
@@ -1082,14 +1087,14 @@ func BuildInitialContextSetupRequest(
 	}
 
 	// Index to RAT/Frequency Selection Priority (optional)
-	if amfUe.AmPolicyAssociation != nil && amfUe.AmPolicyAssociation.Rfsp != 0 {
+	if amfUe.AmPolicyAssociation != nil && amfUe.AmPolicyAssociation.GetRfsp() != 0 {
 		ie = ngapType.InitialContextSetupRequestIEs{}
 		ie.Id.Value = ngapType.ProtocolIEIDIndexToRFSP
 		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
 		ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentIndexToRFSP
 		ie.Value.IndexToRFSP = new(ngapType.IndexToRFSP)
 
-		ie.Value.IndexToRFSP.Value = int64(amfUe.AmPolicyAssociation.Rfsp)
+		ie.Value.IndexToRFSP.Value = int64(amfUe.AmPolicyAssociation.GetRfsp())
 
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 	}
@@ -1444,8 +1449,8 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	ie.Value.Present = ngapType.HandoverRequestIEsPresentUEAggregateMaximumBitRate
 	ie.Value.UEAggregateMaximumBitRate = new(ngapType.UEAggregateMaximumBitRate)
 
-	ueAmbrUL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Uplink)
-	ueAmbrDL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.Downlink)
+	ueAmbrUL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetUplink())
+	ueAmbrDL := ngapConvert.UEAmbrToInt64(amfUe.AccessAndMobilitySubscriptionData.SubscribedUeAmbr.GetDownlink())
 	ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateUL.Value = ueAmbrUL
 	ie.Value.UEAggregateMaximumBitRate.UEAggregateMaximumBitRateDL.Value = ueAmbrDL
 
@@ -1545,8 +1550,11 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	amfPtrID := &guami.AMFPointer
 
 	servedGuami := amfSelf.ServedGuamiList[0]
-
-	*plmnID = ngapConvert.PlmnIdToNgap(*servedGuami.PlmnId)
+	plmnId := models.PlmnId{
+		Mcc: servedGuami.PlmnId.GetMcc(),
+		Mnc: servedGuami.PlmnId.GetMnc(),
+	}
+	*plmnID = ngapConvert.PlmnIdToNgap(plmnId)
 	amfRegionID.Value, amfSetID.Value, amfPtrID.Value = ngapConvert.AmfIdToNgap(servedGuami.AmfId)
 
 	handoverRequestIEs.List = append(handoverRequestIEs.List, ie)
@@ -1964,14 +1972,14 @@ func BuildPaging(
 	ie.Value.TAIListForPaging = new(ngapType.TAIListForPaging)
 
 	taiListForPaging := ie.Value.TAIListForPaging
-	if ue.RegistrationArea[models.AccessType__3_GPP_ACCESS] == nil {
+	if ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS] == nil {
 		err = fmt.Errorf("registration area of ue[%s] is empty", ue.Supi)
 		return nil, err
 	} else {
-		for _, tai := range ue.RegistrationArea[models.AccessType__3_GPP_ACCESS] {
+		for _, tai := range ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS] {
 			var tac []byte
 			taiListforPagingItem := ngapType.TAIListForPagingItem{}
-			taiListforPagingItem.TAI.PLMNIdentity = ngapConvert.PlmnIdToNgap(*tai.PlmnId)
+			taiListforPagingItem.TAI.PLMNIdentity = ngapConvert.PlmnIdToNgap(tai.PlmnId)
 			tac, err = hex.DecodeString(tai.Tac)
 			if err != nil {
 				logger.NgapLog.Errorf("[Build Error] DecodeString tai.Tac error: %+v", err)
@@ -2037,13 +2045,13 @@ func BuildPaging(
 				recommendedCellItem.NGRANCGI.Present = ngapType.NGRANCGIPresentNRCGI
 				recommendedCellItem.NGRANCGI.NRCGI = new(ngapType.NRCGI)
 				nrCGI := recommendedCellItem.NGRANCGI.NRCGI
-				nrCGI.PLMNIdentity = ngapConvert.PlmnIdToNgap(*recommendedCell.NgRanCGI.NRCGI.PlmnId)
+				nrCGI.PLMNIdentity = ngapConvert.PlmnIdToNgap(recommendedCell.NgRanCGI.NRCGI.PlmnId)
 				nrCGI.NRCellIdentity.Value = ngapConvert.HexToBitString(recommendedCell.NgRanCGI.NRCGI.NrCellId, 36)
 			case context.NgRanCgiPresentEUTRACGI:
 				recommendedCellItem.NGRANCGI.Present = ngapType.NGRANCGIPresentEUTRACGI
 				recommendedCellItem.NGRANCGI.EUTRACGI = new(ngapType.EUTRACGI)
 				eutraCGI := recommendedCellItem.NGRANCGI.EUTRACGI
-				eutraCGI.PLMNIdentity = ngapConvert.PlmnIdToNgap(*recommendedCell.NgRanCGI.EUTRACGI.PlmnId)
+				eutraCGI.PLMNIdentity = ngapConvert.PlmnIdToNgap(recommendedCell.NgRanCGI.EUTRACGI.PlmnId)
 				eutraCGI.EUTRACellIdentity.Value = ngapConvert.HexToBitString(recommendedCell.NgRanCGI.EUTRACGI.EutraCellId, 28)
 			}
 

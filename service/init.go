@@ -39,12 +39,12 @@ import (
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/tracing"
 	"github.com/omec-project/amf/util"
-	nasLogger "github.com/omec-project/nas/logger"
-	ngapLogger "github.com/omec-project/ngap/logger"
-	openapiLogger "github.com/omec-project/openapi/logger"
-	"github.com/omec-project/openapi/models"
-	"github.com/omec-project/openapi/nfConfigApi"
-	nrfCache "github.com/omec-project/openapi/nrfcache"
+	nasLogger "github.com/omec-project/nas/v2/logger"
+	ngapLogger "github.com/omec-project/ngap/v2/logger"
+	openapiLogger "github.com/omec-project/openapi/v2/logger"
+	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/nfConfigApi"
+	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
 	"github.com/omec-project/util/http2_util"
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/urfave/cli/v3"
@@ -218,13 +218,13 @@ func (amf *AMF) Start() {
 	oam.AddService(router)
 	for _, serviceName := range factory.AmfConfig.Configuration.ServiceNameList {
 		switch models.ServiceName(serviceName) {
-		case models.ServiceName_NAMF_COMM:
+		case models.SERVICENAME_NAMF_COMM:
 			communication.AddService(router)
-		case models.ServiceName_NAMF_EVTS:
+		case models.SERVICENAME_NAMF_EVTS:
 			eventexposure.AddService(router)
-		case models.ServiceName_NAMF_MT:
+		case models.SERVICENAME_NAMF_MT:
 			mt.AddService(router)
-		case models.ServiceName_NAMF_LOC:
+		case models.SERVICENAME_NAMF_LOC:
 			location.AddService(router)
 		}
 	}
@@ -308,7 +308,7 @@ func (amf *AMF) Start() {
 
 	if self.EnableNrfCaching {
 		logger.InitLog.Infoln("enable NRF caching feature")
-		nrfCache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrf)
+		nrfCache.InitNrfCaching(self.NrfCacheEvictionInterval*time.Second, consumer.SendNfDiscoveryToNrfCacheQuery)
 	}
 
 	if self.EnableSctpLb {
@@ -380,7 +380,7 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup, tr
 
 	ngap_service.Stop()
 
-	callback.SendAmfStatusChangeNotify((string)(models.StatusChange_UNAVAILABLE), amfSelf.ServedGuamiList)
+	callback.SendAmfStatusChangeNotify(models.STATUSCHANGE_AMF_UNAVAILABLE, amfSelf.ServedGuamiList)
 
 	amfSelf.NfStatusSubscriptions.Range(func(nfInstanceId, v any) bool {
 		if subscriptionId, ok := amfSelf.NfStatusSubscriptions.Load(nfInstanceId); ok {

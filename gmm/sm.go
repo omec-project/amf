@@ -15,10 +15,10 @@ import (
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas"
-	"github.com/omec-project/nas/nasMessage"
-	"github.com/omec-project/nas/security"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2"
+	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/nas/v2/security"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 )
 
@@ -585,14 +585,14 @@ func SetDeregisteredState(amfUe *context.AmfUe, anType uint8) {
 	switch anType {
 	case nasMessage.AccessType3GPP:
 		amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-		amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+		amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
 	case nasMessage.AccessTypeNon3GPP:
 		amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
-		amfUe.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Deregistered)
+		amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
 	default:
 		amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-		amfUe.State[models.AccessType__3_GPP_ACCESS].Set(context.Deregistered)
+		amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
 		amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
-		amfUe.State[models.AccessType_NON_3_GPP_ACCESS].Set(context.Deregistered)
+		amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
 	}
 }

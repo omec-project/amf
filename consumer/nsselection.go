@@ -8,15 +8,13 @@ package consumer
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 
-	"github.com/antihax/optional"
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi"
-	"github.com/omec-project/openapi/Nnssf_NSSelection"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2"
+	"github.com/omec-project/openapi/v2/Nnssf_NSSelection"
+	"github.com/omec-project/openapi/v2/models"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -34,7 +32,11 @@ func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, r
 	)
 
 	configuration := Nnssf_NSSelection.NewConfiguration()
-	configuration.SetBasePath(ue.NssfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NssfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnssf_NSSelection.NewAPIClient(configuration)
 
 	amfSelf := amf_context.AMF_Self()
@@ -43,27 +45,21 @@ func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, r
 	}
 
 	for _, snssai := range requestedNssai {
-		sliceInfo.RequestedNssai = append(sliceInfo.RequestedNssai, *snssai.ServingSnssai)
-		if snssai.HomeSnssai != nil {
+		sliceInfo.RequestedNssai = append(sliceInfo.RequestedNssai, snssai.ServingSnssai)
+		if snssai.HomeSnssai.GetSst() != 0 {
 			sliceInfo.MappingOfNssai = append(sliceInfo.MappingOfNssai, snssai)
 		}
 	}
 
-	var paramOpt Nnssf_NSSelection.NSSelectionGetParamOpts
-	if e, err := json.Marshal(sliceInfo); err != nil {
-		logger.ConsumerLog.Warnf("json marshal failed: %+v", err)
-	} else {
-		paramOpt = Nnssf_NSSelection.NSSelectionGetParamOpts{
-			SliceInfoRequestForRegistration: optional.NewInterface(string(e)),
-		}
-	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
-		models.NfType_AMF, amfSelf.NfId, &paramOpt)
+	apiNSSelectionGetRequest := client.NetworkSliceInformationDocumentAPI.NSSelectionGet(ctx)
+	apiNSSelectionGetRequest = apiNSSelectionGetRequest.NfType(models.NFTYPE_AMF)
+	apiNSSelectionGetRequest = apiNSSelectionGetRequest.NfId(amfSelf.NfId)
+	apiNSSelectionGetRequest = apiNSSelectionGetRequest.SliceInfoRequestForRegistration(sliceInfo)
+	res, httpResp, localErr := client.NetworkSliceInformationDocumentAPI.NSSelectionGetExecute(apiNSSelectionGetRequest)
 	if localErr == nil {
-		ue.NetworkSliceInfo = &res
+		ue.NetworkSliceInfo = res
 		for _, allowedNssai := range res.AllowedNssaiList {
 			ue.AllowedNssai[allowedNssai.AccessType] = allowedNssai.AllowedSnssaiList
 		}
@@ -73,8 +69,10 @@ func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, r
 			err := localErr
 			return nil, err
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		return &problem, nil
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			return &problem, nil
+		}
+		return nil, localErr
 	} else {
 		return nil, openapi.ReportError("NSSF No Response")
 	}
@@ -85,6 +83,7 @@ func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, r
 func NSSelectionGetForPduSession(ctx context.Context, ue *amf_context.AmfUe, snssai models.Snssai) (
 	*models.AuthorizedNetworkSliceInfo, *models.ProblemDetails, error,
 ) {
+	logger.ConsumerLog.Infoln("NSSelectionGetForPduSession")
 	ctx, span := tracer.Start(ctx, "HTTP GET nssf/network-slice-information")
 	defer span.End()
 
@@ -94,39 +93,40 @@ func NSSelectionGetForPduSession(ctx context.Context, ue *amf_context.AmfUe, sns
 		attribute.String("net.peer.name", ue.NssfUri),
 		attribute.String("amf.nf.id", amf_context.AMF_Self().NfId),
 		attribute.Int("snssai.sst", int(snssai.Sst)),
-		attribute.String("snssai.sd", snssai.Sd),
+		attribute.String("snssai.sd", snssai.GetSd()),
 	)
 
 	configuration := Nnssf_NSSelection.NewConfiguration()
-	configuration.SetBasePath(ue.NssfUri)
+	serverConfig := &configuration.Servers[0]
+	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
+		apiRootVar.DefaultValue = ue.NssfUri
+		serverConfig.Variables["apiRoot"] = apiRootVar
+	}
 	client := Nnssf_NSSelection.NewAPIClient(configuration)
 
 	amfSelf := amf_context.AMF_Self()
-	sliceInfoForPduSession := models.SliceInfoForPduSession{
-		SNssai:            &snssai,
-		RoamingIndication: models.RoamingIndication_NON_ROAMING, // not support roaming
+	sliceInfoForPduSession := models.SliceInfoForPDUSession{
+		SNssai:            snssai,
+		RoamingIndication: models.ROAMINGINDICATION_NON_ROAMING, // not support roaming
 	}
 
-	e, err := json.Marshal(sliceInfoForPduSession)
-	if err != nil {
-		logger.ConsumerLog.Warnf("json marshal failed: %+v", err)
-	}
-	paramOpt := Nnssf_NSSelection.NSSelectionGetParamOpts{
-		SliceInfoRequestForPduSession: optional.NewInterface(string(e)),
-	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-
-	res, httpResp, localErr := client.NetworkSliceInformationDocumentApi.NSSelectionGet(ctx,
-		models.NfType_AMF, amfSelf.NfId, &paramOpt)
+	apiNSSelectionGetRequest := client.NetworkSliceInformationDocumentAPI.NSSelectionGet(ctx)
+	apiNSSelectionGetRequest = apiNSSelectionGetRequest.NfType(models.NFTYPE_AMF)
+	apiNSSelectionGetRequest = apiNSSelectionGetRequest.NfId(amfSelf.NfId)
+	apiNSSelectionGetRequest = apiNSSelectionGetRequest.SliceInfoRequestForPduSession(sliceInfoForPduSession)
+	res, httpResp, localErr := client.NetworkSliceInformationDocumentAPI.NSSelectionGetExecute(apiNSSelectionGetRequest)
 	if localErr == nil {
-		return &res, nil, nil
+		return res, nil, nil
 	} else if httpResp != nil {
 		if httpResp.Status != localErr.Error() {
 			return nil, nil, localErr
 		}
-		problem := localErr.(openapi.GenericOpenAPIError).Model().(models.ProblemDetails)
-		return nil, &problem, nil
+		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
+			return nil, &problem, nil
+		}
+		return nil, nil, localErr
 	} else {
 		return nil, nil, openapi.ReportError("NSSF No Response")
 	}

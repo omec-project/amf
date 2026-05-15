@@ -11,7 +11,8 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -19,11 +20,11 @@ import (
 func HandleAMFStatusChangeSubscribeRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Request")
 
-	subscriptionDataReq := request.Body.(models.SubscriptionData)
+	subscriptionDataReq := request.Body.(models.SubscriptionDataAmf)
 
 	subscriptionDataRsp, locationHeader, problemDetails := AMFStatusChangeSubscribeProcedure(subscriptionDataReq)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
 	headers := http.Header{
@@ -32,8 +33,8 @@ func HandleAMFStatusChangeSubscribeRequest(request *httpwrapper.Request) *httpwr
 	return httpwrapper.NewResponse(http.StatusCreated, headers, subscriptionDataRsp)
 }
 
-func AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.SubscriptionData) (
-	subscriptionDataRsp models.SubscriptionData, locationHeader string, problemDetails *models.ProblemDetails,
+func AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.SubscriptionDataAmf) (
+	subscriptionDataRsp models.SubscriptionDataAmf, locationHeader string, problemDetails *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
 
@@ -52,10 +53,7 @@ func AMFStatusChangeSubscribeProcedure(subscriptionDataReq models.SubscriptionDa
 		logger.CommLog.Infof("new AMF Status Subscription[%s]", newSubscriptionID)
 		return
 	} else {
-		problemDetails = &models.ProblemDetails{
-			Status: http.StatusForbidden,
-			Cause:  "UNSPECIFIED",
-		}
+		problemDetails = utils.ProblemDetailsUnspecified()
 		return
 	}
 }
@@ -68,7 +66,7 @@ func HandleAMFStatusChangeUnSubscribeRequest(request *httpwrapper.Request) *http
 
 	problemDetails := AMFStatusChangeUnSubscribeProcedure(subscriptionID)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, nil)
 	}
@@ -78,10 +76,9 @@ func AMFStatusChangeUnSubscribeProcedure(subscriptionID string) (problemDetails 
 	amfSelf := context.AMF_Self()
 
 	if _, ok := amfSelf.FindAMFStatusSubscription(subscriptionID); !ok {
-		problemDetails = &models.ProblemDetails{
-			Status: http.StatusNotFound,
-			Cause:  "SUBSCRIPTION_NOT_FOUND",
-		}
+		problemDetails = models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusNotFound)
+		problemDetails.SetCause("SUBSCRIPTION_NOT_FOUND")
 	} else {
 		logger.CommLog.Debugf("Delete AMF status subscription[%s]", subscriptionID)
 		amfSelf.DeleteAMFStatusSubscription(subscriptionID)
@@ -93,28 +90,27 @@ func AMFStatusChangeUnSubscribeProcedure(subscriptionID string) (problemDetails 
 func HandleAMFStatusChangeSubscribeModify(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Modify Request")
 
-	updateSubscriptionData := request.Body.(models.SubscriptionData)
+	updateSubscriptionData := request.Body.(models.SubscriptionDataAmf)
 	subscriptionID := request.Params["subscriptionId"]
 
 	updatedSubscriptionData, problemDetails := AMFStatusChangeSubscribeModifyProcedure(subscriptionID,
 		updateSubscriptionData)
 	if problemDetails != nil {
-		return httpwrapper.NewResponse(int(problemDetails.Status), nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		return httpwrapper.NewResponse(http.StatusAccepted, nil, updatedSubscriptionData)
 	}
 }
 
-func AMFStatusChangeSubscribeModifyProcedure(subscriptionID string, subscriptionData models.SubscriptionData) (
-	*models.SubscriptionData, *models.ProblemDetails,
+func AMFStatusChangeSubscribeModifyProcedure(subscriptionID string, subscriptionData models.SubscriptionDataAmf) (
+	*models.SubscriptionDataAmf, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
 
 	if currentSubscriptionData, ok := amfSelf.FindAMFStatusSubscription(subscriptionID); !ok {
-		problemDetails := &models.ProblemDetails{
-			Status: http.StatusForbidden,
-			Cause:  "Forbidden",
-		}
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetStatus(http.StatusForbidden)
+		problemDetails.SetCause("Forbidden")
 		return nil, problemDetails
 	} else {
 		logger.CommLog.Debugf("Modify AMF status subscription[%s]", subscriptionID)

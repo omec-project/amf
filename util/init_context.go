@@ -8,17 +8,74 @@
 package util
 
 import (
+	"net"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/nas/security"
-	"github.com/omec-project/openapi/models"
+	"github.com/omec-project/nas/v2/security"
+	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/drsm"
 )
+
+var registerIPv4HostnamePattern = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)$`)
+
+const defaultDrsmMongoURL = "mongodb://mongodb-arbiter-headless"
+
+func resolveStableAmfNfId(configuration *factory.Configuration) string {
+	if nfID := os.Getenv("NF_ID"); nfID != "" {
+		if _, err := uuid.Parse(nfID); err == nil {
+			return nfID
+		}
+		return uuid.NewSHA1(uuid.NameSpaceOID, []byte(nfID)).String()
+	}
+	if configuration != nil {
+		if configuration.AmfName != "" {
+			return uuid.NewSHA1(uuid.NameSpaceOID, []byte(configuration.AmfName)).String()
+		}
+		if configuration.Sbi != nil && configuration.Sbi.RegisterIPv4 != "" {
+			if registerIPv4 := resolveRegisterIPv4(configuration.Sbi.RegisterIPv4); registerIPv4 != "" {
+				return uuid.NewSHA1(uuid.NameSpaceOID, []byte(registerIPv4)).String()
+			}
+		}
+	}
+	return uuid.New().String()
+}
+
+func resolveRegisterIPv4(registerIPv4 string) string {
+	if registerIPv4 == "" {
+		return ""
+	}
+	if envRegisterIPv4 := os.Getenv(registerIPv4); envRegisterIPv4 != "" {
+		if isValidRegisterIPv4Value(envRegisterIPv4) {
+			return envRegisterIPv4
+		}
+		logger.UtilLog.Warnf("RegisterIPv4 env var %q does not contain a valid address: %q", registerIPv4, envRegisterIPv4)
+	}
+	if isValidRegisterIPv4Value(registerIPv4) {
+		return registerIPv4
+	}
+	logger.UtilLog.Warnf("RegisterIPv4 value %q is not a valid address; using default", registerIPv4)
+	return ""
+}
+
+func isValidRegisterIPv4Value(registerIPv4 string) bool {
+	if ip := net.ParseIP(registerIPv4); ip != nil {
+		return ip.To4() != nil
+	}
+	return registerIPv4HostnamePattern.MatchString(registerIPv4)
+}
+
+func resolveDrsmMongoURL(configuration *factory.Configuration) string {
+	if configuration != nil && configuration.Mongodb != nil && configuration.Mongodb.Url != "" {
+		return configuration.Mongodb.Url
+	}
+	return defaultDrsmMongoURL
+}
 
 func InitDrsm() (drsm.DrsmInterface, error) {
 	podname := os.Getenv("HOSTNAME")
@@ -26,11 +83,7 @@ func InitDrsm() (drsm.DrsmInterface, error) {
 	logger.UtilLog.Infof("NfId Instance: %v", context.AMF_Self().NfId)
 	podId := drsm.PodId{PodName: podname, PodInstance: context.AMF_Self().NfId, PodIp: podip}
 	logger.UtilLog.Debugf("PodId: %v", podId)
-	dbUrl := "mongodb://mongodb-arbiter-headless"
-	if factory.AmfConfig.Configuration.Mongodb != nil &&
-		factory.AmfConfig.Configuration.Mongodb.Url != "" {
-		dbUrl = factory.AmfConfig.Configuration.Mongodb.Url
-	}
+	dbUrl := resolveDrsmMongoURL(factory.AmfConfig.Configuration)
 	opt := &drsm.Options{ResIdSize: 24, Mode: drsm.ResourceClient}
 	db := drsm.DbInfo{Url: dbUrl, Name: factory.AmfConfig.Configuration.AmfDBName}
 
@@ -43,7 +96,7 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	logger.UtilLog.Infof("amfconfig Info: Version[%s] Description[%s]", config.Info.Version, config.Info.Description)
 	configuration := config.Configuration
 	if amfContext.NfId == "" {
-		amfContext.NfId = uuid.New().String()
+		amfContext.NfId = resolveStableAmfNfId(configuration)
 	}
 
 	if configuration.AmfName != "" {
@@ -66,7 +119,9 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	amfContext.SBIPort = factory.AMF_DEFAULT_PORT_INT  // default port
 	if sbi != nil {
 		if sbi.RegisterIPv4 != "" {
-			amfContext.RegisterIPv4 = os.Getenv("POD_IP")
+			if registerIPv4 := resolveRegisterIPv4(sbi.RegisterIPv4); registerIPv4 != "" {
+				amfContext.RegisterIPv4 = registerIPv4
+			}
 		}
 		if sbi.Port != 0 {
 			amfContext.SBIPort = sbi.Port
