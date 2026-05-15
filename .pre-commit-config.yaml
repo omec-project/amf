@@ -31,5 +31,7 @@ repos:
   - id: staticcheck
     name: staticcheck
     entry: staticcheck ./...
-    language: system
+    language: golang
+    additional_dependencies:
+    - honnef.co/go/tools/cmd/staticcheck@v0.7.0
     pass_filenames: false
