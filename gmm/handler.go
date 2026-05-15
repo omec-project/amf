@@ -1,8 +1,7 @@
+// Copyright (c) 2026 Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
-//
 // SPDX-License-Identifier: Apache-2.0
-//
 
 package gmm
 
@@ -1394,22 +1393,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 
 		ue.GmmLog.Infof("RequestedNssai: %+v", requestedNssai)
 
-		needSliceSelection := false
-		for _, requestedSnssai := range requestedNssai {
-			if ue.InSubscribedNssai(&requestedSnssai.ServingSnssai) {
-				allowedSnssai := models.AllowedSnssai{
-					AllowedSnssai: models.Snssai{
-						Sst: requestedSnssai.ServingSnssai.Sst,
-						Sd:  requestedSnssai.ServingSnssai.Sd,
-					},
-					MappedHomeSnssai: &requestedSnssai.HomeSnssai,
-				}
-				ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], allowedSnssai)
-			} else {
-				needSliceSelection = true
-				break
-			}
-		}
+		needSliceSelection := rebuildAllowedNssaiFromRequested(ue, anType, requestedNssai)
 
 		if needSliceSelection {
 			if ue.NssfUri == "" {
@@ -1541,6 +1525,33 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 		}
 	}
 	return nil
+}
+
+func rebuildAllowedNssaiFromRequested(
+	ue *context.AmfUe,
+	anType models.AccessType,
+	requestedNssai []models.MappingOfSnssai,
+) bool {
+	ue.AllowedNssai[anType] = nil
+
+	for _, requestedSnssai := range requestedNssai {
+		if !ue.InSubscribedNssai(&requestedSnssai.ServingSnssai) {
+			return true
+		}
+
+		allowedSnssai := models.AllowedSnssai{
+			AllowedSnssai: models.Snssai{
+				Sst: requestedSnssai.ServingSnssai.Sst,
+				Sd:  requestedSnssai.ServingSnssai.Sd,
+			},
+			MappedHomeSnssai: &requestedSnssai.HomeSnssai,
+		}
+		if !ue.InAllowedNssai(allowedSnssai.AllowedSnssai, anType) {
+			ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], allowedSnssai)
+		}
+	}
+
+	return false
 }
 
 func assignLadnInfo(ue *context.AmfUe, registrationRequest *nasMessage.RegistrationRequest, accessType models.AccessType) {
