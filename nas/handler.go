@@ -63,9 +63,6 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 			}
 		}
 
-		ue.AmfUe.Mutex.Lock()
-		defer ue.AmfUe.Mutex.Unlock()
-
 		ue.Log.Infoln("Antype from new RanUe:", ue.Ran.AnType)
 		// AnType is set in SetRanId function. This is called
 		// when we handle NGSetup. In case of sctplb enabled,
@@ -76,12 +73,14 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		}
 		ue.AmfUe.AttachRanUe(ue)
 
+		ue.AmfUe.Mutex.Lock()
 		if ue.AmfUe.EventChannel == nil {
 			ue.AmfUe.EventChannel = ue.AmfUe.NewEventChannel()
 			ue.AmfUe.EventChannel.UpdateNasHandler(DispatchMsg)
 			go ue.AmfUe.EventChannel.Start(ctx)
 		}
 		ue.AmfUe.EventChannel.UpdateNasHandler(DispatchMsg)
+		ue.AmfUe.Mutex.Unlock()
 
 		nasMsg := context.NasMsg{
 			Context:       ctx,

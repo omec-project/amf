@@ -1031,13 +1031,14 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
 		ran.Log.Infof("release UE Context: RanUe[AmfUeNgapId: %d]", ranUe.AmfUeNgapId)
+		context.DetachSourceUeTargetUe(ranUe)
 		err := ranUe.Remove()
 		if err != nil {
 			ran.Log.Errorln(err.Error())
 		}
 		return
 	}
-	if currentRanUe := amfUe.RanUe[ran.AnType]; currentRanUe != nil && currentRanUe != ranUe {
+	if currentRanUe := amfUe.GetRanUe(ran.AnType); currentRanUe != nil && currentRanUe != ranUe {
 		ran.Log.Infof("release UE Context for stale RanUe[AmfUeNgapId: %d]; keeping current RanUe[AmfUeNgapId: %d]",
 			ranUe.AmfUeNgapId, currentRanUe.AmfUeNgapId)
 		context.DetachSourceUeTargetUe(ranUe)

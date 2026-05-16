@@ -8,11 +8,30 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 	"go.uber.org/zap"
 )
+
+func disableKafkaForTest(t *testing.T) {
+	t.Helper()
+
+	if factory.AmfConfig.Configuration == nil {
+		factory.AmfConfig.Configuration = &factory.Configuration{}
+	}
+	if factory.AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
+		enabled := true
+		factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = &enabled
+	}
+
+	original := *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka
+	*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = false
+	t.Cleanup(func() {
+		*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = original
+	})
+}
 
 func TestHandleHandoverNotifyIgnoresMissingIDs(t *testing.T) {
 	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
@@ -182,7 +201,7 @@ func TestHandleUEContextReleaseCompleteRemovesStaleRanUe(t *testing.T) {
 
 	HandleUEContextReleaseComplete(ctxt.Background(), oldRan, pdu)
 
-	if amfUe.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != newRanUe {
+	if amfUe.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS) != newRanUe {
 		t.Fatal("expected current RanUe association to remain attached")
 	}
 	if oldRanUe.AmfUe != nil {
@@ -265,7 +284,7 @@ func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
 
 	HandleUEContextReleaseComplete(ctxt.Background(), sourceRan, pdu)
 
-	if amfUe.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != targetRanUe {
+	if amfUe.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS) != targetRanUe {
 		t.Fatal("expected target RanUe to remain the current association")
 	}
 	if sourceRanUe.AmfUe != nil {
@@ -287,6 +306,7 @@ func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
 
 func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T) {
 	self := context.AMF_Self()
+	disableKafkaForTest(t)
 	sourceRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
 	targetRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
 	amfUe := self.NewAmfUe("")
@@ -353,7 +373,7 @@ func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T)
 
 	HandleUEContextReleaseComplete(ctxt.Background(), sourceRan, pdu)
 
-	if amfUe.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != targetRanUe {
+	if amfUe.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS) != targetRanUe {
 		t.Fatal("expected target RanUe to become the current association after handover release")
 	}
 	if sourceRanUe.AmfUe != nil {
