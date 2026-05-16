@@ -196,6 +196,95 @@ func TestHandleUEContextReleaseCompleteRemovesStaleRanUe(t *testing.T) {
 	}
 }
 
+func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
+	self := context.AMF_Self()
+	sourceRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
+	targetRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
+	amfUe := self.NewAmfUe("")
+	sourceRanUe, err := sourceRan.NewRanUe(30)
+	if err != nil {
+		t.Fatalf("unexpected error creating source RanUe: %v", err)
+	}
+	targetRanUe, err := targetRan.NewRanUe(40)
+	if err != nil {
+		t.Fatalf("unexpected error creating target RanUe: %v", err)
+	}
+	sourceRanUe.Log = logger.NgapLog
+	targetRanUe.Log = logger.NgapLog
+	sourceRanUe.ReleaseAction = context.UeContextReleaseHandover
+
+	amfUe.AttachRanUe(sourceRanUe)
+	context.AttachSourceUeTargetUe(sourceRanUe, targetRanUe)
+	amfUe.AttachRanUe(targetRanUe)
+
+	pdu := &ngapType.NGAPPDU{
+		Present: ngapType.NGAPPDUPresentSuccessfulOutcome,
+		SuccessfulOutcome: &ngapType.SuccessfulOutcome{
+			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeUEContextRelease},
+			Value: ngapType.SuccessfulOutcomeValue{
+				Present: ngapType.SuccessfulOutcomePresentUEContextReleaseComplete,
+				UEContextReleaseComplete: &ngapType.UEContextReleaseComplete{
+					ProtocolIEs: ngapType.ProtocolIEContainerUEContextReleaseCompleteIEs{
+						List: []ngapType.UEContextReleaseCompleteIEs{
+							{
+								Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDAMFUENGAPID},
+								Value: ngapType.UEContextReleaseCompleteIEsValue{
+									Present:     ngapType.UEContextReleaseCompleteIEsPresentAMFUENGAPID,
+									AMFUENGAPID: &ngapType.AMFUENGAPID{Value: sourceRanUe.AmfUeNgapId},
+								},
+							},
+							{
+								Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDRANUENGAPID},
+								Value: ngapType.UEContextReleaseCompleteIEsValue{
+									Present:     ngapType.UEContextReleaseCompleteIEsPresentRANUENGAPID,
+									RANUENGAPID: &ngapType.RANUENGAPID{Value: sourceRanUe.RanUeNgapId},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("HandleUEContextReleaseComplete panicked for stale handover RanUe: %v", recovered)
+		}
+		if leftover := self.RanUeFindByAmfUeNgapIDLocal(targetRanUe.AmfUeNgapId); leftover != nil {
+			if err := leftover.Remove(); err != nil {
+				t.Fatalf("cleanup target RanUe failed: %v", err)
+			}
+		}
+		if leftover := self.RanUeFindByAmfUeNgapIDLocal(sourceRanUe.AmfUeNgapId); leftover != nil {
+			if err := leftover.Remove(); err != nil {
+				t.Fatalf("cleanup source RanUe failed: %v", err)
+			}
+		}
+	}()
+
+	HandleUEContextReleaseComplete(ctxt.Background(), sourceRan, pdu)
+
+	if amfUe.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != targetRanUe {
+		t.Fatal("expected target RanUe to remain the current association")
+	}
+	if sourceRanUe.AmfUe != nil {
+		t.Fatal("expected stale source RanUe association to be cleared")
+	}
+	if sourceRanUe.TargetUe != nil {
+		t.Fatal("expected stale source-target link to be cleared")
+	}
+	if targetRanUe.SourceUe != nil {
+		t.Fatal("expected target-source link to be cleared")
+	}
+	if self.RanUeFindByAmfUeNgapIDLocal(sourceRanUe.AmfUeNgapId) != nil {
+		t.Fatal("expected stale source RanUe to be removed from the pool")
+	}
+	if self.RanUeFindByAmfUeNgapIDLocal(targetRanUe.AmfUeNgapId) != targetRanUe {
+		t.Fatal("expected target RanUe to remain in the pool")
+	}
+}
+
 func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T) {
 	self := context.AMF_Self()
 	sourceRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}

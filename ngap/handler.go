@@ -1040,6 +1040,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 	if currentRanUe := amfUe.RanUe[ran.AnType]; currentRanUe != nil && currentRanUe != ranUe {
 		ran.Log.Infof("release UE Context for stale RanUe[AmfUeNgapId: %d]; keeping current RanUe[AmfUeNgapId: %d]",
 			ranUe.AmfUeNgapId, currentRanUe.AmfUeNgapId)
+		context.DetachSourceUeTargetUe(ranUe)
 		err := ranUe.Remove()
 		if err != nil {
 			ran.Log.Errorln(err.Error())

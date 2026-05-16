@@ -502,29 +502,39 @@ func (ue *AmfUe) Remove() {
 }
 
 func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	delete(ue.RanUe, anType)
 }
 
 func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	/* detach any RanUe associated to it */
 	anType := ranUe.Ran.AnType
+	ue.Mutex.Lock()
 	oldRanUe := ue.RanUe[anType]
 	if oldRanUe == ranUe {
 		ranUe.AmfUe = ue
+		ue.Mutex.Unlock()
 		ue.updateAttachedRanUeLogs(ranUe)
 		return
 	}
 	ue.RanUe[anType] = ranUe
 	ranUe.AmfUe = ue
+	ue.Mutex.Unlock()
 
 	if oldRanUe != nil {
-		go func(oldRanUe *RanUe, anType models.AccessType) {
+		go func(oldRanUe, newRanUe *RanUe, anType models.AccessType) {
 			time.Sleep(time.Second * 2)
-			if oldRanUe.AmfUe == ue && ue.RanUe[anType] != oldRanUe {
+
+			ue.Mutex.Lock()
+			defer ue.Mutex.Unlock()
+
+			if oldRanUe.AmfUe == ue && ue.RanUe[anType] == newRanUe {
 				logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
 				oldRanUe.AmfUe = nil
 			}
-		}(oldRanUe, anType)
+		}(oldRanUe, ranUe, anType)
 	}
 
 	ue.updateAttachedRanUeLogs(ranUe)
