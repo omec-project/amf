@@ -1676,7 +1676,9 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 
 				if amfUe.CmConnect(ran.AnType) {
 					ranUe.Log.Debug("Implicit Deregistration")
-					ranUe.Log.Debugf("RanUeNgapID[%d]", amfUe.RanUe[ran.AnType].RanUeNgapId)
+					if currentRanUe := amfUe.GetRanUe(ran.AnType); currentRanUe != nil {
+						ranUe.Log.Debugf("RanUeNgapID[%d]", currentRanUe.RanUeNgapId)
+					}
 					amfUe.DetachRanUe(ran.AnType)
 				}
 				// TODO: stop Implicit Deregistration timer

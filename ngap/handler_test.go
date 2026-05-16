@@ -18,18 +18,35 @@ import (
 func disableKafkaForTest(t *testing.T) {
 	t.Helper()
 
+	originalConfig := factory.AmfConfig.Configuration
+	var originalEnableKafka *bool
+	var originalEnableKafkaValue bool
+	if originalConfig != nil {
+		originalEnableKafka = originalConfig.KafkaInfo.EnableKafka
+		if originalEnableKafka != nil {
+			originalEnableKafkaValue = *originalEnableKafka
+		}
+	}
+
 	if factory.AmfConfig.Configuration == nil {
 		factory.AmfConfig.Configuration = &factory.Configuration{}
 	}
-	if factory.AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
-		enabled := true
-		factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = &enabled
-	}
-
-	original := *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka
-	*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = false
+	disabled := false
+	factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = &disabled
 	t.Cleanup(func() {
-		*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = original
+		if originalConfig == nil {
+			factory.AmfConfig.Configuration = nil
+			return
+		}
+
+		factory.AmfConfig.Configuration = originalConfig
+		if originalEnableKafka == nil {
+			factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = nil
+			return
+		}
+
+		factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = originalEnableKafka
+		*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = originalEnableKafkaValue
 	})
 }
 
