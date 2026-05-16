@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2022-present Intel Corporation
+// Copyright (c) 2022-present Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
@@ -468,6 +468,9 @@ func (ue *AmfUe) init() {
 }
 
 func (ue *AmfUe) CmConnect(anType models.AccessType) bool {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	if _, ok := ue.RanUe[anType]; !ok {
 		return false
 	}
@@ -479,7 +482,14 @@ func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 }
 
 func (ue *AmfUe) Remove() {
+	ue.Mutex.Lock()
+	ranUes := make([]*RanUe, 0, len(ue.RanUe))
 	for _, ranUe := range ue.RanUe {
+		ranUes = append(ranUes, ranUe)
+	}
+	ue.Mutex.Unlock()
+
+	for _, ranUe := range ranUes {
 		if err := ranUe.Remove(); err != nil {
 			logger.ContextLog.Errorf("Remove RanUe error: %v", err)
 		}
@@ -502,23 +512,52 @@ func (ue *AmfUe) Remove() {
 }
 
 func (ue *AmfUe) DetachRanUe(anType models.AccessType) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	delete(ue.RanUe, anType)
+}
+
+func (ue *AmfUe) GetRanUe(anType models.AccessType) *RanUe {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	return ue.RanUe[anType]
 }
 
 func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	/* detach any RanUe associated to it */
-	oldRanUe := ue.RanUe[ranUe.Ran.AnType]
-	ue.RanUe[ranUe.Ran.AnType] = ranUe
+	anType := ranUe.Ran.AnType
+	ue.Mutex.Lock()
+	oldRanUe := ue.RanUe[anType]
+	if oldRanUe == ranUe {
+		ranUe.AmfUe = ue
+		ue.Mutex.Unlock()
+		ue.updateAttachedRanUeLogs(ranUe)
+		return
+	}
+	ue.RanUe[anType] = ranUe
 	ranUe.AmfUe = ue
+	ue.Mutex.Unlock()
 
-	go func() {
-		time.Sleep(time.Second * 2)
-		if oldRanUe != nil {
-			logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
-			oldRanUe.AmfUe = nil
-		}
-	}()
+	if oldRanUe != nil {
+		go func(oldRanUe, newRanUe *RanUe, anType models.AccessType) {
+			time.Sleep(time.Second * 2)
 
+			ue.Mutex.Lock()
+			defer ue.Mutex.Unlock()
+
+			if oldRanUe.AmfUe == ue && ue.RanUe[anType] == newRanUe {
+				logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
+				oldRanUe.AmfUe = nil
+			}
+		}(oldRanUe, ranUe, anType)
+	}
+
+	ue.updateAttachedRanUeLogs(ranUe)
+}
+
+func (ue *AmfUe) updateAttachedRanUeLogs(ranUe *RanUe) {
 	// set log information
 	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
@@ -1090,11 +1129,11 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	kafkaSmCtxt.Guti = ueContext.Guti
 	kafkaSmCtxt.Tmsi = ueContext.Tmsi
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
-	if ueContext.RanUe != nil && ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
-		kafkaSmCtxt.AmfNgapId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId
-		kafkaSmCtxt.RanNgapId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
-		kafkaSmCtxt.GnbId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran.GnbId
-		kafkaSmCtxt.TacId = ueContext.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Tai.Tac
+	if ranUe := ueContext.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS); ranUe != nil {
+		kafkaSmCtxt.AmfNgapId = ranUe.AmfUeNgapId
+		kafkaSmCtxt.RanNgapId = ranUe.RanUeNgapId
+		kafkaSmCtxt.GnbId = ranUe.Ran.GnbId
+		kafkaSmCtxt.TacId = ranUe.Tai.Tac
 	}
 	kafkaSmCtxt.AmfSubState = string(ueContext.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
 	ueState := ueContext.GetCmInfo()

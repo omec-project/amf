@@ -95,10 +95,14 @@ func (ranUe *RanUe) Remove() error {
 	}
 	if ranUe.AmfUe != nil {
 		amfUe := ranUe.AmfUe
+		amfUe.Mutex.Lock()
 		if amfUe.RanUe[ran.AnType] == ranUe {
-			ranUe.AmfUe.DetachRanUe(ran.AnType)
+			delete(amfUe.RanUe, ran.AnType)
 		}
-		ranUe.DetachAmfUe()
+		if ranUe.AmfUe == amfUe {
+			ranUe.AmfUe = nil
+		}
+		amfUe.Mutex.Unlock()
 	}
 
 	for index, ranUe1 := range ran.RanUeList {

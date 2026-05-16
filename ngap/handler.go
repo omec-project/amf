@@ -1030,7 +1030,18 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 	ranUe.Ran = ran
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
-		ran.Log.Infof("Release UE Context : RanUe[AmfUeNgapId: %d]", ranUe.AmfUeNgapId)
+		ran.Log.Infof("release UE Context: RanUe[AmfUeNgapId: %d]", ranUe.AmfUeNgapId)
+		context.DetachSourceUeTargetUe(ranUe)
+		err := ranUe.Remove()
+		if err != nil {
+			ran.Log.Errorln(err.Error())
+		}
+		return
+	}
+	if currentRanUe := amfUe.GetRanUe(ran.AnType); currentRanUe != nil && currentRanUe != ranUe {
+		ran.Log.Infof("release UE Context for stale RanUe[AmfUeNgapId: %d]; keeping current RanUe[AmfUeNgapId: %d]",
+			ranUe.AmfUeNgapId, currentRanUe.AmfUeNgapId)
+		context.DetachSourceUeTargetUe(ranUe)
 		err := ranUe.Remove()
 		if err != nil {
 			ran.Log.Errorln(err.Error())
@@ -1665,7 +1676,9 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 
 				if amfUe.CmConnect(ran.AnType) {
 					ranUe.Log.Debug("Implicit Deregistration")
-					ranUe.Log.Debugf("RanUeNgapID[%d]", amfUe.RanUe[ran.AnType].RanUeNgapId)
+					if currentRanUe := amfUe.GetRanUe(ran.AnType); currentRanUe != nil {
+						ranUe.Log.Debugf("RanUeNgapID[%d]", currentRanUe.RanUeNgapId)
+					}
 					amfUe.DetachRanUe(ran.AnType)
 				}
 				// TODO: stop Implicit Deregistration timer
