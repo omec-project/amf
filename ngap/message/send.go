@@ -610,7 +610,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 	taiList := ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS]
 	context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
 		ran := value.(*context.AmfRan)
-		for _, item := range ran.SupportedTAList {
+		for _, item := range ran.SupportedTAListSnapshot() {
 			if context.InTaiList(item.Tai, taiList) {
 				ue.GmmLog.Infof("send Paging to TAI(%+v, Tac:%+v)",
 					item.Tai.PlmnId, item.Tai.Tac)
@@ -627,7 +627,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 			ue.GmmLog.Warnf("T3513 expires, retransmit Paging (retry: %d)", expireTimes)
 			context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
 				ran := value.(*context.AmfRan)
-				for _, item := range ran.SupportedTAList {
+				for _, item := range ran.SupportedTAListSnapshot() {
 					if context.InTaiList(item.Tai, taiList) {
 						SendToRan(ran, ngapBuf)
 						break

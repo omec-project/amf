@@ -51,7 +51,7 @@ type AmfRan struct {
 	/* logger */
 	Log *zap.SugaredLogger `json:"-"`
 
-	ngSetupMu sync.Mutex
+	ranStateMu sync.RWMutex
 }
 
 type SupportedTAI struct {
@@ -175,12 +175,33 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
 	return nil
 }
 
-func (ran *AmfRan) LockNgSetup() {
-	ran.ngSetupMu.Lock()
+func (ran *AmfRan) LockRanState() {
+	ran.ranStateMu.Lock()
 }
 
-func (ran *AmfRan) UnlockNgSetup() {
-	ran.ngSetupMu.Unlock()
+func (ran *AmfRan) UnlockRanState() {
+	ran.ranStateMu.Unlock()
+}
+
+func (ran *AmfRan) RLockRanState() {
+	ran.ranStateMu.RLock()
+}
+
+func (ran *AmfRan) RUnlockRanState() {
+	ran.ranStateMu.RUnlock()
+}
+
+func (ran *AmfRan) SupportedTAListSnapshot() []SupportedTAI {
+	ran.RLockRanState()
+	defer ran.RUnlockRanState()
+
+	if len(ran.SupportedTAList) == 0 {
+		return nil
+	}
+
+	snapshot := make([]SupportedTAI, len(ran.SupportedTAList))
+	copy(snapshot, ran.SupportedTAList)
+	return snapshot
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
@@ -210,7 +231,7 @@ func (ran *AmfRan) RanID() string {
 }
 
 func (ran *AmfRan) SetRanStats(state string) {
-	for _, tai := range ran.SupportedTAList {
+	for _, tai := range ran.SupportedTAListSnapshot() {
 		if state == RanConnected {
 			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 1)
 		} else {

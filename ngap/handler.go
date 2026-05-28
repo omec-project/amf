@@ -536,153 +536,161 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Errorln("NGAP Message is nil")
 		return
 	}
-	ran.LockNgSetup()
-	defer ran.UnlockNgSetup()
-	initiatingMessage := message.InitiatingMessage
-	if initiatingMessage == nil {
-		ran.Log.Errorln("InitiatingMessage is nil")
-		return
-	}
-	nGSetupRequest := initiatingMessage.Value.NGSetupRequest
-	if nGSetupRequest == nil {
-		ran.Log.Errorln("NGSetupRequest is nil")
-		return
-	}
-	ran.Log.Infoln("handle NG Setup request")
-	for i := 0; i < len(nGSetupRequest.ProtocolIEs.List); i++ {
-		ie := nGSetupRequest.ProtocolIEs.List[i]
-		switch ie.Id.Value {
-		case ngapType.ProtocolIEIDGlobalRANNodeID:
-			globalRANNodeID = ie.Value.GlobalRANNodeID
-			ran.Log.Debugln("decode IE GlobalRANNodeID")
-			if globalRANNodeID == nil {
-				ran.Log.Errorln("GlobalRANNodeID is nil")
-				return
-			}
-		case ngapType.ProtocolIEIDSupportedTAList:
-			supportedTAList = ie.Value.SupportedTAList
-			ran.Log.Debugln("decode IE SupportedTAList")
-			if supportedTAList == nil {
-				ran.Log.Errorln("SupportedTAList is nil")
-				return
-			}
-		case ngapType.ProtocolIEIDRANNodeName:
-			rANNodeName = ie.Value.RANNodeName
-			ran.Log.Debugln("decode IE RANNodeName")
-			if rANNodeName == nil {
-				ran.Log.Errorln("RANNodeName is nil")
-				return
-			}
-		case ngapType.ProtocolIEIDDefaultPagingDRX:
-			pagingDRX = ie.Value.DefaultPagingDRX
-			ran.Log.Debugln("decode IE DefaultPagingDRX")
-			if pagingDRX == nil {
-				ran.Log.Errorln("DefaultPagingDRX is nil")
-				return
+	sendResponse := false
+	shouldSend := func() bool {
+		ran.LockRanState()
+		defer ran.UnlockRanState()
+
+		initiatingMessage := message.InitiatingMessage
+		if initiatingMessage == nil {
+			ran.Log.Errorln("InitiatingMessage is nil")
+			return false
+		}
+		nGSetupRequest := initiatingMessage.Value.NGSetupRequest
+		if nGSetupRequest == nil {
+			ran.Log.Errorln("NGSetupRequest is nil")
+			return false
+		}
+		ran.Log.Infoln("handle NG Setup request")
+		for i := 0; i < len(nGSetupRequest.ProtocolIEs.List); i++ {
+			ie := nGSetupRequest.ProtocolIEs.List[i]
+			switch ie.Id.Value {
+			case ngapType.ProtocolIEIDGlobalRANNodeID:
+				globalRANNodeID = ie.Value.GlobalRANNodeID
+				ran.Log.Debugln("decode IE GlobalRANNodeID")
+				if globalRANNodeID == nil {
+					ran.Log.Errorln("GlobalRANNodeID is nil")
+					return false
+				}
+			case ngapType.ProtocolIEIDSupportedTAList:
+				supportedTAList = ie.Value.SupportedTAList
+				ran.Log.Debugln("decode IE SupportedTAList")
+				if supportedTAList == nil {
+					ran.Log.Errorln("SupportedTAList is nil")
+					return false
+				}
+			case ngapType.ProtocolIEIDRANNodeName:
+				rANNodeName = ie.Value.RANNodeName
+				ran.Log.Debugln("decode IE RANNodeName")
+				if rANNodeName == nil {
+					ran.Log.Errorln("RANNodeName is nil")
+					return false
+				}
+			case ngapType.ProtocolIEIDDefaultPagingDRX:
+				pagingDRX = ie.Value.DefaultPagingDRX
+				ran.Log.Debugln("decode IE DefaultPagingDRX")
+				if pagingDRX == nil {
+					ran.Log.Errorln("DefaultPagingDRX is nil")
+					return false
+				}
 			}
 		}
-	}
-	if globalRANNodeID != nil {
-		if err := ran.SetRanId(globalRANNodeID); err != nil {
-			ran.Log.Errorf("%v", err)
+		if globalRANNodeID != nil {
+			if err := ran.SetRanId(globalRANNodeID); err != nil {
+				ran.Log.Errorf("%v", err)
+				cause.Present = ngapType.CausePresentMisc
+				cause.Misc = &ngapType.CauseMisc{
+					Value: ngapType.CauseMiscPresentUnspecified,
+				}
+				return true
+			}
+		}
+
+		if rANNodeName != nil {
+			ran.Name = rANNodeName.Value
+		}
+		if pagingDRX != nil {
+			ran.Log.Debugf("PagingDRX[%d]", pagingDRX.Value)
+		}
+		if supportedTAList == nil {
+			ran.Log.Warnln("NG-Setup failure: SupportedTAList is missing")
 			cause.Present = ngapType.CausePresentMisc
-			cause.Misc = &ngapType.CauseMisc{
-				Value: ngapType.CauseMiscPresentUnspecified,
-			}
-			ngap_message.SendNGSetupFailure(ran, cause)
-			return
+			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+			return true
 		}
-	}
 
-	if rANNodeName != nil {
-		ran.Name = rANNodeName.Value
-	}
-	if pagingDRX != nil {
-		ran.Log.Debugf("PagingDRX[%d]", pagingDRX.Value)
-	}
-	if supportedTAList == nil {
-		ran.Log.Warnln("NG-Setup failure: SupportedTAList is missing")
-		cause.Present = ngapType.CausePresentMisc
-		cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
-		ngap_message.SendNGSetupFailure(ran, cause)
-		return
-	}
+		// Clearing any existing contents of ran.SupportedTAList
+		if len(ran.SupportedTAList) != 0 {
+			ran.SupportedTAList = context.NewSupportedTAIList()
+		}
 
-	// Clearing any existing contents of ran.SupportedTAList
-	if len(ran.SupportedTAList) != 0 {
-		ran.SupportedTAList = context.NewSupportedTAIList()
-	}
-
-	for i := 0; i < len(supportedTAList.List); i++ {
-		supportedTAItem := supportedTAList.List[i]
-		tac := hex.EncodeToString(supportedTAItem.TAC.Value)
-		capOfSupportTai := cap(ran.SupportedTAList)
-		for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
-			supportedTAI := context.NewSupportedTAI()
-			supportedTAI.Tai.Tac = tac
-			broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
-			plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
-			if err != nil {
-				ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
-				continue
-			}
-			plmnIdCopy := plmnId
-			supportedTAI.Tai.PlmnId = plmnIdCopy
-			capOfSNssaiList := cap(supportedTAI.SNssaiList)
-			for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
-				tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
-				if len(supportedTAI.SNssaiList) < capOfSNssaiList {
-					snssai, err := ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI)
-					if err != nil {
-						ran.Log.Errorf("decode supported TA S-NSSAI failed: %+v", err)
-						continue
+		for i := 0; i < len(supportedTAList.List); i++ {
+			supportedTAItem := supportedTAList.List[i]
+			tac := hex.EncodeToString(supportedTAItem.TAC.Value)
+			capOfSupportTai := cap(ran.SupportedTAList)
+			for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
+				supportedTAI := context.NewSupportedTAI()
+				supportedTAI.Tai.Tac = tac
+				broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
+				plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
+				if err != nil {
+					ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
+					continue
+				}
+				plmnIdCopy := plmnId
+				supportedTAI.Tai.PlmnId = plmnIdCopy
+				capOfSNssaiList := cap(supportedTAI.SNssaiList)
+				for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
+					tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
+					if len(supportedTAI.SNssaiList) < capOfSNssaiList {
+						snssai, err := ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI)
+						if err != nil {
+							ran.Log.Errorf("decode supported TA S-NSSAI failed: %+v", err)
+							continue
+						}
+						supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, snssai)
+					} else {
+						break
 					}
-					supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, snssai)
+				}
+				ran.Log.Debugf("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
+				if len(ran.SupportedTAList) < capOfSupportTai {
+					ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
 				} else {
 					break
 				}
 			}
-			ran.Log.Debugf("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
-			if len(ran.SupportedTAList) < capOfSupportTai {
-				ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
-			} else {
-				break
-			}
-		}
-	}
-
-	if len(ran.SupportedTAList) == 0 {
-		ran.Log.Warnln("NG-Setup failure: No supported TA exist in NG-Setup request")
-		cause.Present = ngapType.CausePresentMisc
-		cause.Misc = &ngapType.CauseMisc{
-			Value: ngapType.CauseMiscPresentUnspecified,
-		}
-	} else {
-		var found bool
-		taiList := make([]models.Tai, len(context.AMF_Self().SupportTaiLists))
-		copy(taiList, context.AMF_Self().SupportTaiLists)
-		for i := range taiList {
-			taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
-			ran.Log.Infof("Supported Tai List in AMF Plmn: %v, Tac: 0x%v Tac: %v", taiList[i].PlmnId, taiList[i].Tac, context.AMF_Self().SupportTaiLists[i].Tac)
 		}
 
-		for i, tai := range ran.SupportedTAList {
-			if context.InTaiList(tai.Tai, taiList) {
-				ran.Log.Debugf("SERVED_TAI_INDEX[%d]", i)
-				found = true
-				break
-			}
-		}
-		if !found {
-			ran.Log.Warnln("NG-Setup failure: Cannot find Served TAI in AMF")
+		if len(ran.SupportedTAList) == 0 {
+			ran.Log.Warnln("NG-Setup failure: No supported TA exist in NG-Setup request")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{
-				Value: ngapType.CauseMiscPresentUnknownPLMN,
+				Value: ngapType.CauseMiscPresentUnspecified,
+			}
+		} else {
+			var found bool
+			taiList := make([]models.Tai, len(context.AMF_Self().SupportTaiLists))
+			copy(taiList, context.AMF_Self().SupportTaiLists)
+			for i := range taiList {
+				taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
+				ran.Log.Infof("Supported Tai List in AMF Plmn: %v, Tac: 0x%v Tac: %v", taiList[i].PlmnId, taiList[i].Tac, context.AMF_Self().SupportTaiLists[i].Tac)
+			}
+
+			for i, tai := range ran.SupportedTAList {
+				if context.InTaiList(tai.Tai, taiList) {
+					ran.Log.Debugf("SERVED_TAI_INDEX[%d]", i)
+					found = true
+					break
+				}
+			}
+			if !found {
+				ran.Log.Warnln("NG-Setup failure: Cannot find Served TAI in AMF")
+				cause.Present = ngapType.CausePresentMisc
+				cause.Misc = &ngapType.CauseMisc{
+					Value: ngapType.CauseMiscPresentUnknownPLMN,
+				}
 			}
 		}
+
+		sendResponse = cause.Present == ngapType.CausePresentNothing
+		return true
+	}()
+	if !shouldSend {
+		return
 	}
 
-	if cause.Present == ngapType.CausePresentNothing {
+	if sendResponse {
 		ngap_message.SendNGSetupResponse(ran)
 		// send nf(gnb) status notification
 		gnbStatus := mi.MetricEvent{
@@ -4147,120 +4155,131 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 		return
 	}
 
-	initiatingMessage := message.InitiatingMessage
-	if initiatingMessage == nil {
-		ran.Log.Errorln("Initiating Message is nil")
-		return
-	}
-	rANConfigurationUpdate := initiatingMessage.Value.RANConfigurationUpdate
-	if rANConfigurationUpdate == nil {
-		ran.Log.Errorln("RAN Configuration is nil")
-		return
-	}
-	ran.Log.Infoln("handle Ran Configuration Update")
-	for i := 0; i < len(rANConfigurationUpdate.ProtocolIEs.List); i++ {
-		ie := rANConfigurationUpdate.ProtocolIEs.List[i]
-		switch ie.Id.Value {
-		case ngapType.ProtocolIEIDRANNodeName:
-			rANNodeName = ie.Value.RANNodeName
-			if rANNodeName == nil {
-				ran.Log.Errorln("RAN Node Name is nil")
-				return
-			}
-			ran.Log.Debugf("decode IE RANNodeName = [%s]", rANNodeName.Value)
-		case ngapType.ProtocolIEIDSupportedTAList:
-			supportedTAList = ie.Value.SupportedTAList
-			ran.Log.Debugln("decode IE SupportedTAList")
-			if supportedTAList == nil {
-				ran.Log.Errorln("Supported TA List is nil")
-				return
-			}
-		case ngapType.ProtocolIEIDDefaultPagingDRX:
-			pagingDRX = ie.Value.DefaultPagingDRX
-			if pagingDRX == nil {
-				ran.Log.Errorln("PagingDRX is nil")
-				return
-			}
-			ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
-		}
-	}
-	if supportedTAList == nil {
-		ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
-		cause.Present = ngapType.CausePresentMisc
-		cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
-		ngap_message.SendRanConfigurationUpdateFailure(ran, cause, nil)
-		return
-	}
+	sendAcknowledge := false
+	shouldSend := func() bool {
+		ran.LockRanState()
+		defer ran.UnlockRanState()
 
-	for i := 0; i < len(supportedTAList.List); i++ {
-		supportedTAItem := supportedTAList.List[i]
-		tac := hex.EncodeToString(supportedTAItem.TAC.Value)
-		capOfSupportTai := cap(ran.SupportedTAList)
-		for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
-			supportedTAI := context.NewSupportedTAI()
-			supportedTAI.Tai.Tac = tac
-			broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
-			plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
-			if err != nil {
-				ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
-				continue
+		initiatingMessage := message.InitiatingMessage
+		if initiatingMessage == nil {
+			ran.Log.Errorln("Initiating Message is nil")
+			return false
+		}
+		rANConfigurationUpdate := initiatingMessage.Value.RANConfigurationUpdate
+		if rANConfigurationUpdate == nil {
+			ran.Log.Errorln("RAN Configuration is nil")
+			return false
+		}
+		ran.Log.Infoln("handle Ran Configuration Update")
+		for i := 0; i < len(rANConfigurationUpdate.ProtocolIEs.List); i++ {
+			ie := rANConfigurationUpdate.ProtocolIEs.List[i]
+			switch ie.Id.Value {
+			case ngapType.ProtocolIEIDRANNodeName:
+				rANNodeName = ie.Value.RANNodeName
+				if rANNodeName == nil {
+					ran.Log.Errorln("RAN Node Name is nil")
+					return false
+				}
+				ran.Log.Debugf("decode IE RANNodeName = [%s]", rANNodeName.Value)
+			case ngapType.ProtocolIEIDSupportedTAList:
+				supportedTAList = ie.Value.SupportedTAList
+				ran.Log.Debugln("decode IE SupportedTAList")
+				if supportedTAList == nil {
+					ran.Log.Errorln("Supported TA List is nil")
+					return false
+				}
+			case ngapType.ProtocolIEIDDefaultPagingDRX:
+				pagingDRX = ie.Value.DefaultPagingDRX
+				if pagingDRX == nil {
+					ran.Log.Errorln("PagingDRX is nil")
+					return false
+				}
+				ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
 			}
-			plmnIdCopy := plmnId
-			supportedTAI.Tai.PlmnId = plmnIdCopy
-			capOfSNssaiList := cap(supportedTAI.SNssaiList)
-			for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
-				tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
-				if len(supportedTAI.SNssaiList) < capOfSNssaiList {
-					snssai, err := ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI)
-					if err != nil {
-						ran.Log.Errorf("decode supported TA S-NSSAI failed: %+v", err)
-						continue
+		}
+		if supportedTAList == nil {
+			ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
+			cause.Present = ngapType.CausePresentMisc
+			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+			return true
+		}
+
+		for i := 0; i < len(supportedTAList.List); i++ {
+			supportedTAItem := supportedTAList.List[i]
+			tac := hex.EncodeToString(supportedTAItem.TAC.Value)
+			capOfSupportTai := cap(ran.SupportedTAList)
+			for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
+				supportedTAI := context.NewSupportedTAI()
+				supportedTAI.Tai.Tac = tac
+				broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
+				plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
+				if err != nil {
+					ran.Log.Errorf("decode supported TA PLMN failed: %+v", err)
+					continue
+				}
+				plmnIdCopy := plmnId
+				supportedTAI.Tai.PlmnId = plmnIdCopy
+				capOfSNssaiList := cap(supportedTAI.SNssaiList)
+				for k := 0; k < len(broadcastPLMNItem.TAISliceSupportList.List); k++ {
+					tAISliceSupportItem := broadcastPLMNItem.TAISliceSupportList.List[k]
+					if len(supportedTAI.SNssaiList) < capOfSNssaiList {
+						snssai, err := ngapConvert.SNssaiToModels(tAISliceSupportItem.SNSSAI)
+						if err != nil {
+							ran.Log.Errorf("decode supported TA S-NSSAI failed: %+v", err)
+							continue
+						}
+						supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, snssai)
+					} else {
+						break
 					}
-					supportedTAI.SNssaiList = append(supportedTAI.SNssaiList, snssai)
+				}
+				ran.Log.Debugf("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
+				if len(ran.SupportedTAList) < capOfSupportTai {
+					ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
 				} else {
 					break
 				}
 			}
-			ran.Log.Debugf("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
-			if len(ran.SupportedTAList) < capOfSupportTai {
-				ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
-			} else {
-				break
-			}
 		}
-	}
 
-	if len(ran.SupportedTAList) == 0 {
-		ran.Log.Warnln("RanConfigurationUpdate failure: No supported TA exist in RanConfigurationUpdate")
-		cause.Present = ngapType.CausePresentMisc
-		cause.Misc = &ngapType.CauseMisc{
-			Value: ngapType.CauseMiscPresentUnspecified,
-		}
-	} else {
-		var found bool
-		taiList := make([]models.Tai, len(context.AMF_Self().SupportTaiLists))
-		copy(taiList, context.AMF_Self().SupportTaiLists)
-		for i := range taiList {
-			taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
-			ran.Log.Infof("Supported Tai List in AMF Plmn: %v, Tac: %v", taiList[i].PlmnId, taiList[i].Tac)
-		}
-		for i, tai := range ran.SupportedTAList {
-			if context.InTaiList(tai.Tai, taiList) {
-				ran.Log.Debugf("SERVED_TAI_INDEX[%d]", i)
-				found = true
-				break
-			}
-		}
-		if !found {
-			ran.Log.Warnln("RanConfigurationUpdate failure: Cannot find Served TAI in AMF")
+		if len(ran.SupportedTAList) == 0 {
+			ran.Log.Warnln("RanConfigurationUpdate failure: No supported TA exist in RanConfigurationUpdate")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{
-				Value: ngapType.CauseMiscPresentUnknownPLMN,
+				Value: ngapType.CauseMiscPresentUnspecified,
+			}
+		} else {
+			var found bool
+			taiList := make([]models.Tai, len(context.AMF_Self().SupportTaiLists))
+			copy(taiList, context.AMF_Self().SupportTaiLists)
+			for i := range taiList {
+				taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
+				ran.Log.Infof("Supported Tai List in AMF Plmn: %v, Tac: %v", taiList[i].PlmnId, taiList[i].Tac)
+			}
+			for i, tai := range ran.SupportedTAList {
+				if context.InTaiList(tai.Tai, taiList) {
+					found = true
+					ran.Log.Debugf("SERVED_TAI_INDEX[%d]", i)
+					break
+				}
+			}
+			if !found {
+				ran.Log.Warnln("RanConfigurationUpdate failure: Cannot find Served TAI in AMF")
+				cause.Present = ngapType.CausePresentMisc
+				cause.Misc = &ngapType.CauseMisc{
+					Value: ngapType.CauseMiscPresentUnknownPLMN,
+				}
 			}
 		}
+
+		sendAcknowledge = cause.Present == ngapType.CausePresentNothing
+		return true
+	}()
+	if !shouldSend {
+		return
 	}
 
-	if cause.Present == ngapType.CausePresentNothing {
+	if sendAcknowledge {
 		ran.Log.Infoln("handle RanConfigurationUpdateAcknowledge")
 		ngap_message.SendRanConfigurationUpdateAcknowledge(ran, nil)
 	} else {
