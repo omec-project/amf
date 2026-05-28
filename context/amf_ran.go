@@ -191,17 +191,32 @@ func (ran *AmfRan) RUnlockRanState() {
 	ran.ranStateMu.RUnlock()
 }
 
-func (ran *AmfRan) SupportedTAListSnapshot() []SupportedTAI {
+type ranStatsSnapshot struct {
+	name            string
+	gnbIP           string
+	supportedTAList []SupportedTAI
+}
+
+func (ran *AmfRan) statsSnapshot() ranStatsSnapshot {
 	ran.RLockRanState()
 	defer ran.RUnlockRanState()
 
-	if len(ran.SupportedTAList) == 0 {
-		return nil
+	snapshot := ranStatsSnapshot{
+		name:  ran.Name,
+		gnbIP: ran.GnbIp,
 	}
 
-	snapshot := make([]SupportedTAI, len(ran.SupportedTAList))
-	copy(snapshot, ran.SupportedTAList)
+	if len(ran.SupportedTAList) == 0 {
+		return snapshot
+	}
+
+	snapshot.supportedTAList = make([]SupportedTAI, len(ran.SupportedTAList))
+	copy(snapshot.supportedTAList, ran.SupportedTAList)
 	return snapshot
+}
+
+func (ran *AmfRan) SupportedTAListSnapshot() []SupportedTAI {
+	return ran.statsSnapshot().supportedTAList
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
@@ -231,11 +246,12 @@ func (ran *AmfRan) RanID() string {
 }
 
 func (ran *AmfRan) SetRanStats(state string) {
-	for _, tai := range ran.SupportedTAListSnapshot() {
+	snapshot := ran.statsSnapshot()
+	for _, tai := range snapshot.supportedTAList {
 		if state == RanConnected {
-			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 1)
+			metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, state, tai.Tai.Tac, 1)
 		} else {
-			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 0)
+			metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, state, tai.Tai.Tac, 0)
 		}
 	}
 }
