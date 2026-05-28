@@ -74,6 +74,7 @@ func TestSendUpdateSmContextRequestSendsN2InfoAsMultipart(t *testing.T) {
 	}
 	if response == nil {
 		t.Fatal("expected success response")
+		return
 	}
 	if errorResponse != nil {
 		t.Fatalf("expected no error response, got %+v", errorResponse)
@@ -103,6 +104,7 @@ func TestSendUpdateSmContextRequestSendsN2InfoAsMultipart(t *testing.T) {
 	}
 	if response.JsonData == nil {
 		t.Fatal("expected response JsonData to be set")
+		return
 	}
 }
 
@@ -137,6 +139,7 @@ func TestSendUpdateSmContextRequestHandlesEmptySuccessBody(t *testing.T) {
 	}
 	if response == nil {
 		t.Fatal("expected success response")
+		return
 	}
 	if response.JsonData != nil {
 		t.Fatalf("expected empty JsonData for empty success body, got %+v", response.JsonData)
@@ -246,9 +249,11 @@ func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) 
 	}
 	if response == nil {
 		t.Fatal("expected success response")
+		return
 	}
 	if response.JsonData == nil {
 		t.Fatal("expected JsonData to be set")
+		return
 	}
 	if response.JsonData.GetN2SmInfoType() != models.N2SMINFOTYPE_PDU_RES_REL_CMD {
 		t.Fatalf("expected N2 SM info type %s, got %s", models.N2SMINFOTYPE_PDU_RES_REL_CMD, response.JsonData.GetN2SmInfoType())

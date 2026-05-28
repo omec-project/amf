@@ -138,14 +138,18 @@ func TestBuildUEContextUsesProvidedAccessType(t *testing.T) {
 	ueContext := buildUEContext(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
 	if ueContext == nil {
 		t.Fatal("expected UE context for non-3GPP access")
+		return
 	}
 	if ueContext.AccessType != models.ACCESSTYPE_NON_3_GPP_ACCESS {
 		t.Fatalf("expected access type %s, got %s", models.ACCESSTYPE_NON_3_GPP_ACCESS, ueContext.AccessType)
+		return
 	}
 	if len(ueContext.PduSessions) != 1 {
 		t.Fatalf("expected 1 PDU session, got %d", len(ueContext.PduSessions))
+		return
 	}
 	if ueContext.PduSessions[0].Sd != "112233" {
 		t.Fatalf("expected SD 112233, got %s", ueContext.PduSessions[0].Sd)
+		return
 	}
 }

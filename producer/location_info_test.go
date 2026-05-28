@@ -28,11 +28,14 @@ func TestProvideLocationInfoProcedureOmitsSupportedFeaturesWithoutRanUe(t *testi
 	}
 	if provideLocInfo == nil {
 		t.Fatal("expected non-nil location info")
+		return
 	}
 	if provideLocInfo.SupportedFeatures != nil {
 		t.Fatalf("expected supportedFeatures to be omitted, got %q", *provideLocInfo.SupportedFeatures)
+		return
 	}
 	if provideLocInfo.CurrentLoc != nil {
 		t.Fatalf("expected currentLoc to be omitted, got %v", *provideLocInfo.CurrentLoc)
+		return
 	}
 }

@@ -536,6 +536,8 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Errorln("NGAP Message is nil")
 		return
 	}
+	ran.LockNgSetup()
+	defer ran.UnlockNgSetup()
 	initiatingMessage := message.InitiatingMessage
 	if initiatingMessage == nil {
 		ran.Log.Errorln("InitiatingMessage is nil")

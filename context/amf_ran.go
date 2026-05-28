@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
@@ -49,6 +50,8 @@ type AmfRan struct {
 	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
 	/* logger */
 	Log *zap.SugaredLogger `json:"-"`
+
+	ngSetupMu sync.Mutex
 }
 
 type SupportedTAI struct {
@@ -170,6 +173,14 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
 	}
 	ran.Log.Debugf("set RanId: %+v, GnbId: %s, AnType: %s", ran.RanId, ran.GnbId, ran.AnType)
 	return nil
+}
+
+func (ran *AmfRan) LockNgSetup() {
+	ran.ngSetupMu.Lock()
+}
+
+func (ran *AmfRan) UnlockNgSetup() {
+	ran.ngSetupMu.Unlock()
 }
 
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
