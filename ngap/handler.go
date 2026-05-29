@@ -2103,6 +2103,15 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 		}
 	}
 
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from PDUSessionResourceNotify")
+		return
+	}
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID IE missing from PDUSessionResourceNotify")
+		return
+	}
+
 	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
 		ran.Log.Warnf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
@@ -3617,6 +3626,11 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID IE missing from HandoverFailure")
+		return
+	}
+
 	targetUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
 
 	if targetUe == nil {
@@ -4038,6 +4052,11 @@ func HandleUplinkRanStatusTransfer(ran *context.AmfRan, message *ngapType.NGAPPD
 				ran.Log.Errorln("RANStatusTransferTransparentContainer is nil")
 			}
 		}
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from UplinkRanStatusTransfer")
+		return
 	}
 
 	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
