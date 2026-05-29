@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
@@ -49,6 +50,8 @@ type AmfRan struct {
 	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
 	/* logger */
 	Log *zap.SugaredLogger `json:"-"`
+
+	ranStateMu sync.RWMutex
 }
 
 type SupportedTAI struct {
@@ -172,6 +175,50 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
 	return nil
 }
 
+func (ran *AmfRan) LockRanState() {
+	ran.ranStateMu.Lock()
+}
+
+func (ran *AmfRan) UnlockRanState() {
+	ran.ranStateMu.Unlock()
+}
+
+func (ran *AmfRan) RLockRanState() {
+	ran.ranStateMu.RLock()
+}
+
+func (ran *AmfRan) RUnlockRanState() {
+	ran.ranStateMu.RUnlock()
+}
+
+type ranStatsSnapshot struct {
+	name            string
+	gnbIP           string
+	supportedTAList []SupportedTAI
+}
+
+func (ran *AmfRan) statsSnapshot() ranStatsSnapshot {
+	ran.RLockRanState()
+	defer ran.RUnlockRanState()
+
+	snapshot := ranStatsSnapshot{
+		name:  ran.Name,
+		gnbIP: ran.GnbIp,
+	}
+
+	if len(ran.SupportedTAList) == 0 {
+		return snapshot
+	}
+
+	snapshot.supportedTAList = make([]SupportedTAI, len(ran.SupportedTAList))
+	copy(snapshot.supportedTAList, ran.SupportedTAList)
+	return snapshot
+}
+
+func (ran *AmfRan) SupportedTAListSnapshot() []SupportedTAI {
+	return ran.statsSnapshot().supportedTAList
+}
+
 func (ran *AmfRan) ConvertGnbIdToRanId(gnbId string) (ranNodeId *models.GlobalRanNodeId) {
 	ranId := models.NewGlobalRanNodeIdWithDefaults()
 	val := strings.Split(gnbId, ":")
@@ -199,11 +246,12 @@ func (ran *AmfRan) RanID() string {
 }
 
 func (ran *AmfRan) SetRanStats(state string) {
-	for _, tai := range ran.SupportedTAList {
+	snapshot := ran.statsSnapshot()
+	for _, tai := range snapshot.supportedTAList {
 		if state == RanConnected {
-			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 1)
+			metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, state, tai.Tai.Tac, 1)
 		} else {
-			metrics.SetGnbSessProfileStats(ran.Name, ran.GnbIp, state, tai.Tai.Tac, 0)
+			metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, state, tai.Tai.Tac, 0)
 		}
 	}
 }

@@ -21,9 +21,11 @@ func TestServingNetworkPlmnIDUsesTaiWhenPresent(t *testing.T) {
 	plmnID := servingNetworkPlmnID(ue, servedGuami)
 	if plmnID == nil {
 		t.Fatal("expected serving PLMN to be allocated")
+		return
 	}
 	if plmnID.Mcc != "315" || plmnID.Mnc != "010" {
 		t.Fatalf("expected TAI PLMN 315/010, got %s/%s", plmnID.Mcc, plmnID.Mnc)
+		return
 	}
 }
 
@@ -36,8 +38,10 @@ func TestServingNetworkPlmnIDFallsBackToGuami(t *testing.T) {
 	plmnID := servingNetworkPlmnID(ue, servedGuami)
 	if plmnID == nil {
 		t.Fatal("expected serving PLMN to be allocated")
+		return
 	}
 	if plmnID.Mcc != "208" || plmnID.Mnc != "93" {
 		t.Fatalf("expected GUAMI PLMN 208/93, got %s/%s", plmnID.Mcc, plmnID.Mnc)
+		return
 	}
 }
