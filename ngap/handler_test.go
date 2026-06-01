@@ -72,6 +72,72 @@ func TestHandleHandoverNotifyIgnoresMissingIDs(t *testing.T) {
 	HandleHandoverNotify(ctxt.Background(), ran, pdu)
 }
 
+func TestHandlePDUSessionResourceNotifyIgnoresMissingIEs(t *testing.T) {
+	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	pdu := &ngapType.NGAPPDU{
+		Present: ngapType.NGAPPDUPresentInitiatingMessage,
+		InitiatingMessage: &ngapType.InitiatingMessage{
+			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodePDUSessionResourceNotify},
+			Value: ngapType.InitiatingMessageValue{
+				Present:                  ngapType.InitiatingMessagePresentPDUSessionResourceNotify,
+				PDUSessionResourceNotify: &ngapType.PDUSessionResourceNotify{},
+			},
+		},
+	}
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("HandlePDUSessionResourceNotify panicked with missing IEs: %v", recovered)
+		}
+	}()
+
+	HandlePDUSessionResourceNotify(ctxt.Background(), ran, pdu)
+}
+
+func TestHandleHandoverFailureIgnoresMissingIEs(t *testing.T) {
+	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	pdu := &ngapType.NGAPPDU{
+		Present: ngapType.NGAPPDUPresentUnsuccessfulOutcome,
+		UnsuccessfulOutcome: &ngapType.UnsuccessfulOutcome{
+			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeHandoverResourceAllocation},
+			Value: ngapType.UnsuccessfulOutcomeValue{
+				Present:         ngapType.UnsuccessfulOutcomePresentHandoverFailure,
+				HandoverFailure: &ngapType.HandoverFailure{},
+			},
+		},
+	}
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("HandleHandoverFailure panicked with missing IEs: %v", recovered)
+		}
+	}()
+
+	HandleHandoverFailure(ctxt.Background(), ran, pdu)
+}
+
+func TestHandleUplinkRanStatusTransferIgnoresMissingIEs(t *testing.T) {
+	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	pdu := &ngapType.NGAPPDU{
+		Present: ngapType.NGAPPDUPresentInitiatingMessage,
+		InitiatingMessage: &ngapType.InitiatingMessage{
+			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeUplinkRANStatusTransfer},
+			Value: ngapType.InitiatingMessageValue{
+				Present:                 ngapType.InitiatingMessagePresentUplinkRANStatusTransfer,
+				UplinkRANStatusTransfer: &ngapType.UplinkRANStatusTransfer{},
+			},
+		},
+	}
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("HandleUplinkRanStatusTransfer panicked with missing IEs: %v", recovered)
+		}
+	}()
+
+	HandleUplinkRanStatusTransfer(ran, pdu)
+}
+
 func TestHandleHandoverRequestAcknowledgeIgnoresMissingAmfUeNgapID(t *testing.T) {
 	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
 	pdu := &ngapType.NGAPPDU{

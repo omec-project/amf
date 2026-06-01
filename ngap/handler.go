@@ -2111,6 +2111,10 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 		ran.Log.Errorln("AMFUENGAPID IE missing from PDUSessionResourceNotify")
 		return
 	}
+	if pDUSessionResourceNotifyList == nil {
+		ran.Log.Errorln("PDUSessionResourceNotifyList IE missing from PDUSessionResourceNotify")
+		return
+	}
 
 	ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
@@ -3620,6 +3624,14 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 	causeValue := ngapType.CauseRadioNetworkPresentHoFailureInTarget5GCNgranNodeOrTargetSystem
 	if cause != nil {
 		causePresent, causeValue = printAndGetCause(ran, cause)
+	} else {
+		ran.Log.Warnln("Cause IE missing from HandoverFailure; using default")
+		cause = &ngapType.Cause{
+			Present: causePresent,
+			RadioNetwork: &ngapType.CauseRadioNetwork{
+				Value: causeValue,
+			},
+		}
 	}
 
 	if criticalityDiagnostics != nil {
