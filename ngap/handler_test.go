@@ -57,8 +57,8 @@ func TestHandleHandoverNotifyIgnoresMissingIDs(t *testing.T) {
 		InitiatingMessage: &ngapType.InitiatingMessage{
 			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeHandoverNotification},
 			Value: ngapType.InitiatingMessageValue{
-				Present:        ngapType.InitiatingMessagePresentHandoverNotify,
-				HandoverNotify: &ngapType.HandoverNotify{},
+				Present:              ngapType.InitiatingMessagePresentHandoverNotification,
+				HandoverNotification: &ngapType.HandoverNotify{},
 			},
 		},
 	}
@@ -79,8 +79,8 @@ func TestHandleHandoverRequestAcknowledgeIgnoresMissingAmfUeNgapID(t *testing.T)
 		SuccessfulOutcome: &ngapType.SuccessfulOutcome{
 			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeHandoverResourceAllocation},
 			Value: ngapType.SuccessfulOutcomeValue{
-				Present: ngapType.SuccessfulOutcomePresentHandoverRequestAcknowledge,
-				HandoverRequestAcknowledge: &ngapType.HandoverRequestAcknowledge{
+				Present: ngapType.SuccessfulOutcomePresentHandoverResourceAllocation,
+				HandoverResourceAllocation: &ngapType.HandoverRequestAcknowledge{
 					ProtocolIEs: ngapType.ProtocolIEContainerHandoverRequestAcknowledgeIEs{
 						List: []ngapType.HandoverRequestAcknowledgeIEs{
 							{
@@ -175,8 +175,8 @@ func TestHandleUEContextReleaseCompleteRemovesStaleRanUe(t *testing.T) {
 		SuccessfulOutcome: &ngapType.SuccessfulOutcome{
 			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeUEContextRelease},
 			Value: ngapType.SuccessfulOutcomeValue{
-				Present: ngapType.SuccessfulOutcomePresentUEContextReleaseComplete,
-				UEContextReleaseComplete: &ngapType.UEContextReleaseComplete{
+				Present: ngapType.SuccessfulOutcomePresentUEContextRelease,
+				UEContextRelease: &ngapType.UEContextReleaseComplete{
 					ProtocolIEs: ngapType.ProtocolIEContainerUEContextReleaseCompleteIEs{
 						List: []ngapType.UEContextReleaseCompleteIEs{
 							{
@@ -258,8 +258,8 @@ func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
 		SuccessfulOutcome: &ngapType.SuccessfulOutcome{
 			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeUEContextRelease},
 			Value: ngapType.SuccessfulOutcomeValue{
-				Present: ngapType.SuccessfulOutcomePresentUEContextReleaseComplete,
-				UEContextReleaseComplete: &ngapType.UEContextReleaseComplete{
+				Present: ngapType.SuccessfulOutcomePresentUEContextRelease,
+				UEContextRelease: &ngapType.UEContextReleaseComplete{
 					ProtocolIEs: ngapType.ProtocolIEContainerUEContextReleaseCompleteIEs{
 						List: []ngapType.UEContextReleaseCompleteIEs{
 							{
@@ -347,8 +347,8 @@ func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T)
 		SuccessfulOutcome: &ngapType.SuccessfulOutcome{
 			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeUEContextRelease},
 			Value: ngapType.SuccessfulOutcomeValue{
-				Present: ngapType.SuccessfulOutcomePresentUEContextReleaseComplete,
-				UEContextReleaseComplete: &ngapType.UEContextReleaseComplete{
+				Present: ngapType.SuccessfulOutcomePresentUEContextRelease,
+				UEContextRelease: &ngapType.UEContextReleaseComplete{
 					ProtocolIEs: ngapType.ProtocolIEContainerUEContextReleaseCompleteIEs{
 						List: []ngapType.UEContextReleaseCompleteIEs{
 							{

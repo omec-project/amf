@@ -232,7 +232,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeHandoverNotification:
-			ngapMsg := initiatingMessage.Value.HandoverNotify
+			ngapMsg := initiatingMessage.Value.HandoverNotification
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -249,7 +249,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			}
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 		case ngapType.ProcedureCodeHandoverPreparation:
-			ngapMsg := initiatingMessage.Value.HandoverRequired
+			ngapMsg := initiatingMessage.Value.HandoverPreparation
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -333,7 +333,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 		switch successfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeNGReset:
 		case ngapType.ProcedureCodeUEContextRelease:
-			ngapMsg := successfulOutcome.Value.UEContextReleaseComplete
+			ngapMsg := successfulOutcome.Value.UEContextRelease
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -349,7 +349,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByAmfNgapID(ran, aMFUENGAPID)
 
 		case ngapType.ProcedureCodePDUSessionResourceRelease:
-			ngapMsg := successfulOutcome.Value.PDUSessionResourceReleaseResponse
+			ngapMsg := successfulOutcome.Value.PDUSessionResourceRelease
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -369,7 +369,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 		case ngapType.ProcedureCodeUERadioCapabilityCheck:
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 		case ngapType.ProcedureCodeInitialContextSetup:
-			ngapMsg := successfulOutcome.Value.InitialContextSetupResponse
+			ngapMsg := successfulOutcome.Value.InitialContextSetup
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -387,7 +387,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeUEContextModification:
-			ngapMsg := successfulOutcome.Value.UEContextModificationResponse
+			ngapMsg := successfulOutcome.Value.UEContextModification
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -405,7 +405,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodePDUSessionResourceSetup:
-			ngapMsg := successfulOutcome.Value.PDUSessionResourceSetupResponse
+			ngapMsg := successfulOutcome.Value.PDUSessionResourceSetup
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -423,7 +423,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodePDUSessionResourceModify:
-			ngapMsg := successfulOutcome.Value.PDUSessionResourceModifyResponse
+			ngapMsg := successfulOutcome.Value.PDUSessionResourceModify
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -441,7 +441,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			ngapMsg := successfulOutcome.Value.HandoverRequestAcknowledge
+			ngapMsg := successfulOutcome.Value.HandoverResourceAllocation
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -465,7 +465,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 		switch unsuccessfulOutcome.ProcedureCode.Value {
 		case ngapType.ProcedureCodeAMFConfigurationUpdate:
 		case ngapType.ProcedureCodeInitialContextSetup:
-			ngapMsg := unsuccessfulOutcome.Value.InitialContextSetupFailure
+			ngapMsg := unsuccessfulOutcome.Value.InitialContextSetup
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -483,7 +483,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeUEContextModification:
-			ngapMsg := unsuccessfulOutcome.Value.UEContextModificationFailure
+			ngapMsg := unsuccessfulOutcome.Value.UEContextModification
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -501,7 +501,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
-			ngapMsg := unsuccessfulOutcome.Value.HandoverFailure
+			ngapMsg := unsuccessfulOutcome.Value.HandoverResourceAllocation
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
 				ie := ngapMsg.ProtocolIEs.List[i]
 				switch ie.Id.Value {
@@ -546,7 +546,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			ran.Log.Errorln("InitiatingMessage is nil")
 			return false
 		}
-		nGSetupRequest := initiatingMessage.Value.NGSetupRequest
+		nGSetupRequest := initiatingMessage.Value.NGSetup
 		if nGSetupRequest == nil {
 			ran.Log.Errorln("NGSetupRequest is nil")
 			return false
@@ -678,7 +678,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 				ran.Log.Warnln("NG-Setup failure: Cannot find Served TAI in AMF")
 				cause.Present = ngapType.CausePresentMisc
 				cause.Misc = &ngapType.CauseMisc{
-					Value: ngapType.CauseMiscPresentUnknownPLMN,
+					Value: ngapType.CauseMiscPresentUnknownPLMNOrSNPN,
 				}
 			}
 		}
@@ -919,7 +919,7 @@ func HandleNGResetAcknowledge(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	nGResetAcknowledge := successfulOutcome.Value.NGResetAcknowledge
+	nGResetAcknowledge := successfulOutcome.Value.NGReset
 	if nGResetAcknowledge == nil {
 		ran.Log.Errorln("NGResetAcknowledge is nil")
 		return
@@ -975,7 +975,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	uEContextReleaseComplete := successfulOutcome.Value.UEContextReleaseComplete
+	uEContextReleaseComplete := successfulOutcome.Value.UEContextRelease
 	if uEContextReleaseComplete == nil {
 		ran.Log.Errorln("NGResetAcknowledge is nil")
 		return
@@ -1263,7 +1263,7 @@ func HandlePDUSessionResourceReleaseResponse(ctx ctxt.Context, ran *context.AmfR
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	pDUSessionResourceReleaseResponse := successfulOutcome.Value.PDUSessionResourceReleaseResponse
+	pDUSessionResourceReleaseResponse := successfulOutcome.Value.PDUSessionResourceRelease
 	if pDUSessionResourceReleaseResponse == nil {
 		ran.Log.Errorln("PDUSessionResourceReleaseResponse is nil")
 		return
@@ -1372,7 +1372,7 @@ func HandleUERadioCapabilityCheckResponse(ran *context.AmfRan, message *ngapType
 		return
 	}
 
-	uERadioCapabilityCheckResponse := successfulOutcome.Value.UERadioCapabilityCheckResponse
+	uERadioCapabilityCheckResponse := successfulOutcome.Value.UERadioCapabilityCheck
 	if uERadioCapabilityCheckResponse == nil {
 		ran.Log.Errorln("UERadioCapabilityCheckResponse is nil")
 		return
@@ -1763,7 +1763,7 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	pDUSessionResourceSetupResponse := successfulOutcome.Value.PDUSessionResourceSetupResponse
+	pDUSessionResourceSetupResponse := successfulOutcome.Value.PDUSessionResourceSetup
 	if pDUSessionResourceSetupResponse == nil {
 		ran.Log.Errorln("PDUSessionResourceSetupResponse is nil")
 		return
@@ -1934,7 +1934,7 @@ func HandlePDUSessionResourceModifyResponse(ctx ctxt.Context, ran *context.AmfRa
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	pDUSessionResourceModifyResponse := successfulOutcome.Value.PDUSessionResourceModifyResponse
+	pDUSessionResourceModifyResponse := successfulOutcome.Value.PDUSessionResourceModify
 	if pDUSessionResourceModifyResponse == nil {
 		ran.Log.Errorln("PDUSessionResourceModifyResponse is nil")
 		return
@@ -2416,7 +2416,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	initialContextSetupResponse := successfulOutcome.Value.InitialContextSetupResponse
+	initialContextSetupResponse := successfulOutcome.Value.InitialContextSetup
 	if initialContextSetupResponse == nil {
 		ran.Log.Errorln("InitialContextSetupResponse is nil")
 		return
@@ -2569,7 +2569,7 @@ func HandleInitialContextSetupFailure(ctx ctxt.Context, ran *context.AmfRan, mes
 		ran.Log.Errorln("UnsuccessfulOutcome is nil")
 		return
 	}
-	initialContextSetupFailure := unsuccessfulOutcome.Value.InitialContextSetupFailure
+	initialContextSetupFailure := unsuccessfulOutcome.Value.InitialContextSetup
 	if initialContextSetupFailure == nil {
 		ran.Log.Errorln("InitialContextSetupFailure is nil")
 		return
@@ -2823,7 +2823,7 @@ func HandleUEContextModificationResponse(ran *context.AmfRan, message *ngapType.
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	uEContextModificationResponse := successfulOutcome.Value.UEContextModificationResponse
+	uEContextModificationResponse := successfulOutcome.Value.UEContextModification
 	if uEContextModificationResponse == nil {
 		ran.Log.Errorln("UEContextModificationResponse is nil")
 		return
@@ -2916,7 +2916,7 @@ func HandleUEContextModificationFailure(ran *context.AmfRan, message *ngapType.N
 		ran.Log.Errorln("UnsuccessfulOutcome is nil")
 		return
 	}
-	uEContextModificationFailure := unsuccessfulOutcome.Value.UEContextModificationFailure
+	uEContextModificationFailure := unsuccessfulOutcome.Value.UEContextModification
 	if uEContextModificationFailure == nil {
 		ran.Log.Errorln("UEContextModificationFailure is nil")
 		return
@@ -3082,7 +3082,7 @@ func HandleHandoverNotify(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		ran.Log.Errorln("Initiating Message is nil")
 		return
 	}
-	HandoverNotify := initiatingMessage.Value.HandoverNotify
+	HandoverNotify := initiatingMessage.Value.HandoverNotification
 	if HandoverNotify == nil {
 		ran.Log.Errorln("HandoverNotify is nil")
 		return
@@ -3407,7 +3407,7 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	handoverRequestAcknowledge := successfulOutcome.Value.HandoverRequestAcknowledge // reject
+	handoverRequestAcknowledge := successfulOutcome.Value.HandoverResourceAllocation // reject
 	if handoverRequestAcknowledge == nil {
 		ran.Log.Errorln("HandoverRequestAcknowledge is nil")
 		return
@@ -3587,7 +3587,7 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 		return
 	}
 
-	handoverFailure := unsuccessfulOutcome.Value.HandoverFailure
+	handoverFailure := unsuccessfulOutcome.Value.HandoverResourceAllocation
 	if handoverFailure == nil {
 		ran.Log.Errorln("HandoverFailure is nil")
 		return
@@ -3685,7 +3685,7 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		ran.Log.Errorln("Initiating Message is nil")
 		return
 	}
-	HandoverRequired := initiatingMessage.Value.HandoverRequired
+	HandoverRequired := initiatingMessage.Value.HandoverPreparation
 	if HandoverRequired == nil {
 		ran.Log.Errorln("HandoverRequired is nil")
 		return
@@ -4267,7 +4267,7 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				ran.Log.Warnln("RanConfigurationUpdate failure: Cannot find Served TAI in AMF")
 				cause.Present = ngapType.CausePresentMisc
 				cause.Misc = &ngapType.CauseMisc{
-					Value: ngapType.CauseMiscPresentUnknownPLMN,
+					Value: ngapType.CauseMiscPresentUnknownPLMNOrSNPN,
 				}
 			}
 		}
@@ -4322,7 +4322,7 @@ func HandleUplinkRanConfigurationTransfer(ran *context.AmfRan, message *ngapType
 	}
 
 	if sONConfigurationTransferUL != nil {
-		targetRanNodeID, err := ngapConvert.RanIdToModels(sONConfigurationTransferUL.TargetRANNodeID.GlobalRANNodeID)
+		targetRanNodeID, err := ngapConvert.RanIdToModels(sONConfigurationTransferUL.TargetRANNodeIDSON.GlobalRANNodeID)
 		if err != nil {
 			ran.Log.Errorf("decode target RAN node ID failed: %+v", err)
 			return
@@ -4718,7 +4718,7 @@ func HandleAMFconfigurationUpdateFailure(ran *context.AmfRan, message *ngapType.
 		return
 	}
 
-	AMFconfigurationUpdateFailure := unsuccessfulOutcome.Value.AMFConfigurationUpdateFailure
+	AMFconfigurationUpdateFailure := unsuccessfulOutcome.Value.AMFConfigurationUpdate
 	if AMFconfigurationUpdateFailure == nil {
 		ran.Log.Errorln("AMFConfigurationUpdateFailure is nil")
 		return
@@ -4765,7 +4765,7 @@ func HandleAMFconfigurationUpdateAcknowledge(ran *context.AmfRan, message *ngapT
 		ran.Log.Errorln("SuccessfulOutcome is nil")
 		return
 	}
-	aMFConfigurationUpdateAcknowledge := successfulOutcome.Value.AMFConfigurationUpdateAcknowledge
+	aMFConfigurationUpdateAcknowledge := successfulOutcome.Value.AMFConfigurationUpdate
 	if aMFConfigurationUpdateAcknowledge == nil {
 		ran.Log.Errorln("AMFConfigurationUpdateAcknowledge is nil")
 		return

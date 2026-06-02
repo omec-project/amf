@@ -74,15 +74,15 @@ func (tc *TestConn) SetWriteDeadline(t time.Time) (e error) { return }
 func GetNGSetupRequest(gnbId []byte, bitlength uint64, name, tac string) ([]byte, error) {
 	message := BuildNGSetupRequest()
 	// GlobalRANNodeID
-	ie := message.InitiatingMessage.Value.NGSetupRequest.ProtocolIEs.List[0]
+	ie := message.InitiatingMessage.Value.NGSetup.ProtocolIEs.List[0]
 	gnbID := ie.Value.GlobalRANNodeID.GlobalGNBID.GNBID.GNBID
 	gnbID.Bytes = gnbId
 	gnbID.BitLength = bitlength
 	// RANNodeName
-	ie = message.InitiatingMessage.Value.NGSetupRequest.ProtocolIEs.List[1]
+	ie = message.InitiatingMessage.Value.NGSetup.ProtocolIEs.List[1]
 	ie.Value.RANNodeName.Value = name
 
-	ie = message.InitiatingMessage.Value.NGSetupRequest.ProtocolIEs.List[2]
+	ie = message.InitiatingMessage.Value.NGSetup.ProtocolIEs.List[2]
 	ie.Value.SupportedTAList.List[0].TAC.Value = aper.OctetString(tac)
 
 	return ngap.Encoder(message)
@@ -98,10 +98,10 @@ func BuildNGSetupRequest() (pdu ngapType.NGAPPDU) {
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodeNGSetup
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
 
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentNGSetupRequest
-	initiatingMessage.Value.NGSetupRequest = new(ngapType.NGSetupRequest)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentNGSetup
+	initiatingMessage.Value.NGSetup = new(ngapType.NGSetupRequest)
 
-	nGSetupRequest := initiatingMessage.Value.NGSetupRequest
+	nGSetupRequest := initiatingMessage.Value.NGSetup
 	nGSetupRequestIEs := &nGSetupRequest.ProtocolIEs
 
 	// GlobalRANNodeID

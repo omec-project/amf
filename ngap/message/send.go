@@ -334,7 +334,7 @@ func SendInitialContextSetupRequest(
 	nasPdu []byte,
 	pduSessionResourceSetupRequestList *ngapType.PDUSessionResourceSetupListCxtReq,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformationForInactive,
 	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
 ) {
 	if amfUe == nil {
@@ -504,7 +504,7 @@ func SendPathSwitchRequestAcknowledge(
 	pduSessionResourceSwitchedList ngapType.PDUSessionResourceSwitchedList,
 	pduSessionResourceReleasedList ngapType.PDUSessionResourceReleasedListPSAck,
 	newSecurityContextIndicator bool,
-	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformationForInactive,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
 	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
 ) {
