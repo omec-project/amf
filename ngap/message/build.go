@@ -88,10 +88,10 @@ func BuildPDUSessionResourceReleaseCommand(ue *context.RanUe, nasPdu []byte,
 	initiatingMessage := pdu.InitiatingMessage
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodePDUSessionResourceRelease
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentPDUSessionResourceReleaseCommand
-	initiatingMessage.Value.PDUSessionResourceReleaseCommand = new(ngapType.PDUSessionResourceReleaseCommand)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentPDUSessionResourceRelease
+	initiatingMessage.Value.PDUSessionResourceRelease = new(ngapType.PDUSessionResourceReleaseCommand)
 
-	pDUSessionResourceReleaseCommand := initiatingMessage.Value.PDUSessionResourceReleaseCommand
+	pDUSessionResourceReleaseCommand := initiatingMessage.Value.PDUSessionResourceRelease
 	PDUSessionResourceReleaseCommandIEs := &pDUSessionResourceReleaseCommand.ProtocolIEs
 
 	// AMFUENGAPID
@@ -152,10 +152,10 @@ func BuildNGSetupResponse() ([]byte, error) {
 	successfulOutcome := pdu.SuccessfulOutcome
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeNGSetup
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentNGSetupResponse
-	successfulOutcome.Value.NGSetupResponse = new(ngapType.NGSetupResponse)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentNGSetup
+	successfulOutcome.Value.NGSetup = new(ngapType.NGSetupResponse)
 
-	nGSetupResponse := successfulOutcome.Value.NGSetupResponse
+	nGSetupResponse := successfulOutcome.Value.NGSetup
 	nGSetupResponseIEs := &nGSetupResponse.ProtocolIEs
 
 	// AMFName
@@ -238,10 +238,10 @@ func BuildNGSetupFailure(cause ngapType.Cause) ([]byte, error) {
 	unsuccessfulOutcome := pdu.UnsuccessfulOutcome
 	unsuccessfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeNGSetup
 	unsuccessfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentNGSetupFailure
-	unsuccessfulOutcome.Value.NGSetupFailure = new(ngapType.NGSetupFailure)
+	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentNGSetup
+	unsuccessfulOutcome.Value.NGSetup = new(ngapType.NGSetupFailure)
 
-	nGSetupFailure := unsuccessfulOutcome.Value.NGSetupFailure
+	nGSetupFailure := unsuccessfulOutcome.Value.NGSetup
 	nGSetupFailureIEs := &nGSetupFailure.ProtocolIEs
 
 	// Cause
@@ -269,10 +269,10 @@ func BuildNGResetAcknowledge(partOfNGInterface *ngapType.UEAssociatedLogicalNGCo
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeNGReset
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
 
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentNGResetAcknowledge
-	successfulOutcome.Value.NGResetAcknowledge = new(ngapType.NGResetAcknowledge)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentNGReset
+	successfulOutcome.Value.NGReset = new(ngapType.NGResetAcknowledge)
 
-	nGResetAcknowledge := successfulOutcome.Value.NGResetAcknowledge
+	nGResetAcknowledge := successfulOutcome.Value.NGReset
 	nGResetAcknowledgeIEs := &nGResetAcknowledge.ProtocolIEs
 
 	// UE-associated Logical NG-connection List (optional)
@@ -431,10 +431,10 @@ func BuildUEContextReleaseCommand(
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodeUEContextRelease
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
 
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentUEContextReleaseCommand
-	initiatingMessage.Value.UEContextReleaseCommand = new(ngapType.UEContextReleaseCommand)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentUEContextRelease
+	initiatingMessage.Value.UEContextRelease = new(ngapType.UEContextReleaseCommand)
 
-	ueContextReleaseCommand := initiatingMessage.Value.UEContextReleaseCommand
+	ueContextReleaseCommand := initiatingMessage.Value.UEContextRelease
 	ueContextReleaseCommandIEs := &ueContextReleaseCommand.ProtocolIEs
 
 	// UE NGAP IDs
@@ -585,10 +585,10 @@ func BuildHandoverCancelAcknowledge(
 	successfulOutcome := pdu.SuccessfulOutcome
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeHandoverCancel
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentHandoverCancelAcknowledge
-	successfulOutcome.Value.HandoverCancelAcknowledge = new(ngapType.HandoverCancelAcknowledge)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentHandoverCancel
+	successfulOutcome.Value.HandoverCancel = new(ngapType.HandoverCancelAcknowledge)
 
-	handoverCancelAcknowledge := successfulOutcome.Value.HandoverCancelAcknowledge
+	handoverCancelAcknowledge := successfulOutcome.Value.HandoverCancel
 	handoverCancelAcknowledgeIEs := &handoverCancelAcknowledge.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -647,10 +647,10 @@ func BuildPDUSessionResourceSetupRequest(ue *context.RanUe, nasPdu []byte,
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodePDUSessionResourceSetup
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
 
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentPDUSessionResourceSetupRequest
-	initiatingMessage.Value.PDUSessionResourceSetupRequest = new(ngapType.PDUSessionResourceSetupRequest)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentPDUSessionResourceSetup
+	initiatingMessage.Value.PDUSessionResourceSetup = new(ngapType.PDUSessionResourceSetupRequest)
 
-	pDUSessionResourceSetupRequest := initiatingMessage.Value.PDUSessionResourceSetupRequest
+	pDUSessionResourceSetupRequest := initiatingMessage.Value.PDUSessionResourceSetup
 	pDUSessionResourceSetupRequestIEs := &pDUSessionResourceSetupRequest.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -741,10 +741,10 @@ func BuildPDUSessionResourceModifyConfirm(
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodePDUSessionResourceModifyIndication
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
 
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentPDUSessionResourceModifyConfirm
-	successfulOutcome.Value.PDUSessionResourceModifyConfirm = new(ngapType.PDUSessionResourceModifyConfirm)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentPDUSessionResourceModifyIndication
+	successfulOutcome.Value.PDUSessionResourceModifyIndication = new(ngapType.PDUSessionResourceModifyConfirm)
 
-	pDUSessionResourceModifyConfirm := successfulOutcome.Value.PDUSessionResourceModifyConfirm
+	pDUSessionResourceModifyConfirm := successfulOutcome.Value.PDUSessionResourceModifyIndication
 	pDUSessionResourceModifyConfirmIEs := &pDUSessionResourceModifyConfirm.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -817,10 +817,10 @@ func BuildPDUSessionResourceModifyRequest(ue *context.RanUe,
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodePDUSessionResourceModify
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
 
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentPDUSessionResourceModifyRequest
-	initiatingMessage.Value.PDUSessionResourceModifyRequest = new(ngapType.PDUSessionResourceModifyRequest)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentPDUSessionResourceModify
+	initiatingMessage.Value.PDUSessionResourceModify = new(ngapType.PDUSessionResourceModifyRequest)
 
-	pDUSessionResourceModifyRequest := initiatingMessage.Value.PDUSessionResourceModifyRequest
+	pDUSessionResourceModifyRequest := initiatingMessage.Value.PDUSessionResourceModify
 	pDUSessionResourceModifyRequestIEs := &pDUSessionResourceModifyRequest.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -867,7 +867,7 @@ func BuildInitialContextSetupRequest(
 	nasPdu []byte,
 	pduSessionResourceSetupRequestList *ngapType.PDUSessionResourceSetupListCxtReq,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
-	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInfo *ngapType.CoreNetworkAssistanceInformationForInactive,
 	emergencyFallbackIndicator *ngapType.EmergencyFallbackIndicator,
 ) ([]byte, error) {
 	// Old AMF: new amf should get old amf's amf name
@@ -907,10 +907,10 @@ func BuildInitialContextSetupRequest(
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodeInitialContextSetup
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
 
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentInitialContextSetupRequest
-	initiatingMessage.Value.InitialContextSetupRequest = new(ngapType.InitialContextSetupRequest)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentInitialContextSetup
+	initiatingMessage.Value.InitialContextSetup = new(ngapType.InitialContextSetupRequest)
 
-	initialContextSetupRequest := initiatingMessage.Value.InitialContextSetupRequest
+	initialContextSetupRequest := initiatingMessage.Value.InitialContextSetup
 	initialContextSetupRequestIEs := &initialContextSetupRequest.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -970,10 +970,10 @@ func BuildInitialContextSetupRequest(
 	// Core Network Assistance Information (optional)
 	if coreNetworkAssistanceInfo != nil {
 		ie = ngapType.InitialContextSetupRequestIEs{}
-		ie.Id.Value = ngapType.ProtocolIEIDCoreNetworkAssistanceInformation
+		ie.Id.Value = ngapType.ProtocolIEIDCoreNetworkAssistanceInformationForInactive
 		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
-		ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentCoreNetworkAssistanceInformation
-		ie.Value.CoreNetworkAssistanceInformation = coreNetworkAssistanceInfo
+		ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentCoreNetworkAssistanceInformationForInactive
+		ie.Value.CoreNetworkAssistanceInformationForInactive = coreNetworkAssistanceInfo
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 	}
 
@@ -1237,10 +1237,10 @@ func BuildHandoverCommand(
 	successfulOutcome := pdu.SuccessfulOutcome
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeHandoverPreparation
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentHandoverCommand
-	successfulOutcome.Value.HandoverCommand = new(ngapType.HandoverCommand)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentHandoverPreparation
+	successfulOutcome.Value.HandoverPreparation = new(ngapType.HandoverCommand)
 
-	handoverCommand := successfulOutcome.Value.HandoverCommand
+	handoverCommand := successfulOutcome.Value.HandoverPreparation
 	handoverCommandIEs := &handoverCommand.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -1349,10 +1349,10 @@ func BuildHandoverPreparationFailure(sourceUe *context.RanUe, cause ngapType.Cau
 	unsuccessfulOutcome := pdu.UnsuccessfulOutcome
 	unsuccessfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeHandoverPreparation
 	unsuccessfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentHandoverPreparationFailure
-	unsuccessfulOutcome.Value.HandoverPreparationFailure = new(ngapType.HandoverPreparationFailure)
+	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentHandoverPreparation
+	unsuccessfulOutcome.Value.HandoverPreparation = new(ngapType.HandoverPreparationFailure)
 
-	handoverPreparationFailure := unsuccessfulOutcome.Value.HandoverPreparationFailure
+	handoverPreparationFailure := unsuccessfulOutcome.Value.HandoverPreparation
 	handoverPreparationFailureIEs := &handoverPreparationFailure.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -1433,10 +1433,10 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	initiatingMessage.ProcedureCode.Value = ngapType.ProcedureCodeHandoverResourceAllocation
 	initiatingMessage.Criticality.Value = ngapType.CriticalityPresentReject
 
-	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentHandoverRequest
-	initiatingMessage.Value.HandoverRequest = new(ngapType.HandoverRequest)
+	initiatingMessage.Value.Present = ngapType.InitiatingMessagePresentHandoverResourceAllocation
+	initiatingMessage.Value.HandoverResourceAllocation = new(ngapType.HandoverRequest)
 
-	handoverRequest := initiatingMessage.Value.HandoverRequest
+	handoverRequest := initiatingMessage.Value.HandoverResourceAllocation
 	handoverRequestIEs := &handoverRequest.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -1635,7 +1635,7 @@ func BuildPathSwitchRequestAcknowledge(
 	pduSessionResourceSwitchedList ngapType.PDUSessionResourceSwitchedList,
 	pduSessionResourceReleasedList ngapType.PDUSessionResourceReleasedListPSAck,
 	newSecurityContextIndicator bool,
-	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformation,
+	coreNetworkAssistanceInformation *ngapType.CoreNetworkAssistanceInformationForInactive,
 	rrcInactiveTransitionReportRequest *ngapType.RRCInactiveTransitionReportRequest,
 	criticalityDiagnostics *ngapType.CriticalityDiagnostics,
 ) ([]byte, error) {
@@ -1647,10 +1647,10 @@ func BuildPathSwitchRequestAcknowledge(
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodePathSwitchRequest
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
 
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentPathSwitchRequestAcknowledge
-	successfulOutcome.Value.PathSwitchRequestAcknowledge = new(ngapType.PathSwitchRequestAcknowledge)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentPathSwitchRequest
+	successfulOutcome.Value.PathSwitchRequest = new(ngapType.PathSwitchRequestAcknowledge)
 
-	pathSwitchRequestAck := successfulOutcome.Value.PathSwitchRequestAcknowledge
+	pathSwitchRequestAck := successfulOutcome.Value.PathSwitchRequest
 	pathSwitchRequestAckIEs := &pathSwitchRequestAck.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -1763,10 +1763,10 @@ func BuildPathSwitchRequestAcknowledge(
 	// Core Network Assistance Information (optional)
 	if coreNetworkAssistanceInformation != nil {
 		ie = ngapType.PathSwitchRequestAcknowledgeIEs{}
-		ie.Id.Value = ngapType.ProtocolIEIDCoreNetworkAssistanceInformation
+		ie.Id.Value = ngapType.ProtocolIEIDCoreNetworkAssistanceInformationForInactive
 		ie.Criticality.Value = ngapType.CriticalityPresentIgnore
-		ie.Value.Present = ngapType.PathSwitchRequestAcknowledgeIEsPresentCoreNetworkAssistanceInformation
-		ie.Value.CoreNetworkAssistanceInformation = coreNetworkAssistanceInformation
+		ie.Value.Present = ngapType.PathSwitchRequestAcknowledgeIEsPresentCoreNetworkAssistanceInformationForInactive
+		ie.Value.CoreNetworkAssistanceInformationForInactive = coreNetworkAssistanceInformation
 		pathSwitchRequestAckIEs.List = append(pathSwitchRequestAckIEs.List, ie)
 	}
 
@@ -1810,10 +1810,10 @@ func BuildPathSwitchRequestFailure(
 	unsuccessfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodePathSwitchRequest
 	unsuccessfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
 
-	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentPathSwitchRequestFailure
-	unsuccessfulOutcome.Value.PathSwitchRequestFailure = new(ngapType.PathSwitchRequestFailure)
+	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentPathSwitchRequest
+	unsuccessfulOutcome.Value.PathSwitchRequest = new(ngapType.PathSwitchRequestFailure)
 
-	pathSwitchRequestFailure := unsuccessfulOutcome.Value.PathSwitchRequestFailure
+	pathSwitchRequestFailure := unsuccessfulOutcome.Value.PathSwitchRequest
 	pathSwitchRequestFailureIEs := &pathSwitchRequestFailure.ProtocolIEs
 
 	// AMF UE NGAP ID
@@ -2207,10 +2207,10 @@ func BuildRanConfigurationUpdateAcknowledge(
 	successfulOutcome := pdu.SuccessfulOutcome
 	successfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeRANConfigurationUpdate
 	successfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentRANConfigurationUpdateAcknowledge
-	successfulOutcome.Value.RANConfigurationUpdateAcknowledge = new(ngapType.RANConfigurationUpdateAcknowledge)
+	successfulOutcome.Value.Present = ngapType.SuccessfulOutcomePresentRANConfigurationUpdate
+	successfulOutcome.Value.RANConfigurationUpdate = new(ngapType.RANConfigurationUpdateAcknowledge)
 
-	rANConfigurationUpdateAcknowledge := successfulOutcome.Value.RANConfigurationUpdateAcknowledge
+	rANConfigurationUpdateAcknowledge := successfulOutcome.Value.RANConfigurationUpdate
 	rANConfigurationUpdateAcknowledgeIEs := &rANConfigurationUpdateAcknowledge.ProtocolIEs
 
 	// Criticality Doagnostics(Optional)
@@ -2243,10 +2243,10 @@ func BuildRanConfigurationUpdateFailure(
 	unsuccessfulOutcome := pdu.UnsuccessfulOutcome
 	unsuccessfulOutcome.ProcedureCode.Value = ngapType.ProcedureCodeRANConfigurationUpdate
 	unsuccessfulOutcome.Criticality.Value = ngapType.CriticalityPresentReject
-	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentRANConfigurationUpdateFailure
-	unsuccessfulOutcome.Value.RANConfigurationUpdateFailure = new(ngapType.RANConfigurationUpdateFailure)
+	unsuccessfulOutcome.Value.Present = ngapType.UnsuccessfulOutcomePresentRANConfigurationUpdate
+	unsuccessfulOutcome.Value.RANConfigurationUpdate = new(ngapType.RANConfigurationUpdateFailure)
 
-	rANConfigurationUpdateFailure := unsuccessfulOutcome.Value.RANConfigurationUpdateFailure
+	rANConfigurationUpdateFailure := unsuccessfulOutcome.Value.RANConfigurationUpdate
 	rANConfigurationUpdateFailureIEs := &rANConfigurationUpdateFailure.ProtocolIEs
 
 	// Cause

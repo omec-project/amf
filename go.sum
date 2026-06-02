@@ -89,8 +89,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/omec-project/nas/v2 v2.0.0 h1:6KQQKs8JDT5U1CPtVRZdv/OlbUHv2VQpnwXhAB6Dx9I=
 github.com/omec-project/nas/v2 v2.0.0/go.mod h1:3RsTbm7V4BLR/IjzMv74WauJT0frkAQLtSVwR1LCPXs=
-github.com/omec-project/ngap/v2 v2.0.0 h1:6YYKVeEdrOikThEGapJIrIG5aZ584kmZFxwqnpBuIHI=
-github.com/omec-project/ngap/v2 v2.0.0/go.mod h1:VqYpVQGeBbRf8u56hjnI0en1Ee+BRMvmqrTiEymVBtg=
+github.com/omec-project/ngap/v2 v2.1.0 h1:+dBCYZ5esgg7QVy2DzNLvc9OXpZG9B/Swh7KZY9Wyjo=
+github.com/omec-project/ngap/v2 v2.1.0/go.mod h1:VqYpVQGeBbRf8u56hjnI0en1Ee+BRMvmqrTiEymVBtg=
 github.com/omec-project/openapi/v2 v2.0.0 h1:aeNPvcJotm+paJLxxBrxJsoMsSWcnLeyr5z7C/CJ/JQ=
 github.com/omec-project/openapi/v2 v2.0.0/go.mod h1:dgqA/pmWLxUWeEl/lgecPmcDR4oolSzJK/ijbLwveow=
 github.com/omec-project/util v1.7.3 h1:XKtttf8nbFZtk9y+Zat6+cg3k0KYkYekn/5mqGUb7Os=
