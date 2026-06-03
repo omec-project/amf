@@ -101,8 +101,8 @@ func TestHandleHandoverFailureIgnoresMissingIEs(t *testing.T) {
 		UnsuccessfulOutcome: &ngapType.UnsuccessfulOutcome{
 			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeHandoverResourceAllocation},
 			Value: ngapType.UnsuccessfulOutcomeValue{
-				Present:         ngapType.UnsuccessfulOutcomePresentHandoverFailure,
-				HandoverFailure: &ngapType.HandoverFailure{},
+				Present:                    ngapType.UnsuccessfulOutcomePresentHandoverResourceAllocation,
+				HandoverResourceAllocation: &ngapType.HandoverFailure{},
 			},
 		},
 	}
