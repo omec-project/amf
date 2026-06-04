@@ -674,6 +674,40 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	ue.Location = ue.RanUe[anType].Location
 	ue.Tai = ue.RanUe[anType].Tai
 
+	// Set ue.RatType from the access type. Without this, ue.RatType stays
+	// empty during normal registration and downstream SBI consumers
+	// (Nsmf_PDUSession CreateSMContext, Namf_Communication, location and
+	// MT services) send an empty ratType.
+	switch anType {
+	case models.ACCESSTYPE__3_GPP_ACCESS:
+		switch {
+		case ue.Location.NrLocation != nil:
+			ue.RatType = models.RATTYPE_NR
+		case ue.Location.EutraLocation != nil:
+			ue.RatType = models.RATTYPE_EUTRA
+		}
+	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
+		ue.RatType = models.RATTYPE_WLAN
+	}
+
+	// Rel-18 NR-NTN: if the serving RAN advertised RATInformation for this
+	// TAC at NGSetup, upgrade the generic NR RatType to the orbit-specific
+	// value (NR_LEO/NR_MEO/NR_GEO/NR_OTHER_SAT) per 3GPP TS 29.571.
+	if ue.RatType == models.RATTYPE_NR && ue.RanUe[anType] != nil && ue.RanUe[anType].Ran != nil {
+		if ratInfo := ue.RanUe[anType].Ran.RatInformationForTAC(ue.Tai.Tac); ratInfo != nil {
+			switch ratInfo.Value {
+			case ngapType.RATInformationPresentNRLEO:
+				ue.RatType = models.RATTYPE_NR_LEO
+			case ngapType.RATInformationPresentNRMEO:
+				ue.RatType = models.RATTYPE_NR_MEO
+			case ngapType.RATInformationPresentNRGEO:
+				ue.RatType = models.RATTYPE_NR_GEO
+			case ngapType.RATInformationPresentNROTHERSAT:
+				ue.RatType = models.RATTYPE_NR_OTHER_SAT
+			}
+		}
+	}
+
 	// Check TAI
 	taiList := make([]models.Tai, len(amfSelf.SupportTaiLists))
 	copy(taiList, amfSelf.SupportTaiLists)
