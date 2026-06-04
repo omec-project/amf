@@ -10,15 +10,20 @@ package gmm
 import (
 	ctxt "context"
 	"encoding/binary"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
+	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
@@ -65,6 +70,381 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingRejectsNilRegistrationRequ
 	}
 	if !strings.Contains(err.Error(), "registration request is nil") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func tempBinaryFile(t *testing.T, name string, data []byte) **os.File {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("open temp file: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = file.Close()
+	})
+	return &file
+}
+
+func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationRequest(t *testing.T) {
+	originalSendReleaseSmContextRequest := sendReleaseSmContextRequest
+	sendReleaseSmContextRequest = func(
+		ue *context.AmfUe,
+		smContext *context.SmContext,
+		cause *context.CauseAll,
+		n2SmInfoType models.N2SmInfoType,
+		n2Info []byte,
+	) (*models.ProblemDetails, error) {
+		ue.RegistrationRequest = nil
+		return nil, errors.New("forced release error")
+	}
+	defer func() {
+		sendReleaseSmContextRequest = originalSendReleaseSmContextRequest
+	}()
+
+	ue := &context.AmfUe{
+		GmmLog:                zap.NewNop().Sugar(),
+		NASLog:                zap.NewNop().Sugar(),
+		RanUe:                 make(map[models.AccessType]*context.RanUe),
+		AllowedNssai:          make(map[models.AccessType][]models.AllowedSnssai),
+		OnGoing:               make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+		RegistrationArea:      make(map[models.AccessType][]models.Tai),
+		State:                 make(map[models.AccessType]*fsm.State),
+		ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
+		SubscriptionDataValid: true,
+		Pei:                   "imei-001010000000001",
+		SubscribedNssai: []models.SubscribedSnssai{{
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+			DefaultIndication: openapi.PtrBool(true),
+		}},
+	}
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+	ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
+	ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
+
+	ranUe := &context.RanUe{
+		AmfUe: ue,
+		Log:   zap.NewNop().Sugar(),
+		Tai: models.Tai{
+			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+			Tac:    "000001",
+		},
+	}
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
+	ue.Tai = ranUe.Tai
+	ue.Location.NrLocation = &models.NrLocation{}
+
+	capability := nasType.NewCapability5GMM(nasMessage.RegistrationRequestCapability5GMMType)
+	capability.SetLen(13)
+
+	pduSessionStatus := nasType.NewPDUSessionStatus(nasMessage.RegistrationRequestPDUSessionStatusType)
+	pduSessionStatus.SetLen(2)
+
+	allowedPduSessionStatus := nasType.NewAllowedPDUSessionStatus(nasMessage.RegistrationRequestAllowedPDUSessionStatusType)
+	allowedPduSessionStatus.SetLen(2)
+
+	ue.RegistrationRequest = &nasMessage.RegistrationRequest{
+		Capability5GMM:          capability,
+		PDUSessionStatus:        pduSessionStatus,
+		AllowedPDUSessionStatus: allowedPduSessionStatus,
+	}
+
+	smContext := context.NewSmContext(1)
+	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	ue.SmContextList.Store(int32(1), smContext)
+
+	pduSessionId := int32(2)
+	ngapIeType := models.NGAPIETYPE_PDU_RES_SETUP_REQ
+	ue.N1N2Message = &context.N1N2Message{
+		Request: models.N1N2MessageTransferRequest{
+			JsonData: &models.N1N2MessageTransferReqData{
+				PduSessionId: &pduSessionId,
+				N2InfoContainer: &models.N2InfoContainer{
+					SmInfo: &models.N2SmInformation{
+						PduSessionId:  pduSessionId,
+						N2InfoContent: &models.N2InfoContent{NgapIeType: &ngapIeType},
+						SNssai:        &models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+					},
+				},
+			},
+			BinaryDataN1Message:     tempBinaryFile(t, "n1.bin", []byte{0x01}),
+			BinaryDataN2Information: tempBinaryFile(t, "n2.bin", []byte{0x02}),
+		},
+	}
+
+	err := HandleMobilityAndPeriodicRegistrationUpdating(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS)
+	if err == nil {
+		t.Fatal("expected missing PDU session error")
+	}
+	if !strings.Contains(err.Error(), "pdu session id does not exist") {
+		t.Fatalf("expected missing PDU session error, got %v", err)
+	}
+	if ue.RegistrationRequest != nil {
+		t.Fatal("expected concurrent cleanup to clear the live registration request")
+	}
+	if ue.N1N2Message != nil {
+		t.Fatal("expected N1N2 message to be cleared on missing PDU session")
+	}
+	if _, ok := ue.SmContextFindByPDUSessionID(1); !ok {
+		t.Fatal("expected existing SM context to remain available")
+	}
+}
+
+func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
+	originalSendReleaseSmContextRequest := sendReleaseSmContextRequest
+	sendReleaseSmContextRequest = func(
+		ue *context.AmfUe,
+		smContext *context.SmContext,
+		cause *context.CauseAll,
+		n2SmInfoType models.N2SmInfoType,
+		n2Info []byte,
+	) (*models.ProblemDetails, error) {
+		ue.N1N2Message = nil
+		return nil, errors.New("forced release error")
+	}
+	defer func() {
+		sendReleaseSmContextRequest = originalSendReleaseSmContextRequest
+	}()
+
+	ue := &context.AmfUe{
+		GmmLog:                   zap.NewNop().Sugar(),
+		NASLog:                   zap.NewNop().Sugar(),
+		RanUe:                    make(map[models.AccessType]*context.RanUe),
+		AllowedNssai:             make(map[models.AccessType][]models.AllowedSnssai),
+		OnGoing:                  make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+		RegistrationArea:         make(map[models.AccessType][]models.Tai),
+		State:                    make(map[models.AccessType]*fsm.State),
+		ReleaseCause:             make(map[models.AccessType]*context.CauseAll),
+		SubscriptionDataValid:    true,
+		SecurityContextAvailable: true,
+		Pei:                      "imei-001010000000001",
+	}
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+	ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
+	ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
+	ue.NgKsi.Ksi = 1
+
+	ranUe := &context.RanUe{
+		AmfUe: ue,
+		Log:   zap.NewNop().Sugar(),
+		Tai: models.Tai{
+			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+			Tac:    "000001",
+		},
+	}
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
+	ue.Tai = ranUe.Tai
+	ue.Location.NrLocation = &models.NrLocation{}
+
+	pduSessionStatus := nasType.NewPDUSessionStatus(nasMessage.ServiceRequestPDUSessionStatusType)
+	pduSessionStatus.SetLen(2)
+
+	serviceRequest := nasMessage.NewServiceRequest(0)
+	serviceRequest.SetServiceTypeValue(nasMessage.ServiceTypeMobileTerminatedServices)
+	serviceRequest.PDUSessionStatus = pduSessionStatus
+
+	smContext := context.NewSmContext(1)
+	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	ue.SmContextList.Store(int32(1), smContext)
+
+	servicePduSessionId := int32(2)
+	serviceNgapIeType := models.NGAPIETYPE_PDU_RES_SETUP_REQ
+	ue.N1N2Message = &context.N1N2Message{
+		Request: models.N1N2MessageTransferRequest{
+			JsonData: &models.N1N2MessageTransferReqData{
+				PduSessionId: &servicePduSessionId,
+				N2InfoContainer: &models.N2InfoContainer{
+					N2InformationClass: models.N2INFORMATIONCLASS_SM,
+					SmInfo: &models.N2SmInformation{
+						PduSessionId:  servicePduSessionId,
+						N2InfoContent: &models.N2InfoContent{NgapIeType: &serviceNgapIeType},
+						SNssai:        &models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+					},
+				},
+			},
+			BinaryDataN1Message:     tempBinaryFile(t, "srv-n1.bin", []byte{0x01}),
+			BinaryDataN2Information: tempBinaryFile(t, "srv-n2.bin", []byte{0x02}),
+		},
+	}
+
+	err := HandleServiceRequest(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS, serviceRequest)
+	if err == nil {
+		t.Fatal("expected missing PDU session error")
+	}
+	if !strings.Contains(err.Error(), "service request triggered by Network error for pduSessionId does not exist") {
+		t.Fatalf("expected missing PDU session error, got %v", err)
+	}
+	if ue.N1N2Message != nil {
+		t.Fatal("expected live N1N2 message to remain cleared after simulated concurrent cleanup")
+	}
+	if _, ok := ue.SmContextFindByPDUSessionID(1); !ok {
+		t.Fatal("expected existing SM context to remain available")
+	}
+}
+
+func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
+	originalHandleRequestedNssaiForRegistration := handleRequestedNssaiForRegistration
+	originalGetSubscribedNssaiForRegistration := getSubscribedNssaiForRegistration
+	originalCommunicateWithUDMForRegistration := communicateWithUDMForRegistration
+	originalAssignLadnInfoForRegistration := assignLadnInfoForRegistration
+	originalSendSearchNFInstancesForRegistration := sendSearchNFInstancesForRegistration
+	originalAmPolicyControlCreateForRegistration := amPolicyControlCreateForRegistration
+	originalSendRegistrationAcceptForRegistration := sendRegistrationAcceptForRegistration
+	defer func() {
+		handleRequestedNssaiForRegistration = originalHandleRequestedNssaiForRegistration
+		getSubscribedNssaiForRegistration = originalGetSubscribedNssaiForRegistration
+		communicateWithUDMForRegistration = originalCommunicateWithUDMForRegistration
+		assignLadnInfoForRegistration = originalAssignLadnInfoForRegistration
+		sendSearchNFInstancesForRegistration = originalSendSearchNFInstancesForRegistration
+		amPolicyControlCreateForRegistration = originalAmPolicyControlCreateForRegistration
+		sendRegistrationAcceptForRegistration = originalSendRegistrationAcceptForRegistration
+	}()
+
+	getSubscribedNssaiForRegistration = func(ctx ctxt.Context, ue *context.AmfUe) {
+		ue.SubscribedNssai = []models.SubscribedSnssai{{
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+			DefaultIndication: openapi.PtrBool(true),
+		}}
+	}
+	communicateWithUDMForRegistration = func(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
+		ue.SubscriptionDataValid = true
+		return nil
+	}
+	handleRequestedNssaiCalls := 0
+	handleRequestedNssaiForRegistration = func(ctx ctxt.Context, ue *context.AmfUe, registrationRequest *nasMessage.RegistrationRequest, anType models.AccessType) error {
+		handleRequestedNssaiCalls++
+		ue.RegistrationRequest = nil
+		ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], models.AllowedSnssai{
+			AllowedSnssai: models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+		})
+		return nil
+	}
+	assignLadnInfoForRegistration = func(ue *context.AmfUe, registrationRequest *nasMessage.RegistrationRequest, accessType models.AccessType) {
+	}
+	sendSearchNFInstancesForRegistration = func(
+		ctx ctxt.Context,
+		nrfUri string,
+		targetNfType, requestNfType models.NFType,
+		configure consumer.SearchNFInstancesRequestConfigurer,
+	) (*models.SearchResult, error) {
+		services := []models.NFService{{
+			ServiceName:     models.SERVICENAME_NPCF_AM_POLICY_CONTROL,
+			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
+			ApiPrefix:       openapi.PtrString("http://pcf.example.com"),
+		}}
+		return &models.SearchResult{NfInstances: []models.NFProfileDiscovery{{
+			NfInstanceId: "pcf-instance",
+			NfServices:   services,
+		}}}, nil
+	}
+	amPolicyControlCreateForRegistration = func(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) (*models.ProblemDetails, error) {
+		return nil, nil
+	}
+	registrationAcceptSent := false
+	sendRegistrationAcceptForRegistration = func(
+		ue *context.AmfUe,
+		anType models.AccessType,
+		pDUSessionStatus *[16]bool,
+		reactivationResult *[16]bool,
+		errPduSessionId, errCause []uint8,
+		pduSessionResourceSetupList *ngapType.PDUSessionResourceSetupListCxtReq,
+	) {
+		registrationAcceptSent = true
+	}
+
+	amfSelf := context.AMF_Self()
+	originalSupportTaiLists := amfSelf.SupportTaiLists
+	originalT3502Value := amfSelf.T3502Value
+	originalT3512Value := amfSelf.T3512Value
+	defer func() {
+		amfSelf.SupportTaiLists = originalSupportTaiLists
+		amfSelf.T3502Value = originalT3502Value
+		amfSelf.T3512Value = originalT3512Value
+	}()
+	amfSelf.SupportTaiLists = []models.Tai{{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}, Tac: "1"}}
+	amfSelf.T3502Value = 720
+	amfSelf.T3512Value = 3600
+
+	ue := &context.AmfUe{
+		GmmLog:                zap.NewNop().Sugar(),
+		NASLog:                zap.NewNop().Sugar(),
+		RanUe:                 make(map[models.AccessType]*context.RanUe),
+		AllowedNssai:          make(map[models.AccessType][]models.AllowedSnssai),
+		RegistrationArea:      make(map[models.AccessType][]models.Tai),
+		State:                 make(map[models.AccessType]*fsm.State),
+		ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
+		SubscriptionDataValid: true,
+		Pei:                   "imei-001010000000001",
+		Supi:                  "imsi-001010000000001",
+		SubscribedNssai: []models.SubscribedSnssai{{
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+			DefaultIndication: openapi.PtrBool(true),
+		}},
+	}
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+
+	ran := &context.AmfRan{
+		Log:   zap.NewNop().Sugar(),
+		RanId: &models.GlobalRanNodeId{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}},
+		GnbIp: "10.0.0.1",
+	}
+	ranUe := &context.RanUe{
+		AmfUe:                 ue,
+		Ran:                   ran,
+		Log:                   zap.NewNop().Sugar(),
+		Tai:                   models.Tai{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}, Tac: "000001"},
+		RRCEstablishmentCause: "0",
+	}
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
+	ue.Tai = ranUe.Tai
+
+	capability := nasType.NewCapability5GMM(nasMessage.RegistrationRequestCapability5GMMType)
+	capability.SetLen(13)
+	capability.SetLPP(1)
+
+	micoIndication := nasType.NewMICOIndication(0x0b)
+	micoIndication.SetRAAI(1)
+
+	requestedDRXParameters := nasType.NewRequestedDRXParameters(nasMessage.RegistrationRequestRequestedDRXParametersType)
+	requestedDRXParameters.SetLen(1)
+	requestedDRXParameters.SetDRXValue(nasMessage.DRXcycleParameterT64)
+
+	ue.RegistrationRequest = &nasMessage.RegistrationRequest{
+		Capability5GMM:         capability,
+		MICOIndication:         micoIndication,
+		RequestedDRXParameters: requestedDRXParameters,
+	}
+
+	err := HandleInitialRegistration(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS)
+	if err != nil {
+		t.Fatalf("expected initial registration to succeed, got %v", err)
+	}
+	if ue.RegistrationRequest != nil {
+		t.Fatal("expected live registration request to remain cleared after simulated concurrent cleanup")
+	}
+	if ue.Capability5GMM.GetLPP() != 1 {
+		t.Fatal("expected capability5GMM to be copied from the snapshotted registration request")
+	}
+	if ue.UESpecificDRX != nasMessage.DRXcycleParameterT64 {
+		t.Fatalf("expected DRX %d, got %d", nasMessage.DRXcycleParameterT64, ue.UESpecificDRX)
+	}
+	if len(ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS]) == 0 {
+		t.Fatal("expected allowed NSSAI to be populated by the helper")
+	}
+	if handleRequestedNssaiCalls != 1 {
+		t.Fatalf("expected requested NSSAI helper to run once, got %d", handleRequestedNssaiCalls)
+	}
+	if !registrationAcceptSent {
+		t.Fatal("expected registration accept to be sent")
 	}
 }
 

@@ -690,6 +690,10 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
+	ran.RLockRanState()
+	gnbID := ran.GnbId
+	ran.RUnlockRanState()
+
 	if sendResponse {
 		ngap_message.SendNGSetupResponse(ran)
 		// send nf(gnb) status notification
@@ -698,7 +702,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			NfStatusData: mi.CNfStatus{
 				NfType:   mi.NfTypeGnb,
 				NfStatus: mi.NfStatusConnected,
-				NfName:   ran.GnbId,
+				NfName:   gnbID,
 			},
 		}
 		if *factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
