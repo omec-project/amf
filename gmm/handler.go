@@ -49,7 +49,17 @@ const (
 	defaultDnn                = "internet"
 )
 
-var sendDLNASTransport = gmm_message.SendDLNASTransport
+var (
+	sendDLNASTransport                    = gmm_message.SendDLNASTransport
+	sendReleaseSmContextRequest           = consumer.SendReleaseSmContextRequest
+	getSubscribedNssaiForRegistration     = getSubscribedNssai
+	communicateWithUDMForRegistration     = communicateWithUDM
+	handleRequestedNssaiForRegistration   = handleRequestedNssai
+	assignLadnInfoForRegistration         = assignLadnInfo
+	sendSearchNFInstancesForRegistration  = consumer.SendSearchNFInstances
+	amPolicyControlCreateForRegistration  = consumer.AMPolicyControlCreate
+	sendRegistrationAcceptForRegistration = gmm_message.SendRegistrationAccept
+)
 
 func readBinaryResponseFile(file *os.File) ([]byte, error) {
 	if file == nil {
@@ -728,6 +738,16 @@ func IdentityVerification(ue *context.AmfUe) bool {
 func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
 	ue.GmmLog.Infoln("Handle InitialRegistration")
 
+	ranUe := ue.RanUe[anType]
+	if ranUe == nil {
+		return fmt.Errorf("ran ue is nil")
+	}
+
+	registrationRequest := ue.RegistrationRequest
+	if registrationRequest == nil {
+		return fmt.Errorf("registration request is nil")
+	}
+
 	amfSelf := context.AMF_Self()
 
 	ue.ClearRegistrationData()
@@ -737,20 +757,20 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 
 	// Registration with AMF re-allocation (TS 23.502 4.2.2.2.3)
 	if len(ue.SubscribedNssai) == 0 {
-		getSubscribedNssai(ctx, ue)
+		getSubscribedNssaiForRegistration(ctx, ue)
 	}
 
-	if err := handleRequestedNssai(ctx, ue, ue.RegistrationRequest, anType); err != nil {
+	if err := handleRequestedNssaiForRegistration(ctx, ue, registrationRequest, anType); err != nil {
 		return err
 	}
 
-	if ue.RegistrationRequest.Capability5GMM != nil {
-		ue.Capability5GMM = *ue.RegistrationRequest.Capability5GMM
+	if registrationRequest.Capability5GMM != nil {
+		ue.Capability5GMM = *registrationRequest.Capability5GMM
 	}
 
 	if len(ue.AllowedNssai[anType]) == 0 {
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
-		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType], context.UeContextN2NormalRelease,
+		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
 			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
 		ue.Remove()
 		return fmt.Errorf("allowed nssai list is nil")
@@ -762,15 +782,15 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		return fmt.Errorf("Capability5GMM is nil")
 	}*/
 
-	storeLastVisitedRegisteredTAI(ue, ue.RegistrationRequest.LastVisitedRegisteredTAI)
+	storeLastVisitedRegisteredTAI(ue, registrationRequest.LastVisitedRegisteredTAI)
 
-	if ue.RegistrationRequest.MICOIndication != nil {
+	if registrationRequest.MICOIndication != nil {
 		ue.GmmLog.Warnf("Receive MICO Indication[RAAI: %d], Not Supported",
-			ue.RegistrationRequest.GetRAAI())
+			registrationRequest.GetRAAI())
 	}
 
 	// TODO: Negotiate DRX value if need (TS 23.501 5.4.5)
-	negotiateDRXParameters(ue, ue.RegistrationRequest.RequestedDRXParameters)
+	negotiateDRXParameters(ue, registrationRequest.RequestedDRXParameters)
 
 	// TODO (step 10 optional): send Namf_Communication_RegistrationCompleteNotify to old AMF if need
 	if ue.ServingAmfChanged {
@@ -802,7 +822,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 
 	if ue.ServingAmfChanged || ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Is(context.Registered) ||
 		!ue.SubscriptionDataValid {
-		if err := communicateWithUDM(ctx, ue, anType); err != nil {
+		if err := communicateWithUDMForRegistration(ctx, ue, anType); err != nil {
 			return err
 		}
 	}
@@ -811,7 +831,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		return request.Supi(ue.Supi)
 	}
 	for {
-		resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_PCF, models.NFTYPE_AMF, configureSearchPCFRequest)
+		resp, err := sendSearchNFInstancesForRegistration(ctx, amfSelf.NrfUri, models.NFTYPE_PCF, models.NFTYPE_AMF, configureSearchPCFRequest)
 		if err != nil {
 			ue.GmmLog.Error("AMF can not select an PCF by NRF")
 		} else {
@@ -834,14 +854,14 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		time.Sleep(500 * time.Millisecond) // sleep a while when search NF Instance fail
 	}
 
-	problemDetails, err := consumer.AMPolicyControlCreate(ctx, ue, anType)
+	problemDetails, err := amPolicyControlCreateForRegistration(ctx, ue, anType)
 	if problemDetails != nil {
 		ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
 		return fmt.Errorf("AMPolicy Control Create failed at PCF")
 	} else if err != nil {
 		ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
 		return err
 	}
 
@@ -872,7 +892,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	amfSelf.AllocateRegistrationArea(ue, anType)
 	ue.GmmLog.Debugf("Use original GUTI[%s]", ue.Guti)
 
-	assignLadnInfo(ue, ue.RegistrationRequest, anType)
+	assignLadnInfoForRegistration(ue, registrationRequest, anType)
 
 	amfSelf.AddAmfUeToUePool(ue, ue.Supi)
 	ue.T3502Value = amfSelf.T3502Value
@@ -883,7 +903,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	}
 
 	if anType == models.ACCESSTYPE__3_GPP_ACCESS {
-		gmm_message.SendRegistrationAccept(ue, anType, nil, nil, nil, nil, nil)
+		sendRegistrationAcceptForRegistration(ue, anType, nil, nil, nil, nil, nil)
 	} else {
 		// TS 23.502 4.12.2.2 10a ~ 13: if non-3gpp, AMF should send initial context setup request to N3IWF first,
 		// and send registration accept after receiving initial context setup response
@@ -1061,7 +1081,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 					causeAll := &context.CauseAll{
 						Cause: &cause,
 					}
-					problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, causeAll, "", nil)
+					problemDetail, err := sendReleaseSmContextRequest(ue, smContext, causeAll, "", nil)
 					if problemDetail != nil {
 						pduSessionStatus[psi] = true
 						ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
@@ -1080,10 +1100,11 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 
 	if registrationRequest.AllowedPDUSessionStatus != nil {
 		allowedPsis := nasConvert.PSIToBooleanArray(registrationRequest.AllowedPDUSessionStatus.Buffer)
-		if ue.N1N2Message != nil {
-			requestData := ue.N1N2Message.Request.JsonData
-			n1MsgFile := ue.N1N2Message.Request.BinaryDataN1Message
-			n2InfoFile := ue.N1N2Message.Request.BinaryDataN2Information
+		n1n2Message := ue.N1N2Message
+		if n1n2Message != nil {
+			requestData := n1n2Message.Request.JsonData
+			n1MsgFile := n1n2Message.Request.BinaryDataN1Message
+			n2InfoFile := n1n2Message.Request.BinaryDataN2Information
 
 			n1Msg, err := io.ReadAll(*n1MsgFile)
 			if err != nil {
@@ -1936,9 +1957,10 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		err := sendServiceAccept(ue, anType, ctxList, suList, nil, nil, nil, nil)
 		return err
 	}
-	if ue.N1N2Message != nil {
-		requestData := ue.N1N2Message.Request.JsonData
-		if ue.N1N2Message.Request.BinaryDataN2Information != nil {
+	n1n2Message := ue.N1N2Message
+	if n1n2Message != nil {
+		requestData := n1n2Message.Request.JsonData
+		if n1n2Message.Request.BinaryDataN2Information != nil {
 			if requestData.N2InfoContainer.N2InformationClass == models.N2INFORMATIONCLASS_SM {
 				targetPduSessionId = requestData.N2InfoContainer.SmInfo.PduSessionId
 			} else {
@@ -2009,7 +2031,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 					causeAll := &context.CauseAll{
 						Cause: &cause,
 					}
-					problemDetail, err := consumer.SendReleaseSmContextRequest(ue, smContext, causeAll, "", nil)
+					problemDetail, err := sendReleaseSmContextRequest(ue, smContext, causeAll, "", nil)
 					if problemDetail != nil {
 						ue.GmmLog.Errorf("Release SmContext Failed Problem[%+v]", problemDetail)
 					} else if err != nil {
@@ -2024,10 +2046,10 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	}
 	switch serviceType {
 	case nasMessage.ServiceTypeMobileTerminatedServices: // Trigger by Network
-		if ue.N1N2Message != nil {
-			requestData := ue.N1N2Message.Request.JsonData
-			n1MsgFile := ue.N1N2Message.Request.BinaryDataN1Message
-			n2InfoFile := ue.N1N2Message.Request.BinaryDataN2Information
+		if n1n2Message != nil {
+			requestData := n1n2Message.Request.JsonData
+			n1MsgFile := n1n2Message.Request.BinaryDataN1Message
+			n2InfoFile := n1n2Message.Request.BinaryDataN2Information
 
 			n1Msg, err := io.ReadAll(*n1MsgFile)
 			if err != nil {

@@ -690,6 +690,9 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 
+	ran.RLockRanState()
+	defer ran.RUnlockRanState()
+
 	if sendResponse {
 		ngap_message.SendNGSetupResponse(ran)
 		// send nf(gnb) status notification
