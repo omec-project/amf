@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -75,7 +76,7 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingRejectsNilRegistrationRequ
 func tempBinaryFile(t *testing.T, name string, data []byte) **os.File {
 	t.Helper()
 
-	path := t.TempDir() + "/" + name
+	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatalf("write temp file: %v", err)
 	}

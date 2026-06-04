@@ -740,11 +740,14 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 
 	ranUe := ue.RanUe[anType]
 	if ranUe == nil {
+		ue.GmmLog.Errorf("ran ue is nil for access type %s", anType)
 		return fmt.Errorf("ran ue is nil")
 	}
 
 	registrationRequest := ue.RegistrationRequest
 	if registrationRequest == nil {
+		ue.GmmLog.Errorln("registration request is nil")
+		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 		return fmt.Errorf("registration request is nil")
 	}
 
