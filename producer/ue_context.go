@@ -151,7 +151,12 @@ func CreateUEContextProcedure(ueContextID string, createUeContextRequest models.
 	ue.UdmGroupId = ueContextCreateData.UeContext.GetUdmGroupId()
 	ue.AusfGroupId = ueContextCreateData.UeContext.GetAusfGroupId()
 	// ueContextCreateData.UeContext.HpcfId
-	ue.RatType = ueContextCreateData.UeContext.RestrictedRatList[0] // minItem = -1
+	// RestrictedRatList contains RAT types the UE cannot use, so it must
+	// not be copied into ue.RatType (semantically inverted, and indexing
+	// [0] can panic on an empty list — minItem = -1 per spec). RatType is
+	// set from the access type during HandleRegistrationRequest
+	// (gmm/handler.go) and upgraded for NTN cells based on RATInformation
+	// from NGSetup.
 	// ueContextCreateData.UeContext.ForbiddenAreaList
 	// ueContextCreateData.UeContext.ServiceAreaRestriction
 	// ueContextCreateData.UeContext.RestrictedCoreNwTypeList

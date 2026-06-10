@@ -55,8 +55,9 @@ type AmfRan struct {
 }
 
 type SupportedTAI struct {
-	Tai        models.Tai
-	SNssaiList []models.Snssai
+	Tai            models.Tai
+	SNssaiList     []models.Snssai
+	RatInformation *ngapType.RATInformation
 }
 
 func NewSupportedTAI() (tai SupportedTAI) {
@@ -66,6 +67,26 @@ func NewSupportedTAI() (tai SupportedTAI) {
 
 func NewSupportedTAIList() []SupportedTAI {
 	return make([]SupportedTAI, 0, maxNumOfTAI*maxNumOfBroadcastPLMNs)
+}
+
+// RatInformationForTAC returns the RATInformation advertised by this RAN
+// for the given TAC, or nil when the RAN's NGSetup did not carry the
+// optional extension for that TAC.
+//
+// RATInformation is a Rel-18 NGAP IE (3GPP TS 38.413) carried as an
+// extension of SupportedTAItem; it classifies the cell's RAT (e.g.
+// NRLEO/NRMEO/NRGEO/NROTHERSAT/NbIoT/Unlicensed). Callers typically use
+// the result to upgrade a generic ue.RatType (NR/EUTRA) into an
+// orbit-specific value.
+func (ran *AmfRan) RatInformationForTAC(tac string) *ngapType.RATInformation {
+	ran.RLockRanState()
+	defer ran.RUnlockRanState()
+	for i := range ran.SupportedTAList {
+		if ran.SupportedTAList[i].Tai.Tac == tac {
+			return ran.SupportedTAList[i].RatInformation
+		}
+	}
+	return nil
 }
 
 func (ran *AmfRan) Remove() {

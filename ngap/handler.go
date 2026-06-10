@@ -617,10 +617,22 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		for i := 0; i < len(supportedTAList.List); i++ {
 			supportedTAItem := supportedTAList.List[i]
 			tac := hex.EncodeToString(supportedTAItem.TAC.Value)
+			// RATInformation is an optional Rel-18 extension on SupportedTAItem
+			// (3GPP TS 38.413). When present it classifies this TAC's RAT
+			// (e.g. NRLEO/NRMEO/NRGEO/NROTHERSAT) and lets later registration
+			// flows assign an orbit-specific ue.RatType. Copy the value out
+			// so the long-lived RAN context does not retain the decoded PDU.
+			var ratInformation *ngapType.RATInformation
+			if supportedTAItem.IEExtensions != nil {
+				if found := supportedTAItem.IEExtensions.FindRATInformation(); found != nil {
+					ratInformation = &ngapType.RATInformation{Value: found.Value}
+				}
+			}
 			capOfSupportTai := cap(ran.SupportedTAList)
 			for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
 				supportedTAI := context.NewSupportedTAI()
 				supportedTAI.Tai.Tac = tac
+				supportedTAI.RatInformation = ratInformation
 				broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
 				plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
 				if err != nil {
@@ -4242,10 +4254,22 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 		for i := 0; i < len(supportedTAList.List); i++ {
 			supportedTAItem := supportedTAList.List[i]
 			tac := hex.EncodeToString(supportedTAItem.TAC.Value)
+			// RATInformation is an optional Rel-18 extension on SupportedTAItem
+			// (3GPP TS 38.413). When present it classifies this TAC's RAT
+			// (e.g. NRLEO/NRMEO/NRGEO/NROTHERSAT) and lets later registration
+			// flows assign an orbit-specific ue.RatType. Copy the value out
+			// so the long-lived RAN context does not retain the decoded PDU.
+			var ratInformation *ngapType.RATInformation
+			if supportedTAItem.IEExtensions != nil {
+				if found := supportedTAItem.IEExtensions.FindRATInformation(); found != nil {
+					ratInformation = &ngapType.RATInformation{Value: found.Value}
+				}
+			}
 			capOfSupportTai := cap(ran.SupportedTAList)
 			for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
 				supportedTAI := context.NewSupportedTAI()
 				supportedTAI.Tai.Tac = tac
+				supportedTAI.RatInformation = ratInformation
 				broadcastPLMNItem := supportedTAItem.BroadcastPLMNList.List[j]
 				plmnId, err := ngapConvert.PlmnIdToModels(broadcastPLMNItem.PLMNIdentity)
 				if err != nil {

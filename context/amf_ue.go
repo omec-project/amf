@@ -481,6 +481,17 @@ func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 	return !ue.CmConnect(anType)
 }
 
+// IsNtn reports whether the UE is currently being served over NR
+// Non-Terrestrial access, based on the Rel-18 RatType set during
+// registration (see HandleRegistrationRequest).
+func (ue *AmfUe) IsNtn() bool {
+	switch ue.RatType {
+	case models.RATTYPE_NR_LEO, models.RATTYPE_NR_MEO, models.RATTYPE_NR_GEO, models.RATTYPE_NR_OTHER_SAT:
+		return true
+	}
+	return false
+}
+
 func (ue *AmfUe) Remove() {
 	ue.Mutex.Lock()
 	ranUes := make([]*RanUe, 0, len(ue.RanUe))
