@@ -16,20 +16,143 @@ import (
 	"strings"
 	"testing"
 
-	amf_context "github.com/omec-project/amf/context"
+	amfContext "github.com/omec-project/amf/context"
+	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
-const updateSmContextPath = "/nsmf-pdusession/v1/sm-contexts/ctx-ref/modify"
+const (
+	createSmContextPath = "/nsmf-pdusession/v1/sm-contexts"
+	updateSmContextPath = "/nsmf-pdusession/v1/sm-contexts/ctx-ref/modify"
+)
+
+func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T) {
+	expectedNasPdu := []byte{0x7e, 0x00, 0x68, 0x01}
+
+	self := amfContext.AMF_Self()
+	originalNfID := self.NfId
+	originalServedGuamiList := append([]models.Guami(nil), self.ServedGuamiList...)
+	originalUriScheme := self.UriScheme
+	originalRegisterIPv4 := self.RegisterIPv4
+	originalSBIPort := self.SBIPort
+	defer func() {
+		self.NfId = originalNfID
+		self.ServedGuamiList = originalServedGuamiList
+		self.UriScheme = originalUriScheme
+		self.RegisterIPv4 = originalRegisterIPv4
+		self.SBIPort = originalSBIPort
+	}()
+
+	self.NfId = "amf-instance-id"
+	self.ServedGuamiList = []models.Guami{{
+		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
+		AmfId:  "cafe00",
+	}}
+	self.UriScheme = models.URISCHEME_HTTP
+	self.RegisterIPv4 = "127.0.0.1"
+	self.SBIPort = 29518
+
+	var receivedMethod string
+	var receivedPath string
+	var receivedMediaType string
+	var receivedCreateData models.SmContextCreateData
+	var receivedNas []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedMethod = r.Method
+		receivedPath = r.URL.Path
+
+		parts, mediaType := readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
+		receivedMediaType = mediaType
+
+		if err := json.Unmarshal(parts["jsonData"], &receivedCreateData); err != nil {
+			t.Fatalf("failed to decode jsonData part: %v", err)
+		}
+		receivedNas = parts["binaryDataN1SmMessage"]
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Location", "/nsmf-pdusession/v1/sm-contexts/test-ref")
+		w.WriteHeader(http.StatusCreated)
+		if _, err := w.Write([]byte(`{}`)); err != nil {
+			t.Fatalf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	ue := &amfContext.AmfUe{
+		ServingAMF: self,
+		Supi:       "imsi-001010000000001",
+		Tai: models.Tai{
+			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+			Tac:    "000001",
+		},
+		Guti:     "00101cafe00000001",
+		TimeZone: "+00:00",
+	}
+
+	smContext := amfContext.NewSmContext(10)
+	smContext.SetSmfUri(server.URL)
+	smContext.SetSmfID("smf-test")
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetDnn("internet")
+	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
+
+	response, smContextRef, errorResponse, problemDetail, err := SendCreateSmContextRequest(
+		context.Background(),
+		ue,
+		smContext,
+		models.REQUESTTYPE_INITIAL_REQUEST.Ptr(),
+		expectedNasPdu,
+	)
+	if err != nil {
+		t.Fatalf("SendCreateSmContextRequest returned error: %v", err)
+	}
+	if response == nil {
+		t.Fatal("expected success response")
+		return
+	}
+	if errorResponse != nil {
+		t.Fatalf("expected no error response, got %+v", errorResponse)
+	}
+	if problemDetail != nil {
+		t.Fatalf("expected no problem detail, got %+v", problemDetail)
+	}
+	if smContextRef != "/nsmf-pdusession/v1/sm-contexts/test-ref" {
+		t.Fatalf("expected smContextRef to be set from Location header, got %q", smContextRef)
+	}
+
+	if receivedMethod != http.MethodPost {
+		t.Fatalf("expected POST request, got %s", receivedMethod)
+	}
+	if receivedPath != createSmContextPath {
+		t.Fatalf("unexpected request path %s", receivedPath)
+	}
+	if !strings.HasPrefix(receivedMediaType, "multipart/") {
+		t.Fatalf("expected multipart request, got %q", receivedMediaType)
+	}
+	if receivedCreateData.GetRequestType() != models.REQUESTTYPE_INITIAL_REQUEST {
+		t.Fatalf("expected request type %s, got %s", models.REQUESTTYPE_INITIAL_REQUEST, receivedCreateData.GetRequestType())
+	}
+	if receivedCreateData.GetPduSessionId() != 10 {
+		t.Fatalf("expected pdu session id 10, got %d", receivedCreateData.GetPduSessionId())
+	}
+	n1SmMsg := receivedCreateData.GetN1SmMsg()
+	if n1SmMsg.ContentId != "n1SmMsg" {
+		t.Fatalf("expected N1 content id n1SmMsg, got %s", n1SmMsg.ContentId)
+	}
+	if !bytes.Equal(receivedNas, expectedNasPdu) {
+		t.Fatalf("expected N1 payload %v, got %v", expectedNasPdu, receivedNas)
+	}
+	if response.JsonData == nil {
+		t.Fatal("expected response JsonData to be set")
+	}
+}
 
 func TestSendUpdateSmContextRequestSendsN2InfoAsMultipart(t *testing.T) {
 	expectedN2Info := []byte{0x01, 0x02, 0x03, 0x04}
-	n2SmInfoType := models.N2SMINFOTYPE_PDU_RES_SETUP_RSP
 	updateData := models.SmContextUpdateData{
-		N2SmInfoType: &n2SmInfoType,
-		N2SmInfo: &models.RefToBinaryData{
-			ContentId: "N2SmInfo",
-		},
+		N2SmInfoType: models.N2SMINFOTYPE_PDU_RES_SETUP_RSP.Ptr(),
+		N2SmInfo:     models.NewRefToBinaryData("N2SmInfo"),
 	}
 
 	var receivedMethod string
@@ -57,7 +180,7 @@ func TestSendUpdateSmContextRequestSendsN2InfoAsMultipart(t *testing.T) {
 	}))
 	defer server.Close()
 
-	smContext := amf_context.NewSmContext(10)
+	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmContextRef("ctx-ref")
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
@@ -122,7 +245,7 @@ func TestSendUpdateSmContextRequestHandlesEmptySuccessBody(t *testing.T) {
 	}))
 	defer server.Close()
 
-	smContext := amf_context.NewSmContext(10)
+	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmContextRef("ctx-ref")
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
@@ -155,8 +278,6 @@ func TestSendUpdateSmContextRequestHandlesEmptySuccessBody(t *testing.T) {
 func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) {
 	expectedN1 := []byte{0x11, 0x22, 0x33}
 	expectedN2 := []byte{0xaa, 0xbb, 0xcc, 0xdd}
-	n2SmInfoType := models.N2SMINFOTYPE_PDU_RES_REL_CMD
-	upCnxState := models.UPCNXSTATE_DEACTIVATED
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -178,14 +299,10 @@ func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) 
 		writer := multipart.NewWriter(multipartBody)
 
 		jsonData, err := json.Marshal(models.SmContextUpdatedData{
-			N2SmInfoType: &n2SmInfoType,
-			UpCnxState:   &upCnxState,
-			N1SmMsg: &models.RefToBinaryData{
-				ContentId: "PDUSessionReleaseCommand",
-			},
-			N2SmInfo: &models.RefToBinaryData{
-				ContentId: "PDUResourceReleaseCommand",
-			},
+			N2SmInfoType: models.N2SMINFOTYPE_PDU_RES_REL_CMD.Ptr(),
+			UpCnxState:   models.UPCNXSTATE_DEACTIVATED.Ptr(),
+			N1SmMsg:      models.NewRefToBinaryData("PDUSessionReleaseCommand"),
+			N2SmInfo:     models.NewRefToBinaryData("PDUResourceReleaseCommand"),
 		})
 		if err != nil {
 			t.Fatalf("failed to marshal jsonData: %v", err)
@@ -226,7 +343,7 @@ func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) 
 	}))
 	defer server.Close()
 
-	smContext := amf_context.NewSmContext(10)
+	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmContextRef("ctx-ref")
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
@@ -299,6 +416,12 @@ func writeTempFile(t *testing.T, payload []byte) *os.File {
 func readMultipartRequestParts(t *testing.T, r *http.Request) (map[string][]byte, string) {
 	t.Helper()
 
+	return readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN2SmInformation"})
+}
+
+func readMultipartRequestPartsByName(t *testing.T, r *http.Request, expectedParts []string) (map[string][]byte, string) {
+	t.Helper()
+
 	mediaType, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
 		t.Fatalf("failed to parse content type: %v", err)
@@ -325,11 +448,10 @@ func readMultipartRequestParts(t *testing.T, r *http.Request) (map[string][]byte
 		parts[part.FormName()] = body
 	}
 
-	if _, ok := parts["jsonData"]; !ok {
-		t.Fatal("expected jsonData multipart part")
-	}
-	if _, ok := parts["binaryDataN2SmInformation"]; !ok {
-		t.Fatal("expected binaryDataN2SmInformation multipart part")
+	for _, partName := range expectedParts {
+		if _, ok := parts[partName]; !ok {
+			t.Fatalf("expected %s multipart part", partName)
+		}
 	}
 
 	return parts, mediaType

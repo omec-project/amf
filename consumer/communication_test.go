@@ -124,10 +124,8 @@ func TestUEContextTransferRequestDecodesMultipartSuccessResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := models.NewUEContextTransfer200Response()
 		response.SetJsonData(models.UeContextTransferRspData{
-			UeContext: models.UeContext{Supi: openapi.PtrString("imsi-001010000000001")},
-			UeRadioCapability: &models.N2InfoContent{
-				NgapData: models.RefToBinaryData{ContentId: "n2Info"},
-			},
+			UeContext:         models.UeContext{Supi: openapi.PtrString("imsi-001010000000001")},
+			UeRadioCapability: models.NewN2InfoContent(models.RefToBinaryData{ContentId: "n2Info"}),
 		})
 		response.SetBinaryDataN2Information(binaryN2Info)
 

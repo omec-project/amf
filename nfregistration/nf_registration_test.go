@@ -338,7 +338,7 @@ func TestHeartbeatNF_Success(t *testing.T) {
 	}()
 
 	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
-		return &models.NFProfile{}, nil, nil
+		return models.NewNFProfileWithDefaults(), nil, nil
 	}
 	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
 		calledRegister = true
@@ -370,7 +370,7 @@ func TestHeartbeatNF_WhenNfUpdateFails_ThenNfRegistersIsCalled(t *testing.T) {
 	}()
 
 	consumer.SendUpdateNFInstance = func(patchItem []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
-		return &models.NFProfile{}, nil, errors.New("mock error")
+		return models.NewNFProfileWithDefaults(), nil, errors.New("mock error")
 	}
 
 	consumer.SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {

@@ -432,10 +432,9 @@ func forward5GSMMessageToSMF(
 	smContext *context.SmContext,
 	smMessage []byte,
 ) error {
+	n1SmMsg := models.NewRefToBinaryData("N1SmMsg")
 	smContextUpdateData := models.SmContextUpdateData{
-		N1SmMsg: &models.RefToBinaryData{
-			ContentId: "N1SmMsg",
-		},
+		N1SmMsg: n1SmMsg,
 	}
 	smContextUpdateData.Pei = openapi.PtrString(ue.Pei)
 	if !context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
@@ -443,7 +442,7 @@ func forward5GSMMessageToSMF(
 	}
 
 	if accessType != smContext.AccessType() {
-		smContextUpdateData.AnType = accessType.Ptr()
+		smContextUpdateData.SetAnType(accessType)
 	}
 
 	response, errResponse, problemDetail, err := consumer.SendUpdateSmContextRequest(ctx, smContext,
@@ -1544,10 +1543,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 					RrcEstCause:      openapi.PtrString(ue.RanUe[anType].RRCEstablishmentCause),
 					UeContextRequest: openapi.PtrBool(ue.RanUe[anType].UeContextRequest),
 					AnN2IPv4Addr:     openapi.PtrString(ue.RanUe[anType].Ran.GnbIp),
-					AllowedNssai: &models.AllowedNssai{
-						AllowedSnssaiList: ue.AllowedNssai[anType],
-						AccessType:        anType,
-					},
+					AllowedNssai:     models.NewAllowedNssai(ue.AllowedNssai[anType], anType),
 				}
 				if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) > 0 {
 					registerContext.RejectedNssaiInPlmn = ue.NetworkSliceInfo.RejectedNssaiInPlmn
@@ -2462,9 +2458,8 @@ func HandleAuthenticationFailure(ctx ctxt.Context, ue *context.AmfUe, anType mod
 			}
 
 			auts := authenticationFailure.GetAuthenticationFailureParameter()
-			resynchronizationInfo := &models.ResynchronizationInfo{
-				Auts: hex.EncodeToString(auts[:]),
-			}
+			resynchronizationInfo := models.NewResynchronizationInfoWithDefaults()
+			resynchronizationInfo.SetAuts(hex.EncodeToString(auts[:]))
 
 			response, problemDetails, err := consumer.SendUEAuthenticationAuthenticateRequest(ctx, ue, resynchronizationInfo)
 			if err != nil {

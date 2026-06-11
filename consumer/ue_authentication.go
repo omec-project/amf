@@ -25,10 +25,7 @@ import (
 
 func servingNetworkPlmnID(ue *amf_context.AmfUe, servedGuami models.Guami) *models.PlmnIdNid {
 	if ue.Tai.PlmnId.GetMcc() != "" && ue.Tai.PlmnId.GetMnc() != "" {
-		return &models.PlmnIdNid{
-			Mcc: ue.Tai.PlmnId.GetMcc(),
-			Mnc: ue.Tai.PlmnId.GetMnc(),
-		}
+		return models.NewPlmnIdNid(ue.Tai.PlmnId.GetMcc(), ue.Tai.PlmnId.GetMnc())
 	}
 
 	if ue.GmmLog != nil {

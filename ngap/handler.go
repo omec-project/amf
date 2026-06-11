@@ -2772,10 +2772,7 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 	amfUe := ranUe.AmfUe
 	if amfUe != nil {
 		causeAll := context.CauseAll{
-			NgapCause: &models.NgApCause{
-				Group: int32(causeGroup),
-				Value: int32(causeValue),
-			},
+			NgapCause: models.NewNgApCause(int32(causeGroup), int32(causeValue)),
 		}
 		if amfUe.State[ran.AnType].Is(context.Registered) {
 			ranUe.Log.Infoln("Ue Context in GMM-Registered")
@@ -3685,10 +3682,7 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 				pduSessionID := key.(int32)
 				smContext := value.(*context.SmContext)
 				causeAll := context.CauseAll{
-					NgapCause: &models.NgApCause{
-						Group: int32(causePresent),
-						Value: int32(causeValue),
-					},
+					NgapCause: models.NewNgApCause(int32(causePresent), int32(causeValue)),
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2HandoverCanceled(ctx, amfUe, smContext, causeAll)
 				if err != nil {
@@ -4015,10 +4009,7 @@ func HandleHandoverCancel(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 				pduSessionID := key.(int32)
 				smContext := value.(*context.SmContext)
 				causeAll := context.CauseAll{
-					NgapCause: &models.NgApCause{
-						Group: int32(causePresent),
-						Value: int32(causeValue),
-					},
+					NgapCause: models.NewNgApCause(int32(causePresent), int32(causeValue)),
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2HandoverCanceled(ctx, amfUe, smContext, causeAll)
 				if err != nil {

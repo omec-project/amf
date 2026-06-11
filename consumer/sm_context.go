@@ -196,7 +196,7 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 		attribute.String("smf.snssai.sd", snssai.GetSd()),
 	)
 
-	smContextCreateData := buildCreateSmContextRequest(ue, smContext, nil)
+	smContextCreateData := buildCreateSmContextRequest(ue, smContext, requestType)
 
 	// Create a temporary file
 	tmpFile, err := os.CreateTemp("", "prefix")
@@ -274,39 +274,38 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	requestType *models.RequestType,
 ) (smContextCreateData models.SmContextCreateData) {
 	context := amf_context.AMF_Self()
-	smContextCreateData.Supi = openapi.PtrString(ue.Supi)
-	smContextCreateData.UnauthenticatedSupi = openapi.PtrBool(ue.UnauthenticatedSupi)
-	smContextCreateData.Pei = openapi.PtrString(ue.Pei)
-	smContextCreateData.Gpsi = openapi.PtrString(ue.Gpsi)
-	smContextCreateData.PduSessionId = openapi.PtrInt32(smContext.PduSessionID())
-	snssai := smContext.Snssai()
-	smContextCreateData.SNssai = &snssai
-	smContextCreateData.Dnn = openapi.PtrString(smContext.Dnn())
-	smContextCreateData.ServingNfId = context.NfId
-	smContextCreateData.Guami = &context.ServedGuamiList[0]
+	smContextCreateData.SetSupi(ue.Supi)
+	smContextCreateData.SetUnauthenticatedSupi(ue.UnauthenticatedSupi)
+	smContextCreateData.SetPei(ue.Pei)
+	smContextCreateData.SetGpsi(ue.Gpsi)
+	smContextCreateData.SetPduSessionId(smContext.PduSessionID())
+	smContextCreateData.SetSNssai(smContext.Snssai())
+	smContextCreateData.SetDnn(smContext.Dnn())
+	smContextCreateData.SetServingNfId(context.NfId)
+	smContextCreateData.SetGuami(context.ServedGuamiList[0])
 	// take seving networking plmn from userlocation.Tai
 	if ue.Tai.PlmnId.GetMcc() != "" && ue.Tai.PlmnId.GetMnc() != "" {
-		smContextCreateData.ServingNetwork.Mcc = ue.Tai.PlmnId.GetMcc()
-		smContextCreateData.ServingNetwork.Mnc = ue.Tai.PlmnId.GetMnc()
+		smContextCreateData.ServingNetwork.SetMcc(ue.Tai.PlmnId.GetMcc())
+		smContextCreateData.ServingNetwork.SetMnc(ue.Tai.PlmnId.GetMnc())
 	} else {
-		ue.GmmLog.Warnf("tai is not received from Serving Network, Serving Plmn [Mcc %s, Mnc: %s] is taken from Guami List", context.ServedGuamiList[0].PlmnId.Mcc, context.ServedGuamiList[0].PlmnId.Mnc)
-		smContextCreateData.ServingNetwork = context.ServedGuamiList[0].PlmnId
+		ue.GmmLog.Warnf("tai is not received from Serving Network, Serving Plmn [Mcc %s, Mnc: %s] is taken from Guami List", context.ServedGuamiList[0].PlmnId.GetMcc(), context.ServedGuamiList[0].PlmnId.GetMnc())
+		smContextCreateData.SetServingNetwork(context.ServedGuamiList[0].PlmnId)
 	}
 	if requestType != nil {
-		smContextCreateData.RequestType = requestType
+		smContextCreateData.SetRequestType(*requestType)
 	}
-	smContextCreateData.N1SmMsg = models.NewRefToBinaryData("n1SmMsg")
-	smContextCreateData.AnType = smContext.AccessType()
+	smContextCreateData.SetN1SmMsg(models.RefToBinaryData{ContentId: "n1SmMsg"})
+	smContextCreateData.SetAnType(smContext.AccessType())
 	if ue.RatType != "" {
-		smContextCreateData.RatType = ue.RatType.Ptr()
+		smContextCreateData.SetRatType(ue.RatType)
 	}
 	// TODO: location is used in roaming scenerio
 	// if ue.Location != nil {
 	// 	smContextCreateData.UeLocation = ue.Location
 	// }
-	smContextCreateData.UeTimeZone = openapi.PtrString(ue.TimeZone)
-	smContextCreateData.SmContextStatusUri = context.GetIPv4Uri() + "/namf-callback/v1/smContextStatus/" +
-		ue.Guti + "/" + strconv.Itoa(int(smContext.PduSessionID()))
+	smContextCreateData.SetUeTimeZone(ue.TimeZone)
+	smContextCreateData.SetSmContextStatusUri(context.GetIPv4Uri() + "/namf-callback/v1/smContextStatus/" +
+		ue.Guti + "/" + strconv.Itoa(int(smContext.PduSessionID())))
 
 	return smContextCreateData
 }
@@ -334,16 +333,16 @@ func SendUpdateSmContextActivateUpCnxState(
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
 	updateData := models.SmContextUpdateData{}
-	updateData.UpCnxState = models.UPCNXSTATE_ACTIVATING.Ptr()
+	updateData.SetUpCnxState(models.UPCNXSTATE_ACTIVATING)
 	if !amf_context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
-		updateData.UeLocation = &ue.Location
+		updateData.SetUeLocation(ue.Location)
 	}
 	if smContext.AccessType() != accessType {
-		updateData.AnType = smContext.AccessType().Ptr()
+		updateData.SetAnType(smContext.AccessType())
 	}
 	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
-			updateData.PresenceInLadn = models.PRESENCESTATE_IN_AREA.Ptr()
+			updateData.SetPresenceInLadn(models.PRESENCESTATE_IN_AREA)
 		}
 	}
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, nil)
@@ -354,16 +353,16 @@ func SendUpdateSmContextDeactivateUpCnxState(ctx context.Context, ue *amf_contex
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
 	updateData := models.SmContextUpdateData{}
-	updateData.UpCnxState = models.UPCNXSTATE_DEACTIVATED.Ptr()
-	updateData.UeLocation = &ue.Location
+	updateData.SetUpCnxState(models.UPCNXSTATE_DEACTIVATED)
+	updateData.SetUeLocation(ue.Location)
 	if cause.Cause != nil {
-		updateData.Cause = cause.Cause
+		updateData.SetCause(*cause.Cause)
 	}
 	if cause.NgapCause != nil {
-		updateData.NgApCause = cause.NgapCause
+		updateData.SetNgApCause(*cause.NgapCause)
 	}
 	if cause.Var5GmmCause != nil {
-		updateData.Var5gMmCauseValue = cause.Var5GmmCause
+		updateData.SetVar5gMmCauseValue(*cause.Var5GmmCause)
 	}
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, nil)
 }
@@ -373,7 +372,7 @@ func SendUpdateSmContextChangeAccessType(ctx context.Context, ue *amf_context.Am
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
 	updateData := models.SmContextUpdateData{}
-	updateData.AnTypeCanBeChanged = openapi.PtrBool(anTypeCanBeChanged)
+	updateData.SetAnTypeCanBeChanged(anTypeCanBeChanged)
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, nil)
 }
 
@@ -383,7 +382,7 @@ func SendUpdateSmContextN2Info(
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
 	updateData := models.SmContextUpdateData{}
-	updateData.N2SmInfoType = &n2SmType
+	updateData.SetN2SmInfoType(n2SmType)
 	updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
 	updateData.UeLocation = &ue.Location
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
@@ -402,13 +401,13 @@ func SendUpdateSmContextXnHandover(
 		updateData.N2SmInfoType = &n2SmType
 		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
 	}
-	updateData.ToBeSwitched = openapi.PtrBool(true)
-	updateData.UeLocation = &ue.Location
+	updateData.SetToBeSwitched(true)
+	updateData.SetUeLocation(ue.Location)
 	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
-			updateData.PresenceInLadn = models.PRESENCESTATE_IN_AREA.Ptr()
+			updateData.SetPresenceInLadn(models.PRESENCESTATE_IN_AREA)
 		} else {
-			updateData.PresenceInLadn = models.PRESENCESTATE_OUT_OF_AREA.Ptr()
+			updateData.SetPresenceInLadn(models.PRESENCESTATE_OUT_OF_AREA)
 		}
 	}
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
@@ -421,10 +420,10 @@ func SendUpdateSmContextXnHandoverFailed(
 ) {
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
-		updateData.N2SmInfoType = &n2SmType
+		updateData.SetN2SmInfoType(n2SmType)
 		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
 	}
-	updateData.FailedToBeSwitched = openapi.PtrBool(true)
+	updateData.SetFailedToBeSwitched(true)
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
 }
 
@@ -441,11 +440,11 @@ func SendUpdateSmContextN2HandoverPreparing(
 		updateData.N2SmInfoType = &n2SmType
 		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
 	}
-	updateData.HoState = models.HOSTATE_PREPARING.Ptr()
+	updateData.SetHoState(models.HOSTATE_PREPARING)
 	updateData.TargetId = targetId
 	// amf changed in same plmn
 	if amfid != "" {
-		updateData.TargetServingNfId = openapi.PtrString(amfid)
+		updateData.SetTargetServingNfId(amfid)
 	}
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
 }
@@ -457,10 +456,10 @@ func SendUpdateSmContextN2HandoverPrepared(
 ) {
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
-		updateData.N2SmInfoType = n2SmType.Ptr()
+		updateData.SetN2SmInfoType(n2SmType)
 		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
 	}
-	updateData.HoState = models.HOSTATE_PREPARED.Ptr()
+	updateData.SetHoState(models.HOSTATE_PREPARED)
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
 }
 
@@ -470,17 +469,17 @@ func SendUpdateSmContextN2HandoverComplete(
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
 	updateData := models.SmContextUpdateData{}
-	updateData.HoState = models.HOSTATE_COMPLETED.Ptr()
+	updateData.SetHoState(models.HOSTATE_COMPLETED)
 	if amfid != "" {
-		updateData.ServingNfId = openapi.PtrString(amfid)
-		updateData.ServingNetwork = &guami.PlmnId
-		updateData.Guami = guami
+		updateData.SetServingNfId(amfid)
+		updateData.SetServingNetwork(guami.PlmnId)
+		updateData.SetGuami(*guami)
 	}
 	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
-			updateData.PresenceInLadn = models.PRESENCESTATE_IN_AREA.Ptr()
+			updateData.SetPresenceInLadn(models.PRESENCESTATE_IN_AREA)
 		} else {
-			updateData.PresenceInLadn = models.PRESENCESTATE_OUT_OF_AREA.Ptr()
+			updateData.SetPresenceInLadn(models.PRESENCESTATE_OUT_OF_AREA)
 		}
 	}
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, nil)
@@ -491,15 +490,15 @@ func SendUpdateSmContextN2HandoverCanceled(
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
 	updateData := models.SmContextUpdateData{}
-	updateData.HoState = models.HOSTATE_CANCELLED.Ptr()
+	updateData.SetHoState(models.HOSTATE_CANCELLED)
 	if cause.Cause != nil {
-		updateData.Cause = cause.Cause
+		updateData.SetCause(*cause.Cause)
 	}
 	if cause.NgapCause != nil {
-		updateData.NgApCause = cause.NgapCause
+		updateData.SetNgApCause(*cause.NgapCause)
 	}
 	if cause.Var5GmmCause != nil {
-		updateData.Var5gMmCauseValue = cause.Var5GmmCause
+		updateData.SetVar5gMmCauseValue(*cause.Var5GmmCause)
 	}
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, nil)
 }
@@ -755,21 +754,21 @@ func buildReleaseSmContextRequest(
 ) {
 	if cause != nil {
 		if cause.Cause != nil {
-			releaseData.Cause = cause.Cause
-			releaseData.NgApCause = cause.NgapCause
+			releaseData.SetCause(*cause.Cause)
+		}
+		if cause.NgapCause != nil {
+			releaseData.SetNgApCause(*cause.NgapCause)
 		}
 		if cause.Var5GmmCause != nil {
-			releaseData.Var5gMmCauseValue = cause.Var5GmmCause
+			releaseData.SetVar5gMmCauseValue(*cause.Var5GmmCause)
 		}
 	}
 	if ue.TimeZone != "" {
-		releaseData.UeTimeZone = openapi.PtrString(ue.TimeZone)
+		releaseData.SetUeTimeZone(ue.TimeZone)
 	}
 	if n2Info != nil {
-		releaseData.N2SmInfoType = n2SmInfoType.Ptr()
-		releaseData.N2SmInfo = &models.RefToBinaryData{
-			ContentId: N2SMINFO_ID,
-		}
+		releaseData.SetN2SmInfoType(n2SmInfoType)
+		releaseData.SetN2SmInfo(models.RefToBinaryData{ContentId: N2SMINFO_ID})
 	}
 	// TODO: other param(ueLocation...)
 	return

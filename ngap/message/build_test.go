@@ -104,15 +104,15 @@ func newRanUeForAllowedNSSAITest(anType models.AccessType) *context.RanUe {
 	ueSecurityCapability := nasType.NewUESecurityCapability(0)
 	ueSecurityCapability.SetLen(2)
 
+	accessAndMobilitySubscriptionData := models.NewAccessAndMobilitySubscriptionData()
+	accessAndMobilitySubscriptionData.SetSubscribedUeAmbr(models.Ambr{Uplink: "1 Mbps", Downlink: "1 Mbps"})
 	amfUe := &context.AmfUe{
 		AllowedNssai: map[models.AccessType][]models.AllowedSnssai{
 			anType: {{AllowedSnssai: models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")}}},
 		},
-		AccessAndMobilitySubscriptionData: &models.AccessAndMobilitySubscriptionData{
-			SubscribedUeAmbr: &models.Ambr{Uplink: "1 Mbps", Downlink: "1 Mbps"},
-		},
-		UESecurityCapability: *ueSecurityCapability,
-		NH:                   make([]byte, 32),
+		AccessAndMobilitySubscriptionData: accessAndMobilitySubscriptionData,
+		UESecurityCapability:              *ueSecurityCapability,
+		NH:                                make([]byte, 32),
 	}
 
 	ran := &context.AmfRan{AnType: anType}

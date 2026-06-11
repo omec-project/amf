@@ -137,12 +137,9 @@ func UEContextTransferRequest(
 			defer regRequestFile.Close()
 		}
 
-		ueContextTransferReqData.RegRequest = &models.N1MessageContainer{
-			N1MessageClass: models.N1MESSAGECLASS__5_GMM,
-			N1MessageContent: models.RefToBinaryData{
-				ContentId: "n1Msg",
-			},
-		}
+		ueContextTransferReqData.RegRequest = models.NewN1MessageContainer(models.N1MESSAGECLASS__5_GMM, models.RefToBinaryData{
+			ContentId: "n1Msg",
+		})
 	}
 
 	// guti format is defined at TS 29.518 Table 6.1.3.2.2-1 5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}

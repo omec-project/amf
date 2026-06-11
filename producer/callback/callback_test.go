@@ -19,12 +19,12 @@ import (
 
 func TestSendN1N2TransferFailureNotificationUsesExactCallbackURI(t *testing.T) {
 	var receivedRequestURI string
-	var receivedBody models.N1N2MsgTxfrFailureNotification
+	receivedBody := models.NewN1N2MsgTxfrFailureNotificationWithDefaults()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestURI = r.URL.RequestURI()
 		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(receivedBody); err != nil {
 			t.Fatalf("failed to decode callback body: %v", err)
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -32,12 +32,12 @@ func TestSendN1N2TransferFailureNotificationUsesExactCallbackURI(t *testing.T) {
 	defer server.Close()
 
 	callbackURI := server.URL + "/n1n2/failure?token=abc"
+	jsonData := models.NewN1N2MessageTransferReqData()
+	jsonData.SetN1n2FailureTxfNotifURI(callbackURI)
 	ue := &amf_context.AmfUe{
 		N1N2Message: &amf_context.N1N2Message{
 			Request: models.N1N2MessageTransferRequest{
-				JsonData: &models.N1N2MessageTransferReqData{
-					N1n2FailureTxfNotifURI: openapi.PtrString(callbackURI),
-				},
+				JsonData: jsonData,
 			},
 			Status:      models.N1N2MESSAGETRANSFERCAUSE_ATTEMPTING_TO_REACH_UE,
 			ResourceUri: "/namf-comm/v1/n1-n2-messages/1",
@@ -59,7 +59,7 @@ func TestSendN1N2TransferFailureNotificationUsesExactCallbackURI(t *testing.T) {
 
 func TestSendN1MessageNotifyUsesExactCallbackURI(t *testing.T) {
 	var receivedRequestURI string
-	var receivedRequest models.N1MessageNotifyRequest
+	receivedRequest := models.NewN1MessageNotifyRequestWithDefaults()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestURI = r.URL.RequestURI()
@@ -71,7 +71,7 @@ func TestSendN1MessageNotifyUsesExactCallbackURI(t *testing.T) {
 		if !strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/") {
 			t.Fatalf("expected multipart content type, got %q", r.Header.Get("Content-Type"))
 		}
-		if err := openapi.Decode(&receivedRequest, requestBody, r.Header.Get("Content-Type")); err != nil {
+		if err := openapi.Decode(receivedRequest, requestBody, r.Header.Get("Content-Type")); err != nil {
 			t.Fatalf("failed to decode N1 message notify request: %v", err)
 		}
 		w.WriteHeader(http.StatusNoContent)
@@ -110,12 +110,12 @@ func TestSendN1MessageNotifyUsesExactCallbackURI(t *testing.T) {
 
 func TestSendAmfStatusChangeNotifyUsesExactCallbackURI(t *testing.T) {
 	var receivedRequestURI string
-	var receivedBody models.AmfStatusChangeNotification
+	receivedBody := models.NewAmfStatusChangeNotificationWithDefaults()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestURI = r.URL.RequestURI()
 		defer r.Body.Close()
-		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+		if err := json.NewDecoder(r.Body).Decode(receivedBody); err != nil {
 			t.Fatalf("failed to decode callback body: %v", err)
 		}
 		w.WriteHeader(http.StatusNoContent)
