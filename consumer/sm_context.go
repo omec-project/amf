@@ -299,10 +299,10 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	if ue.RatType != "" {
 		smContextCreateData.SetRatType(ue.RatType)
 	}
-	// TODO: location is used in roaming scenerio
-	// if ue.Location != nil {
-	// 	smContextCreateData.UeLocation = ue.Location
-	// }
+	// Forward the UE location to the SMF at session creation, mirroring the
+	// SmContextUpdateData paths that already do so. ue.Location is populated
+	// during registration (gmm/handler.go) from NGAP UpdateLocation.
+	smContextCreateData.SetUeLocation(ue.Location)
 	smContextCreateData.SetUeTimeZone(ue.TimeZone)
 	smContextCreateData.SetSmContextStatusUri(context.GetIPv4Uri() + "/namf-callback/v1/smContextStatus/" +
 		ue.Guti + "/" + strconv.Itoa(int(smContext.PduSessionID())))
