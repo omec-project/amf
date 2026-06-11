@@ -343,13 +343,15 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 		report.State.SetActive(true)
 	} else if mode.Trigger == models.AMFEVENTTRIGGER_ONE_TIME {
 		report.State.SetActive(false)
-	} else if *ueSubscription.RemainReports <= 0 {
+	} else if ueSubscription.RemainReports != nil && *ueSubscription.RemainReports <= 0 {
 		report.State.SetActive(false)
 	} else {
 		expiry, remainDuration := getDuration(mode.Expiry)
 		report.State.SetActive(expiry)
-		report.State.SetRemainDuration(*remainDuration)
-		if expiry {
+		if remainDuration != nil {
+			report.State.SetRemainDuration(*remainDuration)
+		}
+		if expiry && ueSubscription.RemainReports != nil {
 			report.State.SetRemainReports(*ueSubscription.RemainReports)
 		}
 	}

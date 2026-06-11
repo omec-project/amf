@@ -579,7 +579,7 @@ func assignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 		assignedEbiData.SetPduSessionId(assignEbiData.GetPduSessionId())
 		return assignedEbiData, nil, nil
 	} else {
-		logger.ProducerLog.Errorln("ue.SmContextList is nil")
+		logger.ProducerLog.Errorf("no SM context found for PDU session ID %d", assignEbiData.GetPduSessionId())
 		return nil, nil, nil
 	}
 }

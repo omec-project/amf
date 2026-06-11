@@ -28,7 +28,7 @@ func TestHandleRegistrationRequestUpgradesRatTypeFromNGSetupRATInformation(t *te
 	amfSelf.SupportTaiLists = nil
 
 	ngSetupRequest := ngaputil.BuildNGSetupRequest()
-	supportedTAItem := &ngSetupRequest.InitiatingMessage.Value.NGSetup.ProtocolIEs.List[2].Value.SupportedTAList.List[0]
+	supportedTAItem := findSupportedTAItem(t, &ngSetupRequest)
 	supportedTAItem.IEExtensions = &ngapType.ProtocolExtensionContainerSupportedTAItemExtIEs{
 		List: []ngapType.SupportedTAItemExtIEs{{
 			Id:          ngapType.ProtocolExtensionID{Value: 179},
@@ -94,4 +94,24 @@ func TestHandleRegistrationRequestUpgradesRatTypeFromNGSetupRATInformation(t *te
 	if ue.RatType != models.RATTYPE_NR_LEO {
 		t.Fatalf("expected UE ratType %q after NG setup and registration, got %q", models.RATTYPE_NR_LEO, ue.RatType)
 	}
+}
+
+func findSupportedTAItem(t *testing.T, ngSetupRequest *ngapType.NGAPPDU) *ngapType.SupportedTAItem {
+	t.Helper()
+
+	for _, ie := range ngSetupRequest.InitiatingMessage.Value.NGSetup.ProtocolIEs.List {
+		if ie.Id.Value != ngapType.ProtocolIEIDSupportedTAList {
+			continue
+		}
+		if ie.Value.SupportedTAList == nil {
+			t.Fatal("expected SupportedTAList IE to have a value")
+		}
+		if len(ie.Value.SupportedTAList.List) == 0 {
+			t.Fatal("expected SupportedTAList IE to include at least one TA item")
+		}
+		return &ie.Value.SupportedTAList.List[0]
+	}
+
+	t.Fatal("expected NGSetupRequest to include SupportedTAList IE")
+	return nil
 }
