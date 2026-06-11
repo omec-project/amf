@@ -239,11 +239,11 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	if ue.N1N2Message != nil {
 		n1n2MsgVal = *ue.N1N2Message
 		n1n2MsgVal.Request = ue.N1N2Message.Request
-		n1n2MsgVal.Request.JsonData = &models.N1N2MessageTransferReqData{}
+		n1n2MsgVal.Request.JsonData = models.NewN1N2MessageTransferReqData()
 		if ue.N1N2Message.Request.JsonData != nil {
 			n1n2MsgVal.Request.JsonData = ue.N1N2Message.Request.JsonData
-			n1n2MsgVal.Request.JsonData.N1MessageContainer = &models.N1MessageContainer{}
-			n1n2MsgVal.Request.JsonData.N2InfoContainer = &models.N2InfoContainer{}
+			n1n2MsgVal.Request.JsonData.N1MessageContainer = models.NewN1MessageContainerWithDefaults()
+			n1n2MsgVal.Request.JsonData.N2InfoContainer = models.NewN2InfoContainerWithDefaults()
 			if ue.N1N2Message.Request.JsonData.N1MessageContainer != nil {
 				*n1n2MsgVal.Request.JsonData.N1MessageContainer = *ue.N1N2Message.Request.JsonData.N1MessageContainer
 			}

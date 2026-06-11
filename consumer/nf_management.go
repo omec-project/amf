@@ -83,12 +83,9 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 		profile.NfServices = services
 	}
 
-	defaultNotificationSubscription := models.DefaultNotificationSubscription{
-		CallbackUri:      fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetSbiUri()),
-		NotificationType: models.NOTIFICATIONTYPE_N1_MESSAGES,
-		N1MessageClass:   models.N1MESSAGECLASS__5_GMM.Ptr(),
-	}
-	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, defaultNotificationSubscription)
+	defaultNotificationSubscription := models.NewDefaultNotificationSubscription(models.NOTIFICATIONTYPE_N1_MESSAGES, fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetSbiUri()))
+	defaultNotificationSubscription.SetN1MessageClass(models.N1MESSAGECLASS__5_GMM)
+	profile.DefaultNotificationSubscriptions = append(profile.DefaultNotificationSubscriptions, *defaultNotificationSubscription)
 	return profile, nil
 }
 
@@ -96,7 +93,7 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 	self := amfContext.AMF_Self()
 	nfProfile, err := getNfProfile(self, accessAndMobilityConfig)
 	if err != nil {
-		return &models.NFProfile{}, "", err
+		return models.NewNFProfileWithDefaults(), "", err
 	}
 
 	ctx, span := tracer.Start(ctx, "HTTP PUT nrf/nf-instances/{nfInstanceID}")
@@ -121,10 +118,10 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 	apiRegisterNFInstanceRequest = apiRegisterNFInstanceRequest.NFProfile(nfProfile)
 	receivedNfProfile, res, err := client.NFInstanceIDDocumentAPI.RegisterNFInstanceExecute(apiRegisterNFInstanceRequest)
 	if err != nil {
-		return &models.NFProfile{}, "", err
+		return models.NewNFProfileWithDefaults(), "", err
 	}
 	if res == nil {
-		return &models.NFProfile{}, "", fmt.Errorf("no response from server")
+		return models.NewNFProfileWithDefaults(), "", fmt.Errorf("no response from server")
 	}
 
 	switch res.StatusCode {
@@ -200,20 +197,20 @@ var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile
 		if openapiErr, ok := openapi.AsGenericOpenAPIError(err); ok {
 			if model := openapiErr.Model(); model != nil {
 				if problem, ok := model.(models.ProblemDetails); ok {
-					return &models.NFProfile{}, &problem, nil
+					return models.NewNFProfileWithDefaults(), &problem, nil
 				}
 			}
 		}
-		return &models.NFProfile{}, nil, err
+		return models.NewNFProfileWithDefaults(), nil, err
 	}
 
 	if res == nil {
-		return &models.NFProfile{}, nil, fmt.Errorf("no response from server")
+		return models.NewNFProfileWithDefaults(), nil, fmt.Errorf("no response from server")
 	}
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNoContent {
 		return receivedNfProfile, nil, nil
 	}
-	return &models.NFProfile{}, nil, fmt.Errorf("unexpected response code")
+	return models.NewNFProfileWithDefaults(), nil, fmt.Errorf("unexpected response code")
 }
 
 var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscriptionData models.SubscriptionData) (nrfSubData *models.SubscriptionData, problemDetails *models.ProblemDetails, err error) {

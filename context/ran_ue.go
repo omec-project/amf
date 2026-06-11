@@ -231,9 +231,9 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		}
 		nRCellID := ngapConvert.BitStringToHex(&nRCGI.NRCellIdentity.Value)
 
-		ranUe.Location.NrLocation.Ncgi.PlmnId = nRPlmnID
-		ranUe.Location.NrLocation.Ncgi.NrCellId = nRCellID
-		ranUe.Location.NrLocation.UeLocationTimestamp = &curTime
+		ranUe.Location.NrLocation.Ncgi.SetPlmnId(nRPlmnID)
+		ranUe.Location.NrLocation.Ncgi.SetNrCellId(nRCellID)
+		ranUe.Location.NrLocation.SetUeLocationTimestamp(curTime)
 		if locationInfoNR.TimeStamp != nil {
 			ranUe.Location.NrLocation.AgeOfLocationInformation = openapi.PtrInt32(ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value))
 		}
@@ -250,38 +250,30 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			ranUe.Location.N3gaLocation = models.NewN3gaLocation()
 		}
 
-		ip := locationInfoN3IWF.IPAddress
-		port := locationInfoN3IWF.PortNumber
+		ipv4Addr, ipv6Addr := ngapConvert.IPAddressToString(locationInfoN3IWF.IPAddress)
 
-		ipv4Addr, ipv6Addr := ngapConvert.IPAddressToString(ip)
-
+		ranUe.Location.N3gaLocation.UeIpv4Addr = nil
 		if ipv4Addr != "" {
-			ranUe.Location.N3gaLocation.UeIpv4Addr = openapi.PtrString(ipv4Addr)
-		} else {
-			ranUe.Location.N3gaLocation.UeIpv4Addr = nil
+			ranUe.Location.N3gaLocation.SetUeIpv4Addr(ipv4Addr)
 		}
+		ranUe.Location.N3gaLocation.UeIpv6Addr = nil
 		if ipv6Addr != "" {
-			ranUe.Location.N3gaLocation.UeIpv6Addr = openapi.PtrString(ipv6Addr)
-		} else {
-			ranUe.Location.N3gaLocation.UeIpv6Addr = nil
+			ranUe.Location.N3gaLocation.SetUeIpv6Addr(ipv6Addr)
 		}
-		ranUe.Location.N3gaLocation.PortNumber = openapi.PtrInt32(ngapConvert.PortNumberToInt(port))
+		ranUe.Location.N3gaLocation.SetPortNumber(ngapConvert.PortNumberToInt(locationInfoN3IWF.PortNumber))
 		// N3GPP TAI is operator-specific
 		// TODO: define N3GPP TAI
-		tmp, err := strconv.ParseUint(amfSelf.SupportTaiLists[0].Tac, 10, 32)
+		tmp, err := strconv.ParseUint(amfSelf.SupportTaiLists[0].GetTac(), 10, 32)
 		if err != nil {
 			logger.ContextLog.Errorf("error parsing TAC: %v", err)
 		}
 		tac := fmt.Sprintf("%06x", tmp)
-		ranUe.Location.N3gaLocation.N3gppTai = &models.Tai{
-			PlmnId: amfSelf.SupportTaiLists[0].PlmnId,
-			Tac:    tac,
-		}
-		ranUe.Tai = deepcopy.Copy(*ranUe.Location.N3gaLocation.N3gppTai).(models.Tai)
+		ranUe.Location.N3gaLocation.N3gppTai = models.NewTai(amfSelf.SupportTaiLists[0].GetPlmnId(), tac)
+		ranUe.Tai = deepcopy.Copy(ranUe.Location.N3gaLocation.GetN3gppTai()).(models.Tai)
 
 		if ranUe.AmfUe != nil {
 			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = *ranUe.Location.N3gaLocation.N3gppTai
+			ranUe.AmfUe.Tai = ranUe.Location.N3gaLocation.GetN3gppTai()
 		}
 	case ngapType.UserLocationInformationPresentNothing:
 	}

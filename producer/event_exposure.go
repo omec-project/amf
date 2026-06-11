@@ -312,9 +312,7 @@ func ModifyAMFEventSubscriptionProcedure(
 		}
 	}
 
-	updatedEventSubscription := &models.AmfUpdatedEventSubscription{
-		Subscription: contextSubscription.EventSubscription,
-	}
+	updatedEventSubscription := models.NewAmfUpdatedEventSubscription(contextSubscription.EventSubscription)
 	return updatedEventSubscription, nil
 }
 
@@ -342,15 +340,19 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 	report.State = models.AmfEventState{}
 	mode := ueSubscription.EventSubscription.Options
 	if mode == nil {
-		report.State.Active = true
+		report.State.SetActive(true)
 	} else if mode.Trigger == models.AMFEVENTTRIGGER_ONE_TIME {
-		report.State.Active = false
-	} else if *ueSubscription.RemainReports <= 0 {
-		report.State.Active = false
+		report.State.SetActive(false)
+	} else if ueSubscription.RemainReports != nil && *ueSubscription.RemainReports <= 0 {
+		report.State.SetActive(false)
 	} else {
-		report.State.Active = getDuration(mode.Expiry, report.State.RemainDuration)
-		if report.State.Active {
-			report.State.RemainReports = ueSubscription.RemainReports
+		expiry, remainDuration := getDuration(mode.Expiry)
+		report.State.SetActive(expiry)
+		if remainDuration != nil {
+			report.State.SetRemainDuration(*remainDuration)
+		}
+		if expiry && ueSubscription.RemainReports != nil {
+			report.State.SetRemainReports(*ueSubscription.RemainReports)
 		}
 	}
 
@@ -397,14 +399,13 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 	return report, ok
 }
 
-func getDuration(expiry *time.Time, remainDuration *int32) bool {
-	if expiry != nil {
-		if time.Now().After(*expiry) {
-			return false
-		} else {
-			duration := time.Until(*expiry)
-			*remainDuration = int32(duration.Seconds())
-		}
+func getDuration(expiry *time.Time) (active bool, remainDuration *int32) {
+	if expiry == nil {
+		return true, nil
 	}
-	return true
+	if time.Now().After(*expiry) {
+		return false, nil
+	}
+	seconds := int32(time.Until(*expiry).Seconds())
+	return true, &seconds
 }

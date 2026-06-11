@@ -43,19 +43,19 @@ func createTempBinaryFile(data []byte) (*os.File, error) {
 func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	switch msg := msg.(type) {
 	case models.CreateUEContextRequest:
-		r1, r2 := CreateUEContextProcedure(s1, msg)
+		r1, r2 := createUEContextProcedure(s1, msg)
 		return r1, "", nil, r2
 	case models.UEContextRelease:
-		r1 := ReleaseUEContextProcedure(s1, msg)
+		r1 := releaseUEContextProcedure(s1, msg)
 		return nil, "", r1, nil
 	case models.UEContextTransferRequest:
-		r1, r2 := UEContextTransferProcedure(s1, msg)
+		r1, r2 := ueContextTransferProcedure(s1, msg)
 		return r1, "", r2, nil
 	case models.AssignEbiData:
-		r1, r2, r3 := AssignEbiDataProcedure(s1, msg)
+		r1, r2, r3 := assignEbiDataProcedure(s1, msg)
 		return r1, "", r3, r2
 	case models.UeRegStatusUpdateReqData:
-		r1, r2 := RegistrationStatusUpdateProcedure(ctx, s1, msg)
+		r1, r2 := registrationStatusUpdateProcedure(ctx, s1, msg)
 		return r1, "", r2, nil
 	}
 
@@ -95,7 +95,7 @@ func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Res
 	if msg.TransferErr != nil {
 		ueContextCreateErr = msg.TransferErr.(*models.UeContextCreateError)
 	}
-	// createUeContextResponse, ueContextCreateError := CreateUEContextProcedure(ueContextID, createUeContextRequest)
+	// createUeContextResponse, ueContextCreateError := createUEContextProcedure(ueContextID, createUeContextRequest)
 	if ueContextCreateErr != nil {
 		return httpwrapper.NewResponse(int(ueContextCreateErr.Error.GetStatus()), nil, ueContextCreateErr)
 	} else {
@@ -103,7 +103,7 @@ func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Res
 	}
 }
 
-func CreateUEContextProcedure(ueContextID string, createUeContextRequest models.CreateUEContextRequest) (
+func createUEContextProcedure(ueContextID string, createUeContextRequest models.CreateUEContextRequest) (
 	*models.CreateUEContext201Response, *models.UeContextCreateError,
 ) {
 	amfSelf := context.AMF_Self()
@@ -227,7 +227,7 @@ func HandleReleaseUEContextRequest(request *httpwrapper.Request) *httpwrapper.Re
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
-	// problemDetails := ReleaseUEContextProcedure(ueContextID, ueContextRelease)
+	// problemDetails := releaseUEContextProcedure(ueContextID, ueContextRelease)
 	if msg.ProblemDetails != nil {
 		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -235,7 +235,7 @@ func HandleReleaseUEContextRequest(request *httpwrapper.Request) *httpwrapper.Re
 	}
 }
 
-func ReleaseUEContextProcedure(ueContextID string, ueContextRelease models.UEContextRelease) *models.ProblemDetails {
+func releaseUEContextProcedure(ueContextID string, ueContextRelease models.UEContextRelease) *models.ProblemDetails {
 	amfSelf := context.AMF_Self()
 
 	// TODO: UE is emergency registered and the SUPI is not authenticated
@@ -296,7 +296,7 @@ func HandleUEContextTransferRequest(request *httpwrapper.Request) *httpwrapper.R
 		ueContextTransferResponse = msg.RespData.(*models.UEContextTransfer200Response)
 	}
 
-	// ueContextTransferResponse, problemDetails := UEContextTransferProcedure(ueContextID, ueContextTransferRequest)
+	// ueContextTransferResponse, problemDetails := ueContextTransferProcedure(ueContextID, ueContextTransferRequest)
 	if msg.ProblemDetails != nil {
 		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 	} else {
@@ -304,7 +304,7 @@ func HandleUEContextTransferRequest(request *httpwrapper.Request) *httpwrapper.R
 	}
 }
 
-func UEContextTransferProcedure(ueContextID string, ueContextTransferRequest models.UEContextTransferRequest) (
+func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest models.UEContextTransferRequest) (
 	*models.UEContextTransfer200Response, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
@@ -409,13 +409,12 @@ func UEContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 			return true
 		})
 
-		ueContextTransferRspData.UeRadioCapability = &models.N2InfoContent{
-			NgapMessageType: openapi.PtrInt32(0),
-			NgapIeType:      models.NGAPIETYPE_UE_RADIO_CAPABILITY.Ptr(),
-			NgapData: models.RefToBinaryData{
-				ContentId: "n2Info",
-			},
-		}
+		ueRadioCapability := models.NewN2InfoContent(models.RefToBinaryData{
+			ContentId: "n2Info",
+		})
+		ueRadioCapability.SetNgapMessageType(0)
+		ueRadioCapability.SetNgapIeType(models.NGAPIETYPE_UE_RADIO_CAPABILITY)
+		ueContextTransferRspData.UeRadioCapability = ueRadioCapability
 		tmpFile, err := createTempBinaryFile([]byte(ue.UeRadioCapability))
 		if err != nil {
 			logger.ProducerLog.Errorf("create binaryDataN2Information failed: %+v", err)
@@ -561,7 +560,7 @@ func HandleAssignEbiDataRequest(request *httpwrapper.Request) *httpwrapper.Respo
 	}
 }
 
-func AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiData) (
+func assignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiData) (
 	*models.AssignedEbiData, *models.AssignEbiError, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
@@ -575,12 +574,12 @@ func AssignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 	}
 
 	// TODO: AssignEbiError not used, check it!
-	if _, ok := ue.SmContextFindByPDUSessionID(assignEbiData.PduSessionId); ok {
-		assignedEbiData := &models.AssignedEbiData{}
-		assignedEbiData.PduSessionId = assignEbiData.PduSessionId
+	if _, ok := ue.SmContextFindByPDUSessionID(assignEbiData.GetPduSessionId()); ok {
+		assignedEbiData := models.NewAssignedEbiDataWithDefaults()
+		assignedEbiData.SetPduSessionId(assignEbiData.GetPduSessionId())
 		return assignedEbiData, nil, nil
 	} else {
-		logger.ProducerLog.Errorln("ue.SmContextList is nil")
+		logger.ProducerLog.Errorf("no SM context found for PDU session ID %d", assignEbiData.GetPduSessionId())
 		return nil, nil, nil
 	}
 }
@@ -639,7 +638,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }
 
-func RegistrationStatusUpdateProcedure(ctx ctxt.Context, ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
+func registrationStatusUpdateProcedure(ctx ctxt.Context, ueContextID string, ueRegStatusUpdateReqData models.UeRegStatusUpdateReqData) (
 	*models.UeRegStatusUpdateRspData, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()

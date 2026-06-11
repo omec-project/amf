@@ -137,7 +137,7 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationReque
 	}
 	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
 	ue.Tai = ranUe.Tai
-	ue.Location.NrLocation = &models.NrLocation{}
+	ue.Location.SetNrLocation(models.NrLocation{})
 
 	capability := nasType.NewCapability5GMM(nasMessage.RegistrationRequestCapability5GMMType)
 	capability.SetLen(13)
@@ -154,13 +154,14 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationReque
 		AllowedPDUSessionStatus: allowedPduSessionStatus,
 	}
 
+	snssai := models.NewSnssai(1)
+	snssai.SetSd("010203")
 	smContext := context.NewSmContext(1)
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(*snssai)
 	ue.SmContextList.Store(int32(1), smContext)
 
 	pduSessionId := int32(2)
-	ngapIeType := models.NGAPIETYPE_PDU_RES_SETUP_REQ
 	ue.N1N2Message = &context.N1N2Message{
 		Request: models.N1N2MessageTransferRequest{
 			JsonData: &models.N1N2MessageTransferReqData{
@@ -168,8 +169,8 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationReque
 				N2InfoContainer: &models.N2InfoContainer{
 					SmInfo: &models.N2SmInformation{
 						PduSessionId:  pduSessionId,
-						N2InfoContent: &models.N2InfoContent{NgapIeType: &ngapIeType},
-						SNssai:        &models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
+						SNssai:        snssai,
 					},
 				},
 			},
@@ -241,7 +242,7 @@ func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
 	}
 	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
 	ue.Tai = ranUe.Tai
-	ue.Location.NrLocation = &models.NrLocation{}
+	ue.Location.SetNrLocation(models.NrLocation{})
 
 	pduSessionStatus := nasType.NewPDUSessionStatus(nasMessage.ServiceRequestPDUSessionStatusType)
 	pduSessionStatus.SetLen(2)
@@ -251,12 +252,13 @@ func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
 	serviceRequest.PDUSessionStatus = pduSessionStatus
 
 	smContext := context.NewSmContext(1)
+	snssai := models.NewSnssai(1)
+	snssai.SetSd("010203")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(*snssai)
 	ue.SmContextList.Store(int32(1), smContext)
 
 	servicePduSessionId := int32(2)
-	serviceNgapIeType := models.NGAPIETYPE_PDU_RES_SETUP_REQ
 	ue.N1N2Message = &context.N1N2Message{
 		Request: models.N1N2MessageTransferRequest{
 			JsonData: &models.N1N2MessageTransferReqData{
@@ -265,8 +267,8 @@ func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
 					N2InformationClass: models.N2INFORMATIONCLASS_SM,
 					SmInfo: &models.N2SmInformation{
 						PduSessionId:  servicePduSessionId,
-						N2InfoContent: &models.N2InfoContent{NgapIeType: &serviceNgapIeType},
-						SNssai:        &models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
+						SNssai:        snssai,
 					},
 				},
 			},
@@ -340,10 +342,10 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
 			ApiPrefix:       openapi.PtrString("http://pcf.example.com"),
 		}}
-		return &models.SearchResult{NfInstances: []models.NFProfileDiscovery{{
+		return models.NewSearchResult(300, []models.NFProfileDiscovery{{
 			NfInstanceId: "pcf-instance",
 			NfServices:   services,
-		}}}, nil
+		}}), nil
 	}
 	amPolicyControlCreateForRegistration = func(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) (*models.ProblemDetails, error) {
 		return nil, nil
@@ -394,7 +396,7 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 
 	ran := &context.AmfRan{
 		Log:   zap.NewNop().Sugar(),
-		RanId: &models.GlobalRanNodeId{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}},
+		RanId: models.NewGlobalRanNodeId(models.PlmnId{Mcc: "001", Mnc: "01"}),
 		GnbIp: "10.0.0.1",
 	}
 	ranUe := &context.RanUe{
@@ -611,13 +613,13 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 			restrictionType = models.RESTRICTIONTYPE_ALLOWED_AREAS
 		}
 
-		ue.AmPolicyAssociation = &models.PolicyAssociation{
-			ServAreaRes: &models.ServiceAreaRestriction{
-				RestrictionType: restrictionType.Ptr(),
-				MaxNumOfTAs:     openapi.PtrInt32(int32(fd.MaxNumOfTAs)),
-				Areas:           areas,
-			},
-		}
+		servAreaRes := models.NewServiceAreaRestriction()
+		servAreaRes.SetRestrictionType(restrictionType)
+		servAreaRes.SetMaxNumOfTAs(int32(fd.MaxNumOfTAs))
+		servAreaRes.SetAreas(areas)
+		amPolicyAssociation := models.NewPolicyAssociationWithDefaults()
+		amPolicyAssociation.SetServAreaRes(*servAreaRes)
+		ue.AmPolicyAssociation = amPolicyAssociation
 	}
 
 	return ue
@@ -1113,21 +1115,23 @@ func TestPickDNN(t *testing.T) {
 				sn := models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")}
 				key := util.SnssaiModelsToHex(sn)
 
-				return &context.AmfUe{
-					GmmLog:       zap.NewNop().Sugar(),
-					RanUe:        make(map[models.AccessType]*context.RanUe),
-					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
-					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"internet-1"}},
-					SmfSelectionData: &models.SmfSelectionSubscriptionData{
-						SubscribedSnssaiInfos: &map[string]models.SnssaiInfo{
-							key: {
-								DnnInfos: []models.DnnInfo{
-									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("ims")}, DefaultDnnIndicator: openapi.PtrBool(true)},
-									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
-								},
-							},
+				smfSelectionData := models.NewSmfSelectionSubscriptionData()
+				subscribedSnssaiInfos := map[string]models.SnssaiInfo{
+					key: {
+						DnnInfos: []models.DnnInfo{
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("ims")}, DefaultDnnIndicator: openapi.PtrBool(true)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
 						},
 					},
+				}
+				smfSelectionData.SetSubscribedSnssaiInfos(subscribedSnssaiInfos)
+
+				return &context.AmfUe{
+					GmmLog:           zap.NewNop().Sugar(),
+					RanUe:            make(map[models.AccessType]*context.RanUe),
+					AllowedNssai:     map[models.AccessType][]models.AllowedSnssai{},
+					ServingAMF:       &context.AMFContext{SupportDnnLists: []string{"internet-1"}},
+					SmfSelectionData: smfSelectionData,
 				}
 			},
 			setupUL: func() *nasMessage.ULNASTransport {
@@ -1142,21 +1146,23 @@ func TestPickDNN(t *testing.T) {
 				sn := models.Snssai{Sst: 2, Sd: openapi.PtrString("aabbcc")}
 				key := util.SnssaiModelsToHex(sn)
 
-				return &context.AmfUe{
-					GmmLog:       zap.NewNop().Sugar(),
-					RanUe:        make(map[models.AccessType]*context.RanUe),
-					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
-					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"internet-2"}},
-					SmfSelectionData: &models.SmfSelectionSubscriptionData{
-						SubscribedSnssaiInfos: &map[string]models.SnssaiInfo{
-							key: {
-								DnnInfos: []models.DnnInfo{
-									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
-									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-y")}, DefaultDnnIndicator: openapi.PtrBool(false)},
-								},
-							},
+				smfSelectionData := models.NewSmfSelectionSubscriptionData()
+				subscribedSnssaiInfos := map[string]models.SnssaiInfo{
+					key: {
+						DnnInfos: []models.DnnInfo{
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-y")}, DefaultDnnIndicator: openapi.PtrBool(false)},
 						},
 					},
+				}
+				smfSelectionData.SetSubscribedSnssaiInfos(subscribedSnssaiInfos)
+
+				return &context.AmfUe{
+					GmmLog:           zap.NewNop().Sugar(),
+					RanUe:            make(map[models.AccessType]*context.RanUe),
+					AllowedNssai:     map[models.AccessType][]models.AllowedSnssai{},
+					ServingAMF:       &context.AMFContext{SupportDnnLists: []string{"internet-2"}},
+					SmfSelectionData: smfSelectionData,
 				}
 			},
 			setupUL: func() *nasMessage.ULNASTransport {
@@ -1171,20 +1177,22 @@ func TestPickDNN(t *testing.T) {
 				differentSn := models.Snssai{Sst: 99, Sd: openapi.PtrString("ffffff")}
 				differentKey := util.SnssaiModelsToHex(differentSn)
 
-				return &context.AmfUe{
-					GmmLog:       zap.NewNop().Sugar(),
-					RanUe:        make(map[models.AccessType]*context.RanUe),
-					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
-					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"fallback-dnn"}},
-					SmfSelectionData: &models.SmfSelectionSubscriptionData{
-						SubscribedSnssaiInfos: &map[string]models.SnssaiInfo{
-							differentKey: {
-								DnnInfos: []models.DnnInfo{
-									{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("other-dnn")}, DefaultDnnIndicator: openapi.PtrBool(true)},
-								},
-							},
+				smfSelectionData := models.NewSmfSelectionSubscriptionData()
+				subscribedSnssaiInfos := map[string]models.SnssaiInfo{
+					differentKey: {
+						DnnInfos: []models.DnnInfo{
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("other-dnn")}, DefaultDnnIndicator: openapi.PtrBool(true)},
 						},
 					},
+				}
+				smfSelectionData.SetSubscribedSnssaiInfos(subscribedSnssaiInfos)
+
+				return &context.AmfUe{
+					GmmLog:           zap.NewNop().Sugar(),
+					RanUe:            make(map[models.AccessType]*context.RanUe),
+					AllowedNssai:     map[models.AccessType][]models.AllowedSnssai{},
+					ServingAMF:       &context.AMFContext{SupportDnnLists: []string{"fallback-dnn"}},
+					SmfSelectionData: smfSelectionData,
 				}
 			},
 			setupUL: func() *nasMessage.ULNASTransport {
@@ -1413,11 +1421,6 @@ func Test_Transport5GSMMessage(t *testing.T) {
 				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
 					{AllowedSnssai: models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")}},
 				}
-
-				// Add UeContextInSmfData to prevent nil pointer issues
-				ue.UeContextInSmfData = &models.UeContextInSmfData{
-					PduSessions: new(map[string]models.PduSession),
-				}
 			},
 			wantNilErr: true,
 			wantCalls:  0,
@@ -1437,9 +1440,6 @@ func Test_Transport5GSMMessage(t *testing.T) {
 			an: models.ACCESSTYPE__3_GPP_ACCESS,
 			prepareUE: func(ue *context.AmfUe) {
 				ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{AmfUe: ue}
-				ue.UeContextInSmfData = &models.UeContextInSmfData{
-					PduSessions: new(map[string]models.PduSession),
-				}
 			},
 			wantNilErr: true,
 			wantCalls:  1,
