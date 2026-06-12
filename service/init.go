@@ -49,8 +49,6 @@ import (
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/urfave/cli/v3"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type AMF struct{}
@@ -115,86 +113,17 @@ func (amf *AMF) Initialize(ctx ctxt.Context, c *cli.Command) error {
 }
 
 func (amf *AMF) setLogLevel() {
-	if factory.AmfConfig.Logger == nil {
+	cfgLogger := factory.AmfConfig.Logger
+	if cfgLogger == nil {
 		logger.InitLog.Warnln("AMF config without log level setting")
 		return
 	}
 
-	if factory.AmfConfig.Logger.AMF != nil {
-		if factory.AmfConfig.Logger.AMF.DebugLevel != "" {
-			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.AMF.DebugLevel); err != nil {
-				logger.InitLog.Warnf("AMF Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.AMF.DebugLevel)
-				logger.SetLogLevel(zap.InfoLevel)
-			} else {
-				logger.InitLog.Infof("AMF Log level is set to [%s] level", level)
-				logger.SetLogLevel(level)
-			}
-		} else {
-			logger.InitLog.Warnln("AMF Log level not set. Default set to [info] level")
-			logger.SetLogLevel(zap.InfoLevel)
-		}
-	}
-
-	if factory.AmfConfig.Logger.NAS != nil {
-		if factory.AmfConfig.Logger.NAS.DebugLevel != "" {
-			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.NAS.DebugLevel); err != nil {
-				nasLogger.NasLog.Warnf("NAS Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.NAS.DebugLevel)
-				logger.SetLogLevel(zap.InfoLevel)
-			} else {
-				nasLogger.SetLogLevel(level)
-			}
-		} else {
-			nasLogger.NasLog.Warnln("NAS Log level not set. Default set to [info] level")
-			nasLogger.SetLogLevel(zap.InfoLevel)
-		}
-	}
-
-	if factory.AmfConfig.Logger.NGAP != nil {
-		if factory.AmfConfig.Logger.NGAP.DebugLevel != "" {
-			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.NGAP.DebugLevel); err != nil {
-				ngapLogger.NgapLog.Warnf("NGAP Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.NGAP.DebugLevel)
-				ngapLogger.SetLogLevel(zap.InfoLevel)
-			} else {
-				ngapLogger.SetLogLevel(level)
-			}
-		} else {
-			ngapLogger.NgapLog.Warnln("NGAP Log level not set. Default set to [info] level")
-			ngapLogger.SetLogLevel(zap.InfoLevel)
-		}
-	}
-
-	if factory.AmfConfig.Logger.OpenApi != nil {
-		if factory.AmfConfig.Logger.OpenApi.DebugLevel != "" {
-			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.OpenApi.DebugLevel); err != nil {
-				openapiLogger.OpenapiLog.Warnf("OpenApi Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.OpenApi.DebugLevel)
-				openapiLogger.SetLogLevel(zap.InfoLevel)
-			} else {
-				openapiLogger.SetLogLevel(level)
-			}
-		} else {
-			openapiLogger.OpenapiLog.Warnln("OpenApi Log level not set. Default set to [info] level")
-			openapiLogger.SetLogLevel(zap.InfoLevel)
-		}
-	}
-
-	if factory.AmfConfig.Logger.Util != nil {
-		if factory.AmfConfig.Logger.Util.DebugLevel != "" {
-			if level, err := zapcore.ParseLevel(factory.AmfConfig.Logger.Util.DebugLevel); err != nil {
-				utilLogger.UtilLog.Warnf("Util (drsm, fsm, etc.) Log level [%s] is invalid, set to [info] level",
-					factory.AmfConfig.Logger.Util.DebugLevel)
-				utilLogger.SetLogLevel(zap.InfoLevel)
-			} else {
-				utilLogger.SetLogLevel(level)
-			}
-		} else {
-			utilLogger.UtilLog.Warnln("Util (drsm, fsm, etc.) Log level not set. Default set to [info] level")
-			utilLogger.SetLogLevel(zap.InfoLevel)
-		}
-	}
+	utilLogger.ApplyLogSetting("AMF", cfgLogger.AMF, logger.InitLog, logger.SetLogLevel)
+	utilLogger.ApplyLogSetting("NAS", cfgLogger.NAS, nasLogger.NasLog, nasLogger.SetLogLevel)
+	utilLogger.ApplyLogSetting("NGAP", cfgLogger.NGAP, ngapLogger.NgapLog, ngapLogger.SetLogLevel)
+	utilLogger.ApplyLogSetting("OpenApi", cfgLogger.OpenApi, openapiLogger.OpenapiLog, openapiLogger.SetLogLevel)
+	utilLogger.ApplyLogSetting("Util", cfgLogger.Util, utilLogger.UtilLog, utilLogger.SetLogLevel)
 }
 
 func (amf *AMF) Start() {
@@ -254,13 +183,13 @@ func (amf *AMF) Start() {
 			Ratio:          *factory.AmfConfig.Configuration.Telemetry.Ratio,
 		})
 		if err != nil {
-			logger.InitLog.Fatalf("could not initialize tracer", zap.Error(err))
+			logger.InitLog.Fatalf("could not initialize tracer: %v", err)
 		}
 		logger.InitLog.Infoln("tracer initialized successfully")
 		defer func() {
 			err = tp.Shutdown(ctx)
 			if err != nil {
-				logger.InitLog.Errorf("failed to shutdown tracer", zap.Error(err))
+				logger.InitLog.Errorf("failed to shutdown tracer: %v", err)
 			} else {
 				logger.InitLog.Infoln("tracer shutdown successfully")
 			}
@@ -399,7 +328,7 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup, tr
 	if tracerProvider != nil {
 		err := tracerProvider.Shutdown(ctx)
 		if err != nil {
-			logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+			logger.InitLog.Errorf("failed to shutdown tracer: %v", err)
 		} else {
 			logger.InitLog.Infoln("tracer shutdown successfully")
 		}
