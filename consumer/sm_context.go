@@ -694,9 +694,6 @@ func cleanupBinaryPayloadTempFile(tmpFile *os.File) {
 	if tmpFile == nil {
 		return
 	}
-	if err := tmpFile.Close(); err != nil {
-		logger.ConsumerLog.Errorln(err)
-	}
 	if err := os.Remove(tmpFile.Name()); err != nil {
 		logger.ConsumerLog.Errorln(err)
 	}

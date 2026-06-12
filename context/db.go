@@ -196,7 +196,7 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 
 	ue := DbFetch(AmfUeDataColl, filter)
 	if ue == nil {
-		logger.DataRepoLog.Errorln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID", ranUeNgapID)
+		logger.DataRepoLog.Debugln("DbFetchRanUeByRanUeNgapID: no document found for ranUeNgapID", ranUeNgapID)
 		return nil
 	}
 
