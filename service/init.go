@@ -49,7 +49,6 @@ import (
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/urfave/cli/v3"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.uber.org/zap"
 )
 
 type AMF struct{}
@@ -184,13 +183,13 @@ func (amf *AMF) Start() {
 			Ratio:          *factory.AmfConfig.Configuration.Telemetry.Ratio,
 		})
 		if err != nil {
-			logger.InitLog.Fatalf("could not initialize tracer", zap.Error(err))
+			logger.InitLog.Fatalf("could not initialize tracer: %v", err)
 		}
 		logger.InitLog.Infoln("tracer initialized successfully")
 		defer func() {
 			err = tp.Shutdown(ctx)
 			if err != nil {
-				logger.InitLog.Errorf("failed to shutdown tracer", zap.Error(err))
+				logger.InitLog.Errorf("failed to shutdown tracer: %v", err)
 			} else {
 				logger.InitLog.Infoln("tracer shutdown successfully")
 			}
@@ -329,7 +328,7 @@ func (amf *AMF) Terminate(cancelServices ctxt.CancelFunc, wg *sync.WaitGroup, tr
 	if tracerProvider != nil {
 		err := tracerProvider.Shutdown(ctx)
 		if err != nil {
-			logger.InitLog.Error("failed to shutdown tracer", zap.Error(err))
+			logger.InitLog.Errorf("failed to shutdown tracer: %v", err)
 		} else {
 			logger.InitLog.Infoln("tracer shutdown successfully")
 		}
