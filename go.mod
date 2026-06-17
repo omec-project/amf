@@ -11,8 +11,8 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/nas/v2 v2.0.0
 	github.com/omec-project/ngap/v2 v2.1.0
-	github.com/omec-project/openapi/v2 v2.0.0
-	github.com/omec-project/util v1.7.4
+	github.com/omec-project/openapi/v2 v2.1.1
+	github.com/omec-project/util v1.7.5
 	github.com/prometheus/client_golang v1.23.2
 	github.com/urfave/cli/v3 v3.9.1
 	go.mongodb.org/mongo-driver v1.17.9
