@@ -51,6 +51,7 @@ func TestHandleRegistrationRequestUpgradesRatTypeFromNGSetupRATInformation(t *te
 	ratInformation := ran.RatInformationForTAC("000001")
 	if ratInformation == nil {
 		t.Fatal("expected NG setup to populate RATInformation for TAC 000001")
+		return
 	}
 	if ratInformation.Value != ngapType.RATInformationPresentNRLEO {
 		t.Fatalf("expected NG setup RATInformation %v, got %v", ngapType.RATInformationPresentNRLEO, ratInformation.Value)
