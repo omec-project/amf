@@ -238,6 +238,12 @@ func TestFetchAccessAndMobilityConfig(t *testing.T) {
 		t.Fail()
 	}
 
+	var expectedAccessAndMobility []nfConfigApi.AccessAndMobility
+	err = json.Unmarshal(validJson, &expectedAccessAndMobility)
+	if err != nil {
+		t.Fatalf("failed to unmarshal expectedAccessAndMobility: %v", err)
+	}
+
 	tests := []struct {
 		name           string
 		statusCode     int
@@ -252,7 +258,7 @@ func TestFetchAccessAndMobilityConfig(t *testing.T) {
 			contentType:    "application/json",
 			responseBody:   string(validJson),
 			expectedError:  "",
-			expectedResult: accessMobilityConfigs,
+			expectedResult: expectedAccessAndMobility,
 		},
 		{
 			name:          "200 OK with invalid Content-Type",
