@@ -292,6 +292,76 @@ func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
 	}
 }
 
+func TestHandleServiceRequestHighPriorityAccessHandledAsData(t *testing.T) {
+	// Service type 5 (high priority access) must be handled like service type
+	// 1 (data) instead of being rejected by the default case. The UE is set up
+	// with a Tai that differs from its RanUe's Tai, so the data-service path
+	// takes its "tracking area not allowed" branch and returns nil. Only the
+	// data path performs that check, so reaching it (nil, no "not supported"
+	// error) proves service type 5 falls through into the data case. An
+	// emergency Service Request is included as a control: it still hits the
+	// default case and is rejected.
+	newRegisteredUe := func() *context.AmfUe {
+		ue := &context.AmfUe{
+			GmmLog:                   zap.NewNop().Sugar(),
+			NASLog:                   zap.NewNop().Sugar(),
+			RanUe:                    make(map[models.AccessType]*context.RanUe),
+			OnGoing:                  make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+			State:                    make(map[models.AccessType]*fsm.State),
+			SubscriptionDataValid:    true,
+			SecurityContextAvailable: true,
+			Pei:                      "imei-001010000000001",
+		}
+		ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+		ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
+		ue.NgKsi.Ksi = 1
+
+		ranUe := &context.RanUe{
+			AmfUe: ue,
+			Log:   zap.NewNop().Sugar(),
+			Ran:   &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()},
+			Tai: models.Tai{
+				PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+				Tac:    "000002",
+			},
+		}
+		ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
+		ue.Tai = models.Tai{
+			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+			Tac:    "000001",
+		}
+		return ue
+	}
+
+	tests := []struct {
+		name             string
+		serviceType      uint8
+		wantNotSupported bool
+	}{
+		{"data is accepted (baseline)", nasMessage.ServiceTypeData, false},
+		{"high priority access handled as data", nasMessage.ServiceTypeHighPriorityAccess, false},
+		{"emergency is still rejected (control)", nasMessage.ServiceTypeEmergencyServices, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ue := newRegisteredUe()
+			serviceRequest := nasMessage.NewServiceRequest(0)
+			serviceRequest.SetServiceTypeValue(tc.serviceType)
+
+			err := HandleServiceRequest(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS, serviceRequest)
+
+			if tc.wantNotSupported {
+				if err == nil || !strings.Contains(err.Error(), "is not supported") {
+					t.Fatalf("service type %d: expected \"not supported\" error, got %v", tc.serviceType, err)
+				}
+			} else if err != nil {
+				t.Fatalf("service type %d: expected nil error (handled as data), got %v", tc.serviceType, err)
+			}
+		})
+	}
+}
+
 func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 	originalHandleRequestedNssaiForRegistration := handleRequestedNssaiForRegistration
 	originalGetSubscribedNssaiForRegistration := getSubscribedNssaiForRegistration
