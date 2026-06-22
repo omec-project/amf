@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/omec-project/amf/context"
@@ -271,9 +272,15 @@ func ModifyAMFEventSubscriptionProcedure(
 		}
 		arrayOfAmfUpdateEventSubscriptionItem := (*modifySubscriptionRequest.ArrayOfAmfUpdateEventSubscriptionItem)[0]
 		op := arrayOfAmfUpdateEventSubscriptionItem.GetOp()
-		index, err := strconv.Atoi(arrayOfAmfUpdateEventSubscriptionItem.Path[11:])
+		const pathPrefix = "/eventList/"
+		path := arrayOfAmfUpdateEventSubscriptionItem.GetPath()
+		if !strings.HasPrefix(path, pathPrefix) || len(path) <= len(pathPrefix) {
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path")
+			return nil, problemDetails
+		}
+		index, err := strconv.Atoi(path[len(pathPrefix):])
 		if err != nil {
-			problemDetails := utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Failed to parse subscription path", utils.CauseUnspecifiedNfFailure)
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
 			return nil, problemDetails
 		}
 		lists := (subscription.EventList)
