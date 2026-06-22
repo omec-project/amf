@@ -25,7 +25,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/utils"
 	utilLogger "github.com/omec-project/util/logger"
 )
 
@@ -90,10 +90,7 @@ func DefaultHandleFunc(c *gin.Context) {
 }
 
 func writeNotImplementedProblem(c *gin.Context, detail string) {
-	problemDetails := models.NewProblemDetails()
-	problemDetails.SetStatus(http.StatusNotImplemented)
-	problemDetails.SetCause("NOT_IMPLEMENTED")
-	problemDetails.SetDetail(detail)
+	problemDetails := utils.ProblemDetailsNotImplemented(detail)
 	c.JSON(http.StatusNotImplemented, problemDetails)
 }
 

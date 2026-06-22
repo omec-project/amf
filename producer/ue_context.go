@@ -73,9 +73,7 @@ func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Res
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -110,9 +108,7 @@ func createUEContextProcedure(ueContextID string, createUeContextRequest models.
 	ueContextCreateData, ok := createUeContextRequest.GetJsonDataOk()
 
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusForbidden)
-		problemDetails.SetCause("HANDOVER_FAILURE")
+		problemDetails := utils.ProblemDetailsWithCause("Handover failure", http.StatusForbidden, "Failed to get JSON data", utils.CauseHandoverFailure)
 		ueContextCreateError := models.NewUeContextCreateError(*problemDetails)
 		return nil, ueContextCreateError
 	}
@@ -212,9 +208,7 @@ func HandleReleaseUEContextRequest(request *httpwrapper.Request) *httpwrapper.Re
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -246,9 +240,7 @@ func releaseUEContextProcedure(ueContextID string, ueContextRelease models.UECon
 	}
 
 	if _, ok := ueContextRelease.GetNgapCauseOk(); !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_MISSING")
+		problemDetails := utils.ProblemDetailsMandatoryIeMissing("NgapCause is missing")
 		return problemDetails
 	}
 
@@ -257,9 +249,7 @@ func releaseUEContextProcedure(ueContextID string, ueContextRelease models.UECon
 	if ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID); ok {
 		ue.Remove()
 	} else {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return problemDetails
 	}
 
@@ -277,9 +267,7 @@ func HandleUEContextTransferRequest(request *httpwrapper.Request) *httpwrapper.R
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -310,26 +298,20 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 	amfSelf := context.AMF_Self()
 
 	if ueContextTransferRequest.JsonData == nil {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_MISSING")
+		problemDetails := utils.ProblemDetailsMandatoryIeMissing("JsonData is missing")
 		return nil, problemDetails
 	}
 
 	ueContextTransferReqData := ueContextTransferRequest.GetJsonData()
 
 	if ueContextTransferReqData.GetAccessType() == "" || ueContextTransferReqData.GetReason() == "" {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_MISSING")
+		problemDetails := utils.ProblemDetailsMandatoryIeMissing("AccessType or Reason is missing")
 		return nil, problemDetails
 	}
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return nil, problemDetails
 	}
 
@@ -382,9 +364,7 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 		tmpFile, err := createTempBinaryFile([]byte(ue.UeRadioCapability))
 		if err != nil {
 			logger.ProducerLog.Errorf("create binaryDataN2Information failed: %+v", err)
-			problemDetails := models.NewProblemDetails()
-			problemDetails.SetStatus(http.StatusInternalServerError)
-			problemDetails.SetCause("SYSTEM_FAILURE")
+			problemDetails := utils.ProblemDetailsSystemFailure(err.Error())
 			return nil, problemDetails
 		}
 		ueContextTransferResponse.BinaryDataN2Information = &tmpFile
@@ -418,22 +398,22 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 		tmpFile, err := createTempBinaryFile([]byte(ue.UeRadioCapability))
 		if err != nil {
 			logger.ProducerLog.Errorf("create binaryDataN2Information failed: %+v", err)
-			problemDetails := models.NewProblemDetails()
-			problemDetails.SetStatus(http.StatusInternalServerError)
-			problemDetails.SetCause("SYSTEM_FAILURE")
+			problemDetails := utils.ProblemDetailsSystemFailure(err.Error())
 			return nil, problemDetails
 		}
 		ueContextTransferResponse.BinaryDataN2Information = &tmpFile
 	default:
 		logger.ProducerLog.Warnf("Invalid Transfer Reason: %+v", ueContextTransferReqData.GetReason())
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusForbidden)
-		problemDetails.SetCause("MANDATORY_IE_INCORRECT")
-		problemDetails.SetInvalidParams([]models.InvalidParam{
-			{
-				Param: "reason",
+		problemDetails := utils.ProblemDetailsWithInvalidParams(
+			utils.CauseMandatoryIeIncorrect,
+			http.StatusForbidden,
+			"Invalid transfer reason",
+			[]models.InvalidParam{
+				{
+					Param: "reason",
+				},
 			},
-		})
+		)
 		return nil, problemDetails
 	}
 	return ueContextTransferResponse, nil
@@ -528,9 +508,7 @@ func HandleAssignEbiDataRequest(request *httpwrapper.Request) *httpwrapper.Respo
 	// assignedEbiData, assignEbiError, problemDetails := AssignEbiDataProcedure(ueContextID, assignEbiData)
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -567,9 +545,7 @@ func assignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return nil, nil, problemDetails
 	}
 
@@ -590,9 +566,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 
 	ueRegStatusUpdateReqData, ok := request.Body.(models.UeRegStatusUpdateReqData)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("INVALID_BODY_FORMAT")
+		problemDetails := utils.ProblemDetailsWithCause(utils.CauseInvalidBodyFormat, http.StatusBadRequest, "Request body format is invalid", utils.CauseInvalidBodyFormat)
 		return httpwrapper.NewResponse(http.StatusBadRequest, nil, problemDetails)
 	}
 	ueContextID := request.Params["ueContextId"]
@@ -601,9 +575,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -617,9 +589,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg, read := <-sbiMsg.Result
 	if !read {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNoContent)
-		problemDetails.SetCause("MESSAGE_NOT_RECEIVED")
+		problemDetails := utils.ProblemDetailsWithCause(utils.CauseMessageNotReceived, http.StatusNoContent, "Message not received from channel", utils.CauseMessageNotReceived)
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, problemDetails)
 	}
 	ueRegStatusUpdateRspData, ok = msg.RespData.(*models.UeRegStatusUpdateRspData)
@@ -630,9 +600,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 			}
 		}
 		// Handle unexpected response data type
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusInternalServerError)
-		problemDetails.SetCause("UNEXPECTED_RESPONSE_TYPE")
+		problemDetails := utils.ProblemDetailsWithCause(utils.CauseUnexpectedResponseType, http.StatusInternalServerError, "Unexpected response data type", utils.CauseUnexpectedResponseType)
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
@@ -651,9 +619,7 @@ func registrationStatusUpdateProcedure(ctx ctxt.Context, ueContextID string, ueR
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return nil, problemDetails
 	}
 

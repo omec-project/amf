@@ -15,6 +15,7 @@ import (
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/fsm"
 	"github.com/omec-project/util/httpwrapper"
 )
@@ -148,9 +149,7 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 	}
 
 	if len(ueList) == 0 {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("No UE context found")
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
@@ -172,9 +171,7 @@ func OAMRegisteredUEContextProcedure(supi string) (UEContexts, *models.ProblemDe
 				ueContexts = append(ueContexts, *ueContext)
 			}
 		} else {
-			problemDetails := models.NewProblemDetails()
-			problemDetails.SetStatus(http.StatusNotFound)
-			problemDetails.SetCause("CONTEXT_NOT_FOUND")
+			problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 			return nil, problemDetails
 		}
 	} else {
