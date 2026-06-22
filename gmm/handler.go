@@ -2211,6 +2211,13 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				ue.ConfigurationUpdateMessage, &mobilityRestrictionList)
 			ue.ConfigurationUpdateMessage = nil
 		}
+	case nasMessage.ServiceTypeHighPriorityAccess:
+		// High priority access is a valid service type (TS 24.501 9.11.3.50).
+		// The AMF implements no MPS/priority semantics, so handle it as data
+		// rather than rejecting an otherwise-valid Service Request. Some
+		// modems also send service type 5 for ordinary data sessions.
+		ue.GmmLog.Infoln("handling Service Request with high priority access as data service")
+		fallthrough
 	case nasMessage.ServiceTypeData:
 		plmnAccept := context.IsTaiEqual(ue.Tai, ue.RanUe[anType].Tai)
 		if !plmnAccept {
