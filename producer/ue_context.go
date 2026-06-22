@@ -74,7 +74,7 @@ func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Res
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -209,7 +209,7 @@ func HandleReleaseUEContextRequest(request *httpwrapper.Request) *httpwrapper.Re
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -268,7 +268,7 @@ func HandleUEContextTransferRequest(request *httpwrapper.Request) *httpwrapper.R
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -405,7 +405,7 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 	default:
 		logger.ProducerLog.Warnf("Invalid Transfer Reason: %+v", ueContextTransferReqData.GetReason())
 		problemDetails := utils.ProblemDetailsWithInvalidParams(
-			utils.CauseMandatoryIeIncorrect,
+			"Mandatory IE incorrect",
 			http.StatusForbidden,
 			"Invalid transfer reason",
 			[]models.InvalidParam{
@@ -414,6 +414,7 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 				},
 			},
 		)
+		problemDetails.SetCause(utils.CauseMandatoryIeIncorrect)
 		return nil, problemDetails
 	}
 	return ueContextTransferResponse, nil
@@ -509,7 +510,7 @@ func HandleAssignEbiDataRequest(request *httpwrapper.Request) *httpwrapper.Respo
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -566,7 +567,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 
 	ueRegStatusUpdateReqData, ok := request.Body.(models.UeRegStatusUpdateReqData)
 	if !ok {
-		problemDetails := utils.ProblemDetailsWithCause(utils.CauseInvalidBodyFormat, http.StatusBadRequest, "Request body format is invalid", utils.CauseInvalidBodyFormat)
+		problemDetails := utils.ProblemDetailsWithCause("Invalid body format", http.StatusBadRequest, "Request body format is invalid", utils.CauseInvalidBodyFormat)
 		return httpwrapper.NewResponse(http.StatusBadRequest, nil, problemDetails)
 	}
 	ueContextID := request.Params["ueContextId"]
@@ -589,7 +590,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg, read := <-sbiMsg.Result
 	if !read {
-		problemDetails := utils.ProblemDetailsWithCause(utils.CauseMessageNotReceived, http.StatusNoContent, "Message not received from channel", utils.CauseMessageNotReceived)
+		problemDetails := utils.ProblemDetailsWithCause("Message not received", http.StatusNoContent, "Message not received from channel", utils.CauseMessageNotReceived)
 		return httpwrapper.NewResponse(http.StatusNoContent, nil, problemDetails)
 	}
 	ueRegStatusUpdateRspData, ok = msg.RespData.(*models.UeRegStatusUpdateRspData)
@@ -600,7 +601,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 			}
 		}
 		// Handle unexpected response data type
-		problemDetails := utils.ProblemDetailsWithCause(utils.CauseUnexpectedResponseType, http.StatusInternalServerError, "Unexpected response data type", utils.CauseUnexpectedResponseType)
+		problemDetails := utils.ProblemDetailsWithCause("Unexpected response type", http.StatusInternalServerError, "Unexpected response data type", utils.CauseUnexpectedResponseType)
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)

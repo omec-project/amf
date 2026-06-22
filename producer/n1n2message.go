@@ -57,7 +57,7 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
 		problemDetails = utils.ProblemDetailsContextNotFound("UE context not found")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
 	// If EventChannel is nil (e.g. UE context restored from DB after restart),

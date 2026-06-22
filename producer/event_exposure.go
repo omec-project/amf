@@ -265,7 +265,7 @@ func ModifyAMFEventSubscriptionProcedure(
 		subscription := &contextSubscription.EventSubscription
 		if !contextSubscription.IsAnyUe && !contextSubscription.IsGroupUe {
 			if _, ok := amfSelf.AmfUeFindBySupi(subscription.GetSupi()); !ok {
-				problemDetails := utils.ProblemDetailsWithCause("UE not served by AMF", http.StatusForbidden, "UE is not served by this AMF", "UE_NOT_SERVED_BY_AMF")
+				problemDetails := utils.ProblemDetailsWithCause("UE not served by AMF", http.StatusForbidden, "UE is not served by this AMF", utils.CauseUeNotServedByAmf)
 				return nil, problemDetails
 			}
 		}
@@ -273,7 +273,7 @@ func ModifyAMFEventSubscriptionProcedure(
 		op := arrayOfAmfUpdateEventSubscriptionItem.GetOp()
 		index, err := strconv.Atoi(arrayOfAmfUpdateEventSubscriptionItem.Path[11:])
 		if err != nil {
-			problemDetails := utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Failed to parse subscription path", "UNSPECIFIED_NF_FAILURE")
+			problemDetails := utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Failed to parse subscription path", utils.CauseUnspecifiedNfFailure)
 			return nil, problemDetails
 		}
 		lists := (subscription.EventList)
