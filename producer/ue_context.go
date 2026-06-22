@@ -590,8 +590,8 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg, read := <-sbiMsg.Result
 	if !read {
-		problemDetails := utils.ProblemDetailsWithCause("Message not received", http.StatusNoContent, "Message not received from channel", utils.CauseMessageNotReceived)
-		return httpwrapper.NewResponse(http.StatusNoContent, nil, problemDetails)
+		problemDetails := utils.ProblemDetailsWithCause("Message not received", http.StatusInternalServerError, "Message not received from channel", utils.CauseMessageNotReceived)
+		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 	ueRegStatusUpdateRspData, ok = msg.RespData.(*models.UeRegStatusUpdateRspData)
 	if !ok {
