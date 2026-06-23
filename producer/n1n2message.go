@@ -56,10 +56,8 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 	amfSelf := context.AMF_Self()
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails = models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		problemDetails = utils.ProblemDetailsContextNotFound("UE context not found")
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
 	// If EventChannel is nil (e.g. UE context restored from DB after restart),
@@ -159,9 +157,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	amfSelf := context.AMF_Self()
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails = models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails = utils.ProblemDetailsContextNotFound("UE context not found")
 		return nil, "", problemDetails, nil
 	}
 
@@ -206,9 +202,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			ue.ProducerLog.Debugf("receive N1 SM Message (PDU Session ID: %d)", requestData.GetPduSessionId())
 			n1MsgType = nasMessage.PayloadContainerTypeN1SMInfo
 			if smContext, ok = ue.SmContextFindByPDUSessionID(requestData.GetPduSessionId()); !ok {
-				problemDetails = models.NewProblemDetails()
-				problemDetails.SetStatus(http.StatusNotFound)
-				problemDetails.SetCause("CONTEXT_NOT_FOUND")
+				problemDetails = utils.ProblemDetailsContextNotFound("SM context not found")
 				return nil, "", problemDetails, nil
 			} else {
 				anType = smContext.AccessType()
@@ -229,9 +223,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			ue.ProducerLog.Debugf("receive N2 SM Message (PDU Session ID: %d)", requestData.GetPduSessionId())
 			if smContext == nil {
 				if smContext, ok = ue.SmContextFindByPDUSessionID(requestData.GetPduSessionId()); !ok {
-					problemDetails = models.NewProblemDetails()
-					problemDetails.SetStatus(http.StatusNotFound)
-					problemDetails.SetCause("CONTEXT_NOT_FOUND")
+					problemDetails = utils.ProblemDetailsContextNotFound("SM context not found")
 					return nil, "", problemDetails, nil
 				} else {
 					anType = smContext.AccessType()
@@ -239,9 +231,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			}
 		default:
 			ue.ProducerLog.Warnf("N2 Information type [%s] is not supported", requestData.N2InfoContainer.GetN2InformationClass())
-			problemDetails = models.NewProblemDetails()
-			problemDetails.SetStatus(http.StatusNotImplemented)
-			problemDetails.SetCause("NOT_IMPLEMENTED")
+			problemDetails = utils.ProblemDetailsWithCause("Not implemented", http.StatusNotImplemented, "N2 Information type not supported", utils.CauseNotImplemented)
 			return nil, "", problemDetails, nil
 		}
 	}
@@ -252,24 +242,18 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	switch onGoing.Procedure {
 	case context.OnGoingProcedurePaging:
 		if requestData.GetPpi() == 0 || (onGoing.Ppi != 0 && onGoing.Ppi <= requestData.GetPpi()) {
-			probDetails := models.NewProblemDetails()
-			probDetails.SetStatus(http.StatusConflict)
-			probDetails.SetCause("HIGHER_PRIORITY_REQUEST_ONGOING")
+			probDetails := utils.ProblemDetailsWithCause("Higher priority request ongoing", http.StatusConflict, "Higher priority request is ongoing", utils.CauseHigherPriorityRequestOngoing)
 			transferErr = models.NewN1N2MessageTransferError(*probDetails)
 			return nil, "", nil, transferErr
 		}
 		ue.T3513.Stop()
 		callback.SendN1N2TransferFailureNotification(ue, models.N1N2MESSAGETRANSFERCAUSE_UE_NOT_RESPONDING)
 	case context.OnGoingProcedureRegistration:
-		probDetails := models.NewProblemDetails()
-		probDetails.SetStatus(http.StatusConflict)
-		probDetails.SetCause("TEMPORARY_REJECT_REGISTRATION_ONGOING")
+		probDetails := utils.ProblemDetailsWithCause("Registration ongoing", http.StatusConflict, "Registration is ongoing", utils.CauseTemporaryRejectRegistrationOngoing)
 		transferErr = models.NewN1N2MessageTransferError(*probDetails)
 		return nil, "", nil, transferErr
 	case context.OnGoingProcedureN2Handover:
-		probDetails := models.NewProblemDetails()
-		probDetails.SetStatus(http.StatusConflict)
-		probDetails.SetCause("TEMPORARY_REJECT_HANDOVER_ONGOING")
+		probDetails := utils.ProblemDetailsWithCause("Handover ongoing", http.StatusConflict, "Handover is ongoing", utils.CauseTemporaryRejectHandoverOngoing)
 		transferErr = models.NewN1N2MessageTransferError(*probDetails)
 		return nil, "", nil, transferErr
 	}
@@ -343,17 +327,13 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	// 409: transfer a N2 PDU Session Resource Release Command to a 5G-AN and if the UE is in CM-IDLE
 	if n2Info != nil && requestData.N2InfoContainer != nil && requestData.N2InfoContainer.SmInfo != nil &&
 		requestData.N2InfoContainer.SmInfo.N2InfoContent.GetNgapIeType() == models.NGAPIETYPE_PDU_RES_REL_CMD {
-		probDetails := models.NewProblemDetails()
-		probDetails.SetStatus(http.StatusConflict)
-		probDetails.SetCause("UE_IN_CM_IDLE_STATE")
+		probDetails := utils.ProblemDetailsWithCause("UE in CM-IDLE state", http.StatusConflict, "UE is in CM-IDLE state", utils.CauseUeInCmIdleState)
 		transferErr = models.NewN1N2MessageTransferError(*probDetails)
 		return nil, "", nil, transferErr
 	}
 	// 504: the UE in MICO mode or the UE is only registered over Non-3GPP access and its state is CM-IDLE
 	if !ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Is(context.Registered) {
-		probDetails := models.NewProblemDetails()
-		probDetails.SetStatus(http.StatusGatewayTimeout)
-		probDetails.SetCause("UE_NOT_REACHABLE")
+		probDetails := utils.ProblemDetailsWithCause("UE not reachable", http.StatusGatewayTimeout, "UE is not reachable", utils.CauseUeNotReachable)
 		transferErr = models.NewN1N2MessageTransferError(*probDetails)
 		return nil, "", nil, transferErr
 	}
@@ -466,9 +446,7 @@ func HandleN1N2MessageTransferStatusRequest(request *httpwrapper.Request) *httpw
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
@@ -511,18 +489,14 @@ func N1N2MessageTransferStatusProcedure(ueContextID string, reqUri string) (mode
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return "", problemDetails
 	}
 
 	resourceUri := amfSelf.GetIPv4Uri() + reqUri
 	n1n2Message := ue.N1N2Message
 	if n1n2Message == nil || n1n2Message.ResourceUri != resourceUri {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("N1N2 message context not found")
 		return "", problemDetails
 	}
 
@@ -538,9 +512,7 @@ func HandleN1N2MessageSubscirbeRequest(request *httpwrapper.Request) *httpwrappe
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
@@ -583,9 +555,7 @@ func N1N2MessageSubscribeProcedure(ueContextID string,
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return nil, problemDetails
 	}
 
@@ -621,9 +591,7 @@ func N1N2MessageUnSubscribeProcedure(ueContextID string, subscriptionID string) 
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
 		return problemDetails
 	}
 

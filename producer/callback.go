@@ -29,6 +29,7 @@ import (
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -65,10 +66,7 @@ func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Resp
 	amfSelf := context.AMF_Self()
 	ue, ok = amfSelf.AmfUeFindByGuti(guti)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("Guti[%s] Not Found", guti))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("Guti[%s] Not Found", guti))
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
@@ -97,19 +95,13 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 
 	ue, ok := amfSelf.AmfUeFindByGuti(guti)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("Guti[%s] Not Found", guti))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("Guti[%s] Not Found", guti))
 		return problemDetails
 	}
 
 	smContext, ok := ue.SmContextFindByPDUSessionID(pduSessionID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("PDUSessionID[%d] Not Found", pduSessionID))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("PDUSessionID[%d] Not Found", pduSessionID))
 		return problemDetails
 	}
 
@@ -195,12 +187,12 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 			ue.SmContextList.Delete(pduSessionID)
 		}
 	} else {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("INVALID_MSG_FORMAT")
-		problemDetails.SetInvalidParams([]models.InvalidParam{
-			{Param: "StatusInfo.ResourceStatus", Reason: openapi.PtrString("invalid value")},
-		})
+		problemDetails := utils.ProblemDetailsWithInvalidParams(
+			"Invalid message format", http.StatusBadRequest, "",
+			[]models.InvalidParam{
+				{Param: "StatusInfo.ResourceStatus", Reason: openapi.PtrString("invalid value")},
+			})
+		problemDetails.SetCause(utils.CauseInvalidMsgFormat)
 		return problemDetails
 	}
 	return nil
@@ -217,10 +209,7 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *httpwrapper.Request) *http
 	amfSelf := context.AMF_Self()
 	ue, ok = amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -248,10 +237,7 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
 		return problemDetails
 	}
 
@@ -317,10 +303,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *h
 	amfSelf := context.AMF_Self()
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
@@ -348,10 +331,7 @@ func AmPolicyControlUpdateNotifyTerminateProcedure(ctx ctxt.Context, polAssoID s
 
 	ue, ok := amfSelf.AmfUeFindByPolicyAssociationID(polAssoID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		problemDetails.SetDetail(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
+		problemDetails := utils.ProblemDetailsContextNotFound(fmt.Sprintf("Policy Association ID[%s] Not Found", polAssoID))
 		return problemDetails
 	}
 
@@ -390,19 +370,13 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *mo
 
 	registrationCtxtContainer := n1MessageNotify.JsonData.GetRegistrationCtxtContainer()
 	if reflect.DeepEqual(registrationCtxtContainer.GetUeContext(), models.UeContext{}) {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_MISSING") // Defined in TS 29.500 5.2.7.2
-		problemDetails.SetDetail("Missing IE [UeContext] in RegistrationCtxtContainer")
+		problemDetails := utils.ProblemDetailsMandatoryIeMissing("Missing IE [UeContext] in RegistrationCtxtContainer")
 		return problemDetails
 	}
 
 	ran, ok := amfSelf.AmfRanFindByRanID(*registrationCtxtContainer.RanNodeId.Get())
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_INCORRECT")
-		problemDetails.SetDetail(fmt.Sprintf("can not find RAN[RanId: %+v]", *registrationCtxtContainer.RanNodeId.Get()))
+		problemDetails := utils.ProblemDetailsMandatoryIeIncorrect(fmt.Sprintf("can not find RAN[RanId: %+v]", *registrationCtxtContainer.RanNodeId.Get()))
 		return problemDetails
 	}
 
@@ -460,10 +434,7 @@ func NfSubscriptionStatusNotifyProcedure(ctx ctxt.Context, notificationData mode
 	logger.ProducerLog.Debugf("NfSubscriptionStatusNotify: %+v", notificationData)
 
 	if notificationData.Event == "" || notificationData.NfInstanceUri == "" {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_MISSING") // Defined in TS 29.510 6.1.6.2.17
-		problemDetails.SetDetail("Missing IE [Event]/[NfInstanceUri] in NotificationData")
+		problemDetails := utils.ProblemDetailsMandatoryIeMissing("Missing IE [Event]/[NfInstanceUri] in NotificationData")
 		return problemDetails
 	}
 	nfInstanceId := notificationData.NfInstanceUri[strings.LastIndex(notificationData.NfInstanceUri, "/")+1:]
@@ -526,17 +497,11 @@ func HandleDeregistrationNotification(ctx ctxt.Context, request *httpwrapper.Req
 		}
 
 	case "":
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("MANDATORY_IE_MISSING") // Defined in TS 29.503 6.2.5.2
-		problemDetails.SetDetail("Missing IE [DeregReason] in DeregistrationData")
+		problemDetails := utils.ProblemDetailsMandatoryIeMissing("Missing IE [DeregReason] in DeregistrationData")
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 
 	default:
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotImplemented)
-		problemDetails.SetCause("NOT_IMPLEMENTED") // Defined in TS 29.503
-		problemDetails.SetDetail("Unsupported [DeregReason] in DeregistrationData")
+		problemDetails := utils.ProblemDetailsNotImplemented("Unsupported [DeregReason] in DeregistrationData")
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	return nil

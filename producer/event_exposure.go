@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -27,9 +29,7 @@ func HandleCreateAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 	} else if problemDetails != nil {
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusInternalServerError)
-		problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
+		problemDetails := utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Unspecified NF failure", utils.CauseUnspecifiedNfFailure)
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 }
@@ -43,9 +43,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	subscription := createEventSubscription.GetSubscription()
 
 	if reflect.DeepEqual(subscription, models.AmfEventSubscription{}) {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("SUBSCRIPTION_EMPTY")
+		problemDetails := utils.ProblemDetailsWithCause("Subscription empty", http.StatusBadRequest, "Event subscription is empty", utils.CauseSubscriptionEmpty)
 		return nil, problemDetails
 	}
 
@@ -57,9 +55,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 
 	id, err := amfSelf.EventSubscriptionIDGenerator.Allocate()
 	if err != nil {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusInternalServerError)
-		problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
+		problemDetails := utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Failed to allocate subscription ID", utils.CauseUnspecifiedNfFailure)
 		return nil, problemDetails
 	}
 	newSubscriptionID := strconv.Itoa(int(id))
@@ -76,9 +72,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	}
 
 	if subscription.EventList == nil {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusBadRequest)
-		problemDetails.SetCause("SUBSCRIPTION_EVENTLIST_EMPTY")
+		problemDetails := utils.ProblemDetailsWithCause("Event list empty", http.StatusBadRequest, "Event list is empty", utils.CauseSubscriptionEventlistEmpty)
 		return nil, problemDetails
 	}
 
@@ -113,9 +107,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		})
 	} else {
 		if ue, ok := amfSelf.AmfUeFindBySupi(subscription.GetSupi()); !ok {
-			problemDetails := models.NewProblemDetails()
-			problemDetails.SetStatus(http.StatusForbidden)
-			problemDetails.SetCause("UE_NOT_SERVED_BY_AMF")
+			problemDetails := utils.ProblemDetailsWithCause("UE not served by AMF", http.StatusForbidden, "UE is not served by this AMF", utils.CauseUeNotServedByAmf)
 			return nil, problemDetails
 		} else {
 			ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
@@ -223,9 +215,7 @@ func DeleteAMFEventSubscriptionProcedure(subscriptionID string) *models.ProblemD
 
 	subscription, ok := amfSelf.FindEventSubscription(subscriptionID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("SUBSCRIPTION_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "Event subscription not found", utils.CauseSubscriptionNotFound)
 		return problemDetails
 	}
 
@@ -251,9 +241,7 @@ func HandleModifyAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 	} else if problemDetails != nil {
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
-		problemDetails = models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusInternalServerError)
-		problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
+		problemDetails = utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Unspecified NF failure", utils.CauseUnspecifiedNfFailure)
 		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
 	}
 }
@@ -267,9 +255,7 @@ func ModifyAMFEventSubscriptionProcedure(
 
 	contextSubscription, ok := amfSelf.FindEventSubscription(subscriptionID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("SUBSCRIPTION_NOT_FOUND")
+		problemDetails := utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "Event subscription not found", utils.CauseSubscriptionNotFound)
 		return nil, problemDetails
 	}
 
@@ -280,19 +266,21 @@ func ModifyAMFEventSubscriptionProcedure(
 		subscription := &contextSubscription.EventSubscription
 		if !contextSubscription.IsAnyUe && !contextSubscription.IsGroupUe {
 			if _, ok := amfSelf.AmfUeFindBySupi(subscription.GetSupi()); !ok {
-				problemDetails := models.NewProblemDetails()
-				problemDetails.SetStatus(http.StatusForbidden)
-				problemDetails.SetCause("UE_NOT_SERVED_BY_AMF")
+				problemDetails := utils.ProblemDetailsWithCause("UE not served by AMF", http.StatusForbidden, "UE is not served by this AMF", utils.CauseUeNotServedByAmf)
 				return nil, problemDetails
 			}
 		}
 		arrayOfAmfUpdateEventSubscriptionItem := (*modifySubscriptionRequest.ArrayOfAmfUpdateEventSubscriptionItem)[0]
 		op := arrayOfAmfUpdateEventSubscriptionItem.GetOp()
-		index, err := strconv.Atoi(arrayOfAmfUpdateEventSubscriptionItem.Path[11:])
+		const pathPrefix = "/eventList/"
+		path := arrayOfAmfUpdateEventSubscriptionItem.GetPath()
+		if !strings.HasPrefix(path, pathPrefix) || len(path) <= len(pathPrefix) {
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path")
+			return nil, problemDetails
+		}
+		index, err := strconv.Atoi(path[len(pathPrefix):])
 		if err != nil {
-			problemDetails := models.NewProblemDetails()
-			problemDetails.SetStatus(http.StatusInternalServerError)
-			problemDetails.SetCause("UNSPECIFIED_NF_FAILURE")
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
 			return nil, problemDetails
 		}
 		lists := (subscription.EventList)
