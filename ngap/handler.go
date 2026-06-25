@@ -793,6 +793,10 @@ func HandleUplinkNasTransport(ctx ctxt.Context, ran *context.AmfRan, message *ng
 		ran.Log.Errorln("RANUENGAPID IE missing from UplinkNasTransport")
 		return
 	}
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID IE missing from UplinkNasTransport")
+		return
+	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
@@ -2784,7 +2788,16 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 		ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	}
 	if ranUe == nil {
-		ran.Log.Errorln("No RanUe Context for UEContextReleaseRequest")
+		switch {
+		case aMFUENGAPID != nil && rANUENGAPID != nil:
+			ran.Log.Errorf("No RanUe Context[AmfUeNgapID: %d, RanUeNgapID: %d]", aMFUENGAPID.Value, rANUENGAPID.Value)
+		case aMFUENGAPID != nil:
+			ran.Log.Errorf("No RanUe Context[AmfUeNgapID: %d]", aMFUENGAPID.Value)
+		case rANUENGAPID != nil:
+			ran.Log.Errorf("No RanUe Context[RanUeNgapID: %d]", rANUENGAPID.Value)
+		default:
+			ran.Log.Errorln("No RanUe Context for UEContextReleaseRequest")
+		}
 		cause = &ngapType.Cause{
 			Present: ngapType.CausePresentRadioNetwork,
 			RadioNetwork: &ngapType.CauseRadioNetwork{
@@ -4010,6 +4023,10 @@ func HandleHandoverCancel(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 
 	if rANUENGAPID == nil {
 		ran.Log.Errorln("RANUENGAPID IE missing from HandoverCancel")
+		return
+	}
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID IE missing from HandoverCancel")
 		return
 	}
 
