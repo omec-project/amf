@@ -247,7 +247,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 		case ngapType.ProcedureCodeHandoverPreparation:
 			ngapMsg := initiatingMessage.Value.HandoverPreparation
 			for i := 0; i < len(ngapMsg.ProtocolIEs.List); i++ {
@@ -264,7 +264,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 		case ngapType.ProcedureCodeRANConfigurationUpdate:
 		case ngapType.ProcedureCodeRRCInactiveTransitionReport:
 		case ngapType.ProcedureCodePDUSessionResourceNotify:
@@ -438,7 +438,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 					aMFUENGAPID = ie.Value.AMFUENGAPID
 				}
 			}
-			ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+			ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 
 		case ngapType.ProcedureCodeHandoverResourceAllocation:
 			ngapMsg := successfulOutcome.Value.HandoverResourceAllocation
