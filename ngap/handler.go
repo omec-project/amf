@@ -789,6 +789,11 @@ func HandleUplinkNasTransport(ctx ctxt.Context, ran *context.AmfRan, message *ng
 		}
 	}
 
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from UplinkNasTransport")
+		return
+	}
+
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
@@ -1031,6 +1036,11 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			criticalityDiagnostics = ie.Value.CriticalityDiagnostics
 			ran.Log.Debugln("decode IE CriticalityDiagnostics")
 		}
+	}
+
+	if aMFUENGAPID == nil {
+		ran.Log.Errorln("AMFUENGAPID IE missing from UEContextReleaseComplete")
+		return
 	}
 
 	ranUe := context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
@@ -1317,6 +1327,11 @@ func HandlePDUSessionResourceReleaseResponse(ctx ctxt.Context, ran *context.AmfR
 			criticalityDiagnostics = ie.Value.CriticalityDiagnostics
 			ran.Log.Debugln("decode IE CriticalityDiagnostics")
 		}
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from PDUSessionResourceReleaseResponse")
+		return
 	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -1632,6 +1647,12 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		criticalityDiagnostics := buildCriticalityDiagnostics(&procedureCode, &triggeringMessage, &procedureCriticality,
 			&iesCriticalityDiagnostics)
 		ngap_message.SendErrorIndication(ran, nil, nil, nil, &criticalityDiagnostics)
+		return
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from InitialUEMessage")
+		return
 	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -2488,6 +2509,11 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 		}
 	}
 
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from InitialContextSetupResponse")
+		return
+	}
+
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
@@ -2646,6 +2672,12 @@ func HandleInitialContextSetupFailure(ctx ctxt.Context, ran *context.AmfRan, mes
 	if criticalityDiagnostics != nil {
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from InitialContextSetupFailure")
+		return
+	}
+
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
@@ -2744,12 +2776,15 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 		}
 	}
 
-	ranUe := context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
-	if ranUe == nil {
+	var ranUe *context.RanUe
+	if aMFUENGAPID != nil {
+		ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+	}
+	if ranUe == nil && rANUENGAPID != nil {
 		ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	}
 	if ranUe == nil {
-		ran.Log.Errorf("No RanUe Context[AmfUeNgapID: %d]", aMFUENGAPID.Value)
+		ran.Log.Errorln("No RanUe Context for UEContextReleaseRequest")
 		cause = &ngapType.Cause{
 			Present: ngapType.CausePresentRadioNetwork,
 			RadioNetwork: &ngapType.CauseRadioNetwork{
@@ -3973,6 +4008,11 @@ func HandleHandoverCancel(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		}
 	}
 
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from HandoverCancel")
+		return
+	}
+
 	sourceUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if sourceUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
@@ -4161,6 +4201,11 @@ func HandleNasNonDeliveryIndication(ctx ctxt.Context, ran *context.AmfRan, messa
 				return
 			}
 		}
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from NASNonDeliveryIndication")
+		return
 	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
@@ -4718,6 +4763,11 @@ func HandleUERadioCapabilityInfoIndication(ran *context.AmfRan, message *ngapTyp
 				return
 			}
 		}
+	}
+
+	if rANUENGAPID == nil {
+		ran.Log.Errorln("RANUENGAPID IE missing from UERadioCapabilityInfoIndication")
+		return
 	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
