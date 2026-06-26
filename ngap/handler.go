@@ -797,6 +797,10 @@ func HandleUplinkNasTransport(ctx ctxt.Context, ran *context.AmfRan, message *ng
 		ran.Log.Errorln("AMFUENGAPID IE missing from UplinkNasTransport")
 		return
 	}
+	if nASPDU == nil {
+		ran.Log.Errorln("NASPDU IE missing from UplinkNasTransport")
+		return
+	}
 
 	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
 	if ranUe == nil {
@@ -1656,6 +1660,10 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 
 	if rANUENGAPID == nil {
 		ran.Log.Errorln("RANUENGAPID IE missing from InitialUEMessage")
+		return
+	}
+	if nASPDU == nil {
+		ran.Log.Errorln("NASPDU IE missing from InitialUEMessage")
 		return
 	}
 
@@ -4222,6 +4230,10 @@ func HandleNasNonDeliveryIndication(ctx ctxt.Context, ran *context.AmfRan, messa
 
 	if rANUENGAPID == nil {
 		ran.Log.Errorln("RANUENGAPID IE missing from NASNonDeliveryIndication")
+		return
+	}
+	if nASPDU == nil {
+		ran.Log.Errorln("NASPDU IE missing from NASNonDeliveryIndication")
 		return
 	}
 
