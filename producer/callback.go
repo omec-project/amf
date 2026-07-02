@@ -476,9 +476,9 @@ func HandleDeregistrationNotification(ctx ctxt.Context, request *httpwrapper.Req
 		if supi, exists := request.Params["supi"]; exists {
 			reqUri := request.URL.RequestURI()
 			if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
-				logger.ProducerLog.Debugln("amf ue found: ", ue.Supi)
+				logger.ProducerLog.Debugln("amf ue found: ", ue.GetSupi())
 				sbiMsg := context.SbiMsg{
-					UeContextId: ue.Supi,
+					UeContextId: ue.GetSupi(),
 					ReqUri:      reqUri,
 					Msg:         nil,
 					Result:      make(chan context.SbiResponseMsg, 10),

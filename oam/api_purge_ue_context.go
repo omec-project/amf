@@ -49,7 +49,7 @@ func HTTPPurgeUEContext(c *gin.Context) {
 		reqUri := req.URL.RequestURI()
 		if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
 			sbiMsg := context.SbiMsg{
-				UeContextId: ue.Supi,
+				UeContextId: ue.GetSupi(),
 				ReqUri:      reqUri,
 				Msg:         nil,
 				Result:      make(chan context.SbiResponseMsg, 10),
