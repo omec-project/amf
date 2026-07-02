@@ -153,28 +153,31 @@ func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
 
 func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
 	servedGuami := context.ServedGuamiList[0]
-	ue.SetTmsi(context.TmsiAllocate())
+	tmsi := context.TmsiAllocate()
+	ue.SetTmsi(tmsi)
 
 	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
-	tmsiStr := fmt.Sprintf("%08x", ue.Tmsi)
+	tmsiStr := fmt.Sprintf("%08x", tmsi)
 	ue.SetGuti(plmnID + servedGuami.AmfId + tmsiStr)
 }
 
 func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
 	var err error
 	servedGuami := context.ServedGuamiList[0]
+	oldTmsi := ue.GetTmsi()
 	if context.EnableDbStore {
-		err = context.Drsm.ReleaseInt32ID(ue.Tmsi)
+		err = context.Drsm.ReleaseInt32ID(oldTmsi)
 	} else {
-		tmsiGenerator.FreeID(int64(ue.Tmsi))
+		tmsiGenerator.FreeID(int64(oldTmsi))
 	}
 	if err != nil {
 		logger.ContextLog.Errorf("Error releasing tmsi: %v", err)
 	}
-	ue.SetTmsi(context.TmsiAllocate())
+	tmsi := context.TmsiAllocate()
+	ue.SetTmsi(tmsi)
 
 	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
-	tmsiStr := fmt.Sprintf("%08x", ue.Tmsi)
+	tmsiStr := fmt.Sprintf("%08x", tmsi)
 	ue.SetGuti(plmnID + servedGuami.AmfId + tmsiStr)
 }
 
@@ -277,7 +280,7 @@ func (context *AMFContext) AddAmfUeToUePool(ue *AmfUe, supi string) {
 		logger.ContextLog.Errorf("Supi is nil")
 	}
 	ue.SetSupi(supi)
-	context.UePool.Store(ue.Supi, ue)
+	context.UePool.Store(supi, ue)
 }
 
 func (context *AMFContext) NewAmfUe(supi string) *AmfUe {
@@ -317,7 +320,7 @@ func (context *AMFContext) AmfUeFindBySupi(supi string) (ue *AmfUe, ok bool) {
 		ue, ok = DbFetchUeBySupi(supi)
 		if ue != nil && ok {
 			logger.ContextLog.Infoln("Ue with supi found in DB : ", supi)
-			context.UePool.Store(ue.Supi, ue)
+			context.UePool.Store(supi, ue)
 		} else {
 			logger.ContextLog.Infoln("Ue with Supi not found locally and in DB: ", supi)
 		}
@@ -501,7 +504,7 @@ func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
 		ue, ok = DbFetchUeByGuti(guti)
 		if ue != nil && ok {
 			logger.ContextLog.Infoln("Ue with Guti found in DB : ", guti)
-			context.UePool.Store(ue.Supi, ue)
+			context.UePool.Store(ue.GetSupi(), ue)
 		} else {
 			logger.ContextLog.Infoln("Ue with Guti not found locally and in DB: ", guti)
 		}

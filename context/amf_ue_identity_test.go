@@ -31,7 +31,7 @@ func TestAmfUeIdentityConcurrentAccess(t *testing.T) {
 	// registration / GUTI reallocation.
 	go func() {
 		defer wg.Done()
-		for i := range iterations {
+		for i := 0; i < iterations; i++ {
 			ue.SetSupi(fmt.Sprintf("imsi-%015d", i))
 			ue.SetPei(fmt.Sprintf("imeisv-%016d", i))
 			ue.SetGpsi(fmt.Sprintf("msisdn-%d", i))
@@ -44,7 +44,7 @@ func TestAmfUeIdentityConcurrentAccess(t *testing.T) {
 	// Reader: models a consumer on another goroutine reading the UE's identity.
 	go func() {
 		defer wg.Done()
-		for range iterations {
+		for i := 0; i < iterations; i++ {
 			id := ue.IdentitySnapshot()
 			// Touch every field so the race detector observes the reads.
 			_ = id.Supi + id.Pei + id.Gpsi + id.Guti
