@@ -422,15 +422,15 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 
 func buildUEContextModel(ue *context.AmfUe) models.UeContext {
 	ueContext := models.NewUeContext()
-	ueContext.SetSupi(ue.Supi)
+	ueContext.SetSupi(ue.GetSupi())
 	ueContext.SetSupiUnauthInd(ue.UnauthenticatedSupi)
 
-	if ue.Gpsi != "" {
-		ueContext.GpsiList = append(ueContext.GpsiList, ue.Gpsi)
+	if gpsi := ue.GetGpsi(); gpsi != "" {
+		ueContext.GpsiList = append(ueContext.GpsiList, gpsi)
 	}
 
-	if ue.Pei != "" {
-		ueContext.SetPei(ue.Pei)
+	if pei := ue.GetPei(); pei != "" {
+		ueContext.SetPei(pei)
 	}
 
 	if ue.UdmGroupId != "" {

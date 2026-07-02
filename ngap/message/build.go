@@ -1960,12 +1960,13 @@ func BuildPaging(
 
 	var amfID string
 	var tmsi string
-	if len(ue.Guti) == 19 {
-		amfID = ue.Guti[5:11]
-		tmsi = ue.Guti[11:]
+	guti := ue.GetGuti()
+	if len(guti) == 19 {
+		amfID = guti[5:11]
+		tmsi = guti[11:]
 	} else {
-		amfID = ue.Guti[6:12]
-		tmsi = ue.Guti[12:]
+		amfID = guti[6:12]
+		tmsi = guti[12:]
 	}
 	_, amfSetID, amfPointer := ngapConvert.AmfIdToNgap(amfID)
 
@@ -1990,7 +1991,7 @@ func BuildPaging(
 
 	taiListForPaging := ie.Value.TAIListForPaging
 	if ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS] == nil {
-		err = fmt.Errorf("registration area of ue[%s] is empty", ue.Supi)
+		err = fmt.Errorf("registration area of ue[%s] is empty", ue.GetSupi())
 		return nil, err
 	} else {
 		for _, tai := range ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS] {
@@ -2167,10 +2168,11 @@ func BuildRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNg
 	// <MCC><MNC> is 3 bytes, <AMF Region ID><AMF Set ID><AMF Pointer> is 3 bytes
 	// 1 byte is 2 characters
 	var amfID string
-	if len(ue.Guti) == 19 { // MNC is 2 char
-		amfID = ue.Guti[5:11]
+	guti := ue.GetGuti()
+	if len(guti) == 19 { // MNC is 2 char
+		amfID = guti[5:11]
 	} else {
-		amfID = ue.Guti[6:12]
+		amfID = guti[6:12]
 	}
 	_, amfSetID, _ := ngapConvert.AmfIdToNgap(amfID)
 
