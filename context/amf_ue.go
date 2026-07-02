@@ -506,11 +506,27 @@ func (ue *AmfUe) IdentitySnapshot() UeIdentity {
 // lock. They guard only the identity fields via identityMu and never take
 // ue.Mutex, so they are safe to call from code already holding ue.Mutex.
 
-func (ue *AmfUe) GetSupi() string { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Supi }
-func (ue *AmfUe) GetPei() string  { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Pei }
-func (ue *AmfUe) GetGpsi() string { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Gpsi }
-func (ue *AmfUe) GetGuti() string { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Guti }
-func (ue *AmfUe) GetTmsi() int32  { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Tmsi }
+func (ue *AmfUe) GetSupi() string {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return ue.Supi
+}
+func (ue *AmfUe) GetPei() string { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Pei }
+func (ue *AmfUe) GetGpsi() string {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return ue.Gpsi
+}
+func (ue *AmfUe) GetGuti() string {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return ue.Guti
+}
+func (ue *AmfUe) GetTmsi() int32 {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return ue.Tmsi
+}
 
 func (ue *AmfUe) GetRegistrationType5GS() uint8 {
 	ue.identityMu.RLock()
@@ -897,7 +913,7 @@ func (ue *AmfUe) SelectSecurityAlg(intOrder, encOrder []uint8) {
 // this is clearing the transient data of registration request, this is called entrypoint of Deregistration and Registration state
 func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.RegistrationRequest = nil
-	ue.RegistrationType5GS = 0
+	ue.SetRegistrationType5GS(0)
 	ue.IdentityTypeUsedForRegistration = 0
 	ue.AuthFailureCauseSynchFailureTimes = 0
 	ue.ServingAmfChanged = false
@@ -941,12 +957,12 @@ func (ue *AmfUe) RemoveAmPolicyAssociation() {
 
 func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 	if ueContext.GetSupi() != "" {
-		ue.Supi = ueContext.GetSupi()
+		ue.SetSupi(ueContext.GetSupi())
 		ue.UnauthenticatedSupi = ueContext.GetSupiUnauthInd()
 	}
 
 	if ueContext.GetPei() != "" {
-		ue.Pei = ueContext.GetPei()
+		ue.SetPei(ueContext.GetPei())
 	}
 
 	if ueContext.GetUdmGroupId() != "" {
@@ -1198,10 +1214,10 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	kafkaSmCtxt := mi.CoreSubscriber{}
 
 	// Populate kafka sm ctxt struct
-	kafkaSmCtxt.Imsi = ueContext.Supi
+	kafkaSmCtxt.Imsi = ueContext.GetSupi()
 	kafkaSmCtxt.AmfId = ueContext.ServingAMF.NfId
-	kafkaSmCtxt.Guti = ueContext.Guti
-	kafkaSmCtxt.Tmsi = ueContext.Tmsi
+	kafkaSmCtxt.Guti = ueContext.GetGuti()
+	kafkaSmCtxt.Tmsi = ueContext.GetTmsi()
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
 	if ranUe := ueContext.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS); ranUe != nil {
 		kafkaSmCtxt.AmfNgapId = ranUe.AmfUeNgapId

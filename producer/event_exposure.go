@@ -90,7 +90,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			ue := value.(*context.AmfUe)
 			ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
 			*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
-			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.Supi)
+			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 			return true
 		})
 	} else if subscription.GetGroupId() != "" {
@@ -101,7 +101,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			if ue.GroupID == subscription.GetGroupId() {
 				ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
 				*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
-				contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.Supi)
+				contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 			}
 			return true
 		})
@@ -112,7 +112,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		} else {
 			ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
 			*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
-			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.Supi)
+			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 		}
 	}
 
@@ -322,7 +322,7 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 	}
 
 	report.AnyUe = openapi.PtrBool(ueSubscription.AnyUe)
-	report.Supi = openapi.PtrString(ue.Supi)
+	report.Supi = openapi.PtrString(ue.GetSupi())
 	report.Type = Type
 	report.TimeStamp = ueSubscription.Timestamp
 	report.State = models.AmfEventState{}

@@ -153,11 +153,11 @@ func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
 
 func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
 	servedGuami := context.ServedGuamiList[0]
-	ue.Tmsi = context.TmsiAllocate()
+	ue.SetTmsi(context.TmsiAllocate())
 
 	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
 	tmsiStr := fmt.Sprintf("%08x", ue.Tmsi)
-	ue.Guti = plmnID + servedGuami.AmfId + tmsiStr
+	ue.SetGuti(plmnID + servedGuami.AmfId + tmsiStr)
 }
 
 func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
@@ -171,11 +171,11 @@ func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
 	if err != nil {
 		logger.ContextLog.Errorf("Error releasing tmsi: %v", err)
 	}
-	ue.Tmsi = context.TmsiAllocate()
+	ue.SetTmsi(context.TmsiAllocate())
 
 	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
 	tmsiStr := fmt.Sprintf("%08x", ue.Tmsi)
-	ue.Guti = plmnID + servedGuami.AmfId + tmsiStr
+	ue.SetGuti(plmnID + servedGuami.AmfId + tmsiStr)
 }
 
 func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.AccessType) {
@@ -276,7 +276,7 @@ func (context *AMFContext) AddAmfUeToUePool(ue *AmfUe, supi string) {
 	if len(supi) == 0 {
 		logger.ContextLog.Errorf("Supi is nil")
 	}
-	ue.Supi = supi
+	ue.SetSupi(supi)
 	context.UePool.Store(ue.Supi, ue)
 }
 
