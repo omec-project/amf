@@ -1922,6 +1922,22 @@ func BuildDownlinkRanStatusTransfer(ue *context.RanUe,
 // Paging Priority: is included only if the AMF receives an Namf_Communication_N1N2MessageTransfer message
 // with an ARP value associated with
 // priority services (e.g., MPS, MCS), as configured by the operator. (TS 23.502 4.2.3.3, TS 23.501 5.22.3)
+// parseGuti splits a 5G GUTI string into its 6-hex-char AMF ID and 8-hex-char
+// 5G-TMSI components. A GUTI is <MCC(3)><MNC(2|3)><AMF ID(6)><5G-TMSI(8)>, i.e.
+// 19 characters when the MNC has 2 digits and 20 when it has 3. Any other length
+// is rejected rather than sliced, which would otherwise panic on a short or empty
+// GUTI (e.g. a UE that has not yet been assigned one).
+func parseGuti(guti string) (amfID, tmsi string, err error) {
+	switch len(guti) {
+	case 19: // 2-digit MNC
+		return guti[5:11], guti[11:], nil
+	case 20: // 3-digit MNC
+		return guti[6:12], guti[12:], nil
+	default:
+		return "", "", fmt.Errorf("invalid GUTI length %d (want 19 or 20)", len(guti))
+	}
+}
+
 // pagingOriginNon3GPP: TS 23.502 4.2.3.3 step 4b: If the UE is simultaneously registered over
 // 3GPP and non-3GPP accesses in the same PLMN,
 // the UE is in CM-IDLE state in both 3GPP access and non-3GPP access, and the PDU Session ID in step 3a
@@ -1958,19 +1974,12 @@ func BuildPaging(
 	uePagingIdentity.Present = ngapType.UEPagingIdentityPresentFiveGSTMSI
 	uePagingIdentity.FiveGSTMSI = new(ngapType.FiveGSTMSI)
 
-	var amfID string
-	var tmsi string
-	guti := ue.GetGuti()
-	if len(guti) == 19 {
-		amfID = guti[5:11]
-		tmsi = guti[11:]
-	} else {
-		amfID = guti[6:12]
-		tmsi = guti[12:]
+	amfID, tmsi, err := parseGuti(ue.GetGuti())
+	if err != nil {
+		return nil, fmt.Errorf("build Paging for ue[%s]: %w", ue.GetSupi(), err)
 	}
 	_, amfSetID, amfPointer := ngapConvert.AmfIdToNgap(amfID)
 
-	var err error
 	uePagingIdentity.FiveGSTMSI.AMFSetID.Value = amfSetID
 	uePagingIdentity.FiveGSTMSI.AMFPointer.Value = amfPointer
 	uePagingIdentity.FiveGSTMSI.FiveGTMSI.Value, err = hex.DecodeString(tmsi)
@@ -2167,12 +2176,9 @@ func BuildRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNg
 	// <MCC><MNC><AMF Region ID><AMF Set ID><AMF Pointer><5G-TMSI>
 	// <MCC><MNC> is 3 bytes, <AMF Region ID><AMF Set ID><AMF Pointer> is 3 bytes
 	// 1 byte is 2 characters
-	var amfID string
-	guti := ue.GetGuti()
-	if len(guti) == 19 { // MNC is 2 char
-		amfID = guti[5:11]
-	} else {
-		amfID = guti[6:12]
+	amfID, _, err := parseGuti(ue.GetGuti())
+	if err != nil {
+		return nil, fmt.Errorf("build RerouteNASRequest for ue[%s]: %w", ue.GetSupi(), err)
 	}
 	_, amfSetID, _ := ngapConvert.AmfIdToNgap(amfID)
 

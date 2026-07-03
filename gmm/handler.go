@@ -607,6 +607,9 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	}
 
 	mobileIdentity5GSContents := registrationRequest.GetMobileIdentity5GSContents()
+	if len(mobileIdentity5GSContents) == 0 {
+		return fmt.Errorf("empty MobileIdentity5GS contents in Registration Request")
+	}
 	ue.IdentityTypeUsedForRegistration = nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0])
 	switch ue.IdentityTypeUsedForRegistration { // get type of identity
 	case nasMessage.MobileIdentity5GSTypeNoIdentity:
@@ -1500,6 +1503,11 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 					// TargetAmfSet format: ^[0-9]{3}-[0-9]{2-3}-[A-Fa-f0-9]{2}-[0-3][A-Fa-f0-9]{2}$
 					// mcc-mnc-amfRegionId(8 bit)-AmfSetId(10 bit)
 					targetAmfSetToken := strings.Split(netwotkSliceInfo.GetTargetAmfSet(), "-")
+					if len(targetAmfSetToken) < 4 {
+						ue.GmmLog.Errorf("invalid TargetAmfSet %q: want mcc-mnc-amfRegionId-amfSetId",
+							netwotkSliceInfo.GetTargetAmfSet())
+						return request
+					}
 					guami := amfSelf.ServedGuamiList[0]
 					targetAmfPlmnId := models.PlmnId{
 						Mcc: targetAmfSetToken[0],
@@ -1666,6 +1674,9 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 	ue.GmmLog.Info("Handle Identity Response")
 
 	mobileIdentityContents := identityResponse.GetMobileIdentityContents()
+	if len(mobileIdentityContents) == 0 {
+		return fmt.Errorf("empty MobileIdentity contents in Identity Response")
+	}
 	switch nasConvert.GetTypeOfIdentity(mobileIdentityContents[0]) { // get type of identity
 	case nasMessage.MobileIdentity5GSTypeSuci:
 		var plmnId string
@@ -1694,7 +1705,10 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 			return fmt.Errorf("NAS message integrity check failed")
 		}
 		sTmsi := hex.EncodeToString(mobileIdentityContents[1:])
-		if tmp, err := strconv.ParseInt(sTmsi[4:], 10, 32); err != nil {
+		if len(sTmsi) != 12 {
+			return fmt.Errorf("5G-S-TMSI has unexpected length in Identity Response (%d hex chars, want 12): %q", len(sTmsi), sTmsi)
+		}
+		if tmp, err := strconv.ParseInt(sTmsi[4:], 16, 32); err != nil {
 			return err
 		} else {
 			ue.SetTmsi(int32(tmp))

@@ -377,7 +377,15 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			pkg, err := ngap_message.BuildPaging(ue, pagingPriority, false)
 			if err != nil {
 				logger.NgapLog.Errorf("build paging failed: %s", err.Error())
-				return n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr
+				// paging was never sent, so no T3513 will fire to clear the
+				// transient state set above; reset it so the UE is not left
+				// stuck in an OnGoingProcedurePaging conflict.
+				ue.N1N2Message = nil
+				ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
+					Procedure: context.OnGoingProcedureNothing,
+				})
+				problemDetails = utils.ProblemDetailsSystemFailure(err.Error())
+				return nil, "", problemDetails, nil
 			}
 			ngap_message.SendPaging(ue, pkg)
 		}
@@ -402,7 +410,11 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				nasMsg, err := gmm_message.BuildNotification(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
 				if err != nil {
 					logger.GmmLog.Errorf("build notification failed: %s", err.Error())
-					return n1n2MessageTransferRspData, locationHeader, problemDetails, transferErr
+					// notification was never sent; clear the transient state and
+					// surface the failure instead of replying 202 Accepted.
+					ue.N1N2Message = nil
+					problemDetails = utils.ProblemDetailsSystemFailure(err.Error())
+					return nil, "", problemDetails, nil
 				}
 				gmm_message.SendNotification(ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS], nasMsg)
 			}
@@ -429,6 +441,15 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 			pkg, err := ngap_message.BuildPaging(ue, pagingPriority, true)
 			if err != nil {
 				logger.NgapLog.Errorf("build paging failed: %s", err.Error())
+				// paging was never sent, so no T3513 will fire to clear the
+				// transient state set above; reset it so the UE is not left
+				// stuck in an OnGoingProcedurePaging conflict.
+				ue.N1N2Message = nil
+				ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
+					Procedure: context.OnGoingProcedureNothing,
+				})
+				problemDetails = utils.ProblemDetailsSystemFailure(err.Error())
+				return nil, "", problemDetails, nil
 			}
 			ngap_message.SendPaging(ue, pkg)
 			return n1n2MessageTransferRspData, locationHeader, nil, nil
