@@ -511,17 +511,21 @@ func (ue *AmfUe) GetSupi() string {
 	defer ue.identityMu.RUnlock()
 	return ue.Supi
 }
+
 func (ue *AmfUe) GetPei() string { ue.identityMu.RLock(); defer ue.identityMu.RUnlock(); return ue.Pei }
+
 func (ue *AmfUe) GetGpsi() string {
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
 	return ue.Gpsi
 }
+
 func (ue *AmfUe) GetGuti() string {
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
 	return ue.Guti
 }
+
 func (ue *AmfUe) GetTmsi() int32 {
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
