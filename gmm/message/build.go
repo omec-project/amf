@@ -375,7 +375,7 @@ func BuildSecurityModeCommand(ue *context.AmfUe, anType models.AccessType, eapSu
 	securityModeCommand.ReplayedUESecurityCapabilities.SetLen(ue.UESecurityCapability.GetLen())
 	securityModeCommand.ReplayedUESecurityCapabilities.Buffer = ue.UESecurityCapability.Buffer
 
-	if ue.Pei != "" {
+	if ue.GetPei() != "" {
 		securityModeCommand.IMEISVRequest = nasType.NewIMEISVRequest(nasMessage.SecurityModeCommandIMEISVRequestType)
 		securityModeCommand.SetIMEISVRequestValue(nasMessage.IMEISVNotRequested)
 	} else {
@@ -391,8 +391,8 @@ func BuildSecurityModeCommand(ue *context.AmfUe, anType models.AccessType, eapSu
 		securityModeCommand.SetRINMR(0)
 	}
 
-	if ue.RegistrationType5GS == nasMessage.RegistrationType5GSPeriodicRegistrationUpdating ||
-		ue.RegistrationType5GS == nasMessage.RegistrationType5GSMobilityRegistrationUpdating {
+	if ue.GetRegistrationType5GS() == nasMessage.RegistrationType5GSPeriodicRegistrationUpdating ||
+		ue.GetRegistrationType5GS() == nasMessage.RegistrationType5GSMobilityRegistrationUpdating {
 		securityModeCommand.SetHDP(1)
 	} else {
 		securityModeCommand.SetHDP(0)
@@ -527,8 +527,8 @@ func BuildRegistrationAccept(
 	registrationAccept.SetRegistrationResultValue5GS(registrationResult)
 	// TODO: set smsAllowed value of RegistrationResult5GS if need
 
-	if ue.Guti != "" {
-		gutiNas := nasConvert.GutiToNas(ue.Guti)
+	if ue.GetGuti() != "" {
+		gutiNas := nasConvert.GutiToNas(ue.GetGuti())
 		registrationAccept.GUTI5G = &gutiNas
 		registrationAccept.GUTI5G.SetIei(nasMessage.RegistrationAcceptGUTI5GType)
 	}
@@ -701,8 +701,8 @@ func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType
 		configurationUpdateCommand.NetworkSlicingIndication = networkSlicingIndication
 	}
 
-	if ue.Guti != "" {
-		gutiNas := nasConvert.GutiToNas(ue.Guti)
+	if ue.GetGuti() != "" {
+		gutiNas := nasConvert.GutiToNas(ue.GetGuti())
 		configurationUpdateCommand.GUTI5G = &gutiNas
 		configurationUpdateCommand.GUTI5G.SetIei(nasMessage.ConfigurationUpdateCommandGUTI5GType)
 	}

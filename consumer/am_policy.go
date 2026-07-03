@@ -26,7 +26,7 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 		attribute.String("http.method", "POST"),
 		attribute.String("nf.target", "pcf"),
 		attribute.String("net.peer.name", ue.PcfUri),
-		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
@@ -42,16 +42,16 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 
 	policyAssociationRequest := models.PolicyAssociationRequest{
 		NotificationUri: amfSelf.GetIPv4Uri() + "/namf-callback/v1/am-policy/",
-		Supi:            ue.Supi,
+		Supi:            ue.GetSupi(),
 		AccessType:      &anType,
 		ServingPlmn:     models.NewPlmnIdNid(ue.PlmnId.GetMcc(), ue.PlmnId.GetMnc()),
 		Guami:           &amfSelf.ServedGuamiList[0],
 	}
-	if ue.Pei != "" {
-		policyAssociationRequest.Pei = openapi.PtrString(ue.Pei)
+	if ue.GetPei() != "" {
+		policyAssociationRequest.Pei = openapi.PtrString(ue.GetPei())
 	}
-	if ue.Gpsi != "" {
-		policyAssociationRequest.Gpsi = openapi.PtrString(ue.Gpsi)
+	if ue.GetGpsi() != "" {
+		policyAssociationRequest.Gpsi = openapi.PtrString(ue.GetGpsi())
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
@@ -112,7 +112,7 @@ func AMPolicyControlUpdate(ctx context.Context, ue *amf_context.AmfUe, updateReq
 		attribute.String("http.method", "POST"),
 		attribute.String("nf.target", "pcf"),
 		attribute.String("net.peer.name", ue.PcfUri),
-		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
@@ -172,7 +172,7 @@ func AMPolicyControlDelete(ctx context.Context, ue *amf_context.AmfUe) (problemD
 		attribute.String("http.method", "DELETE"),
 		attribute.String("nf.target", "pcf"),
 		attribute.String("net.peer.name", ue.PcfUri),
-		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
