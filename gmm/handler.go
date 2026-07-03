@@ -588,7 +588,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	}
 
 	ue.RegistrationRequest = registrationRequest
-	ue.RegistrationType5GS = registrationRequest.GetRegistrationType5GS()
+	ue.SetRegistrationType5GS(registrationRequest.GetRegistrationType5GS())
 	switch ue.RegistrationType5GS {
 	case nasMessage.RegistrationType5GSInitialRegistration:
 		ue.GmmLog.Debugf("RegistrationType: Initial Registration")
@@ -599,11 +599,11 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	case nasMessage.RegistrationType5GSEmergencyRegistration:
 		return fmt.Errorf("not Supportted RegistrationType: Emergency Registration")
 	case nasMessage.RegistrationType5GSReserved:
-		ue.RegistrationType5GS = nasMessage.RegistrationType5GSInitialRegistration
+		ue.SetRegistrationType5GS(nasMessage.RegistrationType5GSInitialRegistration)
 		ue.GmmLog.Debugf("RegistrationType: Reserved")
 	default:
 		ue.GmmLog.Debugf("RegistrationType: %v, chage state to InitialRegistration", ue.RegistrationType5GS)
-		ue.RegistrationType5GS = nasMessage.RegistrationType5GSInitialRegistration
+		ue.SetRegistrationType5GS(nasMessage.RegistrationType5GSInitialRegistration)
 	}
 
 	mobileIdentity5GSContents := registrationRequest.GetMobileIdentity5GSContents()
@@ -638,7 +638,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 			}
 		}
 		if guamiMatched {
-			ue.Guti = guti
+			ue.SetGuti(guti)
 			ue.ServingAmfChanged = false
 		} else {
 			ue.GmmLog.Warnf("GUAMI mismatch/not-served GUAMI from UE")
@@ -647,11 +647,11 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		}
 	case nasMessage.MobileIdentity5GSTypeImei:
 		imei := nasConvert.PeiToString(mobileIdentity5GSContents)
-		ue.Pei = imei
+		ue.SetPei(imei)
 		ue.GmmLog.Debugf("PEI: %s", imei)
 	case nasMessage.MobileIdentity5GSTypeImeisv:
 		imeisv := nasConvert.PeiToString(mobileIdentity5GSContents)
-		ue.Pei = imeisv
+		ue.SetPei(imeisv)
 		ue.GmmLog.Debugf("PEI: %s", imeisv)
 	}
 
@@ -1687,7 +1687,7 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 			return fmt.Errorf("NAS message integrity check failed")
 		}
 		_, guti := nasConvert.GutiToString(mobileIdentityContents)
-		ue.Guti = guti
+		ue.SetGuti(guti)
 		ue.GmmLog.Debugf("get GUTI: %s", guti)
 	case nasMessage.MobileIdentity5GSType5gSTmsi:
 		if ue.MacFailed {
@@ -1697,7 +1697,7 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 		if tmp, err := strconv.ParseInt(sTmsi[4:], 10, 32); err != nil {
 			return err
 		} else {
-			ue.Tmsi = int32(tmp)
+			ue.SetTmsi(int32(tmp))
 		}
 		ue.GmmLog.Debugf("get 5G-S-TMSI: %s", sTmsi)
 	case nasMessage.MobileIdentity5GSTypeImei:
@@ -1705,14 +1705,14 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 			return fmt.Errorf("NAS message integrity check failed")
 		}
 		imei := nasConvert.PeiToString(mobileIdentityContents)
-		ue.Pei = imei
+		ue.SetPei(imei)
 		ue.GmmLog.Debugf("get PEI: %s", imei)
 	case nasMessage.MobileIdentity5GSTypeImeisv:
 		if ue.MacFailed {
 			return fmt.Errorf("NAS message integrity check failed")
 		}
 		imeisv := nasConvert.PeiToString(mobileIdentityContents)
-		ue.Pei = imeisv
+		ue.SetPei(imeisv)
 		ue.GmmLog.Debugf("get PEI: %s", imeisv)
 	}
 	return nil
@@ -2352,7 +2352,7 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		case models.AUTHRESULT_AUTHENTICATION_SUCCESS:
 			ue.UnauthenticatedSupi = false
 			ue.Kseaf = response.GetKseaf()
-			ue.Supi = response.GetSupi()
+			ue.SetSupi(response.GetSupi())
 			ue.DerivateKamf()
 			ue.GmmLog.Debugln("ue.DerivateKamf()", ue.Kamf)
 			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthSuccessEvent, fsm.ArgsType{
@@ -2386,7 +2386,7 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		case models.AUTHRESULT_AUTHENTICATION_SUCCESS:
 			ue.UnauthenticatedSupi = false
 			ue.Kseaf = response.GetKSeaf()
-			ue.Supi = response.GetSupi()
+			ue.SetSupi(response.GetSupi())
 			ue.DerivateKamf()
 			// TODO: select enc/int algorithm based on ue security capability & amf's policy,
 			// then generate KnasEnc, KnasInt
@@ -2550,7 +2550,7 @@ func HandleSecurityModeComplete(ctx ctxt.Context, ue *context.AmfUe, anType mode
 
 	if securityModeComplete.IMEISV != nil {
 		ue.GmmLog.Debugln("receieve IMEISV")
-		ue.Pei = nasConvert.PeiToString(securityModeComplete.IMEISV.Octet[:])
+		ue.SetPei(nasConvert.PeiToString(securityModeComplete.IMEISV.Octet[:]))
 	}
 
 	// TODO: AMF shall set the NAS COUNTs to zero if horizontal derivation of KAMF is performed

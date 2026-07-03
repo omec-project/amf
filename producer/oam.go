@@ -74,10 +74,10 @@ func HandleOAMPurgeUEContextRequest(ctx ctxt.Context, supi, reqUri string, msg i
 		ueFsmState := ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current()
 		switch ueFsmState {
 		case context.Deregistered:
-			logger.ProducerLog.Info("Removing the UE : ", fmt.Sprintln(ue.Supi))
+			logger.ProducerLog.Info("Removing the UE : ", fmt.Sprintln(ue.GetSupi()))
 			ue.Remove()
 		case context.Registered:
-			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.Supi)
+			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.GetSupi())
 			err := gmm.GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE__3_GPP_ACCESS], gmm.NwInitiatedDeregistrationEvent, fsm.ArgsType{
 				gmm.ArgAmfUe:      ue,
 				gmm.ArgAccessType: models.ACCESSTYPE__3_GPP_ACCESS,
@@ -111,12 +111,12 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 	for _, ue := range ueList {
 		ueContext := &ActiveUeContext{
 			AccessType: models.ACCESSTYPE__3_GPP_ACCESS,
-			Supi:       ue.Supi,
-			Guti:       ue.Guti,
+			Supi:       ue.GetSupi(),
+			Guti:       ue.GetGuti(),
 			Mcc:        ue.Tai.PlmnId.Mcc,
 			Mnc:        ue.Tai.PlmnId.Mnc,
 			Tac:        ue.Tai.Tac,
-			Tmsi:       fmt.Sprintf("%08x", ue.Tmsi),
+			Tmsi:       fmt.Sprintf("%08x", ue.GetTmsi()),
 		}
 		if ue.RanUe != nil && ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
 			ueContext.RanUeNgapId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
@@ -196,8 +196,8 @@ func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext 
 	if ue.State[accessType].Is(context.Registered) {
 		ueContext := &UEContext{
 			AccessType: accessType,
-			Supi:       ue.Supi,
-			Guti:       ue.Guti,
+			Supi:       ue.GetSupi(),
+			Guti:       ue.GetGuti(),
 			Mcc:        ue.Tai.PlmnId.Mcc,
 			Mnc:        ue.Tai.PlmnId.Mnc,
 			Tac:        ue.Tai.Tac,

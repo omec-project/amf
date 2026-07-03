@@ -1198,7 +1198,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 	amfUe.ReleaseCause[ran.AnType] = nil
 	switch ranUe.ReleaseAction {
 	case context.UeContextN2NormalRelease:
-		ran.Log.Infof("Release UE[%s] Context : N2 Connection Release", amfUe.Supi)
+		ran.Log.Infof("Release UE[%s] Context : N2 Connection Release", amfUe.GetSupi())
 		// amfUe.DetachRanUe(ran.AnType)
 		err := ranUe.Remove()
 		if err != nil {
@@ -1207,7 +1207,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		amfUe.PublishUeCtxtInfo()
 		context.StoreContextInDB(amfUe)
 	case context.UeContextReleaseUeContext:
-		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.Supi)
+		ran.Log.Infof("Release UE[%s] Context : Release Ue Context", amfUe.GetSupi())
 		err := ranUe.Remove()
 		if err != nil {
 			ran.Log.Errorln(err.Error())
@@ -1215,7 +1215,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 
 		// Valid Security is not exist for this UE then only delete AMfUe Context
 		if !amfUe.SecurityContextAvailable {
-			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.Supi)
+			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.GetSupi())
 			amfUe.PublishUeCtxtInfo()
 			amfUe.Remove()
 			context.DeleteContextFromDB(amfUe)
@@ -1224,7 +1224,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			context.StoreContextInDB(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
-		ran.Log.Infof("Release UE[%s] Context Due to Nw Initiated: Release Ue Context", amfUe.Supi)
+		ran.Log.Infof("Release UE[%s] Context Due to Nw Initiated: Release Ue Context", amfUe.GetSupi())
 		err := ranUe.Remove()
 		if err != nil {
 			ran.Log.Errorln(err.Error())
@@ -1233,7 +1233,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		amfUe.Remove()
 		context.DeleteContextFromDB(amfUe)
 	case context.UeContextReleaseHandover:
-		ran.Log.Infof("Release UE[%s] Context : Release for Handover", amfUe.Supi)
+		ran.Log.Infof("Release UE[%s] Context : Release for Handover", amfUe.GetSupi())
 		// TODO: it's a workaround, need to fix it.
 		targetRanUe := context.AMF_Self().RanUeFindByAmfUeNgapID(ranUe.TargetUe.AmfUeNgapId)
 
@@ -1675,7 +1675,7 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 				ranUe.Log.Debugf("find AmfUe [GUTI: %s]", guti)
 				/* checking the guti-ue belongs to this amf instance */
 				if amfSelf.EnableDbStore {
-					id, err := amfSelf.Drsm.FindOwnerInt32ID(amfUe.Tmsi)
+					id, err := amfSelf.Drsm.FindOwnerInt32ID(amfUe.GetTmsi())
 					if err != nil {
 						ranUe.Log.Errorf("error checking the guti-ue in this instance: %v", err)
 					}
@@ -3290,7 +3290,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 		// Update NH
 		amfUe.UpdateNH()
 	} else {
-		ranUe.Log.Errorf("No Security Context : SUPI[%s]", amfUe.Supi)
+		ranUe.Log.Errorf("No Security Context : SUPI[%s]", amfUe.GetSupi())
 		ngap_message.SendPathSwitchRequestFailure(ran, sourceAMFUENGAPID.Value, rANUENGAPID.Value, nil, nil)
 		return
 	}
