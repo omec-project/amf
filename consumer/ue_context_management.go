@@ -65,11 +65,11 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 			attribute.String("http.method", "PUT"),
 			attribute.String("nf.target", "udm"),
 			attribute.String("net.peer.name", ue.NudmUECMUri),
-			attribute.String("udm.supi", ue.Supi),
+			attribute.String("udm.supi", ue.GetSupi()),
 			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 		)
 
-		apiCall3GppRegistrationRequest := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistration(gppAccessCtx, ue.Supi)
+		apiCall3GppRegistrationRequest := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistration(gppAccessCtx, ue.GetSupi())
 		apiCall3GppRegistrationRequest = apiCall3GppRegistrationRequest.Amf3GppAccessRegistration(registrationData)
 		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistrationExecute(apiCall3GppRegistrationRequest)
 		if localErr == nil {
@@ -104,11 +104,11 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 			attribute.String("http.method", "PUT"),
 			attribute.String("nf.target", "udm"),
 			attribute.String("net.peer.name", ue.NudmUECMUri),
-			attribute.String("udm.supi", ue.Supi),
+			attribute.String("udm.supi", ue.GetSupi()),
 			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 		)
 
-		apiNon3GppRegistrationRequest := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistration(non3gppAccessCtx, ue.Supi)
+		apiNon3GppRegistrationRequest := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistration(non3gppAccessCtx, ue.GetSupi())
 		apiNon3GppRegistrationRequest = apiNon3GppRegistrationRequest.AmfNon3GppAccessRegistration(registrationData)
 		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistrationExecute(apiNon3GppRegistrationRequest)
 		if localErr == nil {

@@ -354,7 +354,7 @@ func releaseDuplicatePDUSession(
 		Release: openapi.PtrBool(true),
 		Cause:   models.CAUSE_REL_DUE_TO_DUPLICATE_SESSION_ID.Ptr(),
 		SmContextStatusUri: openapi.PtrString(fmt.Sprintf("%s/namf-callback/v1/smContextStatus/%s/%d",
-			ue.ServingAMF.GetIPv4Uri(), ue.Guti, pduID)),
+			ue.ServingAMF.GetIPv4Uri(), ue.GetGuti(), pduID)),
 	}
 	ue.GmmLog.Warnf("duplicated PDU session ID[%d]", pduID)
 	smCtx.SetDuplicatedPduSessionID(true)
@@ -436,7 +436,7 @@ func forward5GSMMessageToSMF(
 	smContextUpdateData := models.SmContextUpdateData{
 		N1SmMsg: n1SmMsg,
 	}
-	smContextUpdateData.Pei = openapi.PtrString(ue.Pei)
+	smContextUpdateData.Pei = openapi.PtrString(ue.GetPei())
 	if !context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
 		smContextUpdateData.UeLocation = &ue.Location
 	}
@@ -589,7 +589,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 
 	ue.RegistrationRequest = registrationRequest
 	ue.SetRegistrationType5GS(registrationRequest.GetRegistrationType5GS())
-	switch ue.RegistrationType5GS {
+	switch ue.GetRegistrationType5GS() {
 	case nasMessage.RegistrationType5GSInitialRegistration:
 		ue.GmmLog.Debugf("RegistrationType: Initial Registration")
 	case nasMessage.RegistrationType5GSMobilityRegistrationUpdating:
@@ -602,7 +602,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		ue.SetRegistrationType5GS(nasMessage.RegistrationType5GSInitialRegistration)
 		ue.GmmLog.Debugf("RegistrationType: Reserved")
 	default:
-		ue.GmmLog.Debugf("RegistrationType: %v, chage state to InitialRegistration", ue.RegistrationType5GS)
+		ue.GmmLog.Debugf("RegistrationType: %v, chage state to InitialRegistration", ue.GetRegistrationType5GS())
 		ue.SetRegistrationType5GS(nasMessage.RegistrationType5GSInitialRegistration)
 	}
 
@@ -729,7 +729,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 	// to old AMF, including the complete registration request nas msg, to request UE's SUPI & UE Context
 	if ue.ServingAmfChanged {
 		var transferReason models.TransferReason
-		switch ue.RegistrationType5GS {
+		switch ue.GetRegistrationType5GS() {
 		case nasMessage.RegistrationType5GSInitialRegistration:
 			transferReason = models.TRANSFERREASON_INIT_REG
 		case nasMessage.RegistrationType5GSMobilityRegistrationUpdating:
@@ -765,7 +765,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 }
 
 func IdentityVerification(ue *context.AmfUe) bool {
-	return ue.Supi != "" || len(ue.Suci) != 0
+	return ue.GetSupi() != "" || len(ue.Suci) != 0
 }
 
 func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
@@ -864,7 +864,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	}
 
 	configureSearchPCFRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
-		return request.Supi(ue.Supi)
+		return request.Supi(ue.GetSupi())
 	}
 	for {
 		resp, err := sendSearchNFInstancesForRegistration(ctx, amfSelf.NrfUri, models.NFTYPE_PCF, models.NFTYPE_AMF, configureSearchPCFRequest)
@@ -926,11 +926,11 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	// }
 
 	amfSelf.AllocateRegistrationArea(ue, anType)
-	ue.GmmLog.Debugf("Use original GUTI[%s]", ue.Guti)
+	ue.GmmLog.Debugf("Use original GUTI[%s]", ue.GetGuti())
 
 	assignLadnInfoForRegistration(ue, registrationRequest, anType)
 
-	amfSelf.AddAmfUeToUePool(ue, ue.Supi)
+	amfSelf.AddAmfUeToUePool(ue, ue.GetSupi())
 	ue.T3502Value = amfSelf.T3502Value
 	if anType == models.ACCESSTYPE__3_GPP_ACCESS {
 		ue.T3512Value = amfSelf.T3512Value
@@ -990,7 +990,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	if registrationRequest.Capability5GMM != nil {
 		ue.Capability5GMM = *registrationRequest.Capability5GMM
 	} else {
-		if ue.RegistrationType5GS != nasMessage.RegistrationType5GSPeriodicRegistrationUpdating {
+		if ue.GetRegistrationType5GS() != nasMessage.RegistrationType5GSPeriodicRegistrationUpdating {
 			gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 			return fmt.Errorf("Capability5GMM is nil")
 		}
@@ -1011,7 +1011,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	// 	If the AMF has changed the new AMF notifies the old AMF that the registration of the UE in the new AMF is completed
 	// }
 
-	if len(ue.Pei) == 0 {
+	if len(ue.GetPei()) == 0 {
 		gmm_message.SendIdentityRequest(ue.RanUe[anType], nasMessage.MobileIdentity5GSTypeImei)
 		return nil
 	}
@@ -1355,7 +1355,7 @@ func communicateWithUDM(ctx ctxt.Context, ue *context.AmfUe, accessType models.A
 	// UDM selection described in TS 23.501 6.3.8
 	// TODO: consider udm group id, Routing ID part of SUCI, GPSI or External Group ID (e.g., by the NEF)
 	configureSearchUDMRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
-		return request.Supi(ue.Supi)
+		return request.Supi(ue.GetSupi())
 	}
 	resp, err := consumer.SendSearchNFInstances(ctx, amfSelf.NrfUri, models.NFTYPE_UDM, models.NFTYPE_AMF, configureSearchUDMRequest)
 	if err != nil {
@@ -1419,7 +1419,7 @@ func communicateWithUDM(ctx ctxt.Context, ue *context.AmfUe, accessType models.A
 func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) {
 	amfSelf := context.AMF_Self()
 	configureSearchUDMRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
-		return request.Supi(ue.Supi)
+		return request.Supi(ue.GetSupi())
 	}
 	for {
 		err := consumer.SearchUdmSdmInstance(ctx, ue, amfSelf.NrfUri, models.NFTYPE_UDM, models.NFTYPE_AMF, configureSearchUDMRequest)
@@ -1923,7 +1923,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	// Send Authtication / Security Procedure not support
 	// Rejecting ServiceRequest if it is received in Deregistered State
 	if !ue.SecurityContextIsValid() || ue.State[anType].Current() == context.Deregistered {
-		ue.GmmLog.Warnf("no security context: SUPI[%s]", ue.Supi)
+		ue.GmmLog.Warnf("no security context: SUPI[%s]", ue.GetSupi())
 		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
 		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
 			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
@@ -1977,7 +1977,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 
 	if ue.MacFailed {
 		ue.SecurityContextAvailable = false
-		ue.GmmLog.Warnf("security context exists but integrity check failed with existing context: SUPI[%s]", ue.Supi)
+		ue.GmmLog.Warnf("security context exists but integrity check failed with existing context: SUPI[%s]", ue.GetSupi())
 		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
 		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
 			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)

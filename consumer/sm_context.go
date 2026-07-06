@@ -274,10 +274,10 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	requestType *models.RequestType,
 ) (smContextCreateData models.SmContextCreateData) {
 	context := amf_context.AMF_Self()
-	smContextCreateData.SetSupi(ue.Supi)
+	smContextCreateData.SetSupi(ue.GetSupi())
 	smContextCreateData.SetUnauthenticatedSupi(ue.UnauthenticatedSupi)
-	smContextCreateData.SetPei(ue.Pei)
-	smContextCreateData.SetGpsi(ue.Gpsi)
+	smContextCreateData.SetPei(ue.GetPei())
+	smContextCreateData.SetGpsi(ue.GetGpsi())
 	smContextCreateData.SetPduSessionId(smContext.PduSessionID())
 	smContextCreateData.SetSNssai(smContext.Snssai())
 	smContextCreateData.SetDnn(smContext.Dnn())
@@ -305,7 +305,7 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	smContextCreateData.SetUeLocation(ue.Location)
 	smContextCreateData.SetUeTimeZone(ue.TimeZone)
 	smContextCreateData.SetSmContextStatusUri(context.GetIPv4Uri() + "/namf-callback/v1/smContextStatus/" +
-		ue.Guti + "/" + strconv.Itoa(int(smContext.PduSessionID())))
+		ue.GetGuti() + "/" + strconv.Itoa(int(smContext.PduSessionID())))
 
 	return smContextCreateData
 }

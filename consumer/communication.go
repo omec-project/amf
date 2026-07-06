@@ -24,15 +24,15 @@ import (
 )
 
 func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
-	ueContext.Supi = openapi.PtrString(ue.Supi)
+	ueContext.Supi = openapi.PtrString(ue.GetSupi())
 	ueContext.SupiUnauthInd = openapi.PtrBool(ue.UnauthenticatedSupi)
 
-	if ue.Gpsi != "" {
-		ueContext.GpsiList = append(ueContext.GpsiList, ue.Gpsi)
+	if ue.GetGpsi() != "" {
+		ueContext.GpsiList = append(ueContext.GpsiList, ue.GetGpsi())
 	}
 
-	if ue.Pei != "" {
-		ueContext.Pei = openapi.PtrString(ue.Pei)
+	if ue.GetPei() != "" {
+		ueContext.Pei = openapi.PtrString(ue.GetPei())
 	}
 
 	if ue.UdmGroupId != "" {
@@ -114,7 +114,7 @@ func UEContextTransferRequest(
 		attribute.String("http.method", "POST"),
 		attribute.String("nf.target", "amf"),
 		attribute.String("net.peer.name", ue.TargetAmfUri),
-		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
@@ -143,7 +143,7 @@ func UEContextTransferRequest(
 	}
 
 	// guti format is defined at TS 29.518 Table 6.1.3.2.2-1 5g-guti-[0-9]{5,6}[0-9a-fA-F]{14}
-	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
+	ueContextId := fmt.Sprintf("5g-guti-%s", ue.GetGuti())
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -207,7 +207,7 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 		attribute.String("http.method", "POST"),
 		attribute.String("nf.target", "amf"),
 		attribute.String("net.peer.name", ue.TargetAmfUri),
-		attribute.String("ue.supi", ue.Supi),
+		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
 	)
 
@@ -222,7 +222,7 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	ueContextId := fmt.Sprintf("5g-guti-%s", ue.Guti)
+	ueContextId := fmt.Sprintf("5g-guti-%s", ue.GetGuti())
 	apiRegistrationStatusUpdateRequest := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdate(ctx, ueContextId)
 	apiRegistrationStatusUpdateRequest = apiRegistrationStatusUpdateRequest.UeRegStatusUpdateReqData(request)
 	res, httpResp, localErr := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdateExecute(apiRegistrationStatusUpdateRequest)
