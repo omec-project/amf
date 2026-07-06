@@ -802,7 +802,7 @@ func HandleUplinkNasTransport(ctx ctxt.Context, ran *context.AmfRan, message *ng
 		return
 	}
 
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
@@ -1051,7 +1051,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		return
 	}
 
-	ranUe := context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
+	ranUe := findRanUeByAmfNgapID(ran, aMFUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No RanUe Context[AmfUeNgapID: %d]", aMFUENGAPID.Value)
 		cause := ngapType.Cause{
@@ -1342,7 +1342,7 @@ func HandlePDUSessionResourceReleaseResponse(ctx ctxt.Context, ran *context.AmfR
 		return
 	}
 
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
@@ -2526,7 +2526,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 		return
 	}
 
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
@@ -2690,7 +2690,7 @@ func HandleInitialContextSetupFailure(ctx ctxt.Context, ran *context.AmfRan, mes
 		return
 	}
 
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
@@ -4038,7 +4038,7 @@ func HandleHandoverCancel(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		return
 	}
 
-	sourceUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	sourceUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if sourceUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		cause := ngapType.Cause{
@@ -4237,7 +4237,7 @@ func HandleNasNonDeliveryIndication(ctx ctxt.Context, ran *context.AmfRan, messa
 		return
 	}
 
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
@@ -4799,7 +4799,7 @@ func HandleUERadioCapabilityInfoIndication(ran *context.AmfRan, message *ngapTyp
 		return
 	}
 
-	ranUe := ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByRanNgapID(ran, rANUENGAPID)
 	if ranUe == nil {
 		ran.Log.Errorf("No UE Context[RanUeNgapID: %d]", rANUENGAPID.Value)
 		return
