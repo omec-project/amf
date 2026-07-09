@@ -1708,7 +1708,7 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 		if len(sTmsi) != 12 {
 			return fmt.Errorf("5G-S-TMSI has unexpected length in Identity Response (%d hex chars, want 12): %q", len(sTmsi), sTmsi)
 		}
-		if tmp, err := strconv.ParseInt(sTmsi[4:], 16, 32); err != nil {
+		if tmp, err := strconv.ParseUint(sTmsi[4:], 16, 32); err != nil {
 			return err
 		} else {
 			ue.SetTmsi(int32(tmp))

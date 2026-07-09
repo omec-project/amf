@@ -116,7 +116,7 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 			Mcc:        ue.Tai.PlmnId.Mcc,
 			Mnc:        ue.Tai.PlmnId.Mnc,
 			Tac:        ue.Tai.Tac,
-			Tmsi:       fmt.Sprintf("%08x", ue.GetTmsi()),
+			Tmsi:       fmt.Sprintf("%08x", uint32(ue.GetTmsi())),
 		}
 		if ue.RanUe != nil && ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
 			ueContext.RanUeNgapId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
