@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	amf_context "github.com/omec-project/amf/context"
+	amfContext "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/nas/v2/nasType"
 	"github.com/omec-project/openapi/v2"
@@ -23,7 +23,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-func servingNetworkPlmnID(ue *amf_context.AmfUe, servedGuami models.Guami) *models.PlmnIdNid {
+func servingNetworkPlmnID(ue *amfContext.AmfUe, servedGuami models.Guami) *models.PlmnIdNid {
 	if ue.Tai.PlmnId.GetMcc() != "" && ue.Tai.PlmnId.GetMnc() != "" {
 		return models.NewPlmnIdNid(ue.Tai.PlmnId.GetMcc(), ue.Tai.PlmnId.GetMnc())
 	}
@@ -39,7 +39,7 @@ func servingNetworkPlmnID(ue *amf_context.AmfUe, servedGuami models.Guami) *mode
 	return &servedGuami.PlmnId
 }
 
-func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amf_context.AmfUe,
+func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amfContext.AmfUe,
 	resynchronizationInfo *models.ResynchronizationInfo,
 ) (*models.UEAuthenticationCtx, *models.ProblemDetails, error) {
 	configuration := Nausf_UEAuthentication.NewConfiguration()
@@ -51,19 +51,17 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amf_contex
 
 	client := Nausf_UEAuthentication.NewAPIClient(configuration)
 
-	amfSelf := amf_context.AMF_Self()
+	amfSelf := amfContext.AMF_Self()
 	servedGuami := amfSelf.ServedGuamiList[0]
 	plmnId := servingNetworkPlmnID(ue, servedGuami)
 
-	var authInfo models.AuthenticationInfo
-	authInfo.SupiOrSuci = ue.Suci
-	if mnc, err := strconv.Atoi(plmnId.Mnc); err != nil {
+	mnc, err := strconv.Atoi(plmnId.GetMnc())
+	if err != nil {
 		return nil, nil, err
-	} else {
-		authInfo.ServingNetworkName = fmt.Sprintf("5G:mnc%03d.mcc%s.3gppnetwork.org", mnc, plmnId.Mcc)
 	}
+	authInfo := models.NewAuthenticationInfo(ue.Suci, fmt.Sprintf("5G:mnc%03d.mcc%s.3gppnetwork.org", mnc, plmnId.GetMcc()))
 	if resynchronizationInfo != nil {
-		authInfo.ResynchronizationInfo = resynchronizationInfo
+		authInfo.SetResynchronizationInfo(*resynchronizationInfo)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -78,7 +76,7 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amf_contex
 	)
 
 	apiUeAuthenticationsPostRequest := client.DefaultAPI.UeAuthenticationsPost(ctx)
-	apiUeAuthenticationsPostRequest = apiUeAuthenticationsPostRequest.AuthenticationInfo(authInfo)
+	apiUeAuthenticationsPostRequest = apiUeAuthenticationsPostRequest.AuthenticationInfo(*authInfo)
 	ueAuthenticationCtx, httpResponse, err := client.DefaultAPI.UeAuthenticationsPostExecute(apiUeAuthenticationsPostRequest)
 	if err == nil {
 		return ueAuthenticationCtx, nil, nil
@@ -95,7 +93,7 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amf_contex
 	}
 }
 
-func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, resStar string) (
+func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resStar string) (
 	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
 ) {
 	var ausfUri string
@@ -125,7 +123,7 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, res
 		attribute.String("http.method", "PUT"),
 		attribute.String("nf.target", "ausf"),
 		attribute.String("net.peer.name", ausfUri),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	apiUeAuthenticationsAuthCtxId5gAkaConfirmationPutRequest := client.DefaultAPI.UeAuthenticationsAuthCtxId5gAkaConfirmationPut(
@@ -151,7 +149,7 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, res
 	}
 }
 
-func SendEapAuthConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, eapMsg nasType.EAPMessage) (
+func SendEapAuthConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, eapMsg nasType.EAPMessage) (
 	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
 ) {
 	confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Link.GetHref())
@@ -180,7 +178,7 @@ func SendEapAuthConfirmRequest(ctx context.Context, ue *amf_context.AmfUe, eapMs
 		attribute.String("http.method", "POST"),
 		attribute.String("nf.target", "ausf"),
 		attribute.String("net.peer.name", ausfUri),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	apiEapAuthMethodRequest := client.DefaultAPI.EapAuthMethod(ctx, ue.Suci)
