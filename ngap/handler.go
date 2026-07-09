@@ -2788,12 +2788,9 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 		}
 	}
 
-	var ranUe *context.RanUe
-	if aMFUENGAPID != nil {
-		ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
-	}
-	if ranUe == nil && rANUENGAPID != nil {
-		ranUe = ran.RanUeFindByRanUeNgapID(rANUENGAPID.Value)
+	ranUe := findRanUeByAmfNgapID(ran, aMFUENGAPID)
+	if ranUe == nil {
+		ranUe = findRanUeByRanNgapID(ran, rANUENGAPID)
 	}
 	if ranUe == nil {
 		switch {
