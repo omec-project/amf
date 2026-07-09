@@ -137,7 +137,7 @@ func SelectSmf(
 		request = request.ServiceNames([]models.ServiceName{models.SERVICENAME_NSMF_PDUSESSION})
 		request = request.Dnn(dnn)
 		request = request.Snssais([]models.Snssai{snssai})
-		if ue.PlmnId.Mcc != "" {
+		if ue.PlmnId.GetMcc() != "" {
 			request = request.TargetPlmnList([]models.PlmnId{ue.PlmnId})
 		}
 		return request

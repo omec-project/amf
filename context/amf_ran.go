@@ -181,7 +181,7 @@ func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
 
 	// Setting RanId in String format with ":" separation of each field
 	if ranId.PlmnId.GetMcc() != "" && ranId.PlmnId.GetMnc() != "" {
-		ran.GnbId = ranId.PlmnId.Mcc + ":" + ranId.PlmnId.Mnc + ":"
+		ran.GnbId = ranId.PlmnId.GetMcc() + ":" + ranId.PlmnId.GetMnc() + ":"
 	}
 	if ranNodeId.Present == ngapType.GlobalRANNodeIDPresentGlobalN3IWFID {
 		ran.AnType = models.ACCESSTYPE_NON_3_GPP_ACCESS

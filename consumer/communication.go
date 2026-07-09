@@ -115,7 +115,7 @@ func UEContextTransferRequest(
 		attribute.String("nf.target", "amf"),
 		attribute.String("net.peer.name", ue.TargetAmfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
-		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	ueContextTransferReqData := models.UeContextTransferReqData{
@@ -208,7 +208,7 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 		attribute.String("nf.target", "amf"),
 		attribute.String("net.peer.name", ue.TargetAmfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
-		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Namf_Communication.NewConfiguration()

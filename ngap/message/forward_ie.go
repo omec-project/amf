@@ -163,8 +163,8 @@ func BuildUnavailableGUAMIList(guamiList []models.Guami) (unavailableGUAMIList n
 	for _, guami := range guamiList {
 		item := ngapType.UnavailableGUAMIItem{}
 		plmnId := models.PlmnId{
-			Mcc: guami.PlmnId.Mcc,
-			Mnc: guami.PlmnId.Mnc,
+			Mcc: guami.PlmnId.GetMcc(),
+			Mnc: guami.PlmnId.GetMnc(),
 		}
 		item.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnId)
 		regionId, setId, ptrId := ngapConvert.AmfIdToNgap(guami.AmfId)

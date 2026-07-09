@@ -28,7 +28,7 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 		attribute.String("nf.target", "pcf"),
 		attribute.String("net.peer.name", ue.PcfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
-		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Npcf_AMPolicyControl.NewConfiguration()
@@ -123,7 +123,7 @@ func AMPolicyControlUpdate(ctx context.Context, ue *amf_context.AmfUe, updateReq
 		attribute.String("nf.target", "pcf"),
 		attribute.String("net.peer.name", ue.PcfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
-		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Npcf_AMPolicyControl.NewConfiguration()
@@ -183,7 +183,7 @@ func AMPolicyControlDelete(ctx context.Context, ue *amf_context.AmfUe) (problemD
 		attribute.String("nf.target", "pcf"),
 		attribute.String("net.peer.name", ue.PcfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
-		attribute.String("ue.plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Npcf_AMPolicyControl.NewConfiguration()

@@ -29,7 +29,7 @@ func PutUpuAck(ctx context.Context, ue *amf_context.AmfUe, upuMacIue string) err
 		attribute.String("nf.target", "udm"),
 		attribute.String("net.peer.name", ue.NudmSDMUri),
 		attribute.String("udm.supi", ue.GetSupi()),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 		attribute.String("upu.mac.iue", upuMacIue),
 	)
 
@@ -62,7 +62,7 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 		attribute.String("nf.target", "udm"),
 		attribute.String("net.peer.name", ue.NudmSDMUri),
 		attribute.String("udm.supi", ue.GetSupi()),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Nudm_SDM.NewConfiguration()
@@ -73,7 +73,7 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 	}
 	client := Nudm_SDM.NewAPIClient(configuration)
 
-	plmnId := models.NewPlmnIdNid(ue.PlmnId.Mcc, ue.PlmnId.Mnc)
+	plmnId := models.NewPlmnIdNid(ue.PlmnId.GetMcc(), ue.PlmnId.GetMnc())
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -113,7 +113,7 @@ func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDet
 		attribute.String("nf.target", "udm"),
 		attribute.String("net.peer.name", ue.NudmSDMUri),
 		attribute.String("udm.supi", ue.GetSupi()),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Nudm_SDM.NewConfiguration()
@@ -124,7 +124,7 @@ func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDet
 	}
 	client := Nudm_SDM.NewAPIClient(configuration)
 
-	plmnId := models.NewPlmnId(ue.PlmnId.Mcc, ue.PlmnId.Mnc)
+	plmnId := models.NewPlmnId(ue.PlmnId.GetMcc(), ue.PlmnId.GetMnc())
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	apiGetSmfSelDataRequest := client.SMFSelectionSubscriptionDataRetrievalAPI.GetSmfSelData(ctx, ue.GetSupi())
@@ -158,7 +158,7 @@ func SDMGetUeContextInSmfData(ctx context.Context, ue *amf_context.AmfUe) (probl
 		attribute.String("nf.target", "udm"),
 		attribute.String("net.peer.name", ue.NudmSDMUri),
 		attribute.String("udm.supi", ue.GetSupi()),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Nudm_SDM.NewConfiguration()
@@ -201,7 +201,7 @@ func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 		attribute.String("nf.target", "udm"),
 		attribute.String("net.peer.name", ue.NudmSDMUri),
 		attribute.String("udm.supi", ue.GetSupi()),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Nudm_SDM.NewConfiguration()
@@ -250,7 +250,7 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 		attribute.String("nf.target", "udm"),
 		attribute.String("net.peer.name", ue.NudmSDMUri),
 		attribute.String("udm.supi", ue.GetSupi()),
-		attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+		attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 	)
 
 	configuration := Nudm_SDM.NewConfiguration()
@@ -261,7 +261,7 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 	}
 	client := Nudm_SDM.NewAPIClient(configuration)
 
-	plmnId := models.NewPlmnId(ue.PlmnId.Mcc, ue.PlmnId.Mnc)
+	plmnId := models.NewPlmnId(ue.PlmnId.GetMcc(), ue.PlmnId.GetMnc())
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	apiGetNSSAIRequest := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAI(ctx, ue.GetSupi())

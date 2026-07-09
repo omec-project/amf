@@ -45,7 +45,7 @@ func InTaiList(servedTai models.Tai, taiList []models.Tai) bool {
 }
 
 func IsTaiEqual(servedTai models.Tai, targetTai models.Tai) bool {
-	return servedTai.PlmnId.Mcc == targetTai.PlmnId.Mcc && servedTai.PlmnId.Mnc == targetTai.PlmnId.Mnc && servedTai.Tac == targetTai.Tac
+	return servedTai.PlmnId.GetMcc() == targetTai.PlmnId.GetMcc() && servedTai.PlmnId.GetMnc() == targetTai.PlmnId.GetMnc() && servedTai.Tac == targetTai.Tac
 }
 
 func TacInAreas(targetTac string, areas []models.Area) bool {

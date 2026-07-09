@@ -113,8 +113,8 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 			AccessType: models.ACCESSTYPE__3_GPP_ACCESS,
 			Supi:       ue.GetSupi(),
 			Guti:       ue.GetGuti(),
-			Mcc:        ue.Tai.PlmnId.Mcc,
-			Mnc:        ue.Tai.PlmnId.Mnc,
+			Mcc:        ue.Tai.PlmnId.GetMcc(),
+			Mnc:        ue.Tai.PlmnId.GetMnc(),
 			Tac:        ue.Tai.Tac,
 			Tmsi:       fmt.Sprintf("%08x", uint32(ue.GetTmsi())),
 		}
@@ -198,8 +198,8 @@ func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext 
 			AccessType: accessType,
 			Supi:       ue.GetSupi(),
 			Guti:       ue.GetGuti(),
-			Mcc:        ue.Tai.PlmnId.Mcc,
-			Mnc:        ue.Tai.PlmnId.Mnc,
+			Mcc:        ue.Tai.PlmnId.GetMcc(),
+			Mnc:        ue.Tai.PlmnId.GetMnc(),
 			Tac:        ue.Tai.Tac,
 		}
 

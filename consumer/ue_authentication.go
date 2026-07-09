@@ -28,15 +28,13 @@ func servingNetworkPlmnID(ue *amfContext.AmfUe, servedGuami models.Guami) *model
 		return models.NewPlmnIdNid(ue.Tai.PlmnId.GetMcc(), ue.Tai.PlmnId.GetMnc())
 	}
 
-	if ue.GmmLog != nil {
-		ue.GmmLog.Warnf(
-			"Tai is not received from Serving Network, Serving Plmn [Mcc: %v Mnc: %v] is taken from Guami List",
-			servedGuami.PlmnId.Mcc,
-			servedGuami.PlmnId.Mnc,
-		)
-	}
+	ue.GmmLog.Warnf(
+		"Tai is not received from Serving Network, Serving Plmn is taken from Guami List: %+v",
+		servedGuami.GetPlmnId(),
+	)
 
-	return &servedGuami.PlmnId
+	plmnId := servedGuami.GetPlmnId()
+	return &plmnId
 }
 
 func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amfContext.AmfUe,

@@ -156,7 +156,7 @@ func (context *AMFContext) AllocateGutiToUe(ue *AmfUe) {
 	tmsi := context.TmsiAllocate()
 	ue.SetTmsi(tmsi)
 
-	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
+	plmnID := servedGuami.PlmnId.GetMcc() + servedGuami.PlmnId.GetMnc()
 	tmsiStr := fmt.Sprintf("%08x", tmsi)
 	ue.SetGuti(plmnID + servedGuami.AmfId + tmsiStr)
 }
@@ -176,7 +176,7 @@ func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
 	tmsi := context.TmsiAllocate()
 	ue.SetTmsi(tmsi)
 
-	plmnID := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc
+	plmnID := servedGuami.PlmnId.GetMcc() + servedGuami.PlmnId.GetMnc()
 	tmsiStr := fmt.Sprintf("%08x", tmsi)
 	ue.SetGuti(plmnID + servedGuami.AmfId + tmsiStr)
 }
@@ -680,8 +680,8 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 
 	for _, plmnSnssaiTacs := range newConfig {
 		newPlmn := models.PlmnId{
-			Mcc: plmnSnssaiTacs.PlmnId.Mcc,
-			Mnc: plmnSnssaiTacs.PlmnId.Mnc,
+			Mcc: plmnSnssaiTacs.PlmnId.GetMcc(),
+			Mnc: plmnSnssaiTacs.PlmnId.GetMnc(),
 		}
 		newSnssai := models.Snssai{
 			Sst: plmnSnssaiTacs.Snssai.Sst,
@@ -739,11 +739,11 @@ func flattenPlmnSnssaiMap(plmnSnssaiMap map[models.PlmnId]map[string]models.Snss
 
 func sortPlmnSnssaiList(plmnSnssaiList []models.PlmnSnssai) {
 	sort.Slice(plmnSnssaiList, func(i, j int) bool {
-		if plmnSnssaiList[i].PlmnId.Mcc != plmnSnssaiList[j].PlmnId.Mcc {
-			return plmnSnssaiList[i].PlmnId.Mcc < plmnSnssaiList[j].PlmnId.Mcc
+		if plmnSnssaiList[i].PlmnId.GetMcc() != plmnSnssaiList[j].PlmnId.GetMcc() {
+			return plmnSnssaiList[i].PlmnId.GetMcc() < plmnSnssaiList[j].PlmnId.GetMcc()
 		}
-		if plmnSnssaiList[i].PlmnId.Mnc != plmnSnssaiList[j].PlmnId.Mnc {
-			return plmnSnssaiList[i].PlmnId.Mnc < plmnSnssaiList[j].PlmnId.Mnc
+		if plmnSnssaiList[i].PlmnId.GetMnc() != plmnSnssaiList[j].PlmnId.GetMnc() {
+			return plmnSnssaiList[i].PlmnId.GetMnc() < plmnSnssaiList[j].PlmnId.GetMnc()
 		}
 		return false
 	})
@@ -768,11 +768,11 @@ func sortSNssaiList(snssaiList []models.Snssai) {
 
 func sortGuamiList(guamiList []models.Guami) {
 	sort.Slice(guamiList, func(i, j int) bool {
-		if guamiList[i].PlmnId.Mcc != guamiList[j].PlmnId.Mcc {
-			return guamiList[i].PlmnId.Mcc < guamiList[j].PlmnId.Mcc
+		if guamiList[i].PlmnId.GetMcc() != guamiList[j].PlmnId.GetMcc() {
+			return guamiList[i].PlmnId.GetMcc() < guamiList[j].PlmnId.GetMcc()
 		}
-		if guamiList[i].PlmnId.Mnc != guamiList[j].PlmnId.Mnc {
-			return guamiList[i].PlmnId.Mnc < guamiList[j].PlmnId.Mnc
+		if guamiList[i].PlmnId.GetMnc() != guamiList[j].PlmnId.GetMnc() {
+			return guamiList[i].PlmnId.GetMnc() < guamiList[j].PlmnId.GetMnc()
 		}
 		return false
 	})

@@ -66,7 +66,7 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 			attribute.String("nf.target", "udm"),
 			attribute.String("net.peer.name", ue.NudmUECMUri),
 			attribute.String("udm.supi", ue.GetSupi()),
-			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+			attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 		)
 
 		apiCall3GppRegistrationRequest := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistration(gppAccessCtx, ue.GetSupi())
@@ -105,7 +105,7 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 			attribute.String("nf.target", "udm"),
 			attribute.String("net.peer.name", ue.NudmUECMUri),
 			attribute.String("udm.supi", ue.GetSupi()),
-			attribute.String("plmn.id", ue.PlmnId.Mcc+ue.PlmnId.Mnc),
+			attribute.String("plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
 		)
 
 		apiNon3GppRegistrationRequest := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistration(non3gppAccessCtx, ue.GetSupi())
