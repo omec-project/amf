@@ -8,11 +8,16 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/openapi/v2/models"
+	"go.uber.org/zap"
 )
 
 func TestServingNetworkPlmnIDUsesTaiWhenPresent(t *testing.T) {
-	ue := &amf_context.AmfUe{}
-	ue.Tai.PlmnId = models.PlmnId{Mcc: "315", Mnc: "010"}
+	ue := &amf_context.AmfUe{
+		GmmLog: zap.NewNop().Sugar(),
+		Tai: models.Tai{
+			PlmnId: models.PlmnId{Mcc: "315", Mnc: "010"},
+		},
+	}
 
 	servedGuami := models.Guami{
 		PlmnId: models.PlmnIdNid{Mcc: "208", Mnc: "93"},
@@ -30,7 +35,9 @@ func TestServingNetworkPlmnIDUsesTaiWhenPresent(t *testing.T) {
 }
 
 func TestServingNetworkPlmnIDFallsBackToGuami(t *testing.T) {
-	ue := &amf_context.AmfUe{}
+	ue := &amf_context.AmfUe{
+		GmmLog: zap.NewNop().Sugar(),
+	}
 	servedGuami := models.Guami{
 		PlmnId: models.PlmnIdNid{Mcc: "208", Mnc: "93"},
 	}

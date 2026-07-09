@@ -114,7 +114,7 @@ func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context
 
 					tmsi := hex.EncodeToString(fiveGSTMSI.FiveGTMSI.Value)
 
-					guti := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc + amfID + tmsi
+					guti := servedGuami.PlmnId.GetMcc() + servedGuami.PlmnId.GetMnc() + amfID + tmsi
 
 					// TODO: invoke Namf_Communication_UEContextTransfer if serving AMF has changed since
 					// last Registration Request procedure
@@ -655,7 +655,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 						break
 					}
 				}
-				ran.Log.Debugf("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
+				ran.Log.Debugf("PLMN_ID %+v TAC %s", plmnId, tac)
 				if len(ran.SupportedTAList) < capOfSupportTai {
 					ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
 				} else {
@@ -1696,7 +1696,7 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 
 			tmsi := hex.EncodeToString(fiveGSTMSI.FiveGTMSI.Value)
 
-			guti := servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc + amfID + tmsi
+			guti := servedGuami.PlmnId.GetMcc() + servedGuami.PlmnId.GetMnc() + amfID + tmsi
 
 			// TODO: invoke Namf_Communication_UEContextTransfer if serving AMF has changed since
 			// last Registration Request procedure
@@ -4354,7 +4354,7 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 						break
 					}
 				}
-				ran.Log.Debugf("PLMN_ID[MCC:%s MNC:%s] TAC[%s]", plmnId.Mcc, plmnId.Mnc, tac)
+				ran.Log.Debugf("PLMN_ID %+v TAC %s", plmnId, tac)
 				if len(ran.SupportedTAList) < capOfSupportTai {
 					ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
 				} else {

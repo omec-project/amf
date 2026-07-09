@@ -103,7 +103,7 @@ func StmsiToGuti(buf [7]byte) (guti string) {
 	amfID := hex.EncodeToString(buf[1:3])
 	tmsi5G := hex.EncodeToString(buf[3:])
 
-	guti = servedGuami.PlmnId.Mcc + servedGuami.PlmnId.Mnc + tmpReginID + amfID + tmsi5G
+	guti = servedGuami.PlmnId.GetMcc() + servedGuami.PlmnId.GetMnc() + tmpReginID + amfID + tmsi5G
 
 	return
 }
