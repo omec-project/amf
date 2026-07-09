@@ -1503,7 +1503,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 					// TargetAmfSet format: ^[0-9]{3}-[0-9]{2-3}-[A-Fa-f0-9]{2}-[0-3][A-Fa-f0-9]{2}$
 					// mcc-mnc-amfRegionId(8 bit)-AmfSetId(10 bit)
 					targetAmfSetToken := strings.Split(netwotkSliceInfo.GetTargetAmfSet(), "-")
-					if len(targetAmfSetToken) < 4 {
+					if len(targetAmfSetToken) != 4 {
 						ue.GmmLog.Errorf("invalid TargetAmfSet %q: want mcc-mnc-amfRegionId-amfSetId",
 							netwotkSliceInfo.GetTargetAmfSet())
 						return request

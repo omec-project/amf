@@ -1,4 +1,5 @@
 // Copyright (c) 2026 Intel Corporation
+// SPDX-FileCopyrightText: 2026 Forsway Scandinavia AB
 // SPDX-License-Identifier: Apache-2.0
 
 package message
@@ -151,6 +152,8 @@ func TestParseGuti(t *testing.T) {
 		{name: "19 chars 2-digit MNC", guti: "208930000ff00000001", wantAmfID: "0000ff", wantTmsi: "00000001"},
 		{name: "20 chars 3-digit MNC", guti: "2089300000ff00000001", wantAmfID: "0000ff", wantTmsi: "00000001"},
 		{name: "21 chars", guti: "123456789012345678901", wantErr: true},
+		{name: "19 chars non-hex 5G-TMSI", guti: "208930000ff0000000g", wantErr: true},
+		{name: "20 chars non-hex AMF ID", guti: "20893000zzff00000001", wantErr: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

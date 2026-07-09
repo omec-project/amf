@@ -1926,16 +1926,21 @@ func BuildDownlinkRanStatusTransfer(ue *context.RanUe,
 // 5G-TMSI components. A GUTI is <MCC(3)><MNC(2|3)><AMF ID(6)><5G-TMSI(8)>, i.e.
 // 19 characters when the MNC has 2 digits and 20 when it has 3. Any other length
 // is rejected rather than sliced, which would otherwise panic on a short or empty
-// GUTI (e.g. a UE that has not yet been assigned one).
+// GUTI (e.g. a UE that has not yet been assigned one). The AMF ID and 5G-TMSI
+// are validated as hex, so callers can hex-decode them without a second check.
 func parseGuti(guti string) (amfID, tmsi string, err error) {
 	switch len(guti) {
 	case 19: // 2-digit MNC
-		return guti[5:11], guti[11:], nil
+		amfID, tmsi = guti[5:11], guti[11:]
 	case 20: // 3-digit MNC
-		return guti[6:12], guti[12:], nil
+		amfID, tmsi = guti[6:12], guti[12:]
 	default:
 		return "", "", fmt.Errorf("invalid GUTI length %d (want 19 or 20)", len(guti))
 	}
+	if _, err := hex.DecodeString(amfID + tmsi); err != nil {
+		return "", "", fmt.Errorf("invalid GUTI %q: AMF ID / 5G-TMSI is not hex: %w", guti, err)
+	}
+	return amfID, tmsi, nil
 }
 
 // pagingOriginNon3GPP: TS 23.502 4.2.3.3 step 4b: If the UE is simultaneously registered over
