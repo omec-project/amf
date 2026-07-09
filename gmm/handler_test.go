@@ -1139,6 +1139,27 @@ func TestHandleIdentityResponseInvalidSuci(t *testing.T) {
 	}
 }
 
+// TestHandleIdentityResponse5GSTmsiFullRange: a 5G-TMSI is a full 32-bit value
+// (TS 23.003 2.10.1), so values with the high bit set (>= 0x80000000) must be
+// accepted; parsing them as signed 32-bit rejected them as out of range.
+func TestHandleIdentityResponse5GSTmsiFullRange(t *testing.T) {
+	ue := &context.AmfUe{
+		GmmLog: zap.NewNop().Sugar(),
+	}
+
+	identityResponse := nasMessage.NewIdentityResponse(0)
+	identityResponse.SetLen(7)
+	// type octet, 2-byte AMF Set ID + Pointer, 4-byte 5G-TMSI with high bit set
+	identityResponse.Buffer = []byte{nasMessage.MobileIdentity5GSType5gSTmsi, 0x00, 0x01, 0xff, 0xff, 0xff, 0xff}
+
+	if err := HandleIdentityResponse(ue, identityResponse); err != nil {
+		t.Fatalf("HandleIdentityResponse with high-bit 5G-TMSI: unexpected error %v", err)
+	}
+	if got := uint32(ue.GetTmsi()); got != 0xffffffff {
+		t.Fatalf("stored 5G-TMSI = %#x, want 0xffffffff", got)
+	}
+}
+
 func TestPickDNN(t *testing.T) {
 	tests := []struct {
 		name     string

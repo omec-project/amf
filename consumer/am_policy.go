@@ -7,6 +7,7 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"time"
 
@@ -67,12 +68,21 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 	if localErr == nil {
 		locationHeader := httpResp.Header.Get("Location")
 		logger.ConsumerLog.Debugf("location header: %+v", locationHeader)
-		ue.AmPolicyUri = locationHeader
 
-		re := regexp.MustCompile("/policies/.*")
+		// Capture a non-empty path segment and stop at any query/fragment, so a
+		// bare ".../policies/" or a trailing "?x=1"/"#frag" cannot yield an empty
+		// or junk PolicyAssociationId that would poison later policy operations.
+		re := regexp.MustCompile(`/policies/([^/?#]+)`)
 		match := re.FindStringSubmatch(locationHeader)
+		if len(match) < 2 {
+			logger.ConsumerLog.Errorf("no PolicyAssociationId in AM policy Location header %q", locationHeader)
+			return nil, fmt.Errorf("no PolicyAssociationId in AM policy Location header %q", locationHeader)
+		}
 
-		ue.PolicyAssociationId = match[0][10:]
+		// Only record the URI once the Location header is known-valid, so a
+		// malformed header doesn't poison later AM policy update/terminate.
+		ue.AmPolicyUri = locationHeader
+		ue.PolicyAssociationId = match[1]
 		ue.AmPolicyAssociation = res
 
 		if res.Triggers != nil {

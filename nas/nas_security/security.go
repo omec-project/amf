@@ -122,6 +122,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	switch msg.SecurityHeaderType {
 	case nas.SecurityHeaderTypeIntegrityProtected:
 		logger.CommLog.Infoln("security header type: Integrity Protected")
+		if len(payload) < 7 {
+			logger.CommLog.Errorln("integrity protected NAS payload is too short")
+			return nil
+		}
 		p := payload[7:]
 		if err := msg.PlainNasDecode(&p); err != nil {
 			return nil
@@ -141,6 +145,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	amfSelf := context.AMF_Self()
 	if msg.GmmHeader.GetMessageType() == nas.MsgTypeRegistrationRequest {
 		mobileIdentity5GSContents := msg.RegistrationRequest.GetMobileIdentity5GSContents()
+		if len(mobileIdentity5GSContents) == 0 {
+			logger.CommLog.Errorln("MobileIdentity5GSContents is empty in Registration Request")
+			return nil
+		}
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			guami, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)

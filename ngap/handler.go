@@ -5085,6 +5085,15 @@ func HandleCellTrafficTrace(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	ranUe.Ran = ran
 	ran.Log.Debugf("UE: AmfUeNgapID[%d], RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
+	if nGRANTraceID == nil || nGRANCGI == nil || traceCollectionEntityIPAddress == nil {
+		ran.Log.Errorln("CellTrafficTrace missing NGRANTraceID, NGRANCGI, or TraceCollectionEntityIPAddress IE")
+		return
+	}
+	if len(nGRANTraceID.Value) != 8 {
+		ran.Log.Errorf("CellTrafficTrace NGRANTraceID has unexpected length (%d bytes, want 8)", len(nGRANTraceID.Value))
+		return
+	}
+
 	ranUe.Trsr = hex.EncodeToString(nGRANTraceID.Value[6:])
 
 	ranUe.Log.Debugf("TRSR[%s]", ranUe.Trsr)
