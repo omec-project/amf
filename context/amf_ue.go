@@ -472,6 +472,9 @@ func (ue *AmfUe) init() {
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
 	// ue.TransientInfo = make(chan AmfUeTransientInfo, 10)
+	ue.GmmLog = logger.GmmLog
+	ue.NASLog = logger.NasLog
+	ue.TxLog = logger.GmmLog
 }
 
 // UeIdentity is a consistent snapshot of a UE's identity fields, taken under
