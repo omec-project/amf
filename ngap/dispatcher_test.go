@@ -11,7 +11,6 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"go.uber.org/zap"
 )
 
 func TestDispatchLbIgnoresMissingRanContext(t *testing.T) {
@@ -29,7 +28,7 @@ func TestDispatchLbIgnoresMissingRanContext(t *testing.T) {
 }
 
 func TestDispatchNgapMsgIgnoresNilPdu(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 
 	defer func() {
 		if recovered := recover(); recovered != nil {

@@ -116,7 +116,8 @@ func newRanUeForAllowedNSSAITest(anType models.AccessType) *context.RanUe {
 		NH:                                make([]byte, 32),
 	}
 
-	ran := &context.AmfRan{AnType: anType}
+	ran := context.NewAmfRanDefault()
+	ran.AnType = anType
 	ue := &context.RanUe{
 		AmfUe:       amfUe,
 		Ran:         ran,
