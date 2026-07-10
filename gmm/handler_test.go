@@ -53,10 +53,8 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingRejectsNilRegistrationRequ
 		AllowedNssai: make(map[models.AccessType][]models.AllowedSnssai),
 		State:        make(map[models.AccessType]*fsm.State),
 	}
-	ran := &context.AmfRan{
-		AnType: models.ACCESSTYPE__3_GPP_ACCESS,
-		Log:    zap.NewNop().Sugar(),
-	}
+	ran := context.NewAmfRanDefault()
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{
 		AmfUe: ue,
 		Ran:   ran,
@@ -316,10 +314,13 @@ func TestHandleServiceRequestHighPriorityAccessHandledAsData(t *testing.T) {
 		ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
 		ue.NgKsi.Ksi = 1
 
+		ran := context.NewAmfRanDefault()
+		ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+
 		ranUe := &context.RanUe{
 			AmfUe: ue,
 			Log:   zap.NewNop().Sugar(),
-			Ran:   &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()},
+			Ran:   ran,
 			Tai: models.Tai{
 				PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 				Tac:    "000002",
@@ -464,11 +465,9 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
 	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
 
-	ran := &context.AmfRan{
-		Log:   zap.NewNop().Sugar(),
-		RanId: models.NewGlobalRanNodeId(models.PlmnId{Mcc: "001", Mnc: "01"}),
-		GnbIp: "10.0.0.1",
-	}
+	ran := context.NewAmfRanDefault()
+	ran.RanId = models.NewGlobalRanNodeId(models.PlmnId{Mcc: "001", Mnc: "01"})
+	ran.GnbIp = "10.0.0.1"
 	ranUe := &context.RanUe{
 		AmfUe:                 ue,
 		Ran:                   ran,

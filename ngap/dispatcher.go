@@ -50,7 +50,7 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 		}
 	} else if sctplbMsg.GnbIpAddr != "" {
 		logger.NgapLog.Infoln("GnbIpAddress received but no GnbId")
-		ran = &context.AmfRan{}
+		ran = context.NewAmfRanDefault()
 		ran.SupportedTAList = context.NewSupportedTAIList()
 		ran.Amf2RanMsgChan = Amf2RanMsgChan
 		ran.Log = logger.NgapLog.With(logger.FieldRanAddr, sctplbMsg.GnbIpAddr)
@@ -191,11 +191,7 @@ func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
 
 func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
 	if pdu == nil {
-		if ran != nil && ran.Log != nil {
-			ran.Log.Errorln("DispatchNgapMsg received nil NGAP PDU")
-		} else {
-			logger.NgapLog.Errorln("DispatchNgapMsg received nil NGAP PDU")
-		}
+		ran.Log.Errorln("DispatchNgapMsg received nil NGAP PDU")
 		return
 	}
 
@@ -243,11 +239,7 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	case ngapType.NGAPPDUPresentInitiatingMessage:
 		initiatingMessage := pdu.InitiatingMessage
 		if initiatingMessage == nil {
-			if ran != nil && ran.Log != nil {
-				ran.Log.Errorln("Initiating Message is nil")
-			} else {
-				logger.NgapLog.Errorln("Initiating Message is nil")
-			}
+			ran.Log.Errorln("Initiating Message is nil")
 			return
 		}
 
@@ -309,11 +301,7 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	case ngapType.NGAPPDUPresentSuccessfulOutcome:
 		successfulOutcome := pdu.SuccessfulOutcome
 		if successfulOutcome == nil {
-			if ran != nil && ran.Log != nil {
-				ran.Log.Errorln("successful Outcome is nil")
-			} else {
-				logger.NgapLog.Errorln("successful Outcome is nil")
-			}
+			ran.Log.Errorln("successful Outcome is nil")
 			return
 		}
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,
@@ -348,11 +336,7 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	case ngapType.NGAPPDUPresentUnsuccessfulOutcome:
 		unsuccessfulOutcome := pdu.UnsuccessfulOutcome
 		if unsuccessfulOutcome == nil {
-			if ran != nil && ran.Log != nil {
-				ran.Log.Errorln("unsuccessful Outcome is nil")
-			} else {
-				logger.NgapLog.Errorln("unsuccessful Outcome is nil")
-			}
+			ran.Log.Errorln("unsuccessful Outcome is nil")
 			return
 		}
 		metrics.IncrementNgapMsgStats(context.AMF_Self().NfId,

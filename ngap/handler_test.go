@@ -12,7 +12,6 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
-	"go.uber.org/zap"
 )
 
 func disableKafkaForTest(t *testing.T) {
@@ -51,7 +50,7 @@ func disableKafkaForTest(t *testing.T) {
 }
 
 func TestHandleHandoverNotifyIgnoresMissingIDs(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentInitiatingMessage,
 		InitiatingMessage: &ngapType.InitiatingMessage{
@@ -73,7 +72,7 @@ func TestHandleHandoverNotifyIgnoresMissingIDs(t *testing.T) {
 }
 
 func TestHandlePDUSessionResourceNotifyIgnoresMissingIEs(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentInitiatingMessage,
 		InitiatingMessage: &ngapType.InitiatingMessage{
@@ -95,7 +94,7 @@ func TestHandlePDUSessionResourceNotifyIgnoresMissingIEs(t *testing.T) {
 }
 
 func TestHandleHandoverFailureIgnoresMissingIEs(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentUnsuccessfulOutcome,
 		UnsuccessfulOutcome: &ngapType.UnsuccessfulOutcome{
@@ -117,7 +116,7 @@ func TestHandleHandoverFailureIgnoresMissingIEs(t *testing.T) {
 }
 
 func TestHandleUplinkRanStatusTransferIgnoresMissingIEs(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentInitiatingMessage,
 		InitiatingMessage: &ngapType.InitiatingMessage{
@@ -139,7 +138,7 @@ func TestHandleUplinkRanStatusTransferIgnoresMissingIEs(t *testing.T) {
 }
 
 func TestHandleHandoverRequestAcknowledgeIgnoresMissingAmfUeNgapID(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentSuccessfulOutcome,
 		SuccessfulOutcome: &ngapType.SuccessfulOutcome{
@@ -180,7 +179,7 @@ func TestFetchRanUeContextReturnsNilForMissingIDs(t *testing.T) {
 		self.Rcvd = previousReady
 	}()
 
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentInitiatingMessage,
 		InitiatingMessage: &ngapType.InitiatingMessage{
@@ -205,7 +204,7 @@ func TestFetchRanUeContextReturnsNilForMissingIDs(t *testing.T) {
 }
 
 func TestPrintAndGetCauseIgnoresNilCauseMembers(t *testing.T) {
-	ran := &context.AmfRan{Log: zap.NewNop().Sugar()}
+	ran := context.NewAmfRanDefault()
 
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -219,8 +218,10 @@ func TestPrintAndGetCauseIgnoresNilCauseMembers(t *testing.T) {
 
 func TestHandleUEContextReleaseCompleteRemovesStaleRanUe(t *testing.T) {
 	self := context.AMF_Self()
-	oldRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
-	newRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
+	oldRan := context.NewAmfRanDefault()
+	oldRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	newRan := context.NewAmfRanDefault()
+	newRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	amfUe := self.NewAmfUe("")
 	oldRanUe, err := oldRan.NewRanUe(1)
 	if err != nil {
@@ -300,8 +301,10 @@ func TestHandleUEContextReleaseCompleteRemovesStaleRanUe(t *testing.T) {
 
 func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
 	self := context.AMF_Self()
-	sourceRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
-	targetRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
+	sourceRan := context.NewAmfRanDefault()
+	sourceRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	targetRan := context.NewAmfRanDefault()
+	targetRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	amfUe := self.NewAmfUe("")
 	sourceRanUe, err := sourceRan.NewRanUe(30)
 	if err != nil {
@@ -390,8 +393,10 @@ func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
 func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T) {
 	self := context.AMF_Self()
 	disableKafkaForTest(t)
-	sourceRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
-	targetRan := &context.AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, Log: zap.NewNop().Sugar()}
+	sourceRan := context.NewAmfRanDefault()
+	sourceRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	targetRan := context.NewAmfRanDefault()
+	targetRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	amfUe := self.NewAmfUe("")
 	sourceRanUe, err := sourceRan.NewRanUe(10)
 	if err != nil {

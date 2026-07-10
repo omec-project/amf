@@ -69,6 +69,14 @@ func NewSupportedTAIList() []SupportedTAI {
 	return make([]SupportedTAI, 0, maxNumOfTAI*maxNumOfBroadcastPLMNs)
 }
 
+// NewAmfRanDefault returns a bare AmfRan with Log pre-initialised to the
+// package-level NgapLog. All AmfRan construction paths that lack an address
+// or ID at creation time should use this function so that ran.Log is never
+// nil when ran itself is non-nil.
+func NewAmfRanDefault() *AmfRan {
+	return &AmfRan{Log: logger.NgapLog}
+}
+
 // RatInformationForTAC returns the RATInformation advertised by this RAN
 // for the given TAC, or nil when the RAN's NGSetup did not carry the
 // optional extension for that TAC.
