@@ -190,6 +190,11 @@ func NgapMsgHandler(ue *context.AmfUe, msg context.NgapMsg) {
 }
 
 func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPDU, sctplbMsg *sdcoreAmfServer.SctplbMessage) {
+	if ran == nil {
+		logger.NgapLog.Errorln("DispatchNgapMsg called with nil RAN")
+		return
+	}
+
 	if pdu == nil {
 		ran.Log.Errorln("DispatchNgapMsg received nil NGAP PDU")
 		return
@@ -213,7 +218,7 @@ func DispatchNgapMsg(ctx ctxt.Context, ran *context.AmfRan, pdu *ngapType.NGAPPD
 	procName := ngapType.ProcedureName(code)
 
 	peer := "unknown"
-	if ran != nil && ran.Conn != nil {
+	if ran.Conn != nil {
 		if addr := ran.Conn.RemoteAddr(); addr != nil {
 			peer = addr.String()
 		}
