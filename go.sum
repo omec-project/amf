@@ -1,5 +1,3 @@
-github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 h1:+JkXLHME8vLJafGhOH4aoV2Iu8bR55nU6iKMVfYVLjY=
-github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1/go.mod h1:nuudZmJhzWtx2212z+pkuy7B6nkBqa+xwNXZHL1j8cg=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bytedance/gopkg v0.1.4 h1:oZnQwnX82KAIWb7033bEwtxvTqXcYMxDBaQxo5JJHWM=
@@ -87,8 +85,8 @@ github.com/montanaflynn/stats v0.9.0 h1:tsBJ0RXwph9BmAuFoCmqGv6e8xa0MENQ8m0ptKq2
 github.com/montanaflynn/stats v0.9.0/go.mod h1:etXPPgVO6n31NxCd9KQUMvCM+ve0ruNzt6R8Bnaayow=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/omec-project/nas/v2 v2.0.0 h1:6KQQKs8JDT5U1CPtVRZdv/OlbUHv2VQpnwXhAB6Dx9I=
-github.com/omec-project/nas/v2 v2.0.0/go.mod h1:3RsTbm7V4BLR/IjzMv74WauJT0frkAQLtSVwR1LCPXs=
+github.com/omec-project/nas/v2 v2.0.1 h1:CTmnGAGeSq8RU9PMUso+smdoxi8olCx0u5l2v1hLJj0=
+github.com/omec-project/nas/v2 v2.0.1/go.mod h1:mpTxTtTVYo8u5wu+sVoN1DIzRZD3kUYf7LSt9Wb0fAI=
 github.com/omec-project/ngap/v2 v2.1.0 h1:+dBCYZ5esgg7QVy2DzNLvc9OXpZG9B/Swh7KZY9Wyjo=
 github.com/omec-project/ngap/v2 v2.1.0/go.mod h1:VqYpVQGeBbRf8u56hjnI0en1Ee+BRMvmqrTiEymVBtg=
 github.com/omec-project/openapi/v2 v2.1.4 h1:TuD1PgnmElWTDU4s0vkB+47jb4J8oUuEEj/uEjrmEyE=

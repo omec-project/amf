@@ -9,7 +9,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
-	github.com/omec-project/nas/v2 v2.0.0
+	github.com/omec-project/nas/v2 v2.0.1
 	github.com/omec-project/ngap/v2 v2.1.0
 	github.com/omec-project/openapi/v2 v2.1.4
 	github.com/omec-project/util v1.7.5
@@ -26,7 +26,6 @@ require (
 )
 
 require (
-	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.1 // indirect
