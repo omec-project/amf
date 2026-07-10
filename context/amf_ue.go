@@ -475,6 +475,7 @@ func (ue *AmfUe) init() {
 	ue.GmmLog = logger.GmmLog
 	ue.NASLog = logger.NasLog
 	ue.TxLog = logger.GmmLog
+	ue.ProducerLog = logger.ProducerLog
 }
 
 // UeIdentity is a consistent snapshot of a UE's identity fields, taken under
