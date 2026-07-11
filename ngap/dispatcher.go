@@ -144,7 +144,15 @@ func Dispatch(conn net.Conn, msg []byte) {
 
 	ran, ok := amfSelf.AmfRanFindByConn(conn)
 	if !ok {
-		logger.NgapLog.Infof("Create a new NG connection for: %s", conn.RemoteAddr().String())
+		if len(msg) == 0 {
+			// No existing RAN context for this connection: either the connection
+			// closed before any NGAP message arrived, or an SCTP notification
+			// already triggered ran.Remove(). Skip creating a transient context.
+			logger.NgapLog.Debugf("RAN context not found for closing connection[addr: %+v], nothing to remove",
+				conn.RemoteAddr())
+			return
+		}
+		logger.NgapLog.Infof("Create a new NG connection for: %+v", conn.RemoteAddr())
 		ran = amfSelf.NewAmfRan(conn)
 	}
 
