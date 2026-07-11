@@ -196,6 +196,10 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 	defer func() {
 		connections.Delete(conn)
 
+		// Notify the NGAP dispatcher that this RAN connection has closed so that
+		// its AmfRan entry is removed from AmfRanPool
+		handler.HandleMessage(conn, []byte{})
+
 		// if AMF call Stop(), then conn.Close() will return EBADF because conn has been closed inside Stop()
 		if err := conn.Close(); err != nil && err != syscall.EBADF {
 			logger.NgapLog.Errorf("close connection error: %+v", err)
