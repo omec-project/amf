@@ -23,6 +23,12 @@ repos:
     additional_dependencies:
     - honnef.co/go/tools/cmd/staticcheck@v0.7.0
     pass_filenames: false
+  - id: go-dependency-update
+    name: go dependency update
+    entry: go get -u ./...
+    language: system
+    types: [go]
+    pass_filenames: false
   - id: go-test-race
     name: go test -race
     entry: go test -race ./... -count=1
