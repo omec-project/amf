@@ -13,6 +13,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -38,10 +39,7 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	amfSelf := context.AMF_Self()
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
+		return httpwrapper.NewResponse(http.StatusNotFound, nil, utils.ProblemDetailsContextNotFound(""))
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -77,10 +75,7 @@ func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery stri
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return nil, problemDetails
+		return nil, utils.ProblemDetailsContextNotFound("")
 	}
 
 	ueContextInfo := models.NewUeContextInfo()
