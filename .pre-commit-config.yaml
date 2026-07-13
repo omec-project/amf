@@ -27,8 +27,9 @@ repos:
     name: go dependency update
     entry: go get -u ./...
     language: system
-    types: [go]
     pass_filenames: false
+    stages: [manual]
+    always_run: true
   - id: go-test-race
     name: go test -race
     entry: go test -race ./... -count=1
