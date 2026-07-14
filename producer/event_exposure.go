@@ -30,7 +30,7 @@ func HandleCreateAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		problemDetails := utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Unspecified NF failure", utils.CauseUnspecifiedNfFailure)
-		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 }
 
@@ -242,7 +242,7 @@ func HandleModifyAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	} else {
 		problemDetails = utils.ProblemDetailsWithCause("Unspecified NF failure", http.StatusInternalServerError, "Unspecified NF failure", utils.CauseUnspecifiedNfFailure)
-		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 }
 

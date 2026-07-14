@@ -76,7 +76,7 @@ func AMFStatusChangeUnSubscribeProcedure(subscriptionID string) (problemDetails 
 	amfSelf := context.AMF_Self()
 
 	if _, ok := amfSelf.FindAMFStatusSubscription(subscriptionID); !ok {
-		problemDetails = utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "", utils.CauseSubscriptionNotFound)
+		problemDetails = utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "AMF status subscription not found", utils.CauseSubscriptionNotFound)
 	} else {
 		logger.CommLog.Debugf("Delete AMF status subscription[%s]", subscriptionID)
 		amfSelf.DeleteAMFStatusSubscription(subscriptionID)
@@ -106,7 +106,7 @@ func AMFStatusChangeSubscribeModifyProcedure(subscriptionID string, subscription
 	amfSelf := context.AMF_Self()
 
 	if currentSubscriptionData, ok := amfSelf.FindAMFStatusSubscription(subscriptionID); !ok {
-		return nil, utils.ProblemDetailsWithCause("Forbidden", http.StatusForbidden, "", "FORBIDDEN")
+		return nil, utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "AMF status subscription not found", utils.CauseSubscriptionNotFound)
 	} else {
 		logger.CommLog.Debugf("Modify AMF status subscription[%s]", subscriptionID)
 

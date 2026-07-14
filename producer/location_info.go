@@ -38,7 +38,8 @@ func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper
 
 	amfSelf := context.AMF_Self()
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		return httpwrapper.NewResponse(http.StatusNotFound, nil, utils.ProblemDetailsContextNotFound(""))
+		pd := utils.ProblemDetailsContextNotFound("UE context not found")
+		return httpwrapper.NewResponse(int(pd.GetStatus()), nil, pd)
 	}
 
 	sbiMsg := context.SbiMsg{
@@ -74,12 +75,12 @@ func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContex
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		return nil, utils.ProblemDetailsContextNotFound("")
+		return nil, utils.ProblemDetailsContextNotFound("UE context not found")
 	}
 
 	anType := ue.GetAnType()
 	if anType == "" {
-		return nil, utils.ProblemDetailsContextNotFound("")
+		return nil, utils.ProblemDetailsContextNotFound("AN type not found")
 	}
 
 	provideLocInfo := models.NewProvideLocInfo()

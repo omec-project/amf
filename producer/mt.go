@@ -39,7 +39,8 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 	amfSelf := context.AMF_Self()
 
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		return httpwrapper.NewResponse(http.StatusNotFound, nil, utils.ProblemDetailsContextNotFound(""))
+		pd := utils.ProblemDetailsContextNotFound("UE context not found")
+		return httpwrapper.NewResponse(int(pd.GetStatus()), nil, pd)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -75,7 +76,7 @@ func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery stri
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		return nil, utils.ProblemDetailsContextNotFound("")
+		return nil, utils.ProblemDetailsContextNotFound("UE context not found")
 	}
 
 	ueContextInfo := models.NewUeContextInfo()

@@ -81,7 +81,7 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 			}
 		}
 		problemDetails = utils.ProblemDetailsUnspecified()
-		return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 
 	sbiMsg := context.SbiMsg{
@@ -127,7 +127,7 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 	}
 
 	problemDetails = utils.ProblemDetailsUnspecified()
-	return httpwrapper.NewResponse(http.StatusForbidden, nil, problemDetails)
+	return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 }
 
 // There are 4 possible return value for this function:
