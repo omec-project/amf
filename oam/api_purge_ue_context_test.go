@@ -9,13 +9,12 @@ import (
 	"testing"
 
 	"github.com/omec-project/openapi/v2/models"
+	openapiUtils "github.com/omec-project/openapi/v2/utils"
 )
 
 func TestPurgeUEContextProblemDetailsResponse(t *testing.T) {
 	t.Run("pointer problem details preserves status", func(t *testing.T) {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
+		problemDetails := openapiUtils.ProblemDetailsContextNotFound("")
 
 		status, body := purgeUEContextProblemDetailsResponse(problemDetails)
 		if status != http.StatusNotFound {

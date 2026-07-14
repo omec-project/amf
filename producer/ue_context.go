@@ -568,7 +568,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	ueRegStatusUpdateReqData, ok := request.Body.(models.UeRegStatusUpdateReqData)
 	if !ok {
 		problemDetails := utils.ProblemDetailsWithCause("Invalid body format", http.StatusBadRequest, "Request body format is invalid", utils.CauseInvalidBodyFormat)
-		return httpwrapper.NewResponse(http.StatusBadRequest, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	ueContextID := request.Params["ueContextId"]
 
@@ -577,7 +577,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
-		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	sbiMsg := context.SbiMsg{
 		UeContextId: ueContextID,
@@ -591,7 +591,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 	msg, read := <-sbiMsg.Result
 	if !read {
 		problemDetails := utils.ProblemDetailsWithCause("Message not received", http.StatusInternalServerError, "Message not received from channel", utils.CauseMessageNotReceived)
-		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	ueRegStatusUpdateRspData, ok = msg.RespData.(*models.UeRegStatusUpdateRspData)
 	if !ok {
@@ -602,7 +602,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 		}
 		// Handle unexpected response data type
 		problemDetails := utils.ProblemDetailsWithCause("Unexpected response type", http.StatusInternalServerError, "Unexpected response data type", utils.CauseUnexpectedResponseType)
-		return httpwrapper.NewResponse(http.StatusInternalServerError, nil, problemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
 	}
 	return httpwrapper.NewResponse(http.StatusOK, nil, ueRegStatusUpdateRspData)
 }

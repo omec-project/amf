@@ -14,6 +14,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
 )
 
@@ -37,10 +38,8 @@ func HandleProvideLocationInfoRequest(request *httpwrapper.Request) *httpwrapper
 
 	amfSelf := context.AMF_Self()
 	if ue, ok = amfSelf.AmfUeFindByUeContextID(ueContextID); !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return httpwrapper.NewResponse(http.StatusNotFound, nil, problemDetails)
+		pd := utils.ProblemDetailsContextNotFound("UE context not found")
+		return httpwrapper.NewResponse(int(pd.GetStatus()), nil, pd)
 	}
 
 	sbiMsg := context.SbiMsg{
@@ -76,18 +75,12 @@ func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContex
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return nil, problemDetails
+		return nil, utils.ProblemDetailsContextNotFound("UE context not found")
 	}
 
 	anType := ue.GetAnType()
 	if anType == "" {
-		problemDetails := models.NewProblemDetails()
-		problemDetails.SetStatus(http.StatusNotFound)
-		problemDetails.SetCause("CONTEXT_NOT_FOUND")
-		return nil, problemDetails
+		return nil, utils.ProblemDetailsContextNotFound("AN type not found")
 	}
 
 	provideLocInfo := models.NewProvideLocInfo()
