@@ -1149,9 +1149,9 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			cause = *tmp
 		}
 	}
-	if amfUe.GetOnGoing(amfUe.GetAnType()).Procedure == context.OnGoingProcedureN2Handover {
+	if amfUe.GetOnGoing(ran.AnType).Procedure == context.OnGoingProcedureN2Handover {
 		ranUe.Log.Infof("Setting target UE on going procedure to nothing after N2 Handover")
-		amfUe.SetOnGoing(amfUe.GetAnType(), &context.OnGoingProcedureWithPrio{
+		amfUe.SetOnGoing(ran.AnType, &context.OnGoingProcedureWithPrio{
 			Procedure: context.OnGoingProcedureNothing,
 		})
 	} else {
