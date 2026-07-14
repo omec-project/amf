@@ -3192,6 +3192,7 @@ func HandleHandoverNotify(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		}
 		amfUe.AttachRanUe(targetUe)
 		context.StoreContextInDB(amfUe)
+		amfUe.PublishUeCtxtInfo()
 		ngap_message.SendUEContextReleaseCommand(sourceUe, context.UeContextReleaseHandover, ngapType.CausePresentRadioNetwork,
 			ngapType.CauseRadioNetworkPresentSuccessfulHandover)
 	}
@@ -3400,6 +3401,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			return
 		}
 		context.StoreContextInDB(amfUe)
+		amfUe.PublishUeCtxtInfo()
 		ngap_message.SendPathSwitchRequestAcknowledge(ranUe, pduSessionResourceSwitchedList,
 			pduSessionResourceReleasedListPSAck, false, nil, nil, nil)
 	} else if len(pduSessionResourceReleasedListPSFail.List) > 0 {
