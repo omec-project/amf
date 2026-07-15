@@ -1914,6 +1914,11 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		return fmt.Errorf("AmfUe is nil")
 	}
 
+	if ue.RanUe[anType] == nil {
+		ue.GmmLog.Errorf("RanUe[%v] is nil, dropping Service Request", anType)
+		return fmt.Errorf("RanUe[%v] is nil", anType)
+	}
+
 	ue.GmmLog.Infoln("handle Service Request")
 
 	if ue.T3513 != nil {
