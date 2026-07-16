@@ -1142,22 +1142,31 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		n1n2Message := ue.N1N2Message
 		if n1n2Message != nil {
 			requestData := n1n2Message.Request.JsonData
-			n1MsgFile := n1n2Message.Request.BinaryDataN1Message
-			n2InfoFile := n1n2Message.Request.BinaryDataN2Information
+			n1MsgFile := n1n2Message.Request.GetBinaryDataN1Message()
+			n2InfoFile := n1n2Message.Request.GetBinaryDataN2Information()
+
+			if requestData.HasN1MessageContainer() && n1MsgFile == nil {
+				logger.GmmLog.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
+				return fmt.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
+			}
+			if requestData.HasN2InfoContainer() && n2InfoFile == nil {
+				logger.GmmLog.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
+				return fmt.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
+			}
 
 			var n1Msg, n2Info []byte
 			var err error
 			if n1MsgFile != nil {
-				n1Msg, err = io.ReadAll(*n1MsgFile)
+				n1Msg, err = io.ReadAll(n1MsgFile)
 				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", n1MsgFile)
+					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", err)
 					return err
 				}
 			}
 			if n2InfoFile != nil {
-				n2Info, err = io.ReadAll(*n2InfoFile)
+				n2Info, err = io.ReadAll(n2InfoFile)
 				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", n2InfoFile)
+					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", err)
 					return err
 				}
 			}
@@ -2106,22 +2115,31 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	case nasMessage.ServiceTypeMobileTerminatedServices: // Trigger by Network
 		if n1n2Message != nil {
 			requestData := n1n2Message.Request.JsonData
-			n1MsgFile := n1n2Message.Request.BinaryDataN1Message
-			n2InfoFile := n1n2Message.Request.BinaryDataN2Information
+			n1MsgFile := n1n2Message.Request.GetBinaryDataN1Message()
+			n2InfoFile := n1n2Message.Request.GetBinaryDataN2Information()
+
+			if requestData.HasN1MessageContainer() && n1MsgFile == nil {
+				logger.GmmLog.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
+				return fmt.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
+			}
+			if requestData.HasN2InfoContainer() && n2InfoFile == nil {
+				logger.GmmLog.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
+				return fmt.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
+			}
 
 			var n1Msg, n2Info []byte
 			var err error
 			if n1MsgFile != nil {
-				n1Msg, err = io.ReadAll(*n1MsgFile)
+				n1Msg, err = io.ReadAll(n1MsgFile)
 				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", n1MsgFile)
+					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", err)
 					return err
 				}
 			}
 			if n2InfoFile != nil {
-				n2Info, err = io.ReadAll(*n2InfoFile)
+				n2Info, err = io.ReadAll(n2InfoFile)
 				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", n2InfoFile)
+					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", err)
 					return err
 				}
 			}
