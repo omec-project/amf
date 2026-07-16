@@ -1145,15 +1145,21 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 			n1MsgFile := n1n2Message.Request.BinaryDataN1Message
 			n2InfoFile := n1n2Message.Request.BinaryDataN2Information
 
-			n1Msg, err := io.ReadAll(*n1MsgFile)
-			if err != nil {
-				logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", n1MsgFile)
-				return err
+			var n1Msg, n2Info []byte
+			var err error
+			if n1MsgFile != nil {
+				n1Msg, err = io.ReadAll(*n1MsgFile)
+				if err != nil {
+					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", n1MsgFile)
+					return err
+				}
 			}
-			n2Info, err := io.ReadAll(*n2InfoFile)
-			if err != nil {
-				logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", n2InfoFile)
-				return err
+			if n2InfoFile != nil {
+				n2Info, err = io.ReadAll(*n2InfoFile)
+				if err != nil {
+					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", n2InfoFile)
+					return err
+				}
 			}
 			// downlink signalling
 			if n2Info == nil {
@@ -2103,15 +2109,21 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 			n1MsgFile := n1n2Message.Request.BinaryDataN1Message
 			n2InfoFile := n1n2Message.Request.BinaryDataN2Information
 
-			n1Msg, err := io.ReadAll(*n1MsgFile)
-			if err != nil {
-				logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", n1MsgFile)
-				return err
+			var n1Msg, n2Info []byte
+			var err error
+			if n1MsgFile != nil {
+				n1Msg, err = io.ReadAll(*n1MsgFile)
+				if err != nil {
+					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", n1MsgFile)
+					return err
+				}
 			}
-			n2Info, err := io.ReadAll(*n2InfoFile)
-			if err != nil {
-				logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", n2InfoFile)
-				return err
+			if n2InfoFile != nil {
+				n2Info, err = io.ReadAll(*n2InfoFile)
+				if err != nil {
+					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", n2InfoFile)
+					return err
+				}
 			}
 			// downlink signalling
 			if n2Info == nil {
