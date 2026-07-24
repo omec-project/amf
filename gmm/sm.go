@@ -264,7 +264,7 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 		accessType := args[ArgAccessType].(models.AccessType)
 		// set log information
 		amfUe.NASLog = amfUe.NASLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
-		amfUe.TxLog = amfUe.NASLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
+		amfUe.TxLog = amfUe.TxLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
 		amfUe.GmmLog = amfUe.GmmLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
 		amfUe.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
 		amfUe.PublishUeCtxtInfo()
