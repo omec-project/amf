@@ -3265,13 +3265,22 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 	}
 
 	if uESecurityCapabilities != nil {
-		amfUe.UESecurityCapability.SetEA1_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x80) >> 7)
-		amfUe.UESecurityCapability.SetEA2_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x40) >> 6)
-		amfUe.UESecurityCapability.SetEA3_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x20) >> 5)
-		amfUe.UESecurityCapability.SetIA1_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x80) >> 7)
-		amfUe.UESecurityCapability.SetIA2_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x40) >> 6)
-		amfUe.UESecurityCapability.SetIA3_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x20) >> 5)
-		// not support any E-UTRA algorithms
+		// UESecurityCapabilities has CRITICALITY ignore in PathSwitchRequest
+		// (TS 38.413, PathSwitchRequestIEs). BIT STRING (SIZE(16,...)) must be
+		// at least 2 bytes; when the APER extension bit is set the decoder may
+		// return fewer bytes. Guard against that to avoid an index panic.
+		if len(uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes) < 2 ||
+			len(uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes) < 2 {
+			ran.Log.Warnln("UESecurityCapabilities bit string too short in PathSwitchRequest; ignoring IE per TS 38.413 PathSwitchRequestIEs criticality IGNORE")
+		} else {
+			amfUe.UESecurityCapability.SetEA1_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x80) >> 7)
+			amfUe.UESecurityCapability.SetEA2_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x40) >> 6)
+			amfUe.UESecurityCapability.SetEA3_128_5G((uESecurityCapabilities.NRencryptionAlgorithms.Value.Bytes[0] & 0x20) >> 5)
+			amfUe.UESecurityCapability.SetIA1_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x80) >> 7)
+			amfUe.UESecurityCapability.SetIA2_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x40) >> 6)
+			amfUe.UESecurityCapability.SetIA3_128_5G((uESecurityCapabilities.NRintegrityProtectionAlgorithms.Value.Bytes[0] & 0x20) >> 5)
+			// not support any E-UTRA algorithms
+		}
 	}
 
 	if rANUENGAPID != nil {
