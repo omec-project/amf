@@ -17,7 +17,6 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"go.uber.org/zap"
 )
@@ -195,7 +194,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Location.EutraLocation.Ecgi.EutraCellId = eutraCellID
 		ranUe.Location.EutraLocation.UeLocationTimestamp = &curTime
 		if locationInfoEUTRA.TimeStamp != nil {
-			ranUe.Location.EutraLocation.AgeOfLocationInformation = openapi.PtrInt32(ngapConvert.TimeStampToInt32(
+			ranUe.Location.EutraLocation.SetAgeOfLocationInformation(ngapConvert.TimeStampToInt32(
 				locationInfoEUTRA.TimeStamp.Value))
 		}
 		if ranUe.AmfUe != nil {
@@ -235,7 +234,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Location.NrLocation.Ncgi.SetNrCellId(nRCellID)
 		ranUe.Location.NrLocation.SetUeLocationTimestamp(curTime)
 		if locationInfoNR.TimeStamp != nil {
-			ranUe.Location.NrLocation.AgeOfLocationInformation = openapi.PtrInt32(ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value))
+			ranUe.Location.NrLocation.SetAgeOfLocationInformation(ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value))
 		}
 		if ranUe.AmfUe != nil {
 			if ranUe.AmfUe.Tai != ranUe.Tai {

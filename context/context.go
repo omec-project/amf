@@ -21,7 +21,6 @@ import (
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
 	"github.com/omec-project/util/drsm"
@@ -579,6 +578,9 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 	versionUri := "v" + tmpVersion[0]
 	for index, nameString := range serivceName {
 		name := models.ServiceName(nameString)
+		ipEndPoint := models.NewIpEndPoint()
+		ipEndPoint.SetTransport(models.TRANSPORTPROTOCOL_TCP)
+		ipEndPoint.SetPort(int32(context.SBIPort))
 		nfService := models.NFService{
 			ServiceInstanceId: strconv.Itoa(index),
 			ServiceName:       name,
@@ -590,18 +592,15 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 			},
 			Scheme:          context.UriScheme,
 			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
-			ApiPrefix:       openapi.PtrString(context.GetSbiUri()),
 			IpEndPoints: []models.IpEndPoint{
-				{
-					Transport: models.TRANSPORTPROTOCOL_TCP.Ptr(),
-					Port:      openapi.PtrInt32(int32(context.SBIPort)),
-				},
+				*ipEndPoint,
 			},
 		}
+		nfService.SetApiPrefix(context.GetSbiUri())
 		if registerIPv4 := context.RegisterIPv4Address(); registerIPv4 != "" {
-			nfService.IpEndPoints[0].Ipv4Address = openapi.PtrString(registerIPv4)
+			nfService.IpEndPoints[0].SetIpv4Address(registerIPv4)
 		} else if fqdn := context.RegisterFQDN(); fqdn != "" {
-			nfService.Fqdn = openapi.PtrString(fqdn)
+			nfService.SetFqdn(fqdn)
 		}
 		context.NfService[name] = nfService
 	}

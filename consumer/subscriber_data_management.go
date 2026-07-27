@@ -41,14 +41,13 @@ func PutUpuAck(ctx context.Context, ue *amf_context.AmfUe, upuMacIue string) err
 	}
 	client := Nudm_SDM.NewAPIClient(configuration)
 
-	ackInfo := models.AcknowledgeInfo{
-		UpuMacIue: openapi.PtrString(upuMacIue),
-	}
+	ackInfo := models.NewAcknowledgeInfoWithDefaults()
+	ackInfo.SetUpuMacIue(upuMacIue)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	apiUpuAckRequest := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAck(ctx, ue.GetSupi())
-	apiUpuAckRequest = apiUpuAckRequest.AcknowledgeInfo(ackInfo)
+	apiUpuAckRequest = apiUpuAckRequest.AcknowledgeInfo(*ackInfo)
 	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAckExecute(apiUpuAckRequest)
 	return err
 }
@@ -271,21 +270,21 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 		for _, defaultSnssai := range nssai.DefaultSingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{
 				SubscribedSnssai: models.Snssai{
-					Sst: defaultSnssai.Sst,
+					Sst: defaultSnssai.GetSst(),
 					Sd:  defaultSnssai.Sd,
 				},
-				DefaultIndication: openapi.PtrBool(true),
 			}
+			subscribedSnssai.SetDefaultIndication(true)
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
 		for _, snssai := range nssai.SingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{
 				SubscribedSnssai: models.Snssai{
-					Sst: snssai.Sst,
+					Sst: snssai.GetSst(),
 					Sd:  snssai.Sd,
 				},
-				DefaultIndication: openapi.PtrBool(false),
 			}
+			subscribedSnssai.SetDefaultIndication(false)
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
 	} else if httpResp != nil {

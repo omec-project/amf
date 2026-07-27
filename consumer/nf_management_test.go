@@ -8,7 +8,6 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
@@ -132,5 +131,4 @@ func TestGetNfProfileUsesIpv4AddressForLiteralRegistration(t *testing.T) {
 	if amfCtx.RegisterIPv4Address() != registerIPv4 {
 		t.Fatalf("RegisterIPv4Address() = %q, want %q", amfCtx.RegisterIPv4Address(), registerIPv4)
 	}
-	_ = openapi.PtrString
 }
