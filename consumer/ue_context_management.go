@@ -49,12 +49,12 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 	case models.ACCESSTYPE__3_GPP_ACCESS:
 		ratType := ensureRatType(ue, accessType)
 		registrationData := models.Amf3GppAccessRegistration{
-			AmfInstanceId:          amfSelf.NfId,
-			InitialRegistrationInd: openapi.PtrBool(initialRegistrationInd),
-			Guami:                  amfSelf.ServedGuamiList[0],
-			RatType:                ratType,
-			ImsVoPs:                models.IMSVOPS_HOMOGENEOUS_NON_SUPPORT.Ptr(),
+			AmfInstanceId: amfSelf.NfId,
+			Guami:         amfSelf.ServedGuamiList[0],
+			RatType:       ratType,
 		}
+		registrationData.SetInitialRegistrationInd(initialRegistrationInd)
+		registrationData.SetImsVoPs(models.IMSVOPS_HOMOGENEOUS_NON_SUPPORT)
 		gppAccessCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 

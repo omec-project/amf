@@ -24,44 +24,44 @@ import (
 )
 
 func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
-	ueContext.Supi = openapi.PtrString(ue.GetSupi())
-	ueContext.SupiUnauthInd = openapi.PtrBool(ue.UnauthenticatedSupi)
+	ueContext.SetSupi(ue.GetSupi())
+	ueContext.SetSupiUnauthInd(ue.UnauthenticatedSupi)
 
 	if ue.GetGpsi() != "" {
 		ueContext.GpsiList = append(ueContext.GpsiList, ue.GetGpsi())
 	}
 
 	if ue.GetPei() != "" {
-		ueContext.Pei = openapi.PtrString(ue.GetPei())
+		ueContext.SetPei(ue.GetPei())
 	}
 
 	if ue.UdmGroupId != "" {
-		ueContext.UdmGroupId = openapi.PtrString(ue.UdmGroupId)
+		ueContext.SetUdmGroupId(ue.UdmGroupId)
 	}
 
 	if ue.AusfGroupId != "" {
-		ueContext.AusfGroupId = openapi.PtrString(ue.AusfGroupId)
+		ueContext.SetAusfGroupId(ue.AusfGroupId)
 	}
 
 	if ue.RoutingIndicator != "" {
-		ueContext.RoutingIndicator = openapi.PtrString(ue.RoutingIndicator)
+		ueContext.SetRoutingIndicator(ue.RoutingIndicator)
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {
 		if ambr, ok := ue.AccessAndMobilitySubscriptionData.GetSubscribedUeAmbrOk(); ok {
-			ueContext.SubUeAmbr = models.NewAmbr(ambr.GetUplink(), ambr.GetDownlink())
+			ueContext.SetSubUeAmbr(*ambr)
 		}
 		if ue.AccessAndMobilitySubscriptionData.GetRfspIndex() != 0 {
-			ueContext.SubRfsp = openapi.PtrInt32(ue.AccessAndMobilitySubscriptionData.GetRfspIndex())
+			ueContext.SetSubRfsp(ue.AccessAndMobilitySubscriptionData.GetRfspIndex())
 		}
 	}
 
 	if ue.PcfId != "" {
-		ueContext.PcfId = openapi.PtrString(ue.PcfId)
+		ueContext.SetPcfId(ue.PcfId)
 	}
 
 	if ue.AmPolicyUri != "" {
-		ueContext.PcfAmPolicyUri = openapi.PtrString(ue.AmPolicyUri)
+		ueContext.SetPcfAmPolicyUri(ue.AmPolicyUri)
 	}
 
 	if ue.AmPolicyAssociation != nil {

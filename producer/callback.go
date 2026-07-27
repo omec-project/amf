@@ -26,7 +26,6 @@ import (
 	"github.com/omec-project/nas/v2/nasConvert"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
 	"github.com/omec-project/openapi/v2/utils"
@@ -187,11 +186,11 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 			ue.SmContextList.Delete(pduSessionID)
 		}
 	} else {
+		invalidParam := models.NewInvalidParam("StatusInfo.ResourceStatus")
+		invalidParam.SetReason("invalid value")
 		problemDetails := utils.ProblemDetailsWithInvalidParams(
 			"Invalid message format", http.StatusBadRequest, "",
-			[]models.InvalidParam{
-				{Param: "StatusInfo.ResourceStatus", Reason: openapi.PtrString("invalid value")},
-			})
+			[]models.InvalidParam{*invalidParam})
 		problemDetails.SetCause(utils.CauseInvalidMsgFormat)
 		return problemDetails
 	}

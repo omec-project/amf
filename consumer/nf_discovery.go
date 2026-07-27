@@ -13,7 +13,6 @@ import (
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/v2/models"
 	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
@@ -105,12 +104,12 @@ func SendNfDiscoveryToNrf(ctx context.Context, nrfUri string, targetNfType, requ
 	for _, nfProfile := range result.NfInstances {
 		// checking whether the AMF subscribed to this target nfinstanceid or not
 		if _, ok := amfSelf.NfStatusSubscriptions.Load(nfProfile.NfInstanceId); !ok {
+			nfInstanceIdCond := models.NewNfInstanceIdCond()
+			nfInstanceIdCond.SetNfInstanceId(nfProfile.NfInstanceId)
 			nrfSubscriptionData := models.SubscriptionData{
 				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
 				SubscrCond: &models.SubscrCond{
-					NfInstanceIdCond: &models.NfInstanceIdCond{
-						NfInstanceId: openapi.PtrString(nfProfile.NfInstanceId),
-					},
+					NfInstanceIdCond: nfInstanceIdCond,
 				},
 				ReqNfType: &requestNfType,
 			}
@@ -169,12 +168,12 @@ func SendNfDiscoveryToNrfCacheQuery(ctx context.Context, nrfUri string, targetNf
 
 	for _, nfProfile := range result.NfInstances {
 		if _, ok := amfSelf.NfStatusSubscriptions.Load(nfProfile.NfInstanceId); !ok {
+			nfInstanceIdCond := models.NewNfInstanceIdCond()
+			nfInstanceIdCond.SetNfInstanceId(nfProfile.NfInstanceId)
 			nrfSubscriptionData := models.SubscriptionData{
 				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
 				SubscrCond: &models.SubscrCond{
-					NfInstanceIdCond: &models.NfInstanceIdCond{
-						NfInstanceId: openapi.PtrString(nfProfile.NfInstanceId),
-					},
+					NfInstanceIdCond: nfInstanceIdCond,
 				},
 				ReqNfType: &requestNfType,
 			}

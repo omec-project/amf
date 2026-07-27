@@ -15,7 +15,6 @@ import (
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -90,7 +89,6 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 			defer cleanupTempBinaryFile(tmpFile)
 
 			jsonData := models.N1MessageNotification{
-				N1NotifySubscriptionId: openapi.PtrString(strconv.Itoa(int(subscriptionID))),
 				N1MessageContainer: models.N1MessageContainer{
 					N1MessageClass: subscription.GetN1MessageClass(),
 					N1MessageContent: models.RefToBinaryData{
@@ -99,6 +97,7 @@ func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n
 				},
 				RegistrationCtxtContainer: registerContext,
 			}
+			jsonData.SetN1NotifySubscriptionId(strconv.Itoa(int(subscriptionID)))
 
 			n1MessageNotifyRequest := models.NewN1MessageNotifyRequest()
 			n1MessageNotifyRequest.SetJsonData(jsonData)

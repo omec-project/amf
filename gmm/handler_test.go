@@ -1878,3 +1878,422 @@ func BenchmarkHandleInitialRegistration(b *testing.B) {
 		})
 	}
 }
+
+// TestHandleMobilityAndPeriodicRegistrationUpdatingNilBinaryDataN1Message verifies that a nil
+// (outer) or inner-nil BinaryDataN1Message (**os.File where *os.File == nil) does not cause a
+// panic, and that the handler returns the expected error when the PDU session is absent.
+func TestHandleMobilityAndPeriodicRegistrationUpdatingNilBinaryDataN1Message(t *testing.T) {
+	tests := []struct {
+		name      string
+		n1MsgFile **os.File
+	}{
+		{
+			name:      "outer nil pointer does not panic",
+			n1MsgFile: nil,
+		},
+		{
+			name:      "outer non-nil but inner nil pointer does not panic",
+			n1MsgFile: new(*os.File), // *new(*os.File) == nil
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			capability := nasType.NewCapability5GMM(nasMessage.RegistrationRequestCapability5GMMType)
+			capability.SetLen(13)
+
+			allowedPduSessionStatus := nasType.NewAllowedPDUSessionStatus(
+				nasMessage.RegistrationRequestAllowedPDUSessionStatusType)
+			allowedPduSessionStatus.SetLen(2)
+
+			ue := &context.AmfUe{
+				GmmLog:                zap.NewNop().Sugar(),
+				NASLog:                zap.NewNop().Sugar(),
+				RanUe:                 make(map[models.AccessType]*context.RanUe),
+				AllowedNssai:          make(map[models.AccessType][]models.AllowedSnssai),
+				OnGoing:               make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+				RegistrationArea:      make(map[models.AccessType][]models.Tai),
+				State:                 make(map[models.AccessType]*fsm.State),
+				ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
+				SubscriptionDataValid: true,
+				Pei:                   "imei-001010000000001",
+				SubscribedNssai: []models.SubscribedSnssai{{
+					SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+					DefaultIndication: openapi.PtrBool(true),
+				}},
+			}
+			ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+			ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+			ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+				Procedure: context.OnGoingProcedureNothing,
+			}
+			ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+				Procedure: context.OnGoingProcedureNothing,
+			}
+
+			ran := context.NewAmfRanDefault()
+			ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+			ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{
+				AmfUe: ue,
+				Ran:   ran,
+				Log:   zap.NewNop().Sugar(),
+				Tai:   models.Tai{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}, Tac: "000001"},
+			}
+			ue.Tai = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Tai
+			ue.Location.SetNrLocation(models.NrLocation{})
+
+			ue.RegistrationRequest = &nasMessage.RegistrationRequest{
+				Capability5GMM:          capability,
+				AllowedPDUSessionStatus: allowedPduSessionStatus,
+			}
+
+			pduSessionId := int32(2)
+			snssai := models.NewSnssai(1)
+			snssai.SetSd("010203")
+			ue.N1N2Message = &context.N1N2Message{
+				Request: models.N1N2MessageTransferRequest{
+					JsonData: &models.N1N2MessageTransferReqData{
+						PduSessionId: &pduSessionId,
+						N2InfoContainer: &models.N2InfoContainer{
+							N2InformationClass: models.N2INFORMATIONCLASS_SM,
+							SmInfo: &models.N2SmInformation{
+								PduSessionId:  pduSessionId,
+								N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
+								SNssai:        snssai,
+							},
+						},
+					},
+					BinaryDataN1Message:     tc.n1MsgFile,
+					BinaryDataN2Information: tempBinaryFile(t, "n2.bin", []byte{0x02}),
+				},
+			}
+
+			err := HandleMobilityAndPeriodicRegistrationUpdating(
+				ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS)
+			if err == nil {
+				t.Fatal("expected missing PDU session error")
+			}
+			if !strings.Contains(err.Error(), "pdu session id does not exist") {
+				t.Fatalf("expected \"pdu session id does not exist\", got %v", err)
+			}
+		})
+	}
+}
+
+// TestHandleServiceRequestNilBinaryDataN1Message verifies that a nil (outer) or inner-nil
+// BinaryDataN1Message (**os.File where *os.File == nil) does not cause a panic during
+// Mobile-Terminated service request handling, and that the handler returns the expected error
+// when the PDU session is absent.
+func TestHandleServiceRequestNilBinaryDataN1Message(t *testing.T) {
+	tests := []struct {
+		name      string
+		n1MsgFile **os.File
+	}{
+		{
+			name:      "outer nil pointer does not panic",
+			n1MsgFile: nil,
+		},
+		{
+			name:      "outer non-nil but inner nil pointer does not panic",
+			n1MsgFile: new(*os.File), // *new(*os.File) == nil
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ue := &context.AmfUe{
+				GmmLog:                   zap.NewNop().Sugar(),
+				NASLog:                   zap.NewNop().Sugar(),
+				RanUe:                    make(map[models.AccessType]*context.RanUe),
+				AllowedNssai:             make(map[models.AccessType][]models.AllowedSnssai),
+				OnGoing:                  make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+				RegistrationArea:         make(map[models.AccessType][]models.Tai),
+				State:                    make(map[models.AccessType]*fsm.State),
+				ReleaseCause:             make(map[models.AccessType]*context.CauseAll),
+				SubscriptionDataValid:    true,
+				SecurityContextAvailable: true,
+				Pei:                      "imei-001010000000001",
+			}
+			ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+			ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+			ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+				Procedure: context.OnGoingProcedureNothing,
+			}
+			ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+				Procedure: context.OnGoingProcedureNothing,
+			}
+			ue.NgKsi.Ksi = 1
+
+			ran := context.NewAmfRanDefault()
+			ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+			ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{
+				AmfUe: ue,
+				Ran:   ran,
+				Log:   zap.NewNop().Sugar(),
+				Tai:   models.Tai{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}, Tac: "000001"},
+			}
+			ue.Tai = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Tai
+			ue.Location.SetNrLocation(models.NrLocation{})
+
+			serviceRequest := nasMessage.NewServiceRequest(0)
+			serviceRequest.SetServiceTypeValue(nasMessage.ServiceTypeMobileTerminatedServices)
+
+			pduSessionId := int32(2)
+			snssai := models.NewSnssai(1)
+			snssai.SetSd("010203")
+			ue.N1N2Message = &context.N1N2Message{
+				Request: models.N1N2MessageTransferRequest{
+					JsonData: &models.N1N2MessageTransferReqData{
+						PduSessionId: &pduSessionId,
+						N2InfoContainer: &models.N2InfoContainer{
+							N2InformationClass: models.N2INFORMATIONCLASS_SM,
+							SmInfo: &models.N2SmInformation{
+								PduSessionId:  pduSessionId,
+								N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
+								SNssai:        snssai,
+							},
+						},
+					},
+					BinaryDataN1Message:     tc.n1MsgFile,
+					BinaryDataN2Information: tempBinaryFile(t, "srv-n2.bin", []byte{0x02}),
+				},
+			}
+
+			err := HandleServiceRequest(
+				ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS, serviceRequest)
+			if err == nil {
+				t.Fatal("expected missing PDU session error")
+			}
+			if !strings.Contains(err.Error(), "pduSessionId does not exist") {
+				t.Fatalf("expected \"pduSessionId does not exist\", got %v", err)
+			}
+		})
+	}
+}
+
+// newRegisteredUeForNilBinaryTests builds the minimum AmfUe needed to reach the
+// N1N2 binary-reading section inside HandleMobilityAndPeriodicRegistrationUpdating.
+func newRegisteredUeForNilBinaryTests(t *testing.T) (*context.AmfUe, *nasMessage.RegistrationRequest) {
+	t.Helper()
+
+	capability := nasType.NewCapability5GMM(nasMessage.RegistrationRequestCapability5GMMType)
+	capability.SetLen(13)
+	allowedPduSessionStatus := nasType.NewAllowedPDUSessionStatus(
+		nasMessage.RegistrationRequestAllowedPDUSessionStatusType)
+	allowedPduSessionStatus.SetLen(2)
+
+	ue := &context.AmfUe{
+		GmmLog:                zap.NewNop().Sugar(),
+		NASLog:                zap.NewNop().Sugar(),
+		RanUe:                 make(map[models.AccessType]*context.RanUe),
+		AllowedNssai:          make(map[models.AccessType][]models.AllowedSnssai),
+		OnGoing:               make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+		RegistrationArea:      make(map[models.AccessType][]models.Tai),
+		State:                 make(map[models.AccessType]*fsm.State),
+		ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
+		SubscriptionDataValid: true,
+		Pei:                   "imei-001010000000001",
+		SubscribedNssai: []models.SubscribedSnssai{{
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+			DefaultIndication: openapi.PtrBool(true),
+		}},
+	}
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+	ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+		Procedure: context.OnGoingProcedureNothing,
+	}
+	ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+		Procedure: context.OnGoingProcedureNothing,
+	}
+
+	ran := context.NewAmfRanDefault()
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{
+		AmfUe: ue,
+		Ran:   ran,
+		Log:   zap.NewNop().Sugar(),
+		Tai:   models.Tai{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}, Tac: "000001"},
+	}
+	ue.Tai = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Tai
+	ue.Location.SetNrLocation(models.NrLocation{})
+
+	regReq := &nasMessage.RegistrationRequest{
+		Capability5GMM:          capability,
+		AllowedPDUSessionStatus: allowedPduSessionStatus,
+	}
+	return ue, regReq
+}
+
+// newMTServiceUeForNilBinaryTests builds the minimum AmfUe needed to reach the
+// N1N2 binary-reading section inside HandleServiceRequest for MobileTerminated.
+func newMTServiceUeForNilBinaryTests(t *testing.T) *context.AmfUe {
+	t.Helper()
+
+	ue := &context.AmfUe{
+		GmmLog:                   zap.NewNop().Sugar(),
+		NASLog:                   zap.NewNop().Sugar(),
+		RanUe:                    make(map[models.AccessType]*context.RanUe),
+		AllowedNssai:             make(map[models.AccessType][]models.AllowedSnssai),
+		OnGoing:                  make(map[models.AccessType]*context.OnGoingProcedureWithPrio),
+		RegistrationArea:         make(map[models.AccessType][]models.Tai),
+		State:                    make(map[models.AccessType]*fsm.State),
+		ReleaseCause:             make(map[models.AccessType]*context.CauseAll),
+		SubscriptionDataValid:    true,
+		SecurityContextAvailable: true,
+		Pei:                      "imei-001010000000001",
+	}
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
+	ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+		Procedure: context.OnGoingProcedureNothing,
+	}
+	ue.OnGoing[models.ACCESSTYPE_NON_3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{
+		Procedure: context.OnGoingProcedureNothing,
+	}
+	ue.NgKsi.Ksi = 1
+
+	ran := context.NewAmfRanDefault()
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &context.RanUe{
+		AmfUe: ue,
+		Ran:   ran,
+		Log:   zap.NewNop().Sugar(),
+		Tai:   models.Tai{PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"}, Tac: "000001"},
+	}
+	ue.Tai = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Tai
+	ue.Location.SetNrLocation(models.NrLocation{})
+	return ue
+}
+
+// TestHandleMobilityAndPeriodicRegistrationUpdatingContainerBinaryMismatch verifies
+// that an explicit error is returned when a JSON N1/N2 container is present in the
+// N1N2MessageTransfer request but the corresponding binary part is absent, preventing
+// the handler from silently branching down the wrong code path (TS 29.518 §6.1.6.2.6).
+func TestHandleMobilityAndPeriodicRegistrationUpdatingContainerBinaryMismatch(t *testing.T) {
+	pduSessionId := int32(2)
+	snssai := models.NewSnssai(1)
+	snssai.SetSd("010203")
+
+	tests := []struct {
+		name       string
+		jsonData   *models.N1N2MessageTransferReqData
+		wantErrSub string
+	}{
+		{
+			name: "N1MessageContainer present but BinaryDataN1Message absent",
+			jsonData: &models.N1N2MessageTransferReqData{
+				PduSessionId: &pduSessionId,
+				N1MessageContainer: models.NewN1MessageContainer(
+					models.N1MESSAGECLASS_SM,
+					models.RefToBinaryData{ContentId: "n1"},
+				),
+			},
+			wantErrSub: "N1MessageContainer present but BinaryDataN1Message is missing",
+		},
+		{
+			name: "N2InfoContainer present but BinaryDataN2Information absent",
+			jsonData: &models.N1N2MessageTransferReqData{
+				PduSessionId: &pduSessionId,
+				N2InfoContainer: &models.N2InfoContainer{
+					N2InformationClass: models.N2INFORMATIONCLASS_SM,
+					SmInfo: &models.N2SmInformation{
+						PduSessionId:  pduSessionId,
+						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
+						SNssai:        snssai,
+					},
+				},
+			},
+			wantErrSub: "N2InfoContainer present but BinaryDataN2Information is missing",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ue, regReq := newRegisteredUeForNilBinaryTests(t)
+			ue.RegistrationRequest = regReq
+			ue.N1N2Message = &context.N1N2Message{
+				Request: models.N1N2MessageTransferRequest{
+					JsonData: tc.jsonData,
+					// BinaryDataN1Message and BinaryDataN2Information both absent (nil)
+				},
+			}
+
+			err := HandleMobilityAndPeriodicRegistrationUpdating(
+				ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS)
+			if err == nil {
+				t.Fatal("expected a validation error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrSub) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantErrSub, err.Error())
+			}
+		})
+	}
+}
+
+// TestHandleServiceRequestContainerBinaryMismatch verifies that an explicit error is
+// returned when a JSON N1/N2 container is present in the N1N2MessageTransfer request
+// but the corresponding binary part is absent during Mobile-Terminated service request
+// handling (TS 29.518 §6.1.6.2.6).
+func TestHandleServiceRequestContainerBinaryMismatch(t *testing.T) {
+	pduSessionId := int32(2)
+	snssai := models.NewSnssai(1)
+	snssai.SetSd("010203")
+
+	tests := []struct {
+		name       string
+		jsonData   *models.N1N2MessageTransferReqData
+		wantErrSub string
+	}{
+		{
+			name: "N1MessageContainer present but BinaryDataN1Message absent",
+			jsonData: &models.N1N2MessageTransferReqData{
+				PduSessionId: &pduSessionId,
+				N1MessageContainer: models.NewN1MessageContainer(
+					models.N1MESSAGECLASS_SM,
+					models.RefToBinaryData{ContentId: "n1"},
+				),
+			},
+			wantErrSub: "N1MessageContainer present but BinaryDataN1Message is missing",
+		},
+		{
+			name: "N2InfoContainer present but BinaryDataN2Information absent",
+			jsonData: &models.N1N2MessageTransferReqData{
+				PduSessionId: &pduSessionId,
+				N2InfoContainer: &models.N2InfoContainer{
+					N2InformationClass: models.N2INFORMATIONCLASS_SM,
+					SmInfo: &models.N2SmInformation{
+						PduSessionId:  pduSessionId,
+						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
+						SNssai:        snssai,
+					},
+				},
+			},
+			wantErrSub: "N2InfoContainer present but BinaryDataN2Information is missing",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ue := newMTServiceUeForNilBinaryTests(t)
+			ue.N1N2Message = &context.N1N2Message{
+				Request: models.N1N2MessageTransferRequest{
+					JsonData: tc.jsonData,
+					// BinaryDataN1Message and BinaryDataN2Information both absent (nil)
+				},
+			}
+
+			serviceRequest := nasMessage.NewServiceRequest(0)
+			serviceRequest.SetServiceTypeValue(nasMessage.ServiceTypeMobileTerminatedServices)
+
+			err := HandleServiceRequest(
+				ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS, serviceRequest)
+			if err == nil {
+				t.Fatal("expected a validation error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErrSub) {
+				t.Fatalf("expected error containing %q, got %q", tc.wantErrSub, err.Error())
+			}
+		})
+	}
+}

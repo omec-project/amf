@@ -49,10 +49,10 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 		Guami:           &amfSelf.ServedGuamiList[0],
 	}
 	if ue.GetPei() != "" {
-		policyAssociationRequest.Pei = openapi.PtrString(ue.GetPei())
+		policyAssociationRequest.SetPei(ue.GetPei())
 	}
 	if ue.GetGpsi() != "" {
-		policyAssociationRequest.Gpsi = openapi.PtrString(ue.GetGpsi())
+		policyAssociationRequest.SetGpsi(ue.GetGpsi())
 	}
 
 	if ue.AccessAndMobilitySubscriptionData != nil {

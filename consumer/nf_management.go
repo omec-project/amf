@@ -73,7 +73,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	if registerIPv4 := amfCtx.RegisterIPv4Address(); registerIPv4 != "" {
 		profile.Ipv4Addresses = append(profile.Ipv4Addresses, registerIPv4)
 	} else if fqdn := amfCtx.RegisterFQDN(); fqdn != "" {
-		profile.Fqdn = openapi.PtrString(fqdn)
+		profile.SetFqdn(fqdn)
 	}
 	services := []models.NFService{}
 	for _, nfService := range amfCtx.NfService {

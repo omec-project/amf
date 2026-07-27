@@ -14,7 +14,6 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
@@ -321,15 +320,15 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 		return report, ok
 	}
 
-	report.AnyUe = openapi.PtrBool(ueSubscription.AnyUe)
-	report.Supi = openapi.PtrString(ue.GetSupi())
-	report.Type = Type
-	report.TimeStamp = ueSubscription.Timestamp
-	report.State = models.AmfEventState{}
+	report.SetAnyUe(ueSubscription.AnyUe)
+	report.SetSupi(ue.GetSupi())
+	report.SetType(Type)
+	report.SetTimeStamp(ueSubscription.Timestamp)
+	report.SetState(models.AmfEventState{})
 	mode := ueSubscription.EventSubscription.Options
 	if mode == nil {
 		report.State.SetActive(true)
-	} else if mode.Trigger == models.AMFEVENTTRIGGER_ONE_TIME {
+	} else if mode.GetTrigger() == models.AMFEVENTTRIGGER_ONE_TIME {
 		report.State.SetActive(false)
 	} else if ueSubscription.RemainReports != nil && *ueSubscription.RemainReports <= 0 {
 		report.State.SetActive(false)
@@ -346,11 +345,11 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 
 	switch Type {
 	case models.AMFEVENTTYPE_LOCATION_REPORT:
-		report.Location = &ue.Location
+		report.SetLocation(ue.Location)
 	// case models.AMFEVENTTYPE_PRESENCE_IN_AOI_REPORT:
 	// report.AreaList = (*subscription.EventList)[eventIndex].AreaList
 	case models.AMFEVENTTYPE_TIMEZONE_REPORT:
-		report.Timezone = openapi.PtrString(ue.TimeZone)
+		report.SetTimezone(ue.TimeZone)
 	case models.AMFEVENTTYPE_ACCESS_TYPE_REPORT:
 		for accessType, state := range ue.State {
 			if state.Is(context.Registered) {
@@ -369,20 +368,20 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 			}
 			rmInfos = append(rmInfos, rmInfo)
 		}
-		report.RmInfoList = rmInfos
+		report.SetRmInfoList(rmInfos)
 	case models.AMFEVENTTYPE_CONNECTIVITY_STATE_REPORT:
-		report.CmInfoList = ue.GetCmInfo()
+		report.SetCmInfoList(ue.GetCmInfo())
 	case models.AMFEVENTTYPE_REACHABILITY_REPORT:
-		report.Reachability = &ue.Reachability
+		report.SetReachability(ue.Reachability)
 	// TODO: GA: Need to check the content of SubscribedData
 	// case models.AMFEVENTTYPE_SUBSCRIBED_DATA_REPORT:
 	// 	report.SubscribedData = &ue.SubscribedData
 	case models.AMFEVENTTYPE_COMMUNICATION_FAILURE_REPORT:
 		// TODO : report.CommFailure
 	case models.AMFEVENTTYPE_SUBSCRIPTION_ID_CHANGE:
-		report.SubscriptionId = openapi.PtrString(subscriptionId)
+		report.SetSubscriptionId(subscriptionId)
 	case models.AMFEVENTTYPE_SUBSCRIPTION_ID_ADDITION:
-		report.SubscriptionId = openapi.PtrString(subscriptionId)
+		report.SetSubscriptionId(subscriptionId)
 	}
 	return report, ok
 }

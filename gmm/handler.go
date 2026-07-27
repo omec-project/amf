@@ -35,7 +35,6 @@ import (
 	"github.com/omec-project/nas/v2/security"
 	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
@@ -350,16 +349,15 @@ func releaseDuplicatePDUSession(
 ) error {
 	smCtx.StoreULNASTransport(ulNasTransport)
 
-	update := models.SmContextUpdateData{
-		Release: openapi.PtrBool(true),
-		Cause:   models.CAUSE_REL_DUE_TO_DUPLICATE_SESSION_ID.Ptr(),
-		SmContextStatusUri: openapi.PtrString(fmt.Sprintf("%s/namf-callback/v1/smContextStatus/%s/%d",
-			ue.ServingAMF.GetIPv4Uri(), ue.GetGuti(), pduID)),
-	}
+	update := models.NewSmContextUpdateData()
+	update.SetRelease(true)
+	update.SetCause(models.CAUSE_REL_DUE_TO_DUPLICATE_SESSION_ID)
+	update.SetSmContextStatusUri(fmt.Sprintf("%s/namf-callback/v1/smContextStatus/%s/%d",
+		ue.ServingAMF.GetIPv4Uri(), ue.GetGuti(), pduID))
 	ue.GmmLog.Warnf("duplicated PDU session ID[%d]", pduID)
 	smCtx.SetDuplicatedPduSessionID(true)
 
-	resp, _, _, err := consumer.SendUpdateSmContextRequest(ctx, smCtx, update, nil, nil)
+	resp, _, _, err := consumer.SendUpdateSmContextRequest(ctx, smCtx, *update, nil, nil)
 	if err != nil {
 		return err
 	}
@@ -436,9 +434,9 @@ func forward5GSMMessageToSMF(
 	smContextUpdateData := models.SmContextUpdateData{
 		N1SmMsg: n1SmMsg,
 	}
-	smContextUpdateData.Pei = openapi.PtrString(ue.GetPei())
+	smContextUpdateData.SetPei(ue.GetPei())
 	if !context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
-		smContextUpdateData.UeLocation = &ue.Location
+		smContextUpdateData.SetUeLocation(ue.Location)
 	}
 
 	if accessType != smContext.AccessType() {
@@ -1556,28 +1554,23 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 				ueContext := consumer.BuildUeContextModel(ue)
 				ranId := ue.RanUe[anType].Ran.RanId
 				ranNodeId := models.NewNullableGlobalRanNodeId(ranId)
-				registerContext := models.RegistrationContextContainer{
-					UeContext:        ueContext,
-					AnType:           anType,
-					AnN2ApId:         int32(ue.RanUe[anType].RanUeNgapId),
-					RanNodeId:        *ranNodeId,
-					InitialAmfName:   amfSelf.Name,
-					UserLocation:     ue.Location,
-					RrcEstCause:      openapi.PtrString(ue.RanUe[anType].RRCEstablishmentCause),
-					UeContextRequest: openapi.PtrBool(ue.RanUe[anType].UeContextRequest),
-					AnN2IPv4Addr:     openapi.PtrString(ue.RanUe[anType].Ran.GnbIp),
-					AllowedNssai:     models.NewAllowedNssai(ue.AllowedNssai[anType], anType),
-				}
+				allowedNssai := models.NewAllowedNssai(ue.AllowedNssai[anType], anType)
+				registerContext := models.NewRegistrationContextContainer(ueContext, anType, int32(ue.RanUe[anType].RanUeNgapId), *ranNodeId, amfSelf.Name, ue.Location)
+				registerContext.SetRrcEstCause(ue.RanUe[anType].RRCEstablishmentCause)
+				registerContext.SetUeContextRequest(ue.RanUe[anType].UeContextRequest)
+				registerContext.SetAnN2IPv4Addr(ue.RanUe[anType].Ran.GnbIp)
+				registerContext.SetAllowedNssai(*allowedNssai)
+
 				if len(ue.NetworkSliceInfo.RejectedNssaiInPlmn) > 0 {
-					registerContext.RejectedNssaiInPlmn = ue.NetworkSliceInfo.RejectedNssaiInPlmn
+					registerContext.SetRejectedNssaiInPlmn(ue.NetworkSliceInfo.RejectedNssaiInPlmn)
 				}
 				if len(ue.NetworkSliceInfo.RejectedNssaiInTa) > 0 {
-					registerContext.RejectedNssaiInTa = ue.NetworkSliceInfo.RejectedNssaiInTa
+					registerContext.SetRejectedNssaiInTa(ue.NetworkSliceInfo.RejectedNssaiInTa)
 				}
 
 				var n1Message bytes.Buffer
 				registrationRequest.EncodeRegistrationRequest(&n1Message)
-				callback.SendN1MessageNotifyAtAMFReAllocation(ue, n1Message.Bytes(), &registerContext)
+				callback.SendN1MessageNotifyAtAMFReAllocation(ue, n1Message.Bytes(), registerContext)
 			} else {
 				// Condition (B) Step 7: initial AMF can not find Target AMF via NRF -> Send Reroute NAS Request to RAN
 				allowedNssaiNgap := ngapConvert.AllowedNssaiToNgap(ue.AllowedNssai[anType])
@@ -2458,7 +2451,8 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 				})
 			}
 		case models.AUTHRESULT_AUTHENTICATION_ONGOING:
-			ue.AuthenticationCtx.Var5gAuthData.String = openapi.PtrString(response.GetEapPayload())
+			eapPayload := response.GetEapPayload()
+			ue.AuthenticationCtx.SetVar5gAuthData(models.StringAsUEAuthenticationCtx5gAuthData(&eapPayload))
 			if _, exists := response.Links["link"]; exists {
 				ue.AuthenticationCtx.Links = response.Links
 			}

@@ -12,7 +12,6 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
@@ -87,20 +86,20 @@ func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContex
 
 	ranUe := ue.RanUe[anType]
 	if requestLocInfo.GetReq5gsLoc() || requestLocInfo.GetReqCurrentLoc() {
-		provideLocInfo.CurrentLoc = openapi.PtrBool(true)
-		provideLocInfo.Location = &ue.Location
+		provideLocInfo.SetCurrentLoc(true)
+		provideLocInfo.SetLocation(ue.Location)
 	}
 
 	if requestLocInfo.GetReqRatType() {
-		provideLocInfo.RatType = &ue.RatType
+		provideLocInfo.SetRatType(ue.RatType)
 	}
 
 	if requestLocInfo.GetReqTimeZone() {
-		provideLocInfo.Timezone = openapi.PtrString(ue.TimeZone)
+		provideLocInfo.SetTimezone(ue.TimeZone)
 	}
 
 	if ranUe != nil && requestLocInfo.GetSupportedFeatures() != "" {
-		provideLocInfo.SupportedFeatures = openapi.PtrString(ranUe.SupportedFeatures)
+		provideLocInfo.SetSupportedFeatures(ranUe.SupportedFeatures)
 	}
 	return provideLocInfo, nil
 }

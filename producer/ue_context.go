@@ -16,7 +16,6 @@ import (
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/utils"
 	"github.com/omec-project/util/httpwrapper"
@@ -181,9 +180,9 @@ func createUEContextProcedure(ueContextID string, createUeContextRequest models.
 		UeContext: models.UeContext{
 			Supi: ueContextCreateData.UeContext.Supi,
 		},
-		PduSessionList:   ueContextCreateData.PduSessionList,
-		PcfReselectedInd: openapi.PtrBool(false),
+		PduSessionList: ueContextCreateData.PduSessionList,
 	}
+	ueContextCreatedData.SetPcfReselectedInd(false)
 	createUeContextResponse.SetJsonData(ueContextCreatedData)
 
 	// TODO: When  Target AMF selects a nw PCF for AM policy, set the flag to true.
@@ -346,21 +345,20 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 				SNssai:       snssai,
 				Dnn:          smContext.Dnn(),
 				AccessType:   smContext.AccessType(),
-				HsmfId:       openapi.PtrString(smContext.HSmfID()),
-				VsmfId:       openapi.PtrString(smContext.VSmfID()),
-				NsInstance:   openapi.PtrString(smContext.NsInstance()),
 			}
+			pduSessionContext.SetHsmfId(smContext.HSmfID())
+			pduSessionContext.SetVsmfId(smContext.VSmfID())
+			pduSessionContext.SetNsInstance(smContext.NsInstance())
 			*sessionContextList = append(*sessionContextList, pduSessionContext)
 			return true
 		})
 
-		ueContextTransferRspData.SetUeRadioCapability(models.N2InfoContent{
-			NgapMessageType: openapi.PtrInt32(0),
-			NgapIeType:      models.NGAPIETYPE_UE_RADIO_CAPABILITY.Ptr(),
-			NgapData: models.RefToBinaryData{
-				ContentId: "n2Info",
-			},
+		n2InfoContent := models.NewN2InfoContent(models.RefToBinaryData{
+			ContentId: "n2Info",
 		})
+		n2InfoContent.SetNgapMessageType(0)
+		n2InfoContent.SetNgapIeType(models.NGAPIETYPE_UE_RADIO_CAPABILITY)
+		ueContextTransferRspData.SetUeRadioCapability(*n2InfoContent)
 		tmpFile, err := createTempBinaryFile([]byte(ue.UeRadioCapability))
 		if err != nil {
 			logger.ProducerLog.Errorf("create binaryDataN2Information failed: %+v", err)
@@ -381,10 +379,10 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 				SNssai:       snssai,
 				Dnn:          smContext.Dnn(),
 				AccessType:   smContext.AccessType(),
-				HsmfId:       openapi.PtrString(smContext.HSmfID()),
-				VsmfId:       openapi.PtrString(smContext.VSmfID()),
-				NsInstance:   openapi.PtrString(smContext.NsInstance()),
 			}
+			pduSessionContext.SetHsmfId(smContext.HSmfID())
+			pduSessionContext.SetVsmfId(smContext.VSmfID())
+			pduSessionContext.SetNsInstance(smContext.NsInstance())
 			*sessionContextList = append(*sessionContextList, pduSessionContext)
 			return true
 		})
