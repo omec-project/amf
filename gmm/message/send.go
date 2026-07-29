@@ -21,28 +21,40 @@ import (
 func SendDLNASTransport(ue *context.RanUe, anType models.AccessType, payloadContainerType uint8, nasPdu []byte,
 	pduSessionId int32, cause uint8, backOffTimerUint *uint8, backOffTimer uint8,
 ) {
-	ue.AmfUe.GmmLog.Infoln("send DL NAS Transport")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send DL NAS Transport")
 	var causePtr *uint8
 	if cause != 0 {
 		causePtr = &cause
 	}
-	nasMsg, err := BuildDLNASTransport(ue.AmfUe, anType, payloadContainerType, nasPdu,
+	nasMsg, err := BuildDLNASTransport(amfUe, anType, payloadContainerType, nasPdu,
 		uint8(pduSessionId), causePtr, backOffTimerUint, backOffTimer)
 	if err != nil {
-		ue.AmfUe.GmmLog.Error(err.Error())
+		amfUe.GmmLog.Error(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 }
 
 func SendNotification(ue *context.RanUe, nasMsg []byte) {
-	ue.AmfUe.GmmLog.Infoln("send Notification")
-
-	amfUe := ue.AmfUe
-	if amfUe == nil {
-		ue.AmfUe.GmmLog.Errorln("AmfUe is nil")
+	if ue == nil {
+		logger.GmmLog.Errorln("RanUe is nil")
 		return
 	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Errorln("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Notification")
 
 	if context.AMF_Self().T3565Cfg.Enable {
 		cfg := context.AMF_Self().T3565Cfg
@@ -60,11 +72,20 @@ func SendNotification(ue *context.RanUe, nasMsg []byte) {
 }
 
 func SendIdentityRequest(ue *context.RanUe, typeOfIdentity uint8) {
-	ue.AmfUe.GmmLog.Infoln("send Identity Request")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Identity Request")
 
 	nasMsg, err := BuildIdentityRequest(typeOfIdentity)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
@@ -111,11 +132,20 @@ func SendAuthenticationRequest(ue *context.RanUe) {
 func SendServiceAccept(ue *context.RanUe, anType models.AccessType, pDUSessionStatus *[16]bool, reactivationResult *[16]bool,
 	errPduSessionId, errCause []uint8,
 ) {
-	ue.AmfUe.GmmLog.Infoln("send Service Accept")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Service Accept")
 
-	nasMsg, err := BuildServiceAccept(ue.AmfUe, anType, pDUSessionStatus, reactivationResult, errPduSessionId, errCause)
+	nasMsg, err := BuildServiceAccept(amfUe, anType, pDUSessionStatus, reactivationResult, errPduSessionId, errCause)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
@@ -136,17 +166,30 @@ func SendConfigurationUpdateCommand(amfUe *context.AmfUe, accessType models.Acce
 }
 
 func SendAuthenticationReject(ue *context.RanUe, eapMsg string) {
-	ue.AmfUe.GmmLog.Infoln("send Authentication Reject")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Authentication Reject")
 
-	nasMsg, err := BuildAuthenticationReject(ue.AmfUe, eapMsg)
+	nasMsg, err := BuildAuthenticationReject(amfUe, eapMsg)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 }
 
 func SendAuthenticationResult(ue *context.RanUe, eapSuccess bool, eapMsg string) {
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
 	if ue.AmfUe == nil {
 		logger.GmmLog.Errorln("AmfUe is nil")
 		return
@@ -163,11 +206,20 @@ func SendAuthenticationResult(ue *context.RanUe, eapSuccess bool, eapMsg string)
 }
 
 func SendServiceReject(ue *context.RanUe, pDUSessionStatus *[16]bool, cause uint8) {
-	ue.AmfUe.GmmLog.Infoln("send Service Reject")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Service Reject")
 
 	nasMsg, err := BuildServiceReject(pDUSessionStatus, cause)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
@@ -176,11 +228,20 @@ func SendServiceReject(ue *context.RanUe, pDUSessionStatus *[16]bool, cause uint
 // T3502: This IE may be included to indicate a value for timer T3502 during the initial registration
 // eapMessage: if the REGISTRATION REJECT message is used to convey EAP-failure message
 func SendRegistrationReject(ue *context.RanUe, cause5GMM uint8, eapMessage string) {
-	ue.AmfUe.GmmLog.Infoln("send Registration Reject")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Registration Reject")
 
-	nasMsg, err := BuildRegistrationReject(ue.AmfUe, cause5GMM, eapMessage)
+	nasMsg, err := BuildRegistrationReject(amfUe, cause5GMM, eapMessage)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
@@ -189,16 +250,23 @@ func SendRegistrationReject(ue *context.RanUe, cause5GMM uint8, eapMessage strin
 // eapSuccess: only used when authType is EAP-AKA', set the value to false if authType is not EAP-AKA'
 // eapMessage: only used when authType is EAP-AKA', set the value to "" if authType is not EAP-AKA'
 func SendSecurityModeCommand(ue *context.RanUe, anType models.AccessType, eapSuccess bool, eapMessage string) {
-	ue.AmfUe.GmmLog.Infoln("send Security Mode Command")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Security Mode Command")
 
-	nasMsg, err := BuildSecurityModeCommand(ue.AmfUe, anType, eapSuccess, eapMessage)
+	nasMsg, err := BuildSecurityModeCommand(amfUe, anType, eapSuccess, eapMessage)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
-
-	amfUe := ue.AmfUe
 
 	if context.AMF_Self().T3560Cfg.Enable {
 		cfg := context.AMF_Self().T3560Cfg
@@ -213,19 +281,26 @@ func SendSecurityModeCommand(ue *context.RanUe, anType models.AccessType, eapSuc
 }
 
 func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrationRequired bool, cause5GMM uint8) {
-	ue.AmfUe.GmmLog.Infoln("send Deregistration Request")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Deregistration Request")
 
 	// setting accesstype
-	ue.AmfUe.DeregistrationTargetAccessType = accessType
+	amfUe.DeregistrationTargetAccessType = accessType
 
 	nasMsg, err := BuildDeregistrationRequest(ue, accessType, reRegistrationRequired, cause5GMM)
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
-
-	amfUe := ue.AmfUe
 
 	if context.AMF_Self().T3522Cfg.Enable {
 		cfg := context.AMF_Self().T3522Cfg
@@ -256,11 +331,20 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 }
 
 func SendDeregistrationAccept(ue *context.RanUe) {
-	ue.AmfUe.GmmLog.Infoln("send Deregistration Accept")
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
+	amfUe := ue.AmfUe
+	if amfUe == nil {
+		logger.GmmLog.Error("AmfUe is nil")
+		return
+	}
+	amfUe.GmmLog.Infoln("send Deregistration Accept")
 
 	nasMsg, err := BuildDeregistrationAccept()
 	if err != nil {
-		ue.AmfUe.GmmLog.Errorln(err.Error())
+		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
@@ -282,15 +366,16 @@ func SendRegistrationAccept(
 		return
 	}
 
-	if ue.RanUe[anType] == nil {
+	ranUe := ue.GetRanUe(anType)
+	if ranUe == nil {
 		ue.GmmLog.Errorln("Error in sending RegistrationAccept")
 		return
 	}
 
-	if ue.RanUe[anType].UeContextRequest {
+	if ranUe.UeContextRequest {
 		ngap_message.SendInitialContextSetupRequest(ue, anType, nasMsg, pduSessionResourceSetupList, nil, nil, nil)
 	} else {
-		ngap_message.SendDownlinkNasTransport(ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS], nasMsg, nil)
+		ngap_message.SendDownlinkNasTransport(ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS), nasMsg, nil)
 	}
 
 	if context.AMF_Self().T3550Cfg.Enable {
