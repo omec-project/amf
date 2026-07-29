@@ -352,6 +352,12 @@ func SendUpdateSmContextDeactivateUpCnxState(ctx context.Context, ue *amf_contex
 	smContext *amf_context.SmContext, cause amf_context.CauseAll) (
 	*models.UpdateSmContext200Response, *models.UpdateSmContext400Response, *models.ProblemDetails, error,
 ) {
+	if ue == nil {
+		return nil, nil, nil, fmt.Errorf("ue is nil")
+	}
+	if smContext == nil {
+		return nil, nil, nil, fmt.Errorf("smContext is nil")
+	}
 	updateData := models.SmContextUpdateData{}
 	updateData.SetUpCnxState(models.UPCNXSTATE_DEACTIVATED)
 	updateData.SetUeLocation(ue.Location)

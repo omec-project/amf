@@ -393,6 +393,53 @@ func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) 
 	}
 }
 
+func TestSendUpdateSmContextDeactivateUpCnxStateReturnsErrorOnNilUe(t *testing.T) {
+	smContext := amfContext.NewSmContext(10)
+	smContext.SetSmContextRef("ctx-ref")
+
+	response, errorResponse, problemDetail, err := SendUpdateSmContextDeactivateUpCnxState(
+		context.Background(),
+		nil,
+		smContext,
+		amfContext.CauseAll{},
+	)
+	if err == nil {
+		t.Fatal("expected error when ue is nil, got nil")
+	}
+	if response != nil {
+		t.Fatalf("expected nil response, got %+v", response)
+	}
+	if errorResponse != nil {
+		t.Fatalf("expected nil error response, got %+v", errorResponse)
+	}
+	if problemDetail != nil {
+		t.Fatalf("expected nil problem detail, got %+v", problemDetail)
+	}
+}
+
+func TestSendUpdateSmContextDeactivateUpCnxStateReturnsErrorOnNilSmContext(t *testing.T) {
+	ue := &amfContext.AmfUe{}
+
+	response, errorResponse, problemDetail, err := SendUpdateSmContextDeactivateUpCnxState(
+		context.Background(),
+		ue,
+		nil,
+		amfContext.CauseAll{},
+	)
+	if err == nil {
+		t.Fatal("expected error when smContext is nil, got nil")
+	}
+	if response != nil {
+		t.Fatalf("expected nil response, got %+v", response)
+	}
+	if errorResponse != nil {
+		t.Fatalf("expected nil error response, got %+v", errorResponse)
+	}
+	if problemDetail != nil {
+		t.Fatalf("expected nil problem detail, got %+v", problemDetail)
+	}
+}
+
 func writeTempFile(t *testing.T, payload []byte) *os.File {
 	t.Helper()
 
