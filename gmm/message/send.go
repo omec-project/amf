@@ -71,6 +71,10 @@ func SendIdentityRequest(ue *context.RanUe, typeOfIdentity uint8) {
 }
 
 func SendAuthenticationRequest(ue *context.RanUe) {
+	if ue == nil {
+		logger.GmmLog.Error("RanUe is nil")
+		return
+	}
 	amfUe := ue.AmfUe
 	if amfUe == nil {
 		logger.GmmLog.Error("AmfUe is nil")

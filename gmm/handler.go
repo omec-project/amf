@@ -1926,6 +1926,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		ue.GmmLog.Errorf("RanUe[%v] is nil, dropping Service Request", anType)
 		return fmt.Errorf("RanUe[%v] is nil", anType)
 	}
+	ranUe := ue.RanUe[anType]
 
 	ue.GmmLog.Infoln("handle Service Request")
 
@@ -1951,8 +1952,8 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	// Rejecting ServiceRequest if it is received in Deregistered State
 	if !ue.SecurityContextIsValid() || ue.State[anType].Current() == context.Deregistered {
 		ue.GmmLog.Warnf("no security context: SUPI[%s]", ue.GetSupi())
-		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
-		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
+		gmm_message.SendServiceReject(ranUe, nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
+		ngap_message.SendUEContextReleaseCommand(ranUe,
 			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
 		return nil
 	}
@@ -2005,14 +2006,14 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	if ue.MacFailed {
 		ue.SecurityContextAvailable = false
 		ue.GmmLog.Warnf("security context exists but integrity check failed with existing context: SUPI[%s]", ue.GetSupi())
-		gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
-		ngap_message.SendUEContextReleaseCommand(ue.RanUe[anType],
+		gmm_message.SendServiceReject(ranUe, nil, nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork)
+		ngap_message.SendUEContextReleaseCommand(ranUe,
 			context.UeContextN2NormalRelease, ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
 		return nil
 	}
 
 	// TODO: workaround to send service accept in ICSR
-	ue.RanUe[anType].UeContextRequest = true
+	ranUe.UeContextRequest = true
 	if serviceType == nasMessage.ServiceTypeSignalling {
 		err := sendServiceAccept(ue, anType, ctxList, suList, nil, nil, nil, nil)
 		return err
@@ -2059,7 +2060,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							}
 						}
 						errCause = append(errCause, cause)
-					} else if ue.RanUe[anType].UeContextRequest {
+					} else if ranUe.UeContextRequest {
 						binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
 						if err != nil {
 							ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", response.GetBinaryDataN2SmInformation())
@@ -2145,13 +2146,13 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				}
 				switch requestData.N1MessageContainer.N1MessageClass {
 				case models.N1MESSAGECLASS_SM:
-					sendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.GetPduSessionId(), 0, nil, 0)
+					sendDLNASTransport(ranUe, anType, nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.GetPduSessionId(), 0, nil, 0)
 				case models.N1MESSAGECLASS_LPP:
-					sendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeLPP, n1Msg, 0, 0, nil, 0)
+					sendDLNASTransport(ranUe, anType, nasMessage.PayloadContainerTypeLPP, n1Msg, 0, 0, nil, 0)
 				case models.N1MESSAGECLASS_SMS:
-					sendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeSMS, n1Msg, 0, 0, nil, 0)
+					sendDLNASTransport(ranUe, anType, nasMessage.PayloadContainerTypeSMS, n1Msg, 0, 0, nil, 0)
 				case models.N1MESSAGECLASS_UPDP:
-					sendDLNASTransport(ue.RanUe[anType], anType, nasMessage.PayloadContainerTypeUEPolicy, n1Msg, 0, 0, nil, 0)
+					sendDLNASTransport(ranUe, anType, nasMessage.PayloadContainerTypeUEPolicy, n1Msg, 0, 0, nil, 0)
 				}
 				ue.N1N2Message = nil
 				return nil
@@ -2195,7 +2196,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 							if response.GetBinaryDataN2SmInformation() != nil &&
 								response.JsonData.GetN2SmInfoType() == models.N2SMINFOTYPE_PDU_RES_SETUP_REQ {
-								if ue.RanUe[anType].UeContextRequest {
+								if ranUe.UeContextRequest {
 									binaryDataN2SmInformation, err1 := io.ReadAll(response.GetBinaryDataN2SmInformation())
 									if err1 != nil {
 										ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", response.GetBinaryDataN2SmInformation())
@@ -2228,7 +2229,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 						return err
 					}
 				}
-				if ue.RanUe[anType].UeContextRequest {
+				if ranUe.UeContextRequest {
 					ngap_message.AppendPDUSessionResourceSetupListCxtReq(&ctxList, smInfo.PduSessionId, *smInfo.SNssai, nasPdu, n2Info)
 				} else {
 					ngap_message.AppendPDUSessionResourceSetupListSUReq(&suList, smInfo.PduSessionId, *smInfo.SNssai,
@@ -2261,9 +2262,9 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		ue.GmmLog.Infoln("handling Service Request with high priority access as data service")
 		fallthrough
 	case nasMessage.ServiceTypeData:
-		plmnAccept := context.IsTaiEqual(ue.Tai, ue.RanUe[anType].Tai)
+		plmnAccept := context.IsTaiEqual(ue.Tai, ranUe.Tai)
 		if !plmnAccept {
-			gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMTrackingAreaNotAllowed)
+			gmm_message.SendServiceReject(ranUe, nil, nasMessage.Cause5GMMTrackingAreaNotAllowed)
 			return nil
 		}
 		if anType == models.ACCESSTYPE__3_GPP_ACCESS {
@@ -2277,7 +2278,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 				}
 
 				if !accept {
-					gmm_message.SendServiceReject(ue.RanUe[anType], nil, nasMessage.Cause5GMMRestrictedServiceArea)
+					gmm_message.SendServiceReject(ranUe, nil, nasMessage.Cause5GMMRestrictedServiceArea)
 					return nil
 				}
 			}
