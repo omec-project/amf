@@ -132,15 +132,17 @@ func ToBsonM(data *AmfUe) (ret bson.M) {
 
 func StoreContextInDB(ue *AmfUe) {
 	self := AMF_Self()
-	if self.EnableDbStore {
-		amfUeBsonA := ToBsonM(ue)
-		filter := bson.M{"supi": ue.Supi}
-
-		_, postErr := mongoapi.CommonDBClient.RestfulAPIPost(AmfUeDataColl, filter, amfUeBsonA)
-		if postErr != nil {
+	if !self.EnableDbStore {
+		return
+	}
+	// Serialize synchronously (snapshot before next EventChannel message can modify ue).
+	amfUeBsonA := ToBsonM(ue)
+	filter := bson.M{"supi": ue.Supi}
+	go func() {
+		if _, postErr := mongoapi.CommonDBClient.RestfulAPIPost(AmfUeDataColl, filter, amfUeBsonA); postErr != nil {
 			logger.DataRepoLog.Warnln(postErr)
 		}
-	}
+	}()
 }
 
 func DeleteContextFromDB(ue *AmfUe) {

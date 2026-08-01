@@ -371,6 +371,7 @@ func (context *AMFContext) AmfUeDeleteBySuci(suci string) (ue *AmfUe, ok bool) {
 func (context *AMFContext) NewAmfRan(conn net.Conn) *AmfRan {
 	ran := AmfRan{}
 	ran.SupportedTAList = NewSupportedTAIList()
+	ran.RanUeList = make(map[int64]*RanUe)
 	ran.Conn = conn
 	ran.GnbIp = conn.RemoteAddr().String()
 	ran.Log = logger.NgapLog.With(logger.FieldRanAddr, conn.RemoteAddr().String())
@@ -389,6 +390,7 @@ func (context *AMFContext) AmfRanFindByConn(conn net.Conn) (*AmfRan, bool) {
 func (context *AMFContext) NewAmfRanAddr(remoteAddr string) *AmfRan {
 	ran := AmfRan{}
 	ran.SupportedTAList = NewSupportedTAIList()
+	ran.RanUeList = make(map[int64]*RanUe)
 	ran.GnbIp = remoteAddr
 	ran.Log = logger.NgapLog.With(logger.FieldRanAddr, remoteAddr)
 	context.AmfRanPool.Store(remoteAddr, &ran)
@@ -398,6 +400,7 @@ func (context *AMFContext) NewAmfRanAddr(remoteAddr string) *AmfRan {
 func (context *AMFContext) NewAmfRanId(GnbId string) *AmfRan {
 	ran := AmfRan{}
 	ran.SupportedTAList = NewSupportedTAIList()
+	ran.RanUeList = make(map[int64]*RanUe)
 	ran.GnbId = GnbId
 	ran.Log = logger.NgapLog.With(logger.FieldRanId, GnbId)
 	context.AmfRanPool.Store(GnbId, &ran)
