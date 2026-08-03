@@ -78,8 +78,8 @@ func BuildDLNASTransport(ue *context.AmfUe, anType models.AccessType, payloadCon
 		dLNASTransport.BackoffTimerValue = new(nasType.BackoffTimerValue)
 		dLNASTransport.BackoffTimerValue.SetIei(nasMessage.DLNASTransportBackoffTimerValueType)
 		dLNASTransport.BackoffTimerValue.SetLen(1)
-		dLNASTransport.SetUnitTimerValue(*backoffTimerUint)
-		dLNASTransport.SetTimerValue(backoffTimer)
+		dLNASTransport.BackoffTimerValue.SetUnitTimerValue(*backoffTimerUint)
+		dLNASTransport.BackoffTimerValue.SetTimerValue(backoffTimer)
 	}
 
 	m.DLNASTransport = dLNASTransport

@@ -158,6 +158,9 @@ func (ran *AmfRan) RemoveAllUeInRan() {
 	}
 }
 
+// RanUeFindByRanUeNgapIDLocal looks up RanUeList without acquiring ranStateMu.
+// Callers MUST hold ranStateMu (read or write) before calling this function;
+// for a concurrency-safe lookup from outside this package, use RanUeFindByRanUeNgapID.
 func (ran *AmfRan) RanUeFindByRanUeNgapIDLocal(ranUeNgapID int64) *RanUe {
 	return ran.RanUeList[ranUeNgapID]
 }
