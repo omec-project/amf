@@ -25,6 +25,7 @@ import (
 type AmfStats struct {
 	ngapMsg           *prometheus.CounterVec
 	gnbSessionProfile *prometheus.GaugeVec
+	dbWriteDropped    prometheus.Counter
 }
 
 var amfStats *AmfStats
@@ -40,6 +41,11 @@ func initAmfStats() *AmfStats {
 			Name: "gnb_session_profile",
 			Help: "gNB session Profile",
 		}, []string{"id", "ip", "state", "tac"}),
+
+		dbWriteDropped: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "amf_db_write_dropped_total",
+			Help: "Total number of UE context DB writes dropped due to a full write queue.",
+		}),
 	}
 }
 
@@ -50,6 +56,10 @@ func (ps *AmfStats) register() error {
 		return err
 	}
 	if err := prometheus.Register(ps.gnbSessionProfile); err != nil {
+		return err
+	}
+	prometheus.Unregister(ps.dbWriteDropped)
+	if err := prometheus.Register(ps.dbWriteDropped); err != nil {
 		return err
 	}
 	return nil
@@ -98,4 +108,10 @@ func SetGnbSessProfileStats(id, ip, state, tac string, count uint64) {
 	state = sanitizeLabelValue(state)
 	tac = sanitizeLabelValue(tac)
 	amfStats.gnbSessionProfile.WithLabelValues(id, ip, state, tac).Set(float64(count))
+}
+
+// IncrementDbWriteDropped increments the counter of UE context writes dropped
+// because the async write queue was full.
+func IncrementDbWriteDropped() {
+	amfStats.dbWriteDropped.Inc()
 }

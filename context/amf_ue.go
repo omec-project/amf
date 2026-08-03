@@ -327,7 +327,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 		ue.RanUe[index].AmfUeNgapId = aux.AmfUeNgapId
 		ue.RanUe[index].Log = logger.NgapLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
 		if ran != nil {
-			// ran.RanUeList = append(ran.RanUeList, ue.RanUe[index])
+			// ran.RanUeList[ue.RanUe[index].RanUeNgapId] = ue.RanUe[index]
 			ue.RanUe[index].Ran = ran
 		}
 	}

@@ -45,7 +45,7 @@ type AmfRan struct {
 	SupportedTAList []SupportedTAI // TODO SupportedTaList store and recover from DB
 
 	/* RAN UE List */
-	RanUeList []*RanUe `json:"-"` // RanUeNgapId as key
+	RanUeList map[int64]*RanUe `json:"-"`
 
 	Amf2RanMsgChan chan *sdcoreAmfServer.AmfMessage `json:"-"`
 	/* logger */
@@ -74,7 +74,7 @@ func NewSupportedTAIList() []SupportedTAI {
 // or ID at creation time should use this function so that ran.Log is never
 // nil when ran itself is non-nil.
 func NewAmfRanDefault() *AmfRan {
-	return &AmfRan{Log: logger.NgapLog}
+	return &AmfRan{Log: logger.NgapLog, RanUeList: make(map[int64]*RanUe)}
 }
 
 // RatInformationForTAC returns the RATInformation advertised by this RAN
@@ -136,13 +136,22 @@ func (ran *AmfRan) NewRanUe(ranUeNgapID int64) (*RanUe, error) {
 	ranUe.RanUeNgapId = ranUeNgapID
 	ranUe.Ran = ran
 	ranUe.Log = ran.Log.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
-	ran.RanUeList = append(ran.RanUeList, &ranUe)
+	ran.ranStateMu.Lock()
+	ran.RanUeList[ranUeNgapID] = &ranUe
+	ran.ranStateMu.Unlock()
 	self.RanUePool.Store(ranUe.AmfUeNgapId, &ranUe)
 	return &ranUe, nil
 }
 
 func (ran *AmfRan) RemoveAllUeInRan() {
+	// snapshot under read lock to avoid deadlock: Remove() acquires write lock
+	ran.ranStateMu.RLock()
+	ranUes := make([]*RanUe, 0, len(ran.RanUeList))
 	for _, ranUe := range ran.RanUeList {
+		ranUes = append(ranUes, ranUe)
+	}
+	ran.ranStateMu.RUnlock()
+	for _, ranUe := range ranUes {
 		if err := ranUe.Remove(); err != nil {
 			logger.ContextLog.Errorf("Remove RanUe error: %v", err)
 		}
@@ -150,28 +159,27 @@ func (ran *AmfRan) RemoveAllUeInRan() {
 }
 
 func (ran *AmfRan) RanUeFindByRanUeNgapIDLocal(ranUeNgapID int64) *RanUe {
-	// TODO - need fix..Make this map so search is fast
-	for _, ranUe := range ran.RanUeList {
-		if ranUe.RanUeNgapId == ranUeNgapID {
-			return ranUe
-		}
-	}
-	ran.Log.Infof("RanUe does not exist")
-	return nil
+	return ran.RanUeList[ranUeNgapID]
 }
 
 func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
-	ranUe := ran.RanUeFindByRanUeNgapIDLocal(ranUeNgapID)
+	ran.ranStateMu.RLock()
+	ranUe := ran.RanUeList[ranUeNgapID]
+	ran.ranStateMu.RUnlock()
 
 	if ranUe != nil {
 		return ranUe
 	}
 
 	if AMF_Self().EnableDbStore {
-		ranUe := DbFetchRanUeByRanUeNgapID(ranUeNgapID, ran)
+		// Hold write lock: DbFetchRanUeByRanUeNgapID re-reads the map internally
+		// (via RanUeFindByRanUeNgapIDLocal) and we may write back to the map.
+		ran.ranStateMu.Lock()
+		defer ran.ranStateMu.Unlock()
+		ranUe = DbFetchRanUeByRanUeNgapID(ranUeNgapID, ran)
 		if ranUe != nil {
 			ranUe.Ran = ran
-			ran.RanUeList = append(ran.RanUeList, ranUe)
+			ran.RanUeList[ranUeNgapID] = ranUe
 			return ranUe
 		}
 	}

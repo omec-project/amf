@@ -104,12 +104,9 @@ func (ranUe *RanUe) Remove() error {
 		amfUe.Mutex.Unlock()
 	}
 
-	for index, ranUe1 := range ran.RanUeList {
-		if ranUe1 == ranUe {
-			ran.RanUeList = append(ran.RanUeList[:index], ran.RanUeList[index+1:]...)
-			break
-		}
-	}
+	ran.ranStateMu.Lock()
+	delete(ran.RanUeList, ranUe.RanUeNgapId)
+	ran.ranStateMu.Unlock()
 	self := AMF_Self()
 	if self.EnableDbStore {
 		if err := self.Drsm.ReleaseInt32ID(int32(ranUe.AmfUeNgapId)); err != nil {
@@ -138,15 +135,14 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	oldRan := ranUe.Ran
 
 	// remove ranUe from oldRan
-	for index, ranUe1 := range oldRan.RanUeList {
-		if ranUe1 == ranUe {
-			oldRan.RanUeList = append(oldRan.RanUeList[:index], oldRan.RanUeList[index+1:]...)
-			break
-		}
-	}
+	oldRan.ranStateMu.Lock()
+	delete(oldRan.RanUeList, ranUe.RanUeNgapId)
+	oldRan.ranStateMu.Unlock()
 
 	// add ranUe to newRan
-	newRan.RanUeList = append(newRan.RanUeList, ranUe)
+	newRan.ranStateMu.Lock()
+	newRan.RanUeList[ranUeNgapId] = ranUe
+	newRan.ranStateMu.Unlock()
 
 	// switch to newRan
 	ranUe.Ran = newRan

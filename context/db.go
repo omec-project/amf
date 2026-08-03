@@ -13,6 +13,7 @@ import (
 
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/idgenerator"
 	"github.com/omec-project/util/mongoapi"
@@ -20,6 +21,35 @@ import (
 )
 
 var dbMutex sync.Mutex
+
+const (
+	dbWriteWorkers   = 4
+	dbWriteQueueSize = 256
+)
+
+type dbWriteOp struct {
+	filter bson.M
+	data   bson.M
+}
+
+var (
+	dbWriteCh   = make(chan dbWriteOp, dbWriteQueueSize)
+	dbWriteOnce sync.Once
+)
+
+func startDBWriteWorkers() {
+	dbWriteOnce.Do(func() {
+		for range dbWriteWorkers {
+			go func() {
+				for op := range dbWriteCh {
+					if _, postErr := mongoapi.CommonDBClient.RestfulAPIPost(AmfUeDataColl, op.filter, op.data); postErr != nil {
+						logger.DataRepoLog.Warnln(postErr)
+					}
+				}
+			}()
+		}
+	})
+}
 
 type CustomFieldsAmfUe struct {
 	State       map[models.AccessType]string `json:"state"`
@@ -115,6 +145,7 @@ func SetupAmfCollection() {
 	if err != nil {
 		logger.DataRepoLog.Errorf("Create index failed on RanUeNgapID field.")
 	}*/
+	startDBWriteWorkers()
 }
 
 func ToBsonM(data *AmfUe) (ret bson.M) {
@@ -132,21 +163,24 @@ func ToBsonM(data *AmfUe) (ret bson.M) {
 
 func StoreContextInDB(ue *AmfUe) {
 	self := AMF_Self()
-	if self.EnableDbStore {
-		amfUeBsonA := ToBsonM(ue)
-		filter := bson.M{"supi": ue.Supi}
-
-		_, postErr := mongoapi.CommonDBClient.RestfulAPIPost(AmfUeDataColl, filter, amfUeBsonA)
-		if postErr != nil {
-			logger.DataRepoLog.Warnln(postErr)
-		}
+	if !self.EnableDbStore {
+		return
+	}
+	// Serialize synchronously (snapshot before next EventChannel message can modify ue).
+	amfUeBsonA := ToBsonM(ue)
+	filter := bson.M{"supi": ue.GetSupi()}
+	select {
+	case dbWriteCh <- dbWriteOp{filter: filter, data: amfUeBsonA}:
+	default:
+		metrics.IncrementDbWriteDropped()
+		logger.DataRepoLog.Warnf("DB write queue full, dropping store for supi=%s", ue.GetSupi())
 	}
 }
 
 func DeleteContextFromDB(ue *AmfUe) {
 	self := AMF_Self()
 	if self.EnableDbStore {
-		filter := bson.M{"supi": ue.Supi}
+		filter := bson.M{"supi": ue.GetSupi()}
 
 		delErr := mongoapi.CommonDBClient.RestfulAPIDeleteOne(AmfUeDataColl, filter)
 		if delErr != nil {

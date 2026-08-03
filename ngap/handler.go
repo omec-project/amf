@@ -880,13 +880,13 @@ func HandleNGReset(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		var ranUe *context.RanUe
 
 		for _, ueAssociatedLogicalNGConnectionItem := range partOfNGInterface.List {
+			ranUe = nil
 			if ueAssociatedLogicalNGConnectionItem.AMFUENGAPID != nil {
 				ran.Log.Debugf("AmfUeNgapID[%d]", ueAssociatedLogicalNGConnectionItem.AMFUENGAPID.Value)
-				for _, ue := range ran.RanUeList {
-					if ue.AmfUeNgapId == ueAssociatedLogicalNGConnectionItem.AMFUENGAPID.Value {
-						ranUe = ue
-						break
-					}
+				ranUe = findRanUeByAmfNgapID(ran, ueAssociatedLogicalNGConnectionItem.AMFUENGAPID)
+				// Reject UEs that have moved to a different RAN (e.g. after handover).
+				if ranUe != nil && ranUe.Ran != ran {
+					ranUe = nil
 				}
 			} else if ueAssociatedLogicalNGConnectionItem.RANUENGAPID != nil {
 				ran.Log.Debugf("RanUeNgapID[%d]", ueAssociatedLogicalNGConnectionItem.RANUENGAPID.Value)
