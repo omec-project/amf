@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bytedance/sonic"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -291,7 +292,7 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 		RanId:       gnbId,
 	}
 
-	return json.Marshal(&struct {
+	return sonic.Marshal(&struct {
 		CustomAmfUe CustomFieldsAmfUe `json:"customFieldsAmfUe"`
 		*Alias
 	}{
@@ -744,17 +745,15 @@ func (ue *AmfUe) HasWildCardSubscribedDNN() bool {
 	return false
 }
 
+// supiRegexp is pre-compiled once; DerivateKamf is called on every authentication.
+var supiRegexp = regexp.MustCompile("(?:imsi|supi)-([0-9]{5,15})")
+
 func (ue *AmfUe) SecurityContextIsValid() bool {
 	return ue.SecurityContextAvailable && ue.NgKsi.Ksi != nasMessage.NasKeySetIdentifierNoKeyIsAvailable && !ue.MacFailed
 }
 
 // Kamf Derivation function defined in TS 33.501 Annex A.7
 func (ue *AmfUe) DerivateKamf() {
-	supiRegexp, err := regexp.Compile("(?:imsi|supi)-([0-9]{5,15})")
-	if err != nil {
-		logger.ContextLog.Error(err)
-		return
-	}
 	groups := supiRegexp.FindStringSubmatch(ue.Supi)
 	if groups == nil {
 		logger.NasLog.Errorln("supi is not correct")

@@ -6,11 +6,13 @@
 package context
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
 
+	"github.com/bytedance/sonic"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -148,16 +150,24 @@ func SetupAmfCollection() {
 	startDBWriteWorkers()
 }
 
-func ToBsonM(data *AmfUe) (ret bson.M) {
-	tmp, err := json.Marshal(data)
-	if err != nil {
-		logger.DataRepoLog.Errorf("amfue marshall error: %v", err)
-	}
-	err = json.Unmarshal(tmp, &ret)
-	if err != nil {
-		logger.DataRepoLog.Errorf("amfue unmarshall error: %v", err)
-	}
+// amfJsonBufPool pools the bytes.Buffer used for sonic encoding to reduce GC pressure.
+var amfJsonBufPool = sync.Pool{
+	New: func() any { return bytes.NewBuffer(make([]byte, 0, 32768)) },
+}
 
+func ToBsonM(data *AmfUe) (ret bson.M) {
+	buf := amfJsonBufPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	enc := sonic.ConfigDefault.NewEncoder(buf)
+	if err := enc.Encode(data); err != nil {
+		amfJsonBufPool.Put(buf)
+		logger.DataRepoLog.Errorf("amfue marshal error: %v", err)
+		return
+	}
+	if err := sonic.Unmarshal(buf.Bytes(), &ret); err != nil {
+		logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
+	}
+	amfJsonBufPool.Put(buf)
 	return
 }
 
