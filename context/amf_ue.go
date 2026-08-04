@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"os"
 	"reflect"
@@ -309,7 +308,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(ue),
 	}
-	if err := json.Unmarshal(data, &auxCustom); err != nil {
+	if err := sonic.Unmarshal(data, &auxCustom); err != nil {
 		logger.ContextLog.Errorln("AMFUe Unmarshal failed : ", err)
 		return err
 	}

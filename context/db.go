@@ -7,7 +7,6 @@ package context
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -150,24 +149,28 @@ func SetupAmfCollection() {
 	startDBWriteWorkers()
 }
 
-// amfJsonBufPool pools the bytes.Buffer used for sonic encoding to reduce GC pressure.
-var amfJsonBufPool = sync.Pool{
-	New: func() any { return bytes.NewBuffer(make([]byte, 0, 32768)) },
+// amfJSONBufInitialCap is the initial capacity for pooled JSON encoding buffers
+// (32 KiB covers typical UE context sizes without frequent reallocation).
+const amfJSONBufInitialCap = 32 * 1024
+
+// amfJSONBufPool pools the bytes.Buffer used for sonic encoding to reduce GC pressure.
+var amfJSONBufPool = sync.Pool{
+	New: func() any { return bytes.NewBuffer(make([]byte, 0, amfJSONBufInitialCap)) },
 }
 
 func ToBsonM(data *AmfUe) (ret bson.M) {
-	buf := amfJsonBufPool.Get().(*bytes.Buffer)
+	buf := amfJSONBufPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	enc := sonic.ConfigDefault.NewEncoder(buf)
 	if err := enc.Encode(data); err != nil {
-		amfJsonBufPool.Put(buf)
+		amfJSONBufPool.Put(buf)
 		logger.DataRepoLog.Errorf("amfue marshal error: %v", err)
 		return
 	}
 	if err := sonic.Unmarshal(buf.Bytes(), &ret); err != nil {
 		logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
 	}
-	amfJsonBufPool.Put(buf)
+	amfJSONBufPool.Put(buf)
 	return
 }
 
@@ -178,6 +181,9 @@ func StoreContextInDB(ue *AmfUe) {
 	}
 	// Serialize synchronously (snapshot before next EventChannel message can modify ue).
 	amfUeBsonA := ToBsonM(ue)
+	if amfUeBsonA == nil {
+		return
+	}
 	filter := bson.M{"supi": ue.GetSupi()}
 	select {
 	case dbWriteCh <- dbWriteOp{filter: filter, data: amfUeBsonA}:
@@ -210,9 +216,9 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	if len(result) == 0 {
 		return nil
 	}
-	err := json.Unmarshal(mapToByte(result), ue)
+	err := sonic.Unmarshal(mapToByte(result), ue)
 	if err != nil {
-		logger.DataRepoLog.Errorf("amfue unmarshall error: %v", err)
+		logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
 		return nil
 	}
 
@@ -338,9 +344,9 @@ func DbFetchAllEntries() (ueList []*AmfUe) {
 	for _, val := range results {
 		ue = &AmfUe{}
 		ue.init()
-		err := json.Unmarshal(mapToByte(val), ue)
+		err := sonic.Unmarshal(mapToByte(val), ue)
 		if err != nil {
-			logger.DataRepoLog.Errorf("amfue unmarshall error: %v", err)
+			logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
 			return nil
 		}
 		ueList = append(ueList, ue)
