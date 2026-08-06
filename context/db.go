@@ -55,7 +55,7 @@ func startDBWriteWorkers() {
 type CustomFieldsAmfUe struct {
 	State       map[models.AccessType]string `json:"state"`
 	SmCtxList   map[string]SmContext         `json:"smCtxList"`
-	N1N2Message N1N2Message                  `json:"n1n2Msg"`
+	N1N2Message *N1N2Message                 `json:"n1n2Msg,omitempty"`
 	ULCount     uint32                       `json:"ulCount"`
 	DLCount     uint32                       `json:"dlCount"`
 	RanUeNgapId int64                        `json:"ranUeNgapId"`
@@ -235,7 +235,7 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	ue.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
-	ue.TxLog.Errorln("amfue fetched")
+	ue.TxLog.Debugln("amfue fetched")
 	return ue
 }
 
