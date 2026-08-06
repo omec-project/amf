@@ -242,9 +242,9 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	for access, state := range ue.State {
 		stateVal[access] = string(state.Current())
 	}
-	n1n2MsgVal := N1N2Message{}
+	var n1n2MsgPtr *N1N2Message
 	if ue.N1N2Message != nil {
-		n1n2MsgVal = *ue.N1N2Message
+		n1n2MsgVal := *ue.N1N2Message
 		n1n2MsgVal.Request = ue.N1N2Message.Request
 		n1n2MsgVal.Request.JsonData = models.NewN1N2MessageTransferReqData()
 		if ue.N1N2Message.Request.JsonData != nil {
@@ -258,6 +258,7 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 				*n1n2MsgVal.Request.JsonData.N2InfoContainer = *ue.N1N2Message.Request.JsonData.N2InfoContainer
 			}
 		}
+		n1n2MsgPtr = &n1n2MsgVal
 	}
 
 	ue.SmContextList.Range(func(key, val interface{}) bool {
@@ -287,7 +288,7 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 		DLCount:     ue.DLCount.Get(),
 		RanUeNgapId: ranUeNgapIDVal,
 		AmfUeNgapId: amfUeNgapIDVal,
-		N1N2Message: n1n2MsgVal,
+		N1N2Message: n1n2MsgPtr,
 		RanId:       gnbId,
 	}
 
@@ -344,7 +345,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	sqn = uint8(aux.DLCount & 0x000000ff)
 	overflow = uint16((aux.DLCount & 0x00ffff00) >> 8)
 	ue.DLCount.Set(overflow, sqn)
-	ue.N1N2Message = &aux.N1N2Message
+	ue.N1N2Message = aux.N1N2Message
 	return nil
 }
 
@@ -1172,7 +1173,7 @@ func (ue *AmfUe) SetEventChannel(ctx ctxt.Context, handler func(*AmfUe, NgapMsg)
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
 	if ue.EventChannel == nil {
-		ue.TxLog.Errorf("Creating new AmfUe EventChannel")
+		ue.TxLog.Debugln("creating new AmfUe EventChannel")
 		ue.EventChannel = ue.NewEventChannel()
 		ue.EventChannel.AmfUe = ue
 		ue.EventChannel.UpdateNgapHandler(handler)
