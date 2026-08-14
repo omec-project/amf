@@ -12,7 +12,7 @@ require (
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/nas/v2 v2.2.0
 	github.com/omec-project/ngap/v2 v2.1.3
-	github.com/omec-project/openapi/v2 v2.1.5
+	github.com/omec-project/openapi/v2 v2.2.0
 	github.com/omec-project/util v1.8.4
 	github.com/prometheus/client_golang v1.24.1
 	github.com/urfave/cli/v3 v3.10.1
