@@ -1,11 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2024 Canonical Ltd.
-
 info:
   version: 1.0.0
   description: AMF initial local configuration
-
 configuration:
   amfName: AMF # the name of this AMF
-  amfId: cafe01  # AMF ID for GUAMIs
+  amfId: cafe01 # AMF ID for GUAMIs
   webuiUri: https://myspecialwebui:5002 # a valid URI of Webui

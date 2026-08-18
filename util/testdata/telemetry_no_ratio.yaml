@@ -3,19 +3,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 #
-
 info:
   version: 1.0.0
   description: AMF initial local configuration
-
 configuration:
   amfName: AMF # the name of this AMF
-  ngapIpList:  # the IP list of N2 interfaces on this AMF
+  ngapIpList: # the IP list of N2 interfaces on this AMF
     - 127.0.0.1
   sbi: # Service-based interface information
     scheme: http # the protocol for sbi (http or https)
     registerIPv4: 127.0.0.18 # IP used to register to NRF
-    bindingIPv4: 127.0.0.18  # IP used to bind the service
+    bindingIPv4: 127.0.0.18 # IP used to bind the service
     port: 8000 # port used to bind the service
     tls: # the local path of TLS key
       key: /support/TLS/amf.pem # AMF TLS Certificate
@@ -23,20 +21,20 @@ configuration:
   serviceNameList: # the SBI services provided by this AMF, refer to TS 29.518
     - namf-comm # Namf_Communication service
     - namf-evts # Namf_EventExposure service
-    - namf-mt   # Namf_MT service
-    - namf-loc  # Namf_Location service
-    - namf-oam  # OAM service
-  supportDnnList:  # the DNN (Data Network Name) list supported by this AMF
+    - namf-mt # Namf_MT service
+    - namf-loc # Namf_Location service
+    - namf-oam # OAM service
+  supportDnnList: # the DNN (Data Network Name) list supported by this AMF
     - internet
   nrfUri: http://127.0.0.10:8000 # a valid URI of NRF
-  security:  # NAS security parameters
+  security: # NAS security parameters
     integrityOrder: # the priority of integrity algorithms
       - NIA2
       # - NIA0
     cipheringOrder: # the priority of ciphering algorithms
       - NEA0
       # - NEA2
-  networkName:  # the name of this core network
+  networkName: # the name of this core network
     full: Aether
     short: Aether
   networkFeatureSupport5GS: # 5gs Network Feature Support IE, refer to TS 24.501
@@ -48,38 +46,38 @@ configuration:
     mpsi: 0 # MPS indicator (uinteger, range: 0~1)
     emcN3: 0 # Emergency service support indicator for Non-3GPP access (uinteger, range: 0~1)
     mcsi: 0 # MCS indicator (uinteger, range: 0~1)
-  t3502Value: 720  # timer value (seconds) at UE side
+  t3502Value: 720 # timer value (seconds) at UE side
   t3512Value: 3600 # timer value (seconds) at UE side
   non3gppDeregistrationTimerValue: 3240 # timer value (seconds) at UE side
   # retransmission timer for paging message
   t3513:
-    enable: true     # true or false
-    expireTime: 6s   # default is 6 seconds
+    enable: true # true or false
+    expireTime: 6s # default is 6 seconds
     maxRetryTimes: 4 # the max number of retransmission
   # retransmission timer for NAS Deregistration Request message
   t3522:
-    enable: true     # true or false
-    expireTime: 6s   # default is 6 seconds
+    enable: true # true or false
+    expireTime: 6s # default is 6 seconds
     maxRetryTimes: 4 # the max number of retransmission
   # retransmission timer for NAS Registration Accept message
   t3550:
-    enable: true     # true or false
-    expireTime: 6s   # default is 6 seconds
+    enable: true # true or false
+    expireTime: 6s # default is 6 seconds
     maxRetryTimes: 4 # the max number of retransmission
   # retransmission timer for NAS Authentication Request/Security Mode Command message
   t3560:
-    enable: true     # true or false
-    expireTime: 6s   # default is 6 seconds
+    enable: true # true or false
+    expireTime: 6s # default is 6 seconds
     maxRetryTimes: 4 # the max number of retransmission
   # retransmission timer for NAS Notification message
   t3565:
-    enable: true     # true or false
-    expireTime: 6s   # default is 6 seconds
+    enable: true # true or false
+    expireTime: 6s # default is 6 seconds
     maxRetryTimes: 4 # the max number of retransmission
-  telemetry:                                  # telemetry configuration
-    enabled: true                             # Optional; defaults to false
-    otlp_endpoint: "otel-collector.svc:4317"  # Mandatory if enabled=true
-# the kind of log output
+  telemetry: # telemetry configuration
+    enabled: true # Optional; defaults to false
+    otlp_endpoint: "otel-collector.svc:4317" # Mandatory if enabled=true
+    # the kind of log output
   # debugLevel: how detailed to output, value: trace, debug, info, warn, error, fatal, panic
   # ReportCaller: enable the caller report or not, value: true or false
 logger:
