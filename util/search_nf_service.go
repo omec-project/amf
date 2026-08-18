@@ -53,7 +53,7 @@ func getSbiUri(scheme models.UriScheme, ipv4Address string, port int32) (uri str
 			uri = fmt.Sprintf("%s://%s:443", scheme, ipv4Address)
 		default:
 			// Handle unexpected scheme, default to http
-			uri = fmt.Sprintf("%s://%s", models.URISCHEME_HTTP, ipv4Address)
+			uri = fmt.Sprintf("%s://%s:80", models.URISCHEME_HTTP, ipv4Address)
 		}
 	}
 	return
