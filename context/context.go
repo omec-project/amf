@@ -333,7 +333,7 @@ func (context *AMFContext) AmfUeFindBySupi(supi string) (ue *AmfUe, ok bool) {
 func (context *AMFContext) AmfUeFindByPei(pei string) (ue *AmfUe, ok bool) {
 	context.UePool.Range(func(key, value interface{}) bool {
 		candidate := value.(*AmfUe)
-		if ok = (candidate.Pei == pei); ok {
+		if ok = (candidate.GetPei() == pei); ok {
 			ue = candidate
 			return false
 		}
@@ -358,7 +358,7 @@ func (context *AMFContext) AmfUeDeleteBySuci(suci string) (ue *AmfUe, ok bool) {
 	context.UePool.Range(func(key, value interface{}) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.Suci == suci); ok {
-			context.UePool.Delete(candidate.Supi)
+			context.UePool.Delete(candidate.GetSupi())
 			candidate.TxLog.Infof("uecontext removed based on suci")
 			candidate.Remove()
 			return false
@@ -475,7 +475,7 @@ func mapToByte(data map[string]interface{}) (ret []byte) {
 func (context *AMFContext) AmfUeFindByGutiLocal(guti string) (ue *AmfUe, ok bool) {
 	context.UePool.Range(func(key, value interface{}) bool {
 		candidate := value.(*AmfUe)
-		if ok = (candidate.Guti == guti); ok {
+		if ok = (candidate.GetGuti() == guti); ok {
 			ue = candidate
 			return false
 		}
@@ -488,7 +488,7 @@ func (context *AMFContext) AmfUeFindByGutiLocal(guti string) (ue *AmfUe, ok bool
 func (context *AMFContext) AmfUeFindBySupiLocal(supi string) (ue *AmfUe, ok bool) {
 	context.UePool.Range(func(key, value interface{}) bool {
 		candidate := value.(*AmfUe)
-		if ok = (candidate.Supi == supi); ok {
+		if ok = (candidate.GetSupi() == supi); ok {
 			ue = candidate
 			return false
 		}
