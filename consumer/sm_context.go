@@ -252,8 +252,10 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 		}
 		switch httpResponse.StatusCode {
 		case 400, 403, 404, 500, 503, 504:
-			if errResponse, ok := openapi.ErrorModel[models.PostSmContexts400Response](err); ok {
-				errorResponse = &errResponse
+			if errResponse, ok := decodeErrorResponseBody[models.PostSmContexts400Response](httpResponse); ok {
+				errorResponse = errResponse
+			} else if errModel, ok := openapi.ErrorModel[models.PostSmContexts400Response](err); ok {
+				errorResponse = &errModel
 			} else {
 				err1 = err
 			}
@@ -633,8 +635,10 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 		}
 		switch httpResponse.StatusCode {
 		case 400, 403, 404, 500, 503:
-			if errResponse, ok := openapi.ErrorModel[models.UpdateSmContext400Response](err); ok {
-				errorResponse = &errResponse
+			if errResponse, ok := decodeErrorResponseBody[models.UpdateSmContext400Response](httpResponse); ok {
+				errorResponse = errResponse
+			} else if errModel, ok := openapi.ErrorModel[models.UpdateSmContext400Response](err); ok {
+				errorResponse = &errModel
 			} else {
 				err1 = err
 			}
@@ -649,6 +653,53 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 		err1 = err
 	}
 	return response, errorResponse, problemDetail, err1
+}
+
+// decodeErrorResponseBody decodes an error response body into T, reporting whether it
+// succeeded.
+//
+// openapi.ErrorModel cannot return the multipart wrapper types. The generated client decodes a
+// 4xx body into the JSON-only error model - models.SmContextCreateError for PostSmContexts,
+// models.SmContextUpdateError for UpdateSmContext - and stores that in
+// GenericOpenAPIError.RawModel, so asserting to models.PostSmContexts400Response or
+// models.UpdateSmContext400Response never succeeds. Those wrappers are also the only models
+// carrying binaryDataN1SmMessage, which is the NAS reject the UE has to be given: the JSON-only
+// models hold n1SmMsg as a RefToBinaryData reference, not the bytes.
+//
+// The generated client leaves the body readable, so it is decoded here the same way the success
+// path does. This mirrors decodeSuccessResponseBody rather than sharing its body deliberately,
+// so that a fix for the error path cannot regress the success path.
+//
+// A decode that produced no jsonData counts as a failure. Every field on the wrappers is
+// omitempty and neither validates on unmarshal, so any JSON object decodes into an empty
+// wrapper - including the application/problem+json body TS 29.502 specifies for an error that
+// carries no N1 message. Reporting success there would hand the caller a wrapper with nothing
+// in it and a nil error, hiding the SMF's cause behind an unreadable N1 message; reporting
+// failure leaves that body to openapi.ErrorModel, which is what handles it today.
+func decodeErrorResponseBody[T any](httpResponse *http.Response) (*T, bool) {
+	if httpResponse == nil || httpResponse.Body == nil {
+		return nil, false
+	}
+	body, err := io.ReadAll(httpResponse.Body)
+	if err != nil {
+		return nil, false
+	}
+	if err = httpResponse.Body.Close(); err != nil {
+		return nil, false
+	}
+	httpResponse.Body = io.NopCloser(bytes.NewBuffer(body))
+	if len(body) == 0 {
+		return nil, false
+	}
+	var target T
+	if err = openapi.Decode(&target, body, httpResponse.Header.Get("Content-Type")); err != nil {
+		return nil, false
+	}
+	wrapper, ok := any(&target).(interface{ HasJsonData() bool })
+	if !ok || !wrapper.HasJsonData() {
+		return nil, false
+	}
+	return &target, true
 }
 
 func decodeSuccessResponseBody(httpResponse *http.Response, target any) error {
