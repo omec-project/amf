@@ -150,7 +150,14 @@ func transport5GSMMessage(
 		return nil
 	}
 
-	if has && isInitialRequest(requestType) {
+	// A Request type of "initial request" only means "establish a new session" when the
+	// payload actually is one. Per TS 24.501 subclause 5.4.5.2.2 the Request type IE is carried
+	// on a PDU SESSION MODIFICATION REQUEST as well, so a UE that sets "initial request" there
+	// would otherwise have its established session discarded here and released below.
+	// Decoded only for an initial request: this is the uplink NAS transport hot path.
+	isEstablishment := isInitialRequest(requestType) && isEstablishmentRequestFromUE(smMsg, ue)
+
+	if has && isEstablishment {
 		ue.SmContextList.Delete(pduID)
 		has, smCtx = false, nil
 	}
@@ -166,6 +173,13 @@ func transport5GSMMessage(
 
 		switch requestType.GetRequestTypeValue() {
 		case nasMessage.ULNASTransportRequestTypeInitialRequest:
+			if !isEstablishment {
+				// Request type says "initial request" but the payload is not an establishment
+				// request. Forward it and let the SMF answer; releasing the session here would
+				// punish the subscriber for the UE's malformed signalling.
+				ue.GmmLog.Warnf("request type is initial request but payload is not a PDU session establishment request (pdu session id: %d); forwarding to SMF", pduID)
+				return forward5GSMMessageToSMF(ctx, ue, anType, pduID, smCtx, smMsg)
+			}
 			return releaseDuplicatePDUSession(ctx, ue, anType, pduID, smCtx, smMsg, ulNasTransport)
 
 		case nasMessage.ULNASTransportRequestTypeExistingPduSession:
@@ -331,6 +345,23 @@ func is5GSMStatusFromUE(smMsg []byte, ue *context.AmfUe) bool {
 		return true
 	}
 	return false
+}
+
+// isEstablishmentRequestFromUE reports whether the N1 SM payload is a PDU SESSION
+// ESTABLISHMENT REQUEST. The Request type IE alone cannot answer that: it is carried on a
+// PDU SESSION MODIFICATION REQUEST too, and only the payload says which procedure the UE
+// is running.
+func isEstablishmentRequestFromUE(smMsg []byte, ue *context.AmfUe) bool {
+	if len(smMsg) == 0 {
+		return false
+	}
+	msg := new(nas.Message)
+	if err := msg.PlainNasDecode(&smMsg); err != nil {
+		ue.GmmLog.Errorf("could not decode Nas message: %v", err)
+		return false
+	}
+	return msg.GsmMessage != nil &&
+		msg.GsmHeader.GetMessageType() == nas.MsgTypePDUSessionEstablishmentRequest
 }
 
 func sendNotForwarded(ue *context.AmfUe, anType models.AccessType, smMsg []byte, pduID int32) error {
