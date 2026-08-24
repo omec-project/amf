@@ -154,10 +154,15 @@ func transport5GSMMessage(
 	// payload actually is one. Per TS 24.501 subclause 5.4.5.2.2 the Request type IE is carried
 	// on a PDU SESSION MODIFICATION REQUEST as well, so a UE that sets "initial request" there
 	// would otherwise have its established session discarded here and released below.
-	// Decoded only for an initial request: this is the uplink NAS transport hot path.
-	isEstablishment := isInitialRequest(requestType) && isEstablishmentRequestFromUE(smMsg, ue)
+	//
+	// Guarded on `has` as well as on the Request type, and in that order: only a request against
+	// a session that already exists can be misclassified, and both readers below are reached only
+	// when one does. A genuine first establishment is the common case on this hot path and must
+	// not pay for a decode whose answer it never consults.
+	establishmentOnExistingSession := has && isInitialRequest(requestType) &&
+		isEstablishmentRequestFromUE(smMsg, ue)
 
-	if has && isEstablishment {
+	if establishmentOnExistingSession {
 		ue.SmContextList.Delete(pduID)
 		has, smCtx = false, nil
 	}
@@ -173,7 +178,7 @@ func transport5GSMMessage(
 
 		switch requestType.GetRequestTypeValue() {
 		case nasMessage.ULNASTransportRequestTypeInitialRequest:
-			if !isEstablishment {
+			if !establishmentOnExistingSession {
 				// Request type says "initial request" but the payload is not an establishment
 				// request. Forward it and let the SMF answer; releasing the session here would
 				// punish the subscriber for the UE's malformed signalling.
