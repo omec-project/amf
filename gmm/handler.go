@@ -182,6 +182,12 @@ func transport5GSMMessage(
 				// Request type says "initial request" but the payload is not an establishment
 				// request. Forward it and let the SMF answer; releasing the session here would
 				// punish the subscriber for the UE's malformed signalling.
+				//
+				// This condition is always true as the code stands: an establishment request on an
+				// existing session is consumed by the delete above, which clears `has` and so skips
+				// this switch entirely. It is written as a condition rather than dropped because
+				// what follows it tears down a working session, and that call should depend on the
+				// payload check explicitly rather than on the reachability of a block above it.
 				ue.GmmLog.Warnf("request type is initial request but payload is not a PDU session establishment request (pdu session id: %d); forwarding to SMF", pduID)
 				return forward5GSMMessageToSMF(ctx, ue, anType, pduID, smCtx, smMsg)
 			}
@@ -365,6 +371,9 @@ func isEstablishmentRequestFromUE(smMsg []byte, ue *context.AmfUe) bool {
 		ue.GmmLog.Errorf("could not decode Nas message: %v", err)
 		return false
 	}
+	// The order of these two operands is load-bearing. nas.Message embeds *GsmMessage, which
+	// embeds GsmHeader by value, so msg.GsmHeader dereferences the pointer — reading it when
+	// GsmMessage is nil panics. The short circuit is the nil check.
 	return msg.GsmMessage != nil &&
 		msg.GsmHeader.GetMessageType() == nas.MsgTypePDUSessionEstablishmentRequest
 }
