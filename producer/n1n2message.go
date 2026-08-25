@@ -259,7 +259,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	}
 
 	// UE is CM-Connected
-	if ue.CmConnect(anType) {
+	if ue.HasLiveRanConnection(anType) {
 		var (
 			nasPdu []byte
 			err    error
@@ -396,7 +396,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	} else {
 		// Case B (UE is CM-IDLE in Non-3GPP access but CM-CONNECTED in 3GPP access and the associated
 		// access type is Non-3GPP access)in subclause 5.2.2.3.1.2 of TS29518
-		if ue.CmConnect(models.ACCESSTYPE__3_GPP_ACCESS) {
+		if ue.HasLiveRanConnection(models.ACCESSTYPE__3_GPP_ACCESS) {
 			if n2Info == nil {
 				n1n2MessageTransferRspData.Cause = models.N1N2MESSAGETRANSFERCAUSE_N1_N2_TRANSFER_INITIATED
 				gmm_message.SendDLNASTransport(ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS], models.ACCESSTYPE__3_GPP_ACCESS,

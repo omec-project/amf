@@ -4845,7 +4845,120 @@ func HandleErrorIndication(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 
-	// TODO: handle error based on cause/criticalityDiagnostics
+	recoverPendingMessageAfterStaleUeNgapID(ran, aMFUENGAPID, rANUENGAPID, cause)
+
+	// TODO: handle the remaining causes and criticalityDiagnostics
+}
+
+// causeIsUnknownUeNgapID reports whether the gNB is saying it does not recognise the UE
+// this message was about -- as opposed to any of the many other things an error
+// indication can carry, none of which mean the UE context is stale.
+func causeIsUnknownUeNgapID(cause *ngapType.Cause) bool {
+	if cause == nil || cause.Present != ngapType.CausePresentRadioNetwork || cause.RadioNetwork == nil {
+		return false
+	}
+
+	switch cause.RadioNetwork.Value {
+	case ngapType.CauseRadioNetworkPresentUnknownLocalUENGAPID,
+		ngapType.CauseRadioNetworkPresentInconsistentRemoteUENGAPID:
+		return true
+	default:
+		return false
+	}
+}
+
+// recoverPendingMessageAfterStaleUeNgapID pages a UE whose gNB has just said it does not
+// know the UE-NGAP-ID the AMF addressed it by.
+//
+// This is the only notice the AMF gets. The procedure that chose to send over N2 rather
+// than page did so because this UE looked connected, the write to the gNB succeeded, and
+// it answered its caller N1N2_TRANSFER_INITIATED -- so nothing upstream is waiting, and
+// nothing will retry. Meanwhile the message the SMF handed over is still held here, and
+// the UE stays unreachable until it happens to come back on its own; observed once as
+// PDUSessionResourceSetupRequest followed by this indication, with the UE recovering 35 s
+// later by its own service request.
+//
+// No lock on this side could have prevented it: the AMF's view was self-consistent, and
+// it was the peer that had released the UE. Repairing the outcome is the remedy, not
+// trying to win a race that is not ours to win.
+func recoverPendingMessageAfterStaleUeNgapID(
+	ran *context.AmfRan,
+	amfUeNgapID *ngapType.AMFUENGAPID,
+	ranUeNgapID *ngapType.RANUENGAPID,
+	cause *ngapType.Cause,
+) {
+	if !causeIsUnknownUeNgapID(cause) {
+		return
+	}
+
+	ranUe := findRanUeByAmfNgapID(ran, amfUeNgapID)
+	if ranUe == nil {
+		ranUe = findRanUeByRanNgapID(ran, ranUeNgapID)
+	}
+
+	if ranUe == nil {
+		// Both sides agree the UE is not here, which is the one case where there is
+		// nothing to repair.
+		ran.Log.Infoln("error indication reports an unknown UE-NGAP-ID that this AMF does not hold either")
+		return
+	}
+
+	// The AMF-assigned id is unique across this AMF, not within one gNB, so the lookup
+	// above can land on a UE belonging to a different gNB. Removing that one and paging
+	// its subscriber on the word of an unrelated peer is worse than doing nothing.
+	if ranUe.Ran != ran {
+		ran.Log.Warnln("error indication names a UE-NGAP-ID held for a different gNB, ignoring it")
+		return
+	}
+
+	// Capture before removing: Remove clears the link in both directions.
+	amfUe := ranUe.AmfUe
+
+	// Remove first. The choice between sending over N2 and paging is made by asking
+	// whether this UE has a live connection, and that has to stop answering yes for a
+	// gNB that just said it does not know the UE -- otherwise the next transfer repeats
+	// this failure, and the paging below would be built for a UE that still looks
+	// connected.
+	if err := ranUe.Remove(); err != nil {
+		ran.Log.Errorf("could not remove the stale UE context: %v", err)
+	}
+
+	if amfUe == nil {
+		ran.Log.Infoln("released a stale UE context the gNB no longer knows; it carried no UE")
+		return
+	}
+
+	pending := amfUe.N1N2Message
+	if pending == nil {
+		amfUe.GmmLog.Infoln("released a stale UE context the gNB no longer knows; nothing was pending for it")
+		return
+	}
+
+	anType := ran.AnType
+	if onGoing := amfUe.GetOnGoing(anType); onGoing.Procedure == context.OnGoingProcedurePaging {
+		amfUe.GmmLog.Infoln("released a stale UE context; a paging procedure is already running for it")
+		return
+	}
+
+	amfUe.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
+		Procedure: context.OnGoingProcedurePaging,
+	})
+
+	pkg, err := ngap_message.BuildPaging(amfUe, nil, anType == models.ACCESSTYPE_NON_3_GPP_ACCESS)
+	if err != nil {
+		amfUe.GmmLog.Errorf("build paging after a stale UE-NGAP-ID failed: %v", err)
+		// Paging was never sent, so no T3513 will fire to clear the transient state set
+		// above; reset it so the UE is not left in an OnGoingProcedurePaging conflict.
+		amfUe.N1N2Message = nil
+		amfUe.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
+			Procedure: context.OnGoingProcedureNothing,
+		})
+
+		return
+	}
+
+	amfUe.GmmLog.Infoln("gNB does not know this UE; released the stale context and paging for the pending message")
+	ngap_message.SendPaging(amfUe, pkg)
 }
 
 func HandleCellTrafficTrace(ran *context.AmfRan, message *ngapType.NGAPPDU) {

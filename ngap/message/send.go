@@ -19,9 +19,12 @@ import (
 
 func SendToRan(ran *context.AmfRan, packet []byte) {
 	defer func() {
-		err := recover()
-		if err != nil {
-			logger.NgapLog.Warnf("send error, gNB may have been lost: %+v", err)
+		if err := recover(); err != nil {
+			// Do not attribute this to the gNB. A lost association is reported by the
+			// guards below; reaching here means the AMF itself was in a state it did
+			// not expect -- a RanUe restored from the database with no transport, for
+			// one -- and the message was not sent.
+			logger.NgapLog.Errorf("internal fault while sending to gNB, message not sent: %+v", err)
 		}
 	}()
 
@@ -30,12 +33,26 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		return
 	}
 
+	// A restored AmfRan has no logger: its own guards must not be what panics.
+	ranLog := ran.Log
+	if ranLog == nil {
+		ranLog = logger.NgapLog
+	}
+
 	if len(packet) == 0 {
-		ran.Log.Errorln("packet len is 0")
+		ranLog.Errorln("packet len is 0")
 		return
 	}
 
 	if context.AMF_Self().EnableSctpLb {
+		// A send on a nil channel blocks for ever. A restored AmfRan has no channel --
+		// it does not survive storage -- so without this the caller does not fail, it
+		// stops, holding whatever it holds. The guard mirrors the nil-Conn one below.
+		if ran.Amf2RanMsgChan == nil {
+			ranLog.Errorln("Ran msg chan is nil")
+			return
+		}
+
 		msg := &sdcoreAmfServer.AmfMessage{VerboseMsg: "Message from AMF"}
 		msg.Msg = packet
 		msg.Msgtype = sdcoreAmfServer.MsgType_AMF_MSG
@@ -45,22 +62,22 @@ func SendToRan(ran *context.AmfRan, packet []byte) {
 		ran.Amf2RanMsgChan <- msg
 	} else {
 		if ran.Conn == nil {
-			ran.Log.Errorln("Ran conn is nil")
+			ranLog.Errorln("Ran conn is nil")
 			return
 		}
 
 		if ran.Conn.RemoteAddr() == nil {
-			ran.Log.Errorln("Ran addr is nil")
+			ranLog.Errorln("Ran addr is nil")
 			return
 		}
 
-		ran.Log.Debugln("send NGAP message To Ran")
+		ranLog.Debugln("send NGAP message To Ran")
 
 		if n, err := ran.Conn.Write(packet); err != nil {
-			ran.Log.Errorf("send error: %+v", err)
+			ranLog.Errorf("send error: %+v", err)
 			return
 		} else {
-			ran.Log.Debugf("Write %d bytes", n)
+			ranLog.Debugf("Write %d bytes", n)
 		}
 	}
 }
