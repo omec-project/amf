@@ -301,6 +301,18 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	if ue.RatType != "" {
 		smContextCreateData.SetRatType(ue.RatType)
 	}
+	// TS 24.501 subclause 4.23.4: tell the SMF when this UE's access warrants the extended NAS
+	// session management timer values, so its timers are chosen from the access rather than from
+	// configuration alone. Only NR(MEO) and NR(GEO) qualify — see UsesExtendedNasSmTimers, which
+	// is deliberately narrower than "is this non-terrestrial".
+	//
+	// Sent only when true. The field is optional and an SMF that reads it treats absence and false
+	// alike, so an explicit false would add a field to every request on every deployment to say
+	// nothing.
+	if ue.UsesExtendedNasSmTimers() {
+		smContextCreateData.SetExtendedNasSmTimerInd(true)
+		ue.GmmLog.Infof("signalling the extended NAS SM timer indication to the SMF for RAT type %s", ue.RatType)
+	}
 	// Forward the UE location to the SMF at session creation, mirroring the
 	// SmContextUpdateData paths that already do so. ue.Location is populated
 	// during registration (gmm/handler.go) from NGAP UpdateLocation.
