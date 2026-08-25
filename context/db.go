@@ -205,6 +205,36 @@ func DeleteContextFromDB(ue *AmfUe) {
 	}
 }
 
+// dropEmptyEnumValues removes keys whose value is an empty string, in place, walking
+// nested objects and arrays.
+//
+// Decoding an object into Go treats an absent key and an empty string identically -- the
+// field is left at its zero value -- with one exception: the strict 3GPP enum decoders
+// refuse an empty value, and refuse the whole document with it. A stored context that is
+// only partly populated therefore becomes unreadable, and it does not take much: an
+// optional container written with no class, or ngKsi.tsc on a UE stored before
+// authentication finished.
+//
+// This runs only after a strict decode has already failed, so a well-formed record is
+// never touched by it.
+func dropEmptyEnumValues(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, held := range typed {
+			if str, isString := held.(string); isString && str == "" {
+				delete(typed, key)
+				continue
+			}
+
+			dropEmptyEnumValues(held)
+		}
+	case []any:
+		for _, held := range typed {
+			dropEmptyEnumValues(held)
+		}
+	}
+}
+
 func DbFetch(collName string, filter bson.M) *AmfUe {
 	ue := &AmfUe{}
 	ue.init()
@@ -216,10 +246,30 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	if len(result) == 0 {
 		return nil
 	}
+
 	err := sonic.Unmarshal(mapToByte(result), ue)
 	if err != nil {
-		logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
-		return nil
+		// Retry without the empty values a strict enum decoder refuses. Records written
+		// before those values stopped being written are still in deployed databases,
+		// and a UE whose record cannot be read is a UE that cannot be paged.
+		strictErr := err
+
+		dropEmptyEnumValues(result)
+
+		ue = &AmfUe{}
+		ue.init()
+
+		if err = sonic.Unmarshal(mapToByte(result), ue); err != nil {
+			// Not the same thing as an absent document, and conflating them is what
+			// hid this for months: the context is there and unreadable, which is a
+			// fault to fix rather than a subscriber to go looking for.
+			logger.DataRepoLog.Errorf("stored UE context exists but could not be decoded: %v", err)
+
+			return nil
+		}
+
+		logger.DataRepoLog.Warnf("read a stored UE context that a strict decode refused (%v); "+
+			"empty values were dropped", strictErr)
 	}
 
 	dbMutex.Lock()
