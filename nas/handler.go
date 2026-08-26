@@ -30,11 +30,13 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		return
 	}
 
-	if ue.GetAmfUe() == nil {
-		// Read the association once and work from that pointer. Re-reading it is what
-		// makes this path fatal rather than merely wrong: a release running on another
-		// goroutine clears it, and nothing here recovers from a nil dereference.
-		amfUe := nas_security.FetchUeContextWithMobileIdentity(nasPdu)
+	// Read the association once and work from that pointer for the rest of the
+	// function. Re-reading it is what makes this path fatal rather than merely wrong:
+	// a release running on another goroutine clears it, and nothing here recovers from
+	// a nil dereference.
+	amfUe := ue.GetAmfUe()
+	if amfUe == nil {
+		amfUe = nas_security.FetchUeContextWithMobileIdentity(nasPdu)
 		ue.SetAmfUe(amfUe)
 
 		if amfUe == nil {
@@ -96,13 +98,13 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		ue.Ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	}
 
-	msg, err := nas_security.Decode(ue.AmfUe, ue.Ran.AnType, nasPdu)
+	msg, err := nas_security.Decode(amfUe, ue.Ran.AnType, nasPdu)
 	if err != nil {
-		ue.AmfUe.NASLog.Errorln(err)
+		amfUe.NASLog.Errorln(err)
 		return
 	}
-	if err := Dispatch(ctx, ue.AmfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
-		ue.AmfUe.NASLog.Errorf("handle NAS Error: %v", err)
+	if err := Dispatch(ctx, amfUe, ue.Ran.AnType, procedureCode, msg); err != nil {
+		amfUe.NASLog.Errorf("handle NAS Error: %v", err)
 	}
 }
 
