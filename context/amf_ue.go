@@ -656,13 +656,13 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	ue.Mutex.Lock()
 	oldRanUe := ue.RanUe[anType]
 	if oldRanUe == ranUe {
-		ranUe.AmfUe = ue
+		ranUe.SetAmfUe(ue)
 		ue.Mutex.Unlock()
 		ue.updateAttachedRanUeLogs(ranUe)
 		return
 	}
 	ue.RanUe[anType] = ranUe
-	ranUe.AmfUe = ue
+	ranUe.SetAmfUe(ue)
 	ue.Mutex.Unlock()
 
 	if oldRanUe != nil {
@@ -674,7 +674,7 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 
 			if oldRanUe.AmfUe == ue && ue.RanUe[anType] == newRanUe {
 				logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
-				oldRanUe.AmfUe = nil
+				oldRanUe.DetachAmfUe()
 			}
 		}(oldRanUe, ranUe, anType)
 	}

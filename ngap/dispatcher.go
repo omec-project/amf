@@ -99,8 +99,8 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 				copy(rsp.Msg, sctplbMsg.Msg)
 				ran.Amf2RanMsgChan = Amf2RanMsgChan
 				ran.Amf2RanMsgChan <- rsp
-				if ranUe != nil && ranUe.AmfUe != nil {
-					ranUe.AmfUe.Remove()
+				if amfUe := ranUe.GetAmfUe(); amfUe != nil {
+					amfUe.Remove()
 				}
 				if ranUe != nil {
 					if err := ranUe.Remove(); err != nil {
@@ -115,17 +115,17 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 	}
 
 	/* uecontext is found, submit the message to transaction queue*/
-	if ranUe != nil && ranUe.AmfUe != nil {
-		ranUe.AmfUe.SetEventChannel(ctx, NgapMsgHandler)
-		// ranUe.AmfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
-		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
+	if amfUe := ranUe.GetAmfUe(); amfUe != nil {
+		amfUe.SetEventChannel(ctx, NgapMsgHandler)
+		// amfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
+		amfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:       ran,
 			NgapMsg:   pdu,
 			SctplbMsg: sctplbMsg,
 		}
 
-		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
+		amfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
 		go DispatchNgapMsg(ctx, ran, pdu, sctplbMsg)
 	}
@@ -171,23 +171,26 @@ func Dispatch(conn net.Conn, msg []byte) {
 	ranUe, _ := FetchRanUeContext(ran, pdu)
 
 	/* uecontext is found, submit the message to transaction queue*/
-	if ranUe != nil && ranUe.AmfUe != nil {
-		ranUe.AmfUe.SetEventChannel(ctx, NgapMsgHandler)
-		ranUe.AmfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
-		ranUe.AmfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
+	// One read of the association, used throughout. This runs on the connection's only
+	// reader goroutine, which has no recover(), so a re-read that lands after a release
+	// clears the pointer ends the process for every UE on every gNB, not just this one.
+	if amfUe := ranUe.GetAmfUe(); amfUe != nil {
+		amfUe.SetEventChannel(ctx, NgapMsgHandler)
+		amfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
+		amfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:       ran,
 			NgapMsg:   pdu,
 			SctplbMsg: nil,
 		}
 		if ranUe.Ran.GnbId == ran.GnbId {
-			ranUe.AmfUe.TxLog.Infoln("gnbid match")
+			amfUe.TxLog.Infoln("gnbid match")
 			ranUe.Ran.Conn = conn
 		} else {
-			ranUe.AmfUe.TxLog.Infoln("gnbid differ")
-			ranUe.AmfUe.TxLog.Infof("In case of Xn handover source RAN gNB id:%s, target RAN gNB id:%s", ranUe.Ran.GnbId, ran.GnbId)
+			amfUe.TxLog.Infoln("gnbid differ")
+			amfUe.TxLog.Infof("In case of Xn handover source RAN gNB id:%s, target RAN gNB id:%s", ranUe.Ran.GnbId, ran.GnbId)
 		}
-		ranUe.AmfUe.EventChannel.SubmitMessage(ngapMsg)
+		amfUe.EventChannel.SubmitMessage(ngapMsg)
 	} else {
 		go DispatchNgapMsg(ctx, ran, pdu, nil)
 	}
