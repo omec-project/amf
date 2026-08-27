@@ -226,6 +226,18 @@ type AmfUe struct {
 }
 
 func (ue *AmfUe) MarshalJSON() ([]byte, error) {
+	// The encoder walks maps that other goroutines write while holding this very
+	// mutex -- RanUe is written by AttachRanUe and DetachRanUe -- so marshalling them
+	// unguarded ends the process with "concurrent map iteration and map write", which
+	// takes every UE on this AMF with it. Being on the UE's own EventChannel
+	// goroutine is not protection: the writers run on other goroutines.
+	//
+	// Safe to take here: no caller holds it. StoreContextInDB is reached from the gmm
+	// and ngap handlers, context/db.go's own locking is a separate package-level
+	// mutex, and nothing in this function calls back into a method that locks.
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	type Alias AmfUe
 	stateVal := make(map[models.AccessType]string)
 	smCtxListVal := make(map[string]SmContext)
