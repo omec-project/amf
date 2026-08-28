@@ -19,7 +19,7 @@ import (
 func TestAStoredContextDoesNotCarryTheAmf(t *testing.T) {
 	ue := &AmfUe{}
 	ue.init()
-	ue.Supi = "imsi-208930100007487"
+	ue.Supi = testSupi
 
 	stored, err := sonic.Marshal(ue)
 	if err != nil {

@@ -16,7 +16,7 @@ import (
 // gNB goes with it. Run under -race, this fails if the field is reached directly.
 func TestTheAssociationCanBeDroppedWhileReadersHoldIt(t *testing.T) {
 	ranUe := &RanUe{}
-	amfUe := &AmfUe{Supi: "imsi-208930100007487"}
+	amfUe := &AmfUe{Supi: testSupi}
 	ranUe.SetAmfUe(amfUe)
 
 	const rounds = 5000
@@ -58,7 +58,7 @@ func TestTheAssociationCanBeDroppedWhileReadersHoldIt(t *testing.T) {
 // Release must not undo a newer association, which is why the clear is conditional.
 func TestDetachAmfUeIfLeavesANewerAssociationAlone(t *testing.T) {
 	ranUe := &RanUe{}
-	first := &AmfUe{Supi: "imsi-208930100007487"}
+	first := &AmfUe{Supi: testSupi}
 	second := &AmfUe{Supi: "imsi-208930100007488"}
 
 	ranUe.SetAmfUe(first)

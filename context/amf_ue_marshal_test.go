@@ -20,7 +20,7 @@ import (
 func TestStoringAContextWhileItsRanUeChanges(t *testing.T) {
 	ue := &AmfUe{}
 	ue.init()
-	ue.Supi = "imsi-208930100007487"
+	ue.Supi = testSupi
 
 	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: "208:93:00100c"}
 
