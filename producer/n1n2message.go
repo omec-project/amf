@@ -9,7 +9,6 @@ package producer
 
 import (
 	ctxt "context"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/producer/callback"
+	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/ngap/v2/aper"
 	"github.com/omec-project/ngap/v2/ngapType"
@@ -164,7 +164,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	var n2Info []byte
 	if requestData.N2InfoContainer != nil {
 		if binaryDataN2Information := n1n2MessageTransferRequest.GetBinaryDataN2Information(); binaryDataN2Information != nil {
-			binaryN2Info, err := io.ReadAll(binaryDataN2Information)
+			binaryN2Info, err := util.ReadAndCleanupBinaryTempFile(binaryDataN2Information)
 			if err != nil {
 				ue.ProducerLog.Errorf("read binaryDataN2Information failed: %+v", err)
 				n2Info = nil
@@ -177,7 +177,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 	var n1Msg []byte
 	if requestData.N1MessageContainer != nil {
 		if binaryDataN1Message := n1n2MessageTransferRequest.GetBinaryDataN1Message(); binaryDataN1Message != nil {
-			binaryN1Msg, err := io.ReadAll(binaryDataN1Message)
+			binaryN1Msg, err := util.ReadAndCleanupBinaryTempFile(binaryDataN1Message)
 			if err != nil {
 				ue.ProducerLog.Errorf("read binaryDataN1Message failed: %+v", err)
 				n1Msg = nil

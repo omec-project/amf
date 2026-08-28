@@ -10,7 +10,6 @@ package ngap
 import (
 	ctxt "context"
 	"encoding/hex"
-	"io"
 	"os"
 	"strconv"
 
@@ -1848,11 +1847,11 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 					ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: received error response from SMF")
 					if errResponse != nil {
 						responseData := errResponse.GetJsonData()
-						n1Msg, err := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
+						n1Msg, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN1SmMessage())
 						if err != nil {
 							ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err)
 						}
-						n2Info, err := io.ReadAll(errResponse.GetBinaryDataN2SmInformation())
+						n2Info, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
 						if err != nil {
 							ranUe.Log.Errorf("readAll BinaryDataN2SmInformation failed: %v", err)
 						}
@@ -2157,11 +2156,11 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 
 		if response != nil {
 			responseData := response.GetJsonData()
-			n2Info, err1 := io.ReadAll(response.GetBinaryDataN1SmMessage())
+			n1Msg, err1 := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN1SmMessage())
 			if err1 != nil {
 				ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err1)
 			}
-			n1Msg, err2 := io.ReadAll(response.GetBinaryDataN2SmInformation())
+			n2Info, err2 := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 			if err2 != nil {
 				ranUe.Log.Errorf("readAll BinaryDataN2SmInformation failed: %v", err2)
 			}
@@ -2184,14 +2183,13 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 			}
 		} else if errResponse != nil {
 			errJSON := errResponse.GetJsonData()
-			n1Msg := errResponse.BinaryDataN2SmInformation
+			binaryDataN1SmMessage, err1 := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN1SmMessage())
+			if err1 != nil {
+				ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err1)
+			}
 			ranUe.Log.Warnf("PDU Session Modification is rejected by SMF[pduSessionId:%d], Error[%s]",
 				pduSessionID, errJSON.Error.GetCause())
-			if n1Msg != nil {
-				binaryDataN1SmMessage, err1 := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
-				if err1 != nil {
-					ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err1)
-				}
+			if binaryDataN1SmMessage != nil {
 				gmm_message.SendDLNASTransport(
 					ranUe, ran.AnType, nasMessage.PayloadContainerTypeN1SMInfo, binaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 			}
@@ -2221,25 +2219,24 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 			}
 			if response != nil {
 				responseData := response.GetJsonData()
-				n2Info, err1 := io.ReadAll(response.GetBinaryDataN1SmMessage())
+				n1Msg, err1 := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN1SmMessage())
 				if err1 != nil {
 					ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err1)
 				}
-				n1Msg, err2 := io.ReadAll(response.GetBinaryDataN2SmInformation())
+				n2Info, err2 := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 				if err2 != nil {
 					ranUe.Log.Errorf("readAll BinaryDataN2SmInformation failed: %v", err2)
 				}
 				BuildAndSendN1N2Msg(ranUe, ran.AnType, n1Msg, n2Info, responseData.GetN2SmInfoType(), pduSessionID)
 			} else if errResponse != nil {
 				errJSON := errResponse.JsonData
-				n1Msg := errResponse.BinaryDataN2SmInformation
+				binaryDataN1SmMessage, err1 := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN1SmMessage())
+				if err1 != nil {
+					ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err1)
+				}
 				ranUe.Log.Warnf("PDU Session Release is rejected by SMF[pduSessionId:%d], Error[%s]",
 					pduSessionID, errJSON.Error.Cause)
-				if n1Msg != nil {
-					binaryDataN1SmMessage, err1 := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
-					if err1 != nil {
-						ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err1)
-					}
+				if binaryDataN1SmMessage != nil {
 					gmm_message.SendDLNASTransport(ranUe, ran.AnType, nasMessage.PayloadContainerTypeN1SMInfo, binaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 				}
 			} else if err != nil {
@@ -2385,7 +2382,7 @@ func HandlePDUSessionResourceModifyIndication(ctx ctxt.Context, ran *context.Amf
 		}
 
 		if response != nil && response.BinaryDataN2SmInformation != nil {
-			binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+			binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 			if err != nil {
 				ranUe.Log.Errorf("readAll BinaryDataN2SmInformation failed: %v", err)
 			}
@@ -2393,7 +2390,7 @@ func HandlePDUSessionResourceModifyIndication(ctx ctxt.Context, ran *context.Amf
 				binaryDataN2SmInformation)
 		}
 		if errResponse != nil && errResponse.BinaryDataN2SmInformation != nil {
-			binaryDataN2SmInformation, err := io.ReadAll(errResponse.GetBinaryDataN2SmInformation())
+			binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
 			if err != nil {
 				ranUe.Log.Errorf("readAll BinaryDataN2SmInformation failed: %v", err)
 			}
@@ -2508,11 +2505,11 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 				ranUe.Log.Errorf("SendUpdateSmContextN2Info[PDUSessionResourceSetupResponseTransfer] Error: received error response from SMF")
 				if errResponse != nil {
 					responseData := errResponse.GetJsonData()
-					n1Msg, err := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
+					n1Msg, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN1SmMessage())
 					if err != nil {
 						ranUe.Log.Errorf("readAll BinaryDataN1SmMessage failed: %v", err)
 					}
-					n2Info, err := io.ReadAll(errResponse.GetBinaryDataN2SmInformation())
+					n2Info, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
 					if err != nil {
 						ranUe.Log.Errorf("readAll BinaryDataN2SmInformation failed: %v", err)
 					}
@@ -3309,7 +3306,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			if response != nil && response.GetBinaryDataN2SmInformation() != nil {
 				pduSessionResourceSwitchedItem := ngapType.PDUSessionResourceSwitchedItem{}
 				pduSessionResourceSwitchedItem.PDUSessionID.Value = int64(pduSessionID)
-				binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+				binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 				if err != nil {
 					ranUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
 				}
@@ -3319,7 +3316,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			if errResponse != nil && errResponse.GetBinaryDataN2SmInformation() != nil {
 				pduSessionResourceReleasedItem := ngapType.PDUSessionResourceReleasedItemPSFail{}
 				pduSessionResourceReleasedItem.PDUSessionID.Value = int64(pduSessionID)
-				binaryDataN2SmInformation, err := io.ReadAll(errResponse.GetBinaryDataN2SmInformation())
+				binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
 				if err != nil {
 					ranUe.Log.Errorf("readAll from errResponse.BinaryDataN2SmInformation error: %v", err)
 				}
@@ -3346,18 +3343,18 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			if response != nil && response.GetBinaryDataN2SmInformation() != nil {
 				pduSessionResourceReleasedItem := ngapType.PDUSessionResourceReleasedItemPSAck{}
 				pduSessionResourceReleasedItem.PDUSessionID.Value = int64(pduSessionID)
-				bynaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+				binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 				if err != nil {
 					ranUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
 				}
-				pduSessionResourceReleasedItem.PathSwitchRequestUnsuccessfulTransfer = bynaryDataN2SmInformation
+				pduSessionResourceReleasedItem.PathSwitchRequestUnsuccessfulTransfer = binaryDataN2SmInformation
 				pduSessionResourceReleasedListPSAck.List = append(pduSessionResourceReleasedListPSAck.List,
 					pduSessionResourceReleasedItem)
 			}
 			if errResponse != nil && errResponse.GetBinaryDataN2SmInformation() != nil {
 				pduSessionResourceReleasedItem := ngapType.PDUSessionResourceReleasedItemPSFail{}
 				pduSessionResourceReleasedItem.PDUSessionID.Value = int64(pduSessionID)
-				binaryDataN2SmInformation, err := io.ReadAll(errResponse.GetBinaryDataN2SmInformation())
+				binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
 				if err != nil {
 					ranUe.Log.Errorf("readAll from errResponse.BinaryDataN2SmInformation error: %v", err)
 				}
@@ -3503,7 +3500,7 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 				if response != nil && response.GetBinaryDataN2SmInformation() != nil {
 					handoverItem := ngapType.PDUSessionResourceHandoverItem{}
 					handoverItem.PDUSessionID = item.PDUSessionID
-					binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+					binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 					if err != nil {
 						targetUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
 					}
@@ -3514,7 +3511,7 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 				if errResponse != nil && errResponse.GetBinaryDataN2SmInformation() != nil {
 					releaseItem := ngapType.PDUSessionResourceToReleaseItemHOCmd{}
 					releaseItem.PDUSessionID = item.PDUSessionID
-					binaryDataN2SmInformation, err := io.ReadAll(errResponse.GetBinaryDataN2SmInformation())
+					binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
 					if err != nil {
 						targetUe.Log.Errorf("readAll from errResponse.BinaryDataN2SmInformation error: %v", err)
 					}
@@ -3859,7 +3856,7 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 					sourceUe.Log.Errorf("SendUpdateSmContextN2HandoverPreparing Error for PduSessionId[%d]", pduSessionId)
 					continue
 				} else if response.GetBinaryDataN2SmInformation() != nil {
-					binaryData, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+					binaryData, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 					if err != nil {
 						sourceUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
 					}
