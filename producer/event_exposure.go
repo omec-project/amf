@@ -87,8 +87,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		ueEventSubscription.AnyUe = true
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
-			subscription := ueEventSubscription
-			ue.SetEventSubscription(newSubscriptionID, &subscription)
+			ueSubscription := ueEventSubscription
+			ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
 			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 			return true
 		})
@@ -98,8 +98,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
 			if ue.GroupID == subscription.GetGroupId() {
-				subscription := ueEventSubscription
-				ue.SetEventSubscription(newSubscriptionID, &subscription)
+				ueSubscription := ueEventSubscription
+				ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
 				contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 			}
 			return true
@@ -109,8 +109,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			problemDetails := utils.ProblemDetailsWithCause("UE not served by AMF", http.StatusForbidden, "UE is not served by this AMF", utils.CauseUeNotServedByAmf)
 			return nil, problemDetails
 		} else {
-			subscription := ueEventSubscription
-			ue.SetEventSubscription(newSubscriptionID, &subscription)
+			ueSubscription := ueEventSubscription
+			ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
 			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 		}
 	}
