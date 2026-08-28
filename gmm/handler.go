@@ -13,7 +13,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -59,30 +58,6 @@ var (
 	amPolicyControlCreateForRegistration  = consumer.AMPolicyControlCreate
 	sendRegistrationAcceptForRegistration = gmm_message.SendRegistrationAccept
 )
-
-func readBinaryResponseFile(file *os.File) ([]byte, error) {
-	if file == nil {
-		return nil, nil
-	}
-	// The client decodes each response's binary parts into a fresh temp file; clean it up once read.
-	defer func() {
-		name := file.Name()
-		file.Close()
-		if name != "" {
-			os.Remove(name)
-		}
-	}()
-	if _, err := file.Seek(0, io.SeekStart); err == nil {
-		data, readErr := io.ReadAll(file)
-		if readErr == nil {
-			return data, nil
-		}
-	}
-	if file.Name() == "" {
-		return nil, fmt.Errorf("unable to read binary response file")
-	}
-	return os.ReadFile(file.Name())
-}
 
 func HandleULNASTransport(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType,
 	ulNasTransport *nasMessage.ULNASTransport,
@@ -271,7 +246,7 @@ func transport5GSMMessage(
 		}
 		if errResp != nil {
 			ue.GmmLog.Warnf("pdu session establishment request is rejected by SMF[pduSessionId:%d]", pduID)
-			binaryDataN1SmMessage, err := readBinaryResponseFile(errResp.GetBinaryDataN1SmMessage())
+			binaryDataN1SmMessage, err := util.ReadBinaryResponseFile(errResp.GetBinaryDataN1SmMessage())
 			if err != nil {
 				ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 				return fmt.Errorf("could not read N1 SM message: %w", err)
@@ -515,7 +490,7 @@ func forward5GSMMessageToSMF(
 		return nil
 	} else if errResponse != nil {
 		errJSON := errResponse.GetJsonData()
-		n1Msg, err := readBinaryResponseFile(errResponse.GetBinaryDataN1SmMessage())
+		n1Msg, err := util.ReadBinaryResponseFile(errResponse.GetBinaryDataN1SmMessage())
 		if err != nil {
 			ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 			return fmt.Errorf("could not read N1 SM message: %w", err)
@@ -534,14 +509,14 @@ func forward5GSMMessageToSMF(
 
 		responseData := response.GetJsonData()
 		var n1Msg []byte
-		n2SmInfo, err := readBinaryResponseFile(response.GetBinaryDataN2SmInformation())
+		n2SmInfo, err := util.ReadBinaryResponseFile(response.GetBinaryDataN2SmInformation())
 		if err != nil {
 			ue.GmmLog.Errorf("could not read N2 SM information: %v", err)
 			return fmt.Errorf("could not read N2 SM information: %w", err)
 		}
 		if response.GetBinaryDataN1SmMessage() != nil {
 			ue.GmmLog.Debug("Receive N1 SM Message from SMF")
-			binaryDataN1SmMessage, err := readBinaryResponseFile(response.GetBinaryDataN1SmMessage())
+			binaryDataN1SmMessage, err := util.ReadBinaryResponseFile(response.GetBinaryDataN1SmMessage())
 			if err != nil {
 				ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 				return fmt.Errorf("could not read N1 SM message: %w", err)

@@ -9,9 +9,7 @@ package producer
 import (
 	ctxt "context"
 	"fmt"
-	"io"
 	"net/http"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -172,13 +170,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]", pduSessionID)
 					var binaryDataN1SmMessage []byte
 					if n1File := errResponse.GetBinaryDataN1SmMessage(); n1File != nil {
-						data, readErr := io.ReadAll(n1File)
-						// The client decodes the response's binary part into a fresh temp file; clean it up once read.
-						name := n1File.Name()
-						n1File.Close()
-						if name != "" {
-							os.Remove(name)
-						}
+						data, readErr := util.ReadBinaryResponseFile(n1File)
 						if readErr != nil {
 							ue.ProducerLog.Errorf("read binaryDataN1SmMessage failed: %+v", readErr)
 						} else {
@@ -425,7 +417,7 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *mo
 
 		amfUe.AttachRanUe(ranUe)
 
-		nasPdu, err := io.ReadAll(n1MessageNotify.GetBinaryDataN1Message())
+		nasPdu, err := util.ReadBinaryResponseFile(n1MessageNotify.GetBinaryDataN1Message())
 		if err != nil {
 			logger.ProducerLog.Errorf("read N1 Message Failed: %+v", err)
 		}
