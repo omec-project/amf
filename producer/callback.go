@@ -122,7 +122,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 				if smContext.ULNASTransport().SNSSAI != nil {
 					snssai = nasConvert.SnssaiToModels(smContext.ULNASTransport().SNSSAI)
 				} else {
-					if allowedNssai, ok := ue.AllowedNssai[anType]; ok {
+					if allowedNssai := ue.GetAllowedNssai(anType); allowedNssai != nil {
 						snssai = allowedNssai[0].AllowedSnssai
 					} else {
 						ue.GmmLog.Errorln("UE doesn't have allowedNssai")
@@ -152,7 +152,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 				newSmContext, cause, err := consumer.SelectSmf(ctx, ue, anType, pduSessionID, snssai, dnn)
 				if err != nil {
 					logger.CallbackLog.Error(err)
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
+					gmm_message.SendDLNASTransport(ue.GetRanUe(anType), anType,
 						nasMessage.PayloadContainerTypeN1SMInfo,
 						smContext.ULNASTransport().GetPayloadContainerContents(), pduSessionID, cause, nil, 0)
 					return
@@ -182,7 +182,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					if len(binaryDataN1SmMessage) == 0 {
 						ue.ProducerLog.Warnf("SMF rejection carries no N1 SM message[pduSessionId:%d]", pduSessionID)
 					} else {
-						gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
+						gmm_message.SendDLNASTransport(ue.GetRanUe(anType), anType,
 							nasMessage.PayloadContainerTypeN1SMInfo, binaryDataN1SmMessage, pduSessionID, 0, nil, 0)
 					}
 				} else if err != nil {

@@ -544,17 +544,17 @@ func BuildRegistrationAccept(
 		copy(registrationAccept.EquivalentPlmns.Octet[:], buf)
 	}
 
-	if len(ue.RegistrationArea[anType]) > 0 {
+	if registrationArea := ue.GetRegistrationArea(anType); len(registrationArea) > 0 {
 		registrationAccept.TAIList = nasType.NewTAIList(nasMessage.RegistrationAcceptTAIListType)
-		taiListNas := nasConvert.TaiListToNas(ue.RegistrationArea[anType])
+		taiListNas := nasConvert.TaiListToNas(registrationArea)
 		registrationAccept.TAIList.SetLen(uint8(len(taiListNas)))
 		registrationAccept.SetPartialTrackingAreaIdentityList(taiListNas)
 	}
 
-	if len(ue.AllowedNssai[anType]) > 0 {
+	if allowedNssai := ue.GetAllowedNssai(anType); len(allowedNssai) > 0 {
 		registrationAccept.AllowedNSSAI = nasType.NewAllowedNSSAI(nasMessage.RegistrationAcceptAllowedNSSAIType)
 		var buf []uint8
-		for _, allowedSnssai := range ue.AllowedNssai[anType] {
+		for _, allowedSnssai := range allowedNssai {
 			buf = append(buf, nasConvert.SnssaiToNas(allowedSnssai.AllowedSnssai)...)
 		}
 		registrationAccept.AllowedNSSAI.SetLen(uint8(len(buf)))
@@ -707,17 +707,17 @@ func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType
 		configurationUpdateCommand.GUTI5G.SetIei(nasMessage.ConfigurationUpdateCommandGUTI5GType)
 	}
 
-	if len(ue.RegistrationArea[anType]) > 0 {
+	if registrationArea := ue.GetRegistrationArea(anType); len(registrationArea) > 0 {
 		configurationUpdateCommand.TAIList = nasType.NewTAIList(nasMessage.ConfigurationUpdateCommandTAIListType)
-		taiListNas := nasConvert.TaiListToNas(ue.RegistrationArea[anType])
+		taiListNas := nasConvert.TaiListToNas(registrationArea)
 		configurationUpdateCommand.TAIList.SetLen(uint8(len(taiListNas)))
 		configurationUpdateCommand.SetPartialTrackingAreaIdentityList(taiListNas)
 	}
 
-	if len(ue.AllowedNssai[anType]) > 0 {
+	if allowedNssai := ue.GetAllowedNssai(anType); len(allowedNssai) > 0 {
 		configurationUpdateCommand.AllowedNSSAI = nasType.NewAllowedNSSAI(nasMessage.ConfigurationUpdateCommandAllowedNSSAIType)
 		var buf []uint8
-		for _, allowedSnssai := range ue.AllowedNssai[anType] {
+		for _, allowedSnssai := range allowedNssai {
 			buf = append(buf, nasConvert.SnssaiToNas(allowedSnssai.AllowedSnssai)...)
 		}
 		configurationUpdateCommand.AllowedNSSAI.SetLen(uint8(len(buf)))

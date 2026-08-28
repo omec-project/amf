@@ -1176,7 +1176,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 
 	// for each pduSessionID invoke Nsmf_PDUSession_UpdateSMContext Request
 	var cause context.CauseAll
-	if tmp, exist := amfUe.ReleaseCause[ran.AnType]; exist {
+	if tmp, exist := amfUe.GetReleaseCause(ran.AnType); exist {
 		if tmp != nil {
 			cause = *tmp
 		}

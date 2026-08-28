@@ -118,12 +118,12 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 			Tac:        ue.Tai.Tac,
 			Tmsi:       fmt.Sprintf("%08x", uint32(ue.GetTmsi())),
 		}
-		if ue.RanUe != nil && ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
-			ueContext.RanUeNgapId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
-			ueContext.AmfUeNgapId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId
+		if ranUe := ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS); ranUe != nil {
+			ueContext.RanUeNgapId = ranUe.RanUeNgapId
+			ueContext.AmfUeNgapId = ranUe.AmfUeNgapId
 
-			if ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran != nil {
-				ueContext.GnbId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran.GnbId
+			if ranUe.Ran != nil {
+				ueContext.GnbId = ranUe.Ran.GnbId
 			}
 		}
 		ueContext.AmfInstanceName = ue.AmfInstanceName
