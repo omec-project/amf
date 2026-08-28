@@ -108,7 +108,7 @@ func NasSendToRan(ue *context.AmfUe, accessType models.AccessType, packet []byte
 		return
 	}
 
-	ranUe := ue.RanUe[accessType]
+	ranUe := ue.GetRanUe(accessType)
 	if ranUe == nil {
 		logger.NgapLog.Errorln("RanUe is nil")
 		return
@@ -359,11 +359,17 @@ func SendInitialContextSetupRequest(
 		return
 	}
 
-	amfUe.RanUe[anType].Log.Infoln("send Initial Context Setup Request")
+	ranUe := amfUe.GetRanUe(anType)
+	if ranUe == nil {
+		logger.NgapLog.Errorln("send Initial Context Setup Request: RanUe is nil")
+		return
+	}
+
+	ranUe.Log.Infoln("send Initial Context Setup Request")
 
 	if pduSessionResourceSetupRequestList != nil {
 		if len(pduSessionResourceSetupRequestList.List) > context.MaxNumOfPDUSessions {
-			amfUe.RanUe[anType].Log.Errorln("Pdu List out of range")
+			ranUe.Log.Errorln("Pdu List out of range")
 			return
 		}
 	}
@@ -371,10 +377,10 @@ func SendInitialContextSetupRequest(
 	pkt, err := BuildInitialContextSetupRequest(amfUe, anType, nasPdu, pduSessionResourceSetupRequestList,
 		rrcInactiveTransitionReportRequest, coreNetworkAssistanceInfo, emergencyFallbackIndicator)
 	if err != nil {
-		amfUe.RanUe[anType].Log.Errorf("build InitialContextSetupRequest failed: %s", err.Error())
+		ranUe.Log.Errorf("build InitialContextSetupRequest failed: %s", err.Error())
 		return
 	}
-	amfUe.RanUe[anType].SentInitialContextSetupRequest = true
+	ranUe.SentInitialContextSetupRequest = true
 	NasSendToRan(amfUe, anType, pkt)
 }
 
@@ -624,7 +630,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 	// if err != nil {
 	// 	ngaplog.Errorf("build Paging failed: %s", err.Error())
 	// }
-	taiList := ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS]
+	taiList := ue.GetRegistrationArea(models.ACCESSTYPE__3_GPP_ACCESS)
 	context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
 		ran := value.(*context.AmfRan)
 		for _, item := range ran.SupportedTAListSnapshot() {
@@ -675,16 +681,22 @@ func SendRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNga
 		return
 	}
 
-	ue.RanUe[anType].Log.Infoln("send Reroute Nas Request")
+	ranUe := ue.GetRanUe(anType)
+	if ranUe == nil {
+		logger.NgapLog.Errorln("send Reroute Nas Request: RanUe is nil")
+		return
+	}
+
+	ranUe.Log.Infoln("send Reroute Nas Request")
 
 	if len(ngapMessage) == 0 {
-		ue.RanUe[anType].Log.Errorln("Ngap Message is nil")
+		ranUe.Log.Errorln("Ngap Message is nil")
 		return
 	}
 
 	pkt, err := BuildRerouteNasRequest(ue, anType, amfUeNgapID, ngapMessage, allowedNSSAI)
 	if err != nil {
-		ue.RanUe[anType].Log.Errorf("build RerouteNasRequest failed: %s", err.Error())
+		ranUe.Log.Errorf("build RerouteNasRequest failed: %s", err.Error())
 		return
 	}
 	NasSendToRan(ue, anType, pkt)

@@ -894,7 +894,8 @@ func BuildInitialContextSetupRequest(
 	}
 
 	var pdu ngapType.NGAPPDU
-	ranUe, ok := amfUe.RanUe[anType]
+	ranUe := amfUe.GetRanUe(anType)
+	ok := ranUe != nil
 	if !ok {
 		return nil, fmt.Errorf("ranUe for %s is nil", anType)
 	}
@@ -1016,7 +1017,7 @@ func BuildInitialContextSetupRequest(
 	ie.Id.Value = ngapType.ProtocolIEIDAllowedNSSAI
 	ie.Criticality.Value = ngapType.CriticalityPresentReject
 	ie.Value.Present = ngapType.InitialContextSetupRequestIEsPresentAllowedNSSAI
-	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(amfUe.AllowedNssai[anType])
+	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(amfUe.GetAllowedNssai(anType))
 	if err != nil {
 		return nil, err
 	}
@@ -1542,7 +1543,7 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 	ie.Id.Value = ngapType.ProtocolIEIDAllowedNSSAI
 	ie.Criticality.Value = ngapType.CriticalityPresentReject
 	ie.Value.Present = ngapType.HandoverRequestIEsPresentAllowedNSSAI
-	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(amfUe.AllowedNssai[ue.Ran.AnType])
+	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(amfUe.GetAllowedNssai(ue.Ran.AnType))
 	if err != nil {
 		return nil, err
 	}
@@ -1753,7 +1754,7 @@ func BuildPathSwitchRequestAcknowledge(
 	ie.Id.Value = ngapType.ProtocolIEIDAllowedNSSAI
 	ie.Criticality.Value = ngapType.CriticalityPresentReject
 	ie.Value.Present = ngapType.PathSwitchRequestAcknowledgeIEsPresentAllowedNSSAI
-	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(ue.AmfUe.AllowedNssai[ue.Ran.AnType])
+	allowedNSSAI, err := buildAllowedNSSAIFromAllowedSnssai(ue.GetAmfUe().GetAllowedNssai(ue.Ran.AnType))
 	if err != nil {
 		return nil, err
 	}
@@ -2004,11 +2005,12 @@ func BuildPaging(
 	ie.Value.TAIListForPaging = new(ngapType.TAIListForPaging)
 
 	taiListForPaging := ie.Value.TAIListForPaging
-	if ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS] == nil {
+	registrationArea := ue.GetRegistrationArea(models.ACCESSTYPE__3_GPP_ACCESS)
+	if registrationArea == nil {
 		err = fmt.Errorf("registration area of ue[%s] is empty", ue.GetSupi())
 		return nil, err
 	} else {
-		for _, tai := range ue.RegistrationArea[models.ACCESSTYPE__3_GPP_ACCESS] {
+		for _, tai := range registrationArea {
 			var tac []byte
 			taiListforPagingItem := ngapType.TAIListForPagingItem{}
 			taiListforPagingItem.TAI.PLMNIdentity = ngapConvert.PlmnIdToNgap(tai.PlmnId)
@@ -2143,7 +2145,7 @@ func BuildRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNg
 	ie.Value.RANUENGAPID = new(ngapType.RANUENGAPID)
 
 	rANUENGAPID := ie.Value.RANUENGAPID
-	rANUENGAPID.Value = ue.RanUe[anType].RanUeNgapId
+	rANUENGAPID.Value = ue.GetRanUe(anType).RanUeNgapId
 
 	rerouteNasRequestIEs.List = append(rerouteNasRequestIEs.List, ie)
 
