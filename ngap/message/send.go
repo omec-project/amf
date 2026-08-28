@@ -201,9 +201,9 @@ func SendUEContextReleaseCommand(ue *context.RanUe, action context.RelAction, ca
 	}
 	ue.ReleaseAction = action
 	if ue.AmfUe != nil && ue.Ran != nil {
-		ue.AmfUe.ReleaseCause[ue.Ran.AnType] = &context.CauseAll{
+		ue.AmfUe.SetReleaseCause(ue.Ran.AnType, &context.CauseAll{
 			NgapCause: models.NewNgApCause(int32(causePresent), int32(cause)),
-		}
+		})
 	}
 	SendToRanUe(ue, pkt)
 }

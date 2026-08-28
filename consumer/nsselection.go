@@ -61,7 +61,7 @@ func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, r
 	if localErr == nil {
 		ue.NetworkSliceInfo = res
 		for _, allowedNssai := range res.AllowedNssaiList {
-			ue.AllowedNssai[allowedNssai.AccessType] = allowedNssai.AllowedSnssaiList
+			ue.SetAllowedNssai(allowedNssai.AccessType, allowedNssai.AllowedSnssaiList)
 		}
 		ue.ConfiguredNssai = res.ConfiguredNssai
 	} else if httpResp != nil {

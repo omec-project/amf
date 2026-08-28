@@ -1630,7 +1630,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 					allowedSnssai := models.AllowedSnssai{
 						AllowedSnssai: snssai.GetSubscribedSnssai(),
 					}
-					ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], allowedSnssai)
+					ue.AppendAllowedNssai(anType, allowedSnssai)
 				}
 			}
 		}
@@ -1643,7 +1643,7 @@ func rebuildAllowedNssaiFromRequested(
 	anType models.AccessType,
 	requestedNssai []models.MappingOfSnssai,
 ) bool {
-	ue.AllowedNssai[anType] = nil
+	ue.SetAllowedNssai(anType, nil)
 
 	for _, requestedSnssai := range requestedNssai {
 		if !ue.InSubscribedNssai(&requestedSnssai.ServingSnssai) {
@@ -1658,7 +1658,7 @@ func rebuildAllowedNssaiFromRequested(
 			MappedHomeSnssai: &requestedSnssai.HomeSnssai,
 		}
 		if !ue.InAllowedNssai(allowedSnssai.AllowedSnssai, anType) {
-			ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], allowedSnssai)
+			ue.AppendAllowedNssai(anType, allowedSnssai)
 		}
 	}
 
