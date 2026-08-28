@@ -79,9 +79,6 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amfContext
 	if err == nil {
 		return ueAuthenticationCtx, nil, nil
 	} else if httpResponse != nil {
-		if httpResponse.Status != err.Error() {
-			return nil, nil, err
-		}
 		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
 			return nil, &problem, nil
 		}
@@ -131,9 +128,6 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resS
 	if err == nil {
 		return confirmResult, nil, nil
 	} else if httpResponse != nil {
-		if httpResponse.Status != err.Error() {
-			return nil, nil, err
-		}
 		switch httpResponse.StatusCode {
 		case 400, 500:
 			if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
@@ -141,7 +135,9 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resS
 			}
 			return nil, nil, err
 		}
-		return nil, nil, nil
+		// A status this switch does not name still failed, so it is reported rather than returned
+		// as a success with nothing in it.
+		return nil, nil, err
 	} else {
 		return nil, nil, openapi.ReportError("server no response")
 	}
@@ -185,10 +181,6 @@ func SendEapAuthConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, eapMsg
 	if err == nil {
 		response = eapSessionRsp
 	} else if httpResponse != nil {
-		if httpResponse.Status != err.Error() {
-			err1 = err
-			return response, problemDetails, err1
-		}
 		switch httpResponse.StatusCode {
 		case 400, 500:
 			if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
@@ -196,6 +188,8 @@ func SendEapAuthConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, eapMsg
 			} else {
 				err1 = err
 			}
+		default:
+			err1 = err
 		}
 	} else {
 		err1 = openapi.ReportError("server no response")
