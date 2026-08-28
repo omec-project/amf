@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"reflect"
 	"strconv"
 	"strings"
@@ -246,7 +245,7 @@ func transport5GSMMessage(
 		}
 		if errResp != nil {
 			ue.GmmLog.Warnf("pdu session establishment request is rejected by SMF[pduSessionId:%d]", pduID)
-			binaryDataN1SmMessage, err := util.ReadBinaryResponseFile(errResp.GetBinaryDataN1SmMessage())
+			binaryDataN1SmMessage, err := util.ReadAndCleanupBinaryTempFile(errResp.GetBinaryDataN1SmMessage())
 			if err != nil {
 				ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 				return fmt.Errorf("could not read N1 SM message: %w", err)
@@ -406,7 +405,7 @@ func releaseDuplicatePDUSession(
 	}
 
 	smCtx.SetUserLocation(ue.Location)
-	n2, err := io.ReadAll(resp.GetBinaryDataN2SmInformation())
+	n2, err := util.ReadAndCleanupBinaryTempFile(resp.GetBinaryDataN2SmInformation())
 	if err != nil {
 		ue.GmmLog.Errorf("could not read N2 SM information: %v", err)
 		return fmt.Errorf("could not read N2 SM information: %w", err)
@@ -490,7 +489,7 @@ func forward5GSMMessageToSMF(
 		return nil
 	} else if errResponse != nil {
 		errJSON := errResponse.GetJsonData()
-		n1Msg, err := util.ReadBinaryResponseFile(errResponse.GetBinaryDataN1SmMessage())
+		n1Msg, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN1SmMessage())
 		if err != nil {
 			ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 			return fmt.Errorf("could not read N1 SM message: %w", err)
@@ -509,14 +508,14 @@ func forward5GSMMessageToSMF(
 
 		responseData := response.GetJsonData()
 		var n1Msg []byte
-		n2SmInfo, err := util.ReadBinaryResponseFile(response.GetBinaryDataN2SmInformation())
+		n2SmInfo, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 		if err != nil {
 			ue.GmmLog.Errorf("could not read N2 SM information: %v", err)
 			return fmt.Errorf("could not read N2 SM information: %w", err)
 		}
 		if response.GetBinaryDataN1SmMessage() != nil {
 			ue.GmmLog.Debug("Receive N1 SM Message from SMF")
-			binaryDataN1SmMessage, err := util.ReadBinaryResponseFile(response.GetBinaryDataN1SmMessage())
+			binaryDataN1SmMessage, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN1SmMessage())
 			if err != nil {
 				ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 				return fmt.Errorf("could not read N1 SM message: %w", err)
@@ -1119,11 +1118,11 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 								ue.GmmLog.Errorf("update SmContext Error[%v]", err)
 							}
 						} else {
-							binaryDataN1SmMessage, err := io.ReadAll(response.GetBinaryDataN1SmMessage())
+							binaryDataN1SmMessage, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN1SmMessage())
 							if err != nil {
 								ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 							}
-							binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+							binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 							if err != nil {
 								ue.GmmLog.Errorf("could not read N2 SM information: %v", err)
 							}
@@ -1190,14 +1189,14 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 			var n1Msg, n2Info []byte
 			var err error
 			if n1MsgFile != nil {
-				n1Msg, err = io.ReadAll(n1MsgFile)
+				n1Msg, err = util.ReadAndCleanupBinaryTempFile(n1MsgFile)
 				if err != nil {
 					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", err)
 					return err
 				}
 			}
 			if n2InfoFile != nil {
-				n2Info, err = io.ReadAll(n2InfoFile)
+				n2Info, err = util.ReadAndCleanupBinaryTempFile(n2InfoFile)
 				if err != nil {
 					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", err)
 					return err
@@ -1267,7 +1266,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 						smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 						if response.GetBinaryDataN2SmInformation() != nil &&
 							response.JsonData.GetN2SmInfoType() == models.N2SMINFOTYPE_PDU_RES_SETUP_REQ {
-							binaryDataN2SmInformation, readErr := io.ReadAll(response.GetBinaryDataN2SmInformation())
+							binaryDataN2SmInformation, readErr := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 							if readErr != nil {
 								ue.GmmLog.Errorf("could not read N2 SM information: %+v", readErr)
 							}
@@ -2102,16 +2101,16 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 						}
 						errCause = append(errCause, cause)
 					} else if ranUe.UeContextRequest {
-						binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+						binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 						if err != nil {
-							ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", response.GetBinaryDataN2SmInformation())
+							ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", err)
 						}
 						ngap_message.AppendPDUSessionResourceSetupListCxtReq(&ctxList,
 							pduSessionID, smContext.Snssai(), nil, binaryDataN2SmInformation)
 					} else {
-						binaryDataN2SmInformation, err := io.ReadAll(response.GetBinaryDataN2SmInformation())
+						binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 						if err != nil {
-							ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", response.GetBinaryDataN2SmInformation())
+							ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", err)
 						}
 						ngap_message.AppendPDUSessionResourceSetupListSUReq(&suList,
 							pduSessionID, smContext.Snssai(), nil, binaryDataN2SmInformation)
@@ -2165,14 +2164,14 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 			var n1Msg, n2Info []byte
 			var err error
 			if n1MsgFile != nil {
-				n1Msg, err = io.ReadAll(n1MsgFile)
+				n1Msg, err = util.ReadAndCleanupBinaryTempFile(n1MsgFile)
 				if err != nil {
 					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", err)
 					return err
 				}
 			}
 			if n2InfoFile != nil {
-				n2Info, err = io.ReadAll(n2InfoFile)
+				n2Info, err = util.ReadAndCleanupBinaryTempFile(n2InfoFile)
 				if err != nil {
 					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", err)
 					return err
@@ -2238,16 +2237,16 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							if response.GetBinaryDataN2SmInformation() != nil &&
 								response.JsonData.GetN2SmInfoType() == models.N2SMINFOTYPE_PDU_RES_SETUP_REQ {
 								if ranUe.UeContextRequest {
-									binaryDataN2SmInformation, err1 := io.ReadAll(response.GetBinaryDataN2SmInformation())
+									binaryDataN2SmInformation, err1 := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 									if err1 != nil {
-										ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", response.GetBinaryDataN2SmInformation())
+										ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", err1)
 									}
 									ngap_message.AppendPDUSessionResourceSetupListCxtReq(&ctxList,
 										requestData.GetPduSessionId(), smContext.Snssai(), nil, binaryDataN2SmInformation)
 								} else {
-									binaryDataN2SmInformation, err1 := io.ReadAll(response.GetBinaryDataN2SmInformation())
+									binaryDataN2SmInformation, err1 := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 									if err1 != nil {
-										ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", response.GetBinaryDataN2SmInformation())
+										ue.GmmLog.Errorf("error reading BinaryDataN2SmInformation: %+v", err1)
 									}
 									ngap_message.AppendPDUSessionResourceSetupListSUReq(&suList,
 										requestData.GetPduSessionId(), smContext.Snssai(), nil, binaryDataN2SmInformation)

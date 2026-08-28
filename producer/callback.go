@@ -170,7 +170,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]", pduSessionID)
 					var binaryDataN1SmMessage []byte
 					if n1File := errResponse.GetBinaryDataN1SmMessage(); n1File != nil {
-						data, readErr := util.ReadBinaryResponseFile(n1File)
+						data, readErr := util.ReadAndCleanupBinaryTempFile(n1File)
 						if readErr != nil {
 							ue.ProducerLog.Errorf("read binaryDataN1SmMessage failed: %+v", readErr)
 						} else {
@@ -417,7 +417,7 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *mo
 
 		amfUe.AttachRanUe(ranUe)
 
-		nasPdu, err := util.ReadBinaryResponseFile(n1MessageNotify.GetBinaryDataN1Message())
+		nasPdu, err := util.ReadAndCleanupBinaryTempFile(n1MessageNotify.GetBinaryDataN1Message())
 		if err != nil {
 			logger.ProducerLog.Errorf("read N1 Message Failed: %+v", err)
 		}
