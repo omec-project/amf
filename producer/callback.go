@@ -169,12 +169,22 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					// TODO: handle response(response N2SmInfo to RAN if exists)
 				} else if errResponse != nil {
 					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]", pduSessionID)
-					binaryDataN1SmMessage, err1 := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
-					if err1 != nil {
-						ue.ProducerLog.Errorf("read binaryDataN1SmMessage failed: %+v", err1)
+					var binaryDataN1SmMessage []byte
+					if n1File := errResponse.GetBinaryDataN1SmMessage(); n1File != nil {
+						if data, readErr := io.ReadAll(n1File); readErr != nil {
+							ue.ProducerLog.Errorf("read binaryDataN1SmMessage failed: %+v", readErr)
+						} else {
+							binaryDataN1SmMessage = data
+						}
 					}
-					gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
-						nasMessage.PayloadContainerTypeN1SMInfo, binaryDataN1SmMessage, pduSessionID, 0, nil, 0)
+					// The SMF can refuse without attaching a reject, and an empty payload
+					// container is not a message the UE can act on.
+					if len(binaryDataN1SmMessage) == 0 {
+						ue.ProducerLog.Warnf("SMF rejection carries no N1 SM message[pduSessionId:%d]", pduSessionID)
+					} else {
+						gmm_message.SendDLNASTransport(ue.RanUe[anType], anType,
+							nasMessage.PayloadContainerTypeN1SMInfo, binaryDataN1SmMessage, pduSessionID, 0, nil, 0)
+					}
 				} else if err != nil {
 					ue.ProducerLog.Errorf("failed to create smContext[pduSessionID: %d], Error[%s]", pduSessionID, err.Error())
 				} else {

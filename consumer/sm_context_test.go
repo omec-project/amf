@@ -503,3 +503,301 @@ func readMultipartRequestPartsByName(t *testing.T, r *http.Request, expectedPart
 
 	return parts, mediaType
 }
+
+// writeMultipartRejection responds the way the SMF does when it refuses a PDU session: a
+// multipart body carrying the problem details in jsonData and the GSM reject in
+// binaryDataN1SmMessage.
+func writeMultipartRejection(t *testing.T, w http.ResponseWriter, status int, jsonData any, nas []byte) {
+	t.Helper()
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	encoded, err := json.Marshal(jsonData)
+	if err != nil {
+		t.Fatalf("failed to marshal jsonData: %v", err)
+	}
+	jsonPart, err := writer.CreateFormField("jsonData")
+	if err != nil {
+		t.Fatalf("failed to create jsonData part: %v", err)
+	}
+	if _, err = jsonPart.Write(encoded); err != nil {
+		t.Fatalf("failed to write jsonData part: %v", err)
+	}
+	nasPart, err := writer.CreateFormFile("binaryDataN1SmMessage", "n1SmMsg")
+	if err != nil {
+		t.Fatalf("failed to create binaryDataN1SmMessage part: %v", err)
+	}
+	if _, err = nasPart.Write(nas); err != nil {
+		t.Fatalf("failed to write binaryDataN1SmMessage part: %v", err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatalf("failed to close multipart writer: %v", err)
+	}
+
+	w.Header().Set("Content-Type", writer.FormDataContentType())
+	w.WriteHeader(status)
+	if _, err = w.Write(body.Bytes()); err != nil {
+		t.Fatalf("failed to write response body: %v", err)
+	}
+}
+
+// TestSendCreateSmContextRequestRelaysSmfRejection covers the whole point of the error path:
+// when the SMF refuses a session it attaches the NAS reject the UE has to receive, and the AMF
+// has to hand that back so gmm can relay it.
+//
+// The assertions on err and errorResponse are what make the relay reachable. gmm/handler.go
+// checks err before errResp and returns on a non-nil error, so returning an error here - which
+// is what happens when the response body is not decoded - leaves the relay branch dead and the
+// UE waiting for T3580.
+func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
+	// PDU SESSION ESTABLISHMENT REJECT with 5GSM cause #70, missing or unknown DNN in a slice.
+	rejectNas := []byte{0x2e, 0x0a, 0xc1, 0x46}
+
+	self := amfContext.AMF_Self()
+	originalNfID := self.NfId
+	originalServedGuamiList := append([]models.Guami(nil), self.ServedGuamiList...)
+	originalUriScheme := self.UriScheme
+	originalRegisterIPv4 := self.RegisterIPv4
+	originalSBIPort := self.SBIPort
+	defer func() {
+		self.NfId = originalNfID
+		self.ServedGuamiList = originalServedGuamiList
+		self.UriScheme = originalUriScheme
+		self.RegisterIPv4 = originalRegisterIPv4
+		self.SBIPort = originalSBIPort
+	}()
+
+	self.NfId = "amf-instance-id"
+	self.ServedGuamiList = []models.Guami{{
+		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
+		AmfId:  "cafe00",
+	}}
+	self.UriScheme = models.URISCHEME_HTTP
+	self.RegisterIPv4 = "127.0.0.1"
+	self.SBIPort = 29518
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
+
+		// Title and Detail are populated on purpose. They sit nested under error, so
+		// FormatErrorMessage still finds no top-level Title and the consumer's
+		// `httpResponse.Status != err.Error()` guard does not trip.
+		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextCreateError{
+			Error: models.ExtProblemDetails{
+				Title:  openapi.PtrString("DNN_DENIED"),
+				Detail: openapi.PtrString("DNN not configured for the requested slice"),
+			},
+			N1SmMsg: &models.RefToBinaryData{ContentId: "n1SmMsg"},
+		}, rejectNas)
+	}))
+	defer server.Close()
+
+	ue := &amfContext.AmfUe{
+		ServingAMF: self,
+		Supi:       "imsi-001010000000001",
+		Tai: models.Tai{
+			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+			Tac:    "000001",
+		},
+		Guti:     "00101cafe00000001",
+		TimeZone: "+00:00",
+	}
+
+	smContext := amfContext.NewSmContext(10)
+	smContext.SetSmfUri(server.URL)
+	smContext.SetSmfID("smf-test")
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetDnn("internet")
+	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
+
+	_, _, errorResponse, problemDetail, err := SendCreateSmContextRequest(
+		context.Background(),
+		ue,
+		smContext,
+		models.REQUESTTYPE_INITIAL_REQUEST.Ptr(),
+		[]byte{0x7e, 0x00, 0x68, 0x01},
+	)
+	if err != nil {
+		t.Fatalf("expected no error so that gmm reaches its relay branch, got %v", err)
+	}
+	if problemDetail != nil {
+		t.Fatalf("expected no problem detail, got %+v", problemDetail)
+	}
+	if errorResponse == nil {
+		t.Fatal("expected the SMF rejection to be returned as errorResponse")
+	}
+	if errorResponse.JsonData == nil {
+		t.Fatal("expected the rejection jsonData to be decoded")
+	}
+	if title := errorResponse.JsonData.Error.GetTitle(); title != "DNN_DENIED" {
+		t.Errorf("expected rejection title %q, got %q", "DNN_DENIED", title)
+	}
+
+	nasFile := errorResponse.GetBinaryDataN1SmMessage()
+	if nasFile == nil {
+		t.Fatal("expected the NAS reject to be carried in binaryDataN1SmMessage")
+	}
+	got, err := io.ReadAll(nasFile)
+	if err != nil {
+		t.Fatalf("failed to read the NAS reject: %v", err)
+	}
+	if !bytes.Equal(got, rejectNas) {
+		t.Errorf("expected NAS reject %v, got %v", rejectNas, got)
+	}
+}
+
+// TestSendUpdateSmContextRequestRelaysSmfRejection covers the same shape on the modification
+// path, which asks for models.UpdateSmContext400Response while the generated client stores
+// models.SmContextUpdateError.
+func TestSendUpdateSmContextRequestRelaysSmfRejection(t *testing.T) {
+	rejectNas := []byte{0x2e, 0x0a, 0xd1, 0x1f}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
+		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextUpdateError{
+			Error:   models.ExtProblemDetails{Title: openapi.PtrString("MODIFICATION_REJECTED")},
+			N1SmMsg: &models.RefToBinaryData{ContentId: "n1SmMsg"},
+		}, rejectNas)
+	}))
+	defer server.Close()
+
+	smContext := amfContext.NewSmContext(10)
+	smContext.SetSmfUri(server.URL)
+	smContext.SetSmContextRef("ctx-ref")
+
+	_, errorResponse, problemDetail, err := SendUpdateSmContextRequest(
+		context.Background(),
+		smContext,
+		models.SmContextUpdateData{},
+		[]byte{0x7e, 0x00, 0x69, 0x01},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("expected no error so that the caller can relay the rejection, got %v", err)
+	}
+	if problemDetail != nil {
+		t.Fatalf("expected no problem detail, got %+v", problemDetail)
+	}
+	if errorResponse == nil {
+		t.Fatal("expected the SMF rejection to be returned as errorResponse")
+	}
+	nasFile := errorResponse.GetBinaryDataN1SmMessage()
+	if nasFile == nil {
+		t.Fatal("expected the NAS reject to be carried in binaryDataN1SmMessage")
+	}
+	got, err := io.ReadAll(nasFile)
+	if err != nil {
+		t.Fatalf("failed to read the NAS reject: %v", err)
+	}
+	if !bytes.Equal(got, rejectNas) {
+		t.Errorf("expected NAS reject %v, got %v", rejectNas, got)
+	}
+}
+
+// TestSendUpdateSmContextRequestRejectsHollowErrorBody covers the fallback the decode has to
+// leave intact. Every field on models.UpdateSmContext400Response is omitempty and the model does
+// not validate on unmarshal, so any JSON object decodes into it without error - including the
+// application/problem+json body TS 29.502 specifies for an error carrying no N1 message. Taking
+// that as a successful decode would return a wrapper with nothing in it alongside a nil error,
+// which reads to the caller as a relayable rejection: gmm would log "could not read N1 SM
+// message" instead of the SMF's cause, and producer/callback.go would send the UE a DL NAS
+// Transport with an empty payload container.
+func TestSendUpdateSmContextRequestRejectsHollowErrorBody(t *testing.T) {
+	tests := []struct {
+		name        string
+		contentType string
+		body        string
+	}{
+		{
+			name:        "SmContextUpdateError as problem+json",
+			contentType: "application/problem+json",
+			body:        `{"error":{"title":"N1SmError","status":403,"cause":"N1_SM_ERROR"}}`,
+		},
+		{
+			name:        "bare problem details",
+			contentType: "application/problem+json",
+			body:        `{"title":"Not Found","status":404,"cause":"CONTEXT_NOT_FOUND"}`,
+		},
+		{
+			name:        "null body",
+			contentType: "application/json",
+			body:        `null`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", tc.contentType)
+				w.WriteHeader(http.StatusForbidden)
+				if _, err := w.Write([]byte(tc.body)); err != nil {
+					t.Errorf("failed to write response body: %v", err)
+				}
+			}))
+			defer server.Close()
+
+			smContext := amfContext.NewSmContext(10)
+			smContext.SetSmfUri(server.URL)
+			smContext.SetSmContextRef("ctx-ref")
+
+			_, errorResponse, problemDetail, err := SendUpdateSmContextRequest(
+				context.Background(),
+				smContext,
+				models.SmContextUpdateData{},
+				[]byte{0x7e, 0x00, 0x69, 0x01},
+				nil,
+			)
+			if errorResponse != nil {
+				t.Errorf("expected no errorResponse for a body carrying no jsonData, got %+v", errorResponse)
+			}
+			if problemDetail != nil {
+				t.Errorf("expected no problem detail, got %+v", problemDetail)
+			}
+			if err == nil {
+				t.Error("expected the rejection to be reported as an error so the cause reaches the log")
+			}
+		})
+	}
+}
+
+// TestSendUpdateSmContextRequestDecodesJsonRejection covers the other side of that guard: an
+// error body that does carry jsonData still decodes, even when it is not multipart because the
+// SMF had no N1 message to attach.
+func TestSendUpdateSmContextRequestDecodesJsonRejection(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		if _, err := w.Write([]byte(`{"jsonData":{"error":{"cause":"N1_SM_ERROR"}}}`)); err != nil {
+			t.Errorf("failed to write response body: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	smContext := amfContext.NewSmContext(10)
+	smContext.SetSmfUri(server.URL)
+	smContext.SetSmContextRef("ctx-ref")
+
+	_, errorResponse, problemDetail, err := SendUpdateSmContextRequest(
+		context.Background(),
+		smContext,
+		models.SmContextUpdateData{},
+		[]byte{0x7e, 0x00, 0x69, 0x01},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if problemDetail != nil {
+		t.Fatalf("expected no problem detail, got %+v", problemDetail)
+	}
+	if errorResponse == nil {
+		t.Fatal("expected the SMF rejection to be returned as errorResponse")
+	}
+	if errorResponse.JsonData == nil {
+		t.Fatal("expected the rejection jsonData to be decoded")
+	}
+	if cause := errorResponse.JsonData.Error.GetCause(); cause != "N1_SM_ERROR" {
+		t.Errorf("expected rejection cause %q, got %q", "N1_SM_ERROR", cause)
+	}
+}

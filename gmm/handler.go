@@ -238,10 +238,17 @@ func transport5GSMMessage(
 		}
 		if errResp != nil {
 			ue.GmmLog.Warnf("pdu session establishment request is rejected by SMF[pduSessionId:%d]", pduID)
-			binaryDataN1SmMessage, err := io.ReadAll(errResp.GetBinaryDataN1SmMessage())
+			binaryDataN1SmMessage, err := readBinaryResponseFile(errResp.GetBinaryDataN1SmMessage())
 			if err != nil {
 				ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 				return fmt.Errorf("could not read N1 SM message: %w", err)
+			}
+			// The SMF can refuse without attaching a reject, in which case its response
+			// carries jsonData alone. There is nothing to relay then, and an empty
+			// payload container is not a message the UE can act on.
+			if len(binaryDataN1SmMessage) == 0 {
+				ue.GmmLog.Warnf("SMF rejection carries no N1 SM message[pduSessionId:%d]", pduID)
+				return nil
 			}
 			sendDLNASTransport(ue.GetRanUe(anType), anType, nasMessage.PayloadContainerTypeN1SMInfo,
 				binaryDataN1SmMessage, pduID, 0, nil, 0)
@@ -455,14 +462,14 @@ func forward5GSMMessageToSMF(
 		return nil
 	} else if errResponse != nil {
 		errJSON := errResponse.GetJsonData()
-		n1Msg, err := io.ReadAll(errResponse.GetBinaryDataN1SmMessage())
+		n1Msg, err := readBinaryResponseFile(errResponse.GetBinaryDataN1SmMessage())
 		if err != nil {
 			ue.GmmLog.Errorf("could not read N1 SM message: %v", err)
 			return fmt.Errorf("could not read N1 SM message: %w", err)
 		}
 		ue.GmmLog.Warnf("PDU Session Modification Procedure is rejected by SMF[pduSessionId:%d], Error[%s]",
 			pduSessionID, errJSON.Error.GetCause())
-		if n1Msg != nil {
+		if len(n1Msg) > 0 {
 			sendDLNASTransport(ue.GetRanUe(accessType), accessType, nasMessage.PayloadContainerTypeN1SMInfo,
 				n1Msg, pduSessionID, 0, nil, 0)
 		}
