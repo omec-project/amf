@@ -78,7 +78,13 @@ type AmfUe struct {
 	// state) so an accessor can never self-deadlock against a Mutex holder.
 	identityMu sync.RWMutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
-	ServingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
+	// Not persisted. It points at the process-wide AMF context, which init() sets on
+	// every UE, so serialising it wrote a copy of the whole singleton -- RanUePool,
+	// NfService, the subscription tables -- into each UE document, and restoring one
+	// decoded straight back into that live singleton: two restores at once are
+	// "fatal error: concurrent map writes", and one alone silently overwrites the
+	// running AMF's own state with a snapshot from whenever that UE was stored.
+	ServingAMF *AMFContext `json:"-"` // never nil
 
 	/* Gmm State */
 	State map[models.AccessType]*fsm.State `json:"-"`
