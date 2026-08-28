@@ -301,10 +301,13 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	if ue.RatType != "" {
 		smContextCreateData.SetRatType(ue.RatType)
 	}
-	// TS 24.501 subclause 4.23.4: tell the SMF when this UE's access warrants the extended NAS
-	// session management timer values, so its timers are chosen from the access rather than from
-	// configuration alone. Only NR(MEO) and NR(GEO) qualify — see UsesExtendedNasSmTimers, which
-	// is deliberately narrower than "is this non-terrestrial".
+	// TS 24.501 subclause 4.23.4: "If the use of extended NAS timer for access via a satellite
+	// NG-RAN cell is indicated by the AMF ... the SMF shall calculate the value of the applicable
+	// NAS timer indicated in table 10.3.2 for access via a satellite NG-RAN cell." This is that
+	// indication, so the SMF's timers follow the access rather than configuration alone.
+	//
+	// Which accesses qualify is table 10.3.2 NOTE 5, not the subclause: NR(MEO) and NR(GEO) only.
+	// See UsesExtendedNasSmTimers, which is deliberately narrower than "is this non-terrestrial".
 	//
 	// Sent only when true. The field is optional and an SMF that reads it treats absence and false
 	// alike, so an explicit false would add a field to every request on every deployment to say

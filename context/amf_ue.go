@@ -572,11 +572,15 @@ func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 // UsesExtendedNasSmTimers reports whether this UE's access warrants the extended NAS session
 // management timer values, which the AMF signals to the SMF as ExtendedNasSmTimerInd.
 //
-// TS 24.501 subclause 4.23.4 NOTE 5 names only NR(MEO) and NR(GEO). It is deliberately narrower
-// than IsNtn, which is true for NR(LEO) and NR(OTHER_SAT) as well: at 600 to 1200 km a LEO round
-// trip is tens of milliseconds, so the base timer values are conformant there and extending them
-// would delay every recovery for no reason. NR(OTHER_SAT) is unnamed by NOTE 5 and takes the base
-// values by the letter of the specification.
+// TS 24.501 table 10.3.2 (Timers of 5GS session management - SMF side) carries the satellite
+// values, and its NOTE 5 names only NR(MEO) and NR(GEO). Subclause 4.23.4 is what sends the SMF to
+// that table when the AMF indicates extended timers; the RAT types are named by the note, not by
+// the subclause.
+//
+// This is deliberately narrower than IsNtn, which is true for NR(LEO) and NR(OTHER_SAT) as well: at
+// 600 to 1200 km a LEO round trip is tens of milliseconds, so the base timer values are conformant
+// there and extending them would delay every recovery for no reason. NR(OTHER_SAT) is unnamed by
+// that note and takes the base values by the letter of the specification.
 //
 // The orbit reaches ue.RatType at registration, upgraded from the RATInformation the serving RAN
 // advertised for the TAC at NGSetup. Where a RAN advertises nothing — which is every RAN in

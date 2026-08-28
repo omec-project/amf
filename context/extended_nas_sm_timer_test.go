@@ -9,7 +9,9 @@ import (
 	"github.com/omec-project/openapi/v2/models"
 )
 
-// TS 24.501 subclause 4.23.4 NOTE 5 names NR(MEO) and NR(GEO) and no other access.
+// TS 24.501 table 10.3.2 NOTE 5 names NR(MEO) and NR(GEO) and no other access. Table 10.3.1 says
+// the same for the UE side in its NOTE 7; subclause 4.23.4 is the clause that routes the SMF to
+// table 10.3.2 when the AMF indicates extended timers.
 //
 // The tempting shortcut is "is this non-terrestrial", which IsNtn already answers — and it is the
 // wrong question. A LEO round trip at 600 to 1200 km is tens of milliseconds, so the base timer
