@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -171,7 +172,14 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					ue.ProducerLog.Warnf("PDU Session Establishment Request is rejected by SMF[pduSessionId:%d]", pduSessionID)
 					var binaryDataN1SmMessage []byte
 					if n1File := errResponse.GetBinaryDataN1SmMessage(); n1File != nil {
-						if data, readErr := io.ReadAll(n1File); readErr != nil {
+						data, readErr := io.ReadAll(n1File)
+						// The client decodes the response's binary part into a fresh temp file; clean it up once read.
+						name := n1File.Name()
+						n1File.Close()
+						if name != "" {
+							os.Remove(name)
+						}
+						if readErr != nil {
 							ue.ProducerLog.Errorf("read binaryDataN1SmMessage failed: %+v", readErr)
 						} else {
 							binaryDataN1SmMessage = data

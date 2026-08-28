@@ -64,6 +64,14 @@ func readBinaryResponseFile(file *os.File) ([]byte, error) {
 	if file == nil {
 		return nil, nil
 	}
+	// The client decodes each response's binary parts into a fresh temp file; clean it up once read.
+	defer func() {
+		name := file.Name()
+		file.Close()
+		if name != "" {
+			os.Remove(name)
+		}
+	}()
 	if _, err := file.Seek(0, io.SeekStart); err == nil {
 		data, readErr := io.ReadAll(file)
 		if readErr == nil {
