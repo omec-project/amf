@@ -266,7 +266,12 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 	apiGetNSSAIRequest := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAI(ctx, ue.GetSupi())
 	apiGetNSSAIRequest = apiGetNSSAIRequest.PlmnId(*plmnId)
 	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAIExecute(apiGetNSSAIRequest)
-	if localErr == nil {
+
+	// A nil body is not an error to the generated client: an empty or contentless
+	// response yields (nil, resp, nil), and ranging over it kills the process rather
+	// than this one registration. Seen in production -- the AMF aborted here during a
+	// registration burst and took every UE on five gNBs with it.
+	if localErr == nil && nssai != nil {
 		for _, defaultSnssai := range nssai.DefaultSingleNssais {
 			subscribedSnssai := models.SubscribedSnssai{
 				SubscribedSnssai: models.Snssai{
