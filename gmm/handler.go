@@ -450,7 +450,7 @@ func pickSnssai(ulNasTransport *nasMessage.ULNASTransport, ue *context.AmfUe, an
 	if ulNasTransport.SNSSAI != nil {
 		return nasConvert.SnssaiToModels(ulNasTransport.SNSSAI), nil
 	}
-	if allowed, ok := ue.AllowedNssai[anType]; ok && len(allowed) > 0 {
+	if allowed := ue.GetAllowedNssai(anType); len(allowed) > 0 {
 		return allowed[0].AllowedSnssai, nil
 	}
 	return models.Snssai{}, errors.New("ue doesn't have allowedNssai")
@@ -863,7 +863,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		ue.Capability5GMM = *registrationRequest.Capability5GMM
 	}
 
-	if len(ue.AllowedNssai[anType]) == 0 {
+	if ue.AllowedNssaiLen(anType) == 0 {
 		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
 		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
 			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
@@ -873,7 +873,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 
 	//TODO: this is commented because Radysis USIM is not sending this IE
 	/*else {
-		gmm_message.SendRegistrationReject(ue.RanUe[anType], nasMessage.Cause5GMMProtocolErrorUnspecified, "")
+		gmm_message.SendRegistrationReject(ue.GetRanUe(anType), nasMessage.Cause5GMMProtocolErrorUnspecified, "")
 		return fmt.Errorf("Capability5GMM is nil")
 	}*/
 
@@ -908,7 +908,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 
 	// TODO: Not supporting IMEI check with EIR. please uncomment when we support EIR check
 	/*if len(ue.Pei) == 0 {
-		gmm_message.SendIdentityRequest(ue.RanUe[anType], nasMessage.MobileIdentity5GSTypeImei)
+		gmm_message.SendIdentityRequest(ue.GetRanUe(anType), nasMessage.MobileIdentity5GSTypeImei)
 		return nil
 	}*/
 
@@ -1603,7 +1603,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 				ueContext := consumer.BuildUeContextModel(ue)
 				ranId := ranUe.Ran.RanId
 				ranNodeId := models.NewNullableGlobalRanNodeId(ranId)
-				allowedNssai := models.NewAllowedNssai(ue.AllowedNssai[anType], anType)
+				allowedNssai := models.NewAllowedNssai(ue.GetAllowedNssai(anType), anType)
 				registerContext := models.NewRegistrationContextContainer(ueContext, anType, int32(ranUe.RanUeNgapId), *ranNodeId, amfSelf.Name, ue.Location)
 				registerContext.SetRrcEstCause(ranUe.RRCEstablishmentCause)
 				registerContext.SetUeContextRequest(ranUe.UeContextRequest)
@@ -1622,7 +1622,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 				callback.SendN1MessageNotifyAtAMFReAllocation(ue, n1Message.Bytes(), registerContext)
 			} else {
 				// Condition (B) Step 7: initial AMF can not find Target AMF via NRF -> Send Reroute NAS Request to RAN
-				allowedNssaiNgap := ngapConvert.AllowedNssaiToNgap(ue.AllowedNssai[anType])
+				allowedNssaiNgap := ngapConvert.AllowedNssaiToNgap(ue.GetAllowedNssai(anType))
 				ngap_message.SendRerouteNasRequest(ue, anType, nil, ranUe.InitialUEMessage, &allowedNssaiNgap)
 			}
 			return nil
@@ -1631,7 +1631,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 
 	// if registration request has no requested nssai, or non of snssai in requested nssai is permitted by nssf
 	// then use ue subscribed snssai which is marked as default as allowed nssai
-	if len(ue.AllowedNssai[anType]) == 0 {
+	if ue.AllowedNssaiLen(anType) == 0 {
 		for _, snssai := range ue.SubscribedNssai {
 			if snssai.GetDefaultIndication() {
 				if amfSelf.InPlmnSupportList(snssai.GetSubscribedSnssai()) {

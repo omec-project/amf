@@ -857,6 +857,9 @@ func (ue *AmfUe) GetCmInfo() (cmInfos []models.CmInfo) {
 }
 
 func (ue *AmfUe) InAllowedNssai(targetSNssai models.Snssai, anType models.AccessType) bool {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	for _, allowedSnssai := range ue.AllowedNssai[anType] {
 		if reflect.DeepEqual(allowedSnssai.AllowedSnssai, targetSNssai) {
 			return true
@@ -1123,6 +1126,72 @@ func (ue *AmfUe) ClearRegistrationData() {
 //
 // They are deliberately small: no SBI call or channel send belongs inside them.
 
+// The readers below pair with the mutators. Taking the lock is what removes the fatal
+// "concurrent map read and map write"; that part is load-bearing and is covered by
+// TestReadingAContextWhileEveryMapIsWritten.
+//
+// The two slice-valued maps additionally return a copy. That is defensive rather than
+// required by anything here today: no current writer mutates an element in place --
+// SetAllowedNssai replaces the whole slice and AppendAllowedNssai writes at index len,
+// past whatever a caller's snapshot ranges over -- so a returned slice would not in
+// fact be written under the caller. The copy costs a few entries and removes the
+// question, but do not mistake it for a fix to an observed race.
+
+// GetAllowedNssai returns a copy of the allowed NSSAI for one access type.
+func (ue *AmfUe) GetAllowedNssai(anType models.AccessType) []models.AllowedSnssai {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	allowed := ue.AllowedNssai[anType]
+	if allowed == nil {
+		return nil
+	}
+
+	return append([]models.AllowedSnssai(nil), allowed...)
+}
+
+// AllowedNssaiLen reports how many entries the allowed NSSAI holds, for callers that
+// only need to know whether it is empty and should not pay for a copy.
+func (ue *AmfUe) AllowedNssaiLen(anType models.AccessType) int {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	return len(ue.AllowedNssai[anType])
+}
+
+// GetRegistrationArea returns a copy of the registration area for one access type.
+func (ue *AmfUe) GetRegistrationArea(anType models.AccessType) []models.Tai {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	area := ue.RegistrationArea[anType]
+	if area == nil {
+		return nil
+	}
+
+	return append([]models.Tai(nil), area...)
+}
+
+// GetReleaseCause returns why an access is being released, and whether one is recorded.
+func (ue *AmfUe) GetReleaseCause(anType models.AccessType) (*CauseAll, bool) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	cause, ok := ue.ReleaseCause[anType]
+
+	return cause, ok
+}
+
+// GetEventSubscription returns one event subscription, and whether it exists.
+func (ue *AmfUe) GetEventSubscription(id string) (*AmfUeEventSubscription, bool) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	subscription, ok := ue.EventSubscriptionsInfo[id]
+
+	return subscription, ok
+}
+
 // SetAllowedNssai replaces the allowed NSSAI for one access type.
 func (ue *AmfUe) SetAllowedNssai(anType models.AccessType, allowed []models.AllowedSnssai) {
 	ue.Mutex.Lock()
@@ -1199,6 +1268,9 @@ func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoingProcedureW
 }
 
 func (ue *AmfUe) GetOnGoing(anType models.AccessType) OnGoingProcedureWithPrio {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	return *ue.OnGoing[anType]
 }
 
