@@ -895,8 +895,7 @@ func BuildInitialContextSetupRequest(
 
 	var pdu ngapType.NGAPPDU
 	ranUe := amfUe.GetRanUe(anType)
-	ok := ranUe != nil
-	if !ok {
+	if ranUe == nil {
 		return nil, fmt.Errorf("ranUe for %s is nil", anType)
 	}
 	amfSelf := context.AMF_Self()
@@ -2145,7 +2144,15 @@ func BuildRerouteNasRequest(ue *context.AmfUe, anType models.AccessType, amfUeNg
 	ie.Value.RANUENGAPID = new(ngapType.RANUENGAPID)
 
 	rANUENGAPID := ie.Value.RANUENGAPID
-	rANUENGAPID.Value = ue.GetRanUe(anType).RanUeNgapId
+
+	// Its own read, checked here. The caller checks too, but that is a separate read
+	// of a field another goroutine clears, so it says nothing about this one.
+	ranUe := ue.GetRanUe(anType)
+	if ranUe == nil {
+		return nil, fmt.Errorf("ranUe for %s is nil", anType)
+	}
+
+	rANUENGAPID.Value = ranUe.RanUeNgapId
 
 	rerouteNasRequestIEs.List = append(rerouteNasRequestIEs.List, ie)
 
