@@ -150,7 +150,19 @@ func transport5GSMMessage(
 		return nil
 	}
 
-	if has && isInitialRequest(requestType) {
+	// A Request type of "initial request" only means "establish a new session" when the
+	// payload actually is one. Per TS 24.501 subclause 5.4.5.2.2 the Request type IE is carried
+	// on a PDU SESSION MODIFICATION REQUEST as well, so a UE that sets "initial request" there
+	// would otherwise have its established session discarded here and released below.
+	//
+	// Guarded on `has` as well as on the Request type, and in that order: only a request against
+	// a session that already exists can be misclassified, and both readers below are reached only
+	// when one does. A genuine first establishment is the common case on this hot path and must
+	// not pay for a decode whose answer it never consults.
+	establishmentOnExistingSession := has && isInitialRequest(requestType) &&
+		isEstablishmentRequestFromUE(smMsg, ue)
+
+	if establishmentOnExistingSession {
 		ue.SmContextList.Delete(pduID)
 		has, smCtx = false, nil
 	}
@@ -166,6 +178,19 @@ func transport5GSMMessage(
 
 		switch requestType.GetRequestTypeValue() {
 		case nasMessage.ULNASTransportRequestTypeInitialRequest:
+			if !establishmentOnExistingSession {
+				// Request type says "initial request" but the payload is not an establishment
+				// request. Forward it and let the SMF answer; releasing the session here would
+				// punish the subscriber for the UE's malformed signalling.
+				//
+				// This condition is always true as the code stands: an establishment request on an
+				// existing session is consumed by the delete above, which clears `has` and so skips
+				// this switch entirely. It is written as a condition rather than dropped because
+				// what follows it tears down a working session, and that call should depend on the
+				// payload check explicitly rather than on the reachability of a block above it.
+				ue.GmmLog.Warnf("request type is initial request but payload is not a PDU session establishment request (pdu session id: %d); forwarding to SMF", pduID)
+				return forward5GSMMessageToSMF(ctx, ue, anType, pduID, smCtx, smMsg)
+			}
 			return releaseDuplicatePDUSession(ctx, ue, anType, pduID, smCtx, smMsg, ulNasTransport)
 
 		case nasMessage.ULNASTransportRequestTypeExistingPduSession:
@@ -331,6 +356,26 @@ func is5GSMStatusFromUE(smMsg []byte, ue *context.AmfUe) bool {
 		return true
 	}
 	return false
+}
+
+// isEstablishmentRequestFromUE reports whether the N1 SM payload is a PDU SESSION
+// ESTABLISHMENT REQUEST. The Request type IE alone cannot answer that: it is carried on a
+// PDU SESSION MODIFICATION REQUEST too, and only the payload says which procedure the UE
+// is running.
+func isEstablishmentRequestFromUE(smMsg []byte, ue *context.AmfUe) bool {
+	if len(smMsg) == 0 {
+		return false
+	}
+	msg := new(nas.Message)
+	if err := msg.PlainNasDecode(&smMsg); err != nil {
+		ue.GmmLog.Errorf("could not decode Nas message: %v", err)
+		return false
+	}
+	// The order of these two operands is load-bearing. nas.Message embeds *GsmMessage, which
+	// embeds GsmHeader by value, so msg.GsmHeader dereferences the pointer — reading it when
+	// GsmMessage is nil panics. The short circuit is the nil check.
+	return msg.GsmMessage != nil &&
+		msg.GsmHeader.GetMessageType() == nas.MsgTypePDUSessionEstablishmentRequest
 }
 
 func sendNotForwarded(ue *context.AmfUe, anType models.AccessType, smMsg []byte, pduID int32) error {
