@@ -24,6 +24,7 @@ import (
 const (
 	createSmContextPath = "/nsmf-pdusession/v1/sm-contexts"
 	updateSmContextPath = "/nsmf-pdusession/v1/sm-contexts/ctx-ref/modify"
+	testAmfInstanceID   = "amf-instance-id"
 )
 
 func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T) {
@@ -43,7 +44,7 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 		self.SBIPort = originalSBIPort
 	}()
 
-	self.NfId = "amf-instance-id"
+	self.NfId = testAmfInstanceID
 	self.ServedGuamiList = []models.Guami{{
 		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 		AmfId:  "cafe00",
@@ -568,7 +569,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 		self.SBIPort = originalSBIPort
 	}()
 
-	self.NfId = "amf-instance-id"
+	self.NfId = testAmfInstanceID
 	self.ServedGuamiList = []models.Guami{{
 		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 		AmfId:  "cafe00",
@@ -580,9 +581,11 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
 
-		// Title and Detail are populated on purpose. They sit nested under error, so
-		// FormatErrorMessage still finds no top-level Title and the consumer's
-		// `httpResponse.Status != err.Error()` guard does not trip.
+		// Title and Detail are populated on purpose, and they sit nested under error rather than
+		// at the top level. That used to matter for a second reason - it was why FormatErrorMessage
+		// left the message equal to the bare status, so the old status-versus-message guard did not
+		// trip on this path - and the guard is gone now. It still matters for what it asserts: the
+		// rejection the UE has to receive travels in the nested error object.
 		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextCreateError{
 			Error: models.ExtProblemDetails{
 				Title:  openapi.PtrString("DNN_DENIED"),
@@ -799,5 +802,88 @@ func TestSendUpdateSmContextRequestDecodesJsonRejection(t *testing.T) {
 	}
 	if cause := errorResponse.JsonData.Error.GetCause(); cause != "N1_SM_ERROR" {
 		t.Errorf("expected rejection cause %q, got %q", "N1_SM_ERROR", cause)
+	}
+}
+
+// TestSendCreateSmContextRequestSurfacesAProblemDetails covers the statuses whose body is a bare
+// ProblemDetails rather than the multipart rejection above.
+//
+// The generated client replaces its error string with FormatErrorMessage(status, model) as soon as
+// the body decodes, and FormatErrorMessage appends anything it finds in a top-level Title or Detail
+// field. ProblemDetails has both, so the formatted message never equals the bare status and the
+// `httpResponse.Status != err.Error()` comparison that used to gate the switch always failed --
+// which meant the 411, 413, 415 and 429 branches never ran and the SMF's stated reason was thrown
+// away in favour of a bare error. The condition held whenever a body decoded, which is exactly when
+// there was something worth keeping.
+func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
+	self := amfContext.AMF_Self()
+	originalNfID := self.NfId
+	originalServedGuamiList := append([]models.Guami(nil), self.ServedGuamiList...)
+	defer func() {
+		self.NfId = originalNfID
+		self.ServedGuamiList = originalServedGuamiList
+	}()
+
+	self.NfId = testAmfInstanceID
+	self.ServedGuamiList = []models.Guami{{
+		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
+		AmfId:  "cafe00",
+	}}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		readMultipartRequestPartsByName(t, r, []string{"jsonData"})
+
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.WriteHeader(http.StatusTooManyRequests)
+		if err := json.NewEncoder(w).Encode(models.ProblemDetails{
+			Title:  openapi.PtrString("TOO_MANY_REQUESTS"),
+			Detail: openapi.PtrString("the SMF is shedding load"),
+			Cause:  openapi.PtrString("INSUFFICIENT_RESOURCES"),
+			Status: openapi.PtrInt32(http.StatusTooManyRequests),
+		}); err != nil {
+			t.Errorf("failed to write the problem details: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	ue := &amfContext.AmfUe{
+		ServingAMF: self,
+		Supi:       "imsi-001010000000001",
+		Tai: models.Tai{
+			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
+			Tac:    "000001",
+		},
+		Guti:     "00101cafe00000001",
+		TimeZone: "+00:00",
+	}
+
+	smContext := amfContext.NewSmContext(10)
+	smContext.SetSmfUri(server.URL)
+	smContext.SetSmfID("smf-test")
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetDnn("internet")
+	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
+
+	response, smContextRef, errorResponse, problemDetail, err := SendCreateSmContextRequest(
+		context.Background(),
+		ue,
+		smContext,
+		models.REQUESTTYPE_INITIAL_REQUEST.Ptr(),
+		nil,
+	)
+	if problemDetail == nil {
+		t.Fatalf("the SMF's ProblemDetails was discarded; the caller got only err = %v", err)
+	}
+	if response != nil || smContextRef != "" {
+		t.Errorf("a rejected request must not produce a session: response %+v, ref %q", response, smContextRef)
+	}
+	if errorResponse != nil {
+		t.Errorf("this status carries a bare problem, not the multipart rejection: %+v", errorResponse)
+	}
+	if got := problemDetail.GetCause(); got != "INSUFFICIENT_RESOURCES" {
+		t.Errorf("cause = %q, want %q", got, "INSUFFICIENT_RESOURCES")
+	}
+	if got := problemDetail.GetTitle(); got != "TOO_MANY_REQUESTS" {
+		t.Errorf("title = %q, want %q", got, "TOO_MANY_REQUESTS")
 	}
 }

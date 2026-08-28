@@ -36,7 +36,7 @@ func TestGetNfProfileUsesFqdnForHostnameRegistration(t *testing.T) {
 	}()
 
 	amfCtx := &amf_context.AMFContext{
-		NfId:         "amf-instance-id",
+		NfId:         testAmfInstanceID,
 		RegisterIPv4: "amf",
 		UriScheme:    models.URISCHEME_HTTP,
 		SBIPort:      29518,
@@ -85,7 +85,7 @@ func TestGetNfProfileUsesIpv4AddressForLiteralRegistration(t *testing.T) {
 	}()
 
 	amfCtx := &amf_context.AMFContext{
-		NfId:         "amf-instance-id",
+		NfId:         testAmfInstanceID,
 		RegisterIPv4: registerIPv4,
 		UriScheme:    models.URISCHEME_HTTP,
 		SBIPort:      29518,

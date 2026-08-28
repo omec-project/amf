@@ -247,10 +247,9 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 				logger.ConsumerLog.Errorf("SendCreateSubscription response cannot close: %+v", resCloseErr)
 			}
 		}()
-		if res.Status != err.Error() {
-			logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %s", res.Status)
-			return nrfSubData, problemDetails, err
-		}
+		// Logged for every error response now, not only for the ones the removed guard let through.
+		// The message was already true in both cases and the subscription failing is worth a line.
+		logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %s", res.Status)
 		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
 			problemDetails = &problem
 		} else {
@@ -297,9 +296,6 @@ var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (p
 				err = fmt.Errorf("RemoveSubscription's response body cannot close: %w", bodyCloseErr)
 			}
 		}()
-		if res.Status != err.Error() {
-			return problemDetails, err
-		}
 		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
 			problemDetails = &problem
 		} else {

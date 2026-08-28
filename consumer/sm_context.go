@@ -246,10 +246,12 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 			smContextRef = httpResponse.Header.Get("Location")
 		}
 	} else if httpResponse != nil {
-		if httpResponse.Status != err.Error() {
-			err1 = err
-			return response, smContextRef, errorResponse, problemDetail, err1
-		}
+		// The status carried by the response decides how to read the body. The error's message
+		// does not: the generated client replaces it with FormatErrorMessage(status, model) as soon
+		// as the body decodes, and that appends whatever a top-level Title or Detail holds. Any
+		// model with those fields -- ProblemDetails has both -- therefore produces a message that
+		// differs from the bare status, so comparing the two discarded exactly the responses that
+		// had been decoded successfully.
 		switch httpResponse.StatusCode {
 		case 400, 403, 404, 500, 503, 504:
 			if errResponse, ok := decodeErrorResponseBody[models.PostSmContexts400Response](httpResponse); ok {
@@ -260,11 +262,15 @@ func SendCreateSmContextRequest(ctx context.Context, ue *amf_context.AmfUe, smCo
 				err1 = err
 			}
 		case 411, 413, 415, 429:
-			if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
-				problemDetail = &problem
+			if problem, ok := problemDetailsFrom(err); ok {
+				problemDetail = problem
 			} else {
 				err1 = err
 			}
+		default:
+			// A status this switch does not name still failed. Returning neither a model nor an
+			// error would report the call as successful.
+			err1 = err
 		}
 	} else {
 		err1 = err
@@ -644,10 +650,6 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 			return response, errorResponse, problemDetail, nil
 		}
 	} else if httpResponse != nil {
-		if httpResponse.Status != err.Error() {
-			err1 = err
-			return response, errorResponse, problemDetail, err1
-		}
 		switch httpResponse.StatusCode {
 		case 400, 403, 404, 500, 503:
 			if errResponse, ok := decodeErrorResponseBody[models.UpdateSmContext400Response](httpResponse); ok {
@@ -658,16 +660,55 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 				err1 = err
 			}
 		case 411, 413, 415, 429:
-			if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
-				problemDetail = &problem
+			if problem, ok := problemDetailsFrom(err); ok {
+				problemDetail = problem
 			} else {
 				err1 = err
 			}
+		default:
+			// A status this switch does not name still failed. Returning neither a model nor an
+			// error would report the call as successful.
+			err1 = err
 		}
 	} else {
 		err1 = err
 	}
 	return response, errorResponse, problemDetail, err1
+}
+
+// problemDetailsFrom returns the problem the peer reported, whichever of the two shapes the
+// generated client decoded it into.
+//
+// The client chooses the model per status: 411 is decoded as models.ProblemDetails, while 413, 415
+// and 429 are decoded as models.ExtProblemDetails, which is the same object with one extra field.
+// Asking only for ProblemDetails therefore matched one status in four. That never showed, because
+// the comparison this function replaced meant the switch was not reached at all.
+//
+// RemoteError has no counterpart in ProblemDetails and is dropped. It reports which remote NF
+// produced the error, which the callers here do not use; everything the UE-facing paths read -
+// cause, title, detail, invalid parameters - is carried over.
+func problemDetailsFrom(err error) (*models.ProblemDetails, bool) {
+	if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
+		return &problem, true
+	}
+	if ext, ok := openapi.ErrorModel[models.ExtProblemDetails](err); ok {
+		return &models.ProblemDetails{
+			Type:                 ext.Type,
+			Title:                ext.Title,
+			Status:               ext.Status,
+			Detail:               ext.Detail,
+			Instance:             ext.Instance,
+			Cause:                ext.Cause,
+			InvalidParams:        ext.InvalidParams,
+			SupportedFeatures:    ext.SupportedFeatures,
+			AccessTokenError:     ext.AccessTokenError,
+			AccessTokenRequest:   ext.AccessTokenRequest,
+			NrfId:                ext.NrfId,
+			SupportedApiVersions: ext.SupportedApiVersions,
+			NoProfileMatchInfo:   ext.NoProfileMatchInfo,
+		}, true
+	}
+	return nil, false
 }
 
 // decodeErrorResponseBody decodes an error response body into T, reporting whether it
