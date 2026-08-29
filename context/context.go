@@ -182,8 +182,8 @@ func (context *AMFContext) ReAllocateGutiToUe(ue *AmfUe) {
 
 func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.AccessType) {
 	// clear the previous registration area if need
-	if len(ue.RegistrationArea[anType]) > 0 {
-		ue.RegistrationArea[anType] = nil
+	if ue.RegistrationAreaLen(anType) > 0 {
+		ue.SetRegistrationArea(anType, nil)
 	}
 
 	// allocate a new tai list as a registration area to ue
@@ -201,7 +201,7 @@ func (context *AMFContext) AllocateRegistrationArea(ue *AmfUe, anType models.Acc
 	}
 	for _, supportTai := range taiList {
 		if reflect.DeepEqual(supportTai, ue.Tai) {
-			ue.RegistrationArea[anType] = append(ue.RegistrationArea[anType], supportTai)
+			ue.AppendRegistrationArea(anType, supportTai)
 			break
 		}
 	}

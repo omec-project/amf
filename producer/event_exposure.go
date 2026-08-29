@@ -87,8 +87,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		ueEventSubscription.AnyUe = true
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
-			ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
-			*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
+			ueSubscription := ueEventSubscription
+			ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
 			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 			return true
 		})
@@ -98,8 +98,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		amfSelf.UePool.Range(func(key, value interface{}) bool {
 			ue := value.(*context.AmfUe)
 			if ue.GroupID == subscription.GetGroupId() {
-				ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
-				*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
+				ueSubscription := ueEventSubscription
+				ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
 				contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 			}
 			return true
@@ -109,8 +109,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			problemDetails := utils.ProblemDetailsWithCause("UE not served by AMF", http.StatusForbidden, "UE is not served by this AMF", utils.CauseUeNotServedByAmf)
 			return nil, problemDetails
 		} else {
-			ue.EventSubscriptionsInfo[newSubscriptionID] = new(context.AmfUeEventSubscription)
-			*ue.EventSubscriptionsInfo[newSubscriptionID] = ueEventSubscription
+			ueSubscription := ueEventSubscription
+			ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
 			contextEventSubscription.UeSupiList = append(contextEventSubscription.UeSupiList, ue.GetSupi())
 		}
 	}
@@ -141,7 +141,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			}
 			// delete subscription
 			if reportlistLen := len(reportlist); reportlistLen > 0 && (!reportlist[reportlistLen-1].State.Active) {
-				delete(ue.EventSubscriptionsInfo, newSubscriptionID)
+				ue.DeleteEventSubscription(newSubscriptionID)
 			}
 			return true
 		})
@@ -162,7 +162,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 				}
 				// delete subscription
 				if reportlistLen := len(reportlist); reportlistLen > 0 && (!reportlist[reportlistLen-1].State.Active) {
-					delete(ue.EventSubscriptionsInfo, newSubscriptionID)
+					ue.DeleteEventSubscription(newSubscriptionID)
 				}
 			}
 			return true
@@ -182,7 +182,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		}
 		// delete subscription
 		if reportlistLen := len(reportlist); reportlistLen > 0 && (!reportlist[reportlistLen-1].State.Active) {
-			delete(ue.EventSubscriptionsInfo, newSubscriptionID)
+			ue.DeleteEventSubscription(newSubscriptionID)
 		}
 	}
 	if len(reportlist) > 0 {
@@ -220,7 +220,7 @@ func DeleteAMFEventSubscriptionProcedure(subscriptionID string) *models.ProblemD
 
 	for _, supi := range subscription.UeSupiList {
 		if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
-			delete(ue.EventSubscriptionsInfo, subscriptionID)
+			ue.DeleteEventSubscription(subscriptionID)
 		}
 	}
 	amfSelf.DeleteEventSubscription(subscriptionID)

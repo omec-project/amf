@@ -78,7 +78,13 @@ type AmfUe struct {
 	// state) so an accessor can never self-deadlock against a Mutex holder.
 	identityMu sync.RWMutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
-	ServingAMF *AMFContext `json:"servingAMF,omitempty"` // never nil
+	// Not persisted. It points at the process-wide AMF context, which init() sets on
+	// every UE, so serialising it wrote a copy of the whole singleton -- RanUePool,
+	// NfService, the subscription tables -- into each UE document, and restoring one
+	// decoded straight back into that live singleton: two restores at once are
+	// "fatal error: concurrent map writes", and one alone silently overwrites the
+	// running AMF's own state with a snapshot from whenever that UE was stored.
+	ServingAMF *AMFContext `json:"-"` // never nil
 
 	/* Gmm State */
 	State map[models.AccessType]*fsm.State `json:"-"`
@@ -226,6 +232,18 @@ type AmfUe struct {
 }
 
 func (ue *AmfUe) MarshalJSON() ([]byte, error) {
+	// The encoder walks maps that other goroutines write while holding this very
+	// mutex -- RanUe is written by AttachRanUe and DetachRanUe -- so marshalling them
+	// unguarded ends the process with "concurrent map iteration and map write", which
+	// takes every UE on this AMF with it. Being on the UE's own EventChannel
+	// goroutine is not protection: the writers run on other goroutines.
+	//
+	// Safe to take here: no caller holds it. StoreContextInDB is reached from the gmm
+	// and ngap handlers, context/db.go's own locking is a separate package-level
+	// mutex, and nothing in this function calls back into a method that locks.
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	type Alias AmfUe
 	stateVal := make(map[models.AccessType]string)
 	smCtxListVal := make(map[string]SmContext)
@@ -656,13 +674,17 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	ue.Mutex.Lock()
 	oldRanUe := ue.RanUe[anType]
 	if oldRanUe == ranUe {
-		ranUe.AmfUe = ue
-		ue.Mutex.Unlock()
+		ranUe.SetAmfUe(ue)
 		ue.updateAttachedRanUeLogs(ranUe)
+		ue.Mutex.Unlock()
+
 		return
 	}
 	ue.RanUe[anType] = ranUe
-	ranUe.AmfUe = ue
+	ranUe.SetAmfUe(ue)
+	// Under the same lock as the RanUe map: the loggers carry the NGAP id of the RanUe
+	// just attached, and methods holding this lock log through them.
+	ue.updateAttachedRanUeLogs(ranUe)
 	ue.Mutex.Unlock()
 
 	if oldRanUe != nil {
@@ -672,14 +694,12 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 			ue.Mutex.Lock()
 			defer ue.Mutex.Unlock()
 
-			if oldRanUe.AmfUe == ue && ue.RanUe[anType] == newRanUe {
+			if oldRanUe.GetAmfUe() == ue && ue.RanUe[anType] == newRanUe {
 				logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
-				oldRanUe.AmfUe = nil
+				oldRanUe.DetachAmfUe()
 			}
 		}(oldRanUe, ranUe, anType)
 	}
-
-	ue.updateAttachedRanUeLogs(ranUe)
 }
 
 func (ue *AmfUe) updateAttachedRanUeLogs(ranUe *RanUe) {
@@ -961,6 +981,9 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 
 // this method called when we are reusing the same uecontext during the registration procedure
 func (ue *AmfUe) ClearRegistrationData() {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	// Allowed Nssai should be cleared first as it is a new Registration
 	ue.SubscribedNssai = nil
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
@@ -972,7 +995,84 @@ func (ue *AmfUe) ClearRegistrationData() {
 	})
 }
 
+// The maps below are serialised whenever a UE context is persisted, and the
+// encoder reads them from whichever goroutine calls StoreContextInDB. Writing them
+// from another goroutine at the same time is a fatal runtime error -- "concurrent
+// map read and map write" -- which ends the process and every UE on this AMF, not
+// just the procedure that was running. Both sides therefore go through ue.Mutex:
+// MarshalJSON takes it to read, and these take it to write.
+//
+// They are deliberately small: no SBI call or channel send belongs inside them.
+
+// SetAllowedNssai replaces the allowed NSSAI for one access type.
+func (ue *AmfUe) SetAllowedNssai(anType models.AccessType, allowed []models.AllowedSnssai) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ue.AllowedNssai[anType] = allowed
+}
+
+// AppendAllowedNssai adds one entry to the allowed NSSAI of an access type.
+func (ue *AmfUe) AppendAllowedNssai(anType models.AccessType, allowed models.AllowedSnssai) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], allowed)
+}
+
+// SetReleaseCause records why an access is being released, or clears it with nil.
+func (ue *AmfUe) SetReleaseCause(anType models.AccessType, cause *CauseAll) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ue.ReleaseCause[anType] = cause
+}
+
+// SetRegistrationArea replaces the registration area of an access type.
+func (ue *AmfUe) SetRegistrationArea(anType models.AccessType, area []models.Tai) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ue.RegistrationArea[anType] = area
+}
+
+// AppendRegistrationArea adds one TAI to the registration area of an access type.
+func (ue *AmfUe) AppendRegistrationArea(anType models.AccessType, tai models.Tai) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ue.RegistrationArea[anType] = append(ue.RegistrationArea[anType], tai)
+}
+
+// RegistrationAreaLen reports how many TAIs an access type has, for callers that
+// only need the count and would otherwise read the map unguarded.
+func (ue *AmfUe) RegistrationAreaLen(anType models.AccessType) int {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	return len(ue.RegistrationArea[anType])
+}
+
+// SetEventSubscription stores an event-exposure subscription.
+func (ue *AmfUe) SetEventSubscription(id string, subscription *AmfUeEventSubscription) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ue.EventSubscriptionsInfo[id] = subscription
+}
+
+// DeleteEventSubscription removes an event-exposure subscription.
+func (ue *AmfUe) DeleteEventSubscription(id string) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	delete(ue.EventSubscriptionsInfo, id)
+}
+
 func (ue *AmfUe) SetOnGoing(anType models.AccessType, onGoing *OnGoingProcedureWithPrio) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	prevOnGoing := ue.OnGoing[anType]
 	ue.OnGoing[anType] = onGoing
 	ue.GmmLog.Debugf("OnGoing[%s]->[%s] PPI[%d]->[%d]", prevOnGoing.Procedure, onGoing.Procedure,
@@ -1171,7 +1271,7 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 					allowedSnssai := models.AllowedSnssai{
 						AllowedSnssai: snssai,
 					}
-					ue.AllowedNssai[mmContext.AccessType] = append(ue.AllowedNssai[mmContext.AccessType], allowedSnssai)
+					ue.AppendAllowedNssai(mmContext.AccessType, allowedSnssai)
 				}
 			}
 		}

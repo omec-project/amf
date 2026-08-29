@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/mohae/deepcopy"
@@ -55,8 +56,12 @@ type RanUe struct {
 	LastActTime       *time.Time `json:"-"`
 
 	/* Related Context*/
-	AmfUe *AmfUe `json:"-"`
-	Ran   *AmfRan
+	// AmfUe is cleared from other goroutines (Remove, DetachAmfUe) while the NGAP
+	// read loop is still dispatching messages for this RanUe, so it is guarded by
+	// amfUeMu and must be reached through GetAmfUe/SetAmfUe rather than directly.
+	AmfUe   *AmfUe `json:"-"`
+	amfUeMu sync.RWMutex
+	Ran     *AmfRan
 
 	/* Routing ID */
 	RoutingID string
@@ -92,15 +97,12 @@ func (ranUe *RanUe) Remove() error {
 	if ran == nil {
 		return fmt.Errorf("RanUe not found in Ran")
 	}
-	if ranUe.AmfUe != nil {
-		amfUe := ranUe.AmfUe
+	if amfUe := ranUe.GetAmfUe(); amfUe != nil {
 		amfUe.Mutex.Lock()
 		if amfUe.RanUe[ran.AnType] == ranUe {
 			delete(amfUe.RanUe, ran.AnType)
 		}
-		if ranUe.AmfUe == amfUe {
-			ranUe.AmfUe = nil
-		}
+		ranUe.DetachAmfUeIf(amfUe)
 		amfUe.Mutex.Unlock()
 	}
 
@@ -119,8 +121,58 @@ func (ranUe *RanUe) Remove() error {
 	return nil
 }
 
+// GetAmfUe returns the AmfUe this RanUe belongs to, or nil once the association has
+// been dropped. Callers must keep the returned pointer instead of re-reading the
+// field. Every re-read is a fresh chance to observe the nil that Remove writes, and
+// the NGAP read loop that reads it runs with no recover(), so one badly-timed re-read
+// ends the whole AMF process rather than one procedure.
+func (ranUe *RanUe) GetAmfUe() *AmfUe {
+	if ranUe == nil {
+		return nil
+	}
+
+	ranUe.amfUeMu.RLock()
+	defer ranUe.amfUeMu.RUnlock()
+
+	return ranUe.AmfUe
+}
+
+// SetAmfUe associates this RanUe with amfUe.
+func (ranUe *RanUe) SetAmfUe(amfUe *AmfUe) {
+	if ranUe == nil {
+		return
+	}
+
+	ranUe.amfUeMu.Lock()
+	defer ranUe.amfUeMu.Unlock()
+
+	ranUe.AmfUe = amfUe
+}
+
 func (ranUe *RanUe) DetachAmfUe() {
+	if ranUe == nil {
+		return
+	}
+
+	ranUe.amfUeMu.Lock()
+	defer ranUe.amfUeMu.Unlock()
+
 	ranUe.AmfUe = nil
+}
+
+// DetachAmfUeIf drops the association only while it still points at amfUe, so a
+// release that overlaps a re-attach to a different context cannot undo the newer one.
+func (ranUe *RanUe) DetachAmfUeIf(amfUe *AmfUe) {
+	if ranUe == nil {
+		return
+	}
+
+	ranUe.amfUeMu.Lock()
+	defer ranUe.amfUeMu.Unlock()
+
+	if ranUe.AmfUe == amfUe {
+		ranUe.AmfUe = nil
+	}
 }
 
 func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {

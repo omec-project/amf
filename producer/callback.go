@@ -408,7 +408,7 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *mo
 
 		if registrationCtxtContainer.AllowedNssai != nil {
 			allowedNssai := registrationCtxtContainer.AllowedNssai
-			amfUe.AllowedNssai[allowedNssai.AccessType] = allowedNssai.AllowedSnssaiList
+			amfUe.SetAllowedNssai(allowedNssai.AccessType, allowedNssai.AllowedSnssaiList)
 		}
 
 		if len(registrationCtxtContainer.ConfiguredNssai) > 0 {

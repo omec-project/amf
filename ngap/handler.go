@@ -1188,7 +1188,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 	}
 
 	// Remove UE N2 Connection
-	amfUe.ReleaseCause[ran.AnType] = nil
+	amfUe.SetReleaseCause(ran.AnType, nil)
 	switch ranUe.ReleaseAction {
 	case context.UeContextN2NormalRelease:
 		ran.Log.Infof("Release UE[%s] Context : N2 Connection Release", amfUe.GetSupi())

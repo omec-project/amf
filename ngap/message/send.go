@@ -200,10 +200,13 @@ func SendUEContextReleaseCommand(ue *context.RanUe, action context.RelAction, ca
 		return
 	}
 	ue.ReleaseAction = action
-	if ue.AmfUe != nil && ue.Ran != nil {
-		ue.AmfUe.ReleaseCause[ue.Ran.AnType] = &context.CauseAll{
+	// One read: checking ue.AmfUe and then calling through it are two separate reads of
+	// a field another goroutine clears, so the call can land on the nil the check just
+	// ruled out.
+	if amfUe := ue.GetAmfUe(); amfUe != nil && ue.Ran != nil {
+		amfUe.SetReleaseCause(ue.Ran.AnType, &context.CauseAll{
 			NgapCause: models.NewNgApCause(int32(causePresent), int32(cause)),
-		}
+		})
 	}
 	SendToRanUe(ue, pkt)
 }
