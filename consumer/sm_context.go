@@ -588,6 +588,9 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 		apiUpdateSmContextRequest = apiUpdateSmContextRequest.BinaryDataN2SmInformation(tmpN2File)
 	}
 	updateSmContextReponse, httpResponse, err := client.IndividualSMContextAPI.UpdateSmContextExecute(apiUpdateSmContextRequest)
+	if httpResponse != nil {
+		defer httpResponse.Body.Close()
+	}
 	// retry on alternate SMF
 	if err != nil {
 		if errProfile := setAltSmfProfile(smContext); errProfile == nil {
@@ -636,6 +639,9 @@ func SendUpdateSmContextRequest(ctx context.Context, smContext *amf_context.SmCo
 				apiUpdateSmContextRequest = apiUpdateSmContextRequest.BinaryDataN2SmInformation(tmpN2File)
 			}
 			updateSmContextReponse, httpResponse, err = client.IndividualSMContextAPI.UpdateSmContextExecute(apiUpdateSmContextRequest)
+			if httpResponse != nil {
+				defer httpResponse.Body.Close()
+			}
 		}
 	}
 
@@ -846,6 +852,9 @@ func SendReleaseSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	apiReleaseSmContextRequest := client.IndividualSMContextAPI.ReleaseSmContext(ctx, smContext.SmContextRef())
 	apiReleaseSmContextRequest = apiReleaseSmContextRequest.SmContextReleaseData(releaseData)
 	_, response, err1 := client.IndividualSMContextAPI.ReleaseSmContextExecute(apiReleaseSmContextRequest)
+	if response != nil {
+		defer response.Body.Close()
+	}
 
 	if err1 == nil {
 		ue.SmContextList.Delete(smContext.PduSessionID())

@@ -228,6 +228,13 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 	apiRegistrationStatusUpdateRequest := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdate(ctx, ueContextId)
 	apiRegistrationStatusUpdateRequest = apiRegistrationStatusUpdateRequest.UeRegStatusUpdateReqData(request)
 	res, httpResp, localErr := client.IndividualUeContextDocumentAPI.RegistrationStatusUpdateExecute(apiRegistrationStatusUpdateRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("RegistrationStatusUpdate response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		regStatusTransferComplete = res.RegStatusTransferComplete
 	} else if httpResp != nil {

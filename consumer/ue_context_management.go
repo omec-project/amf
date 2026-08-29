@@ -11,6 +11,7 @@ import (
 	"time"
 
 	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/Nudm_UECM"
 	"github.com/omec-project/openapi/v2/models"
@@ -72,6 +73,13 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 		apiCall3GppRegistrationRequest := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistration(gppAccessCtx, ue.GetSupi())
 		apiCall3GppRegistrationRequest = apiCall3GppRegistrationRequest.Amf3GppAccessRegistration(registrationData)
 		_, httpResp, localErr := client.AMFRegistrationFor3GPPAccessAPI.Call3GppRegistrationExecute(apiCall3GppRegistrationRequest)
+		if httpResp != nil {
+			defer func() {
+				if closeErr := httpResp.Body.Close(); closeErr != nil {
+					logger.ConsumerLog.Errorf("UeCmRegistration 3GPP response body cannot close: %+v", closeErr)
+				}
+			}()
+		}
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {
@@ -111,6 +119,13 @@ func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType mod
 		apiNon3GppRegistrationRequest := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistration(non3gppAccessCtx, ue.GetSupi())
 		apiNon3GppRegistrationRequest = apiNon3GppRegistrationRequest.AmfNon3GppAccessRegistration(registrationData)
 		_, httpResp, localErr := client.AMFRegistrationForNon3GPPAccessAPI.Non3GppRegistrationExecute(apiNon3GppRegistrationRequest)
+		if httpResp != nil {
+			defer func() {
+				if closeErr := httpResp.Body.Close(); closeErr != nil {
+					logger.ConsumerLog.Errorf("UeCmRegistration non-3GPP response body cannot close: %+v", closeErr)
+				}
+			}()
+		}
 		if localErr == nil {
 			return nil, nil
 		} else if httpResp != nil {

@@ -15,6 +15,7 @@ output:
 linters:
   enable:
     - asciicheck
+    - bodyclose
     - dogsled
     - govet
     - goconst
@@ -26,6 +27,7 @@ linters:
     - predeclared
     - staticcheck
     - unconvert
+    - unparam
     - whitespace
   settings:
     errcheck:

@@ -187,7 +187,7 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create access mobility config: %v", err)
 	}
-	accessMobility2, err := makeAccessMobilityConfig("111", "02", "1", "1", []string{"2"})
+	accessMobility2, err := makeAccessMobilityConfig("111", "02", "2", "5", []string{"2"})
 	if err != nil {
 		t.Fatalf("failed to create access mobility config: %v", err)
 	}

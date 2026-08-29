@@ -58,6 +58,13 @@ func NSSelectionGetForRegistration(ctx context.Context, ue *amf_context.AmfUe, r
 	apiNSSelectionGetRequest = apiNSSelectionGetRequest.NfId(amfSelf.NfId)
 	apiNSSelectionGetRequest = apiNSSelectionGetRequest.SliceInfoRequestForRegistration(sliceInfo)
 	res, httpResp, localErr := client.NetworkSliceInformationDocumentAPI.NSSelectionGetExecute(apiNSSelectionGetRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("NSSelectionGetForRegistration response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		ue.NetworkSliceInfo = res
 		for _, allowedNssai := range res.AllowedNssaiList {
@@ -117,6 +124,13 @@ func NSSelectionGetForPduSession(ctx context.Context, ue *amf_context.AmfUe, sns
 	apiNSSelectionGetRequest = apiNSSelectionGetRequest.NfId(amfSelf.NfId)
 	apiNSSelectionGetRequest = apiNSSelectionGetRequest.SliceInfoRequestForPduSession(sliceInfoForPduSession)
 	res, httpResp, localErr := client.NetworkSliceInformationDocumentAPI.NSSelectionGetExecute(apiNSSelectionGetRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("NSSelectionGetForPduSession response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		return res, nil, nil
 	} else if httpResp != nil {
