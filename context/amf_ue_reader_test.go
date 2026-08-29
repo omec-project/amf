@@ -22,7 +22,7 @@ func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
 	ue.init()
 	ue.Supi = testSupi
 
-	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: "208:93:00100c"}
+	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: testGnbId}
 	anType := models.ACCESSTYPE__3_GPP_ACCESS
 
 	const rounds = 2000
