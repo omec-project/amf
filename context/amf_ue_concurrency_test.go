@@ -12,8 +12,12 @@ import (
 	"github.com/omec-project/openapi/v2/models"
 )
 
-// testSupi is the subscriber every test in this package builds its UE around.
-const testSupi = "imsi-208930100007487"
+// testSupi is the subscriber every test in this package builds its UE around, and
+// testGnbId the RAN it attaches to.
+const (
+	testSupi  = "imsi-208930100007487"
+	testGnbId = "208:93:00100c"
+)
 
 // Persisting a UE context marshals six maps that other goroutines write while the
 // UE is being served: RanUe, OnGoing, RegistrationArea, AllowedNssai, ReleaseCause
@@ -28,7 +32,7 @@ func TestStoringAContextWhileEveryMapIsWritten(t *testing.T) {
 	ue.init()
 	ue.Supi = testSupi
 
-	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: "208:93:00100c"}
+	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: testGnbId}
 	anType := models.ACCESSTYPE__3_GPP_ACCESS
 
 	const rounds = 2000
