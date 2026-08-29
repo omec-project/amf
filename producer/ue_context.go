@@ -554,7 +554,8 @@ func assignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiDa
 		return assignedEbiData, nil
 	} else {
 		logger.ProducerLog.Errorf("no SM context found for PDU session ID %d", assignEbiData.GetPduSessionId())
-		return nil, nil
+		problemDetails := utils.ProblemDetailsContextNotFound("SM context not found")
+		return nil, problemDetails
 	}
 }
 
