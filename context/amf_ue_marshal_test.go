@@ -22,7 +22,7 @@ func TestStoringAContextWhileItsRanUeChanges(t *testing.T) {
 	ue.init()
 	ue.Supi = testSupi
 
-	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: "208:93:00100c"}
+	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: testGnbId}
 
 	const rounds = 3000
 
