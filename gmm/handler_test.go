@@ -30,6 +30,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	testPei = "imei-001010000000001"
+	testDnn = "internet-1"
+)
+
 func TestHandleIdentityResponseRejectsUndecodableSuci(t *testing.T) {
 	ue := &context.AmfUe{GmmLog: zap.NewNop().Sugar()}
 	identityResponse := nasMessage.NewIdentityResponse(0)
@@ -114,7 +119,7 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationReque
 		State:                 make(map[models.AccessType]*fsm.State),
 		ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
 		SubscriptionDataValid: true,
-		Pei:                   "imei-001010000000001",
+		Pei:                   testPei,
 		SubscribedNssai: []models.SubscribedSnssai{{
 			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
 			DefaultIndication: openapi.PtrBool(true),
@@ -222,7 +227,7 @@ func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
 		ReleaseCause:             make(map[models.AccessType]*context.CauseAll),
 		SubscriptionDataValid:    true,
 		SecurityContextAvailable: true,
-		Pei:                      "imei-001010000000001",
+		Pei:                      testPei,
 	}
 	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
@@ -308,7 +313,7 @@ func TestHandleServiceRequestHighPriorityAccessHandledAsData(t *testing.T) {
 			State:                    make(map[models.AccessType]*fsm.State),
 			SubscriptionDataValid:    true,
 			SecurityContextAvailable: true,
-			Pei:                      "imei-001010000000001",
+			Pei:                      testPei,
 		}
 		ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 		ue.OnGoing[models.ACCESSTYPE__3_GPP_ACCESS] = &context.OnGoingProcedureWithPrio{Procedure: context.OnGoingProcedureNothing}
@@ -455,7 +460,7 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 		State:                 make(map[models.AccessType]*fsm.State),
 		ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
 		SubscriptionDataValid: true,
-		Pei:                   "imei-001010000000001",
+		Pei:                   testPei,
 		Supi:                  "imsi-001010000000001",
 		SubscribedNssai: []models.SubscribedSnssai{{
 			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
@@ -1174,14 +1179,14 @@ func TestPickDNN(t *testing.T) {
 					GmmLog:       zap.NewNop().Sugar(),
 					RanUe:        make(map[models.AccessType]*context.RanUe),
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
-					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{"internet-1", "ims"}},
+					ServingAMF:   &context.AMFContext{SupportDnnLists: []string{testDnn, "ims"}},
 				}
 			},
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
 			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
-			expected: "internet-1",
+			expected: testDnn,
 		},
 		{
 			name: "returns default 'internet' when support list is empty",
@@ -1220,7 +1225,7 @@ func TestPickDNN(t *testing.T) {
 					GmmLog:           zap.NewNop().Sugar(),
 					RanUe:            make(map[models.AccessType]*context.RanUe),
 					AllowedNssai:     map[models.AccessType][]models.AllowedSnssai{},
-					ServingAMF:       &context.AMFContext{SupportDnnLists: []string{"internet-1"}},
+					ServingAMF:       &context.AMFContext{SupportDnnLists: []string{testDnn}},
 					SmfSelectionData: smfSelectionData,
 				}
 			},
@@ -1916,7 +1921,7 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingNilBinaryDataN1Message(t *
 				State:                 make(map[models.AccessType]*fsm.State),
 				ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
 				SubscriptionDataValid: true,
-				Pei:                   "imei-001010000000001",
+				Pei:                   testPei,
 				SubscribedNssai: []models.SubscribedSnssai{{
 					SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
 					DefaultIndication: openapi.PtrBool(true),
@@ -2012,7 +2017,7 @@ func TestHandleServiceRequestNilBinaryDataN1Message(t *testing.T) {
 				ReleaseCause:             make(map[models.AccessType]*context.CauseAll),
 				SubscriptionDataValid:    true,
 				SecurityContextAvailable: true,
-				Pei:                      "imei-001010000000001",
+				Pei:                      testPei,
 			}
 			ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 			ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
@@ -2092,7 +2097,7 @@ func newRegisteredUeForNilBinaryTests(t *testing.T) (*context.AmfUe, *nasMessage
 		State:                 make(map[models.AccessType]*fsm.State),
 		ReleaseCause:          make(map[models.AccessType]*context.CauseAll),
 		SubscriptionDataValid: true,
-		Pei:                   "imei-001010000000001",
+		Pei:                   testPei,
 		SubscribedNssai: []models.SubscribedSnssai{{
 			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
 			DefaultIndication: openapi.PtrBool(true),
@@ -2141,7 +2146,7 @@ func newMTServiceUeForNilBinaryTests(t *testing.T) *context.AmfUe {
 		ReleaseCause:             make(map[models.AccessType]*context.CauseAll),
 		SubscriptionDataValid:    true,
 		SecurityContextAvailable: true,
-		Pei:                      "imei-001010000000001",
+		Pei:                      testPei,
 	}
 	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
 	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS] = fsm.NewState(context.Deregistered)

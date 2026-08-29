@@ -30,14 +30,14 @@ func makeAccessAndMobilityConfig() []nfConfigApi.AccessAndMobility {
 
 func TestGetNfProfileUsesFqdnForHostnameRegistration(t *testing.T) {
 	originalConfig := factory.AmfConfig
-	factory.AmfConfig = factory.Config{Configuration: &factory.Configuration{AmfId: "cafe00"}}
+	factory.AmfConfig = factory.Config{Configuration: &factory.Configuration{AmfId: testAmfID}}
 	defer func() {
 		factory.AmfConfig = originalConfig
 	}()
 
 	amfCtx := &amf_context.AMFContext{
-		NfId:         testAmfInstanceID,
-		RegisterIPv4: "amf",
+		NfId:         testNfInstanceID,
+		RegisterIPv4: nfName,
 		UriScheme:    models.URISCHEME_HTTP,
 		SBIPort:      29518,
 		NfService:    make(map[models.ServiceName]models.NFService),
@@ -48,8 +48,8 @@ func TestGetNfProfileUsesFqdnForHostnameRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getNfProfile() error = %v", err)
 	}
-	if profile.GetFqdn() != "amf" {
-		t.Fatalf("profile fqdn = %q, want %q", profile.GetFqdn(), "amf")
+	if profile.GetFqdn() != nfName {
+		t.Fatalf("profile fqdn = %q, want %q", profile.GetFqdn(), nfName)
 	}
 	if len(profile.Ipv4Addresses) != 0 {
 		t.Fatalf("expected no ipv4Addresses, got %+v", profile.Ipv4Addresses)
@@ -58,8 +58,8 @@ func TestGetNfProfileUsesFqdnForHostnameRegistration(t *testing.T) {
 		t.Fatalf("expected 1 nf service, got %d", len(profile.NfServices))
 	}
 	service := profile.NfServices[0]
-	if service.GetFqdn() != "amf" {
-		t.Fatalf("service fqdn = %q, want %q", service.GetFqdn(), "amf")
+	if service.GetFqdn() != nfName {
+		t.Fatalf("service fqdn = %q, want %q", service.GetFqdn(), nfName)
 	}
 	if len(service.IpEndPoints) != 1 {
 		t.Fatalf("expected 1 ip endpoint, got %d", len(service.IpEndPoints))
@@ -79,13 +79,13 @@ func TestGetNfProfileUsesIpv4AddressForLiteralRegistration(t *testing.T) {
 	const registerIPv4 = "10.10.0.1"
 
 	originalConfig := factory.AmfConfig
-	factory.AmfConfig = factory.Config{Configuration: &factory.Configuration{AmfId: "cafe00"}}
+	factory.AmfConfig = factory.Config{Configuration: &factory.Configuration{AmfId: testAmfID}}
 	defer func() {
 		factory.AmfConfig = originalConfig
 	}()
 
 	amfCtx := &amf_context.AMFContext{
-		NfId:         testAmfInstanceID,
+		NfId:         testNfInstanceID,
 		RegisterIPv4: registerIPv4,
 		UriScheme:    models.URISCHEME_HTTP,
 		SBIPort:      29518,

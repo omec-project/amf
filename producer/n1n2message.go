@@ -76,7 +76,7 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 			case models.N1N2MESSAGETRANSFERCAUSE_N1_N2_TRANSFER_INITIATED:
 				return httpwrapper.NewResponse(http.StatusOK, nil, rspData)
 			case models.N1N2MESSAGETRANSFERCAUSE_ATTEMPTING_TO_REACH_UE:
-				headers := http.Header{"Location": {locHeader}}
+				headers := http.Header{headerLocation: {locHeader}}
 				return httpwrapper.NewResponse(http.StatusAccepted, headers, rspData)
 			}
 		}
@@ -120,7 +120,7 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 			return httpwrapper.NewResponse(http.StatusOK, nil, n1n2MessageTransferRspData)
 		case models.N1N2MESSAGETRANSFERCAUSE_ATTEMPTING_TO_REACH_UE:
 			headers := http.Header{
-				"Location": {locationHeader},
+				headerLocation: {locationHeader},
 			}
 			return httpwrapper.NewResponse(http.StatusAccepted, headers, n1n2MessageTransferRspData)
 		}

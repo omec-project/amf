@@ -25,6 +25,8 @@ import (
 	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
 
+const contentTypeJSON = "application/json"
+
 func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, message string) {
 	t.Helper()
 	timeoutTimer := time.NewTimer(timeout)
@@ -255,7 +257,7 @@ func TestFetchAccessAndMobilityConfig(t *testing.T) {
 		{
 			name:           "200 OK with valid JSON",
 			statusCode:     http.StatusOK,
-			contentType:    "application/json",
+			contentType:    contentTypeJSON,
 			responseBody:   string(validJson),
 			expectedError:  "",
 			expectedResult: expectedAccessAndMobility,
@@ -270,28 +272,28 @@ func TestFetchAccessAndMobilityConfig(t *testing.T) {
 		{
 			name:          "400 Bad Request",
 			statusCode:    http.StatusBadRequest,
-			contentType:   "application/json",
+			contentType:   contentTypeJSON,
 			responseBody:  "",
 			expectedError: "server returned 400 error code",
 		},
 		{
 			name:          "500 Internal Server Error",
 			statusCode:    http.StatusInternalServerError,
-			contentType:   "application/json",
+			contentType:   contentTypeJSON,
 			responseBody:  "",
 			expectedError: "server returned 500 error code",
 		},
 		{
 			name:          "Unexpected Status Code 418",
 			statusCode:    http.StatusTeapot,
-			contentType:   "application/json",
+			contentType:   contentTypeJSON,
 			responseBody:  "",
 			expectedError: "unexpected status code: 418",
 		},
 		{
 			name:          "200 OK with invalid JSON",
 			statusCode:    http.StatusOK,
-			contentType:   "application/json",
+			contentType:   contentTypeJSON,
 			responseBody:  "{invalid-json}",
 			expectedError: "failed to parse JSON response:",
 		},
@@ -301,7 +303,7 @@ func TestFetchAccessAndMobilityConfig(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			handler := func(w http.ResponseWriter, r *http.Request) {
 				accept := r.Header.Get("Accept")
-				if accept != "application/json" {
+				if accept != contentTypeJSON {
 					t.Errorf("expected Accept header 'application/json', got '%s'", accept)
 				}
 

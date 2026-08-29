@@ -23,6 +23,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const nfName = "amf"
+
 func BuildUeContextModel(ue *amf_context.AmfUe) (ueContext models.UeContext) {
 	ueContext.SetSupi(ue.GetSupi())
 	ueContext.SetSupiUnauthInd(ue.UnauthenticatedSupi)
@@ -112,7 +114,7 @@ func UEContextTransferRequest(
 
 	span.SetAttributes(
 		attribute.String("http.method", "POST"),
-		attribute.String("nf.target", "amf"),
+		attribute.String("nf.target", nfName),
 		attribute.String("net.peer.name", ue.TargetAmfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),
@@ -205,7 +207,7 @@ func RegistrationStatusUpdate(ctx context.Context, ue *amf_context.AmfUe, reques
 
 	span.SetAttributes(
 		attribute.String("http.method", "POST"),
-		attribute.String("nf.target", "amf"),
+		attribute.String("nf.target", nfName),
 		attribute.String("net.peer.name", ue.TargetAmfUri),
 		attribute.String("ue.supi", ue.GetSupi()),
 		attribute.String("ue.plmn.id", ue.PlmnId.GetMcc()+ue.PlmnId.GetMnc()),

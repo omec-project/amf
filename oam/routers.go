@@ -7,7 +7,6 @@ package oam
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,11 +31,11 @@ func AddService(engine *gin.Engine) *gin.RouterGroup {
 
 	for _, route := range routes {
 		switch route.Method {
-		case "GET":
+		case http.MethodGet:
 			group.GET(route.Pattern, route.HandlerFunc)
-		case "DELETE":
+		case http.MethodDelete:
 			group.DELETE(route.Pattern, route.HandlerFunc)
-		case "POST":
+		case http.MethodPost:
 			group.POST(route.Pattern, route.HandlerFunc)
 		}
 	}
@@ -51,39 +50,38 @@ func Index(c *gin.Context) {
 var routes = Routes{
 	{
 		"Index",
-		"GET",
+		http.MethodGet,
 		"/",
 		Index,
 	},
 	{
 		"Registered UE Context",
-		"GET",
+		http.MethodGet,
 		"/registered-ue-context",
 		HTTPRegisteredUEContext,
 	},
 
 	{
 		"Individual Registered UE Context",
-		"GET",
+		http.MethodGet,
 		"/registered-ue-context/:supi",
 		HTTPRegisteredUEContext,
 	},
-
 	{
 		"Purge UE Context",
-		strings.ToUpper("Delete"),
+		http.MethodDelete,
 		"/purge-ue-context/:supi",
 		HTTPPurgeUEContext,
 	},
 	{
 		"Active UE List",
-		strings.ToUpper("get"),
+		http.MethodGet,
 		"/active-ues",
 		HTTPGetActiveUes,
 	},
 	{
 		"Amf Instance Down Notification",
-		strings.ToUpper("post"),
+		http.MethodPost,
 		"/amfInstanceDown/:nfid",
 		HTTPAmfInstanceDown,
 	},
