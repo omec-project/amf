@@ -16,6 +16,8 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
+const headerLocation = "Location"
+
 // TS 29.518 5.2.2.5.1
 func HandleAMFStatusChangeSubscribeRequest(request *httpwrapper.Request) *httpwrapper.Response {
 	logger.CommLog.Info("Handle AMF Status Change Subscribe Request")
@@ -28,7 +30,7 @@ func HandleAMFStatusChangeSubscribeRequest(request *httpwrapper.Request) *httpwr
 	}
 
 	headers := http.Header{
-		"Location": {locationHeader},
+		headerLocation: {locationHeader},
 	}
 	return httpwrapper.NewResponse(http.StatusCreated, headers, subscriptionDataRsp)
 }

@@ -10,6 +10,8 @@ import (
 	"github.com/omec-project/amf/factory"
 )
 
+const testAMFHostname = "amf"
+
 func TestResolveRegisterIPv4(t *testing.T) {
 	t.Setenv("AMF_REGISTER_IP", "10.10.0.1")
 	t.Setenv("AMF_REGISTER_HOST", "amf.namespace.svc.cluster.local")
@@ -21,9 +23,9 @@ func TestResolveRegisterIPv4(t *testing.T) {
 		input    string
 		expected string
 	}{
-		{name: "literal ip", input: "127.0.0.1", expected: "127.0.0.1"},
+		{name: "literal ip", input: defaultNgapLocalIP, expected: defaultNgapLocalIP},
 		{name: "ipv6 literal rejected", input: "2001:db8::1", expected: ""},
-		{name: "service hostname", input: "amf", expected: "amf"},
+		{name: "service hostname", input: testAMFHostname, expected: testAMFHostname},
 		{name: "env var ip", input: "AMF_REGISTER_IP", expected: "10.10.0.1"},
 		{name: "env var hostname", input: "AMF_REGISTER_HOST", expected: "amf.namespace.svc.cluster.local"},
 		{name: "missing env var name", input: "POD_IP", expected: ""},
@@ -42,8 +44,8 @@ func TestResolveRegisterIPv4(t *testing.T) {
 
 func TestResolveStableAmfNfId(t *testing.T) {
 	t.Run("uses resolved register IPv4", func(t *testing.T) {
-		cfg := &factory.Configuration{Sbi: &factory.Sbi{RegisterIPv4: "amf"}}
-		want := uuid.NewSHA1(uuid.NameSpaceOID, []byte("amf")).String()
+		cfg := &factory.Configuration{Sbi: &factory.Sbi{RegisterIPv4: testAMFHostname}}
+		want := uuid.NewSHA1(uuid.NameSpaceOID, []byte(testAMFHostname)).String()
 		if got := resolveStableAmfNfId(cfg); got != want {
 			t.Fatalf("resolveStableAmfNfId() = %q, want %q", got, want)
 		}

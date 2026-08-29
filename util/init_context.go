@@ -26,6 +26,8 @@ var registerIPv4HostnamePattern = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{
 
 const defaultDrsmMongoURL = "mongodb://mongodb-arbiter-headless"
 
+const defaultNgapLocalIP = "127.0.0.1"
+
 func resolveStableAmfNfId(configuration *factory.Configuration) string {
 	if nfID := os.Getenv("NF_ID"); nfID != "" {
 		if _, err := uuid.Parse(nfID); err == nil {
@@ -102,7 +104,7 @@ func InitAmfContext(amfContext *context.AMFContext) {
 	if configuration.AmfName != "" {
 		amfContext.Name = configuration.AmfName
 	}
-	amfContext.NgapIpList = []string{"127.0.0.1"} // default localhost
+	amfContext.NgapIpList = []string{defaultNgapLocalIP} // default localhost
 	if configuration.NgapIpList != nil {
 		amfContext.NgapIpList = configuration.NgapIpList
 	}

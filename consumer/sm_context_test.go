@@ -22,9 +22,15 @@ import (
 )
 
 const (
-	createSmContextPath = "/nsmf-pdusession/v1/sm-contexts"
-	updateSmContextPath = "/nsmf-pdusession/v1/sm-contexts/ctx-ref/modify"
-	testAmfInstanceID   = "amf-instance-id"
+	createSmContextPath       = "/nsmf-pdusession/v1/sm-contexts"
+	updateSmContextPath       = "/nsmf-pdusession/v1/sm-contexts/ctx-ref/modify"
+	testSupi                  = "imsi-001010000000001"
+	testGuti                  = "00101cafe00000001"
+	testAmfID                 = "cafe00"
+	testNfInstanceID          = "amf-instance-id"
+	binaryDataN1SmMessagePart = "binaryDataN1SmMessage"
+	jsonDataPart              = "jsonData"
+	utcTimeZone               = "+00:00"
 )
 
 func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T) {
@@ -44,10 +50,10 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 		self.SBIPort = originalSBIPort
 	}()
 
-	self.NfId = testAmfInstanceID
+	self.NfId = testNfInstanceID
 	self.ServedGuamiList = []models.Guami{{
 		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
-		AmfId:  "cafe00",
+		AmfId:  testAmfID,
 	}}
 	self.UriScheme = models.URISCHEME_HTTP
 	self.RegisterIPv4 = "127.0.0.1"
@@ -63,13 +69,13 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 		receivedMethod = r.Method
 		receivedPath = r.URL.Path
 
-		parts, mediaType := readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
+		parts, mediaType := readMultipartRequestPartsByName(t, r, []string{jsonDataPart, binaryDataN1SmMessagePart})
 		receivedMediaType = mediaType
 
-		if err := json.Unmarshal(parts["jsonData"], &receivedCreateData); err != nil {
+		if err := json.Unmarshal(parts[jsonDataPart], &receivedCreateData); err != nil {
 			t.Fatalf("failed to decode jsonData part: %v", err)
 		}
-		receivedNas = parts["binaryDataN1SmMessage"]
+		receivedNas = parts[binaryDataN1SmMessagePart]
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Location", "/nsmf-pdusession/v1/sm-contexts/test-ref")
@@ -82,13 +88,13 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 
 	ue := &amfContext.AmfUe{
 		ServingAMF: self,
-		Supi:       "imsi-001010000000001",
+		Supi:       testSupi,
 		Tai: models.Tai{
 			PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 			Tac:    "000001",
 		},
-		Guti:     "00101cafe00000001",
-		TimeZone: "+00:00",
+		Guti:     testGuti,
+		TimeZone: utcTimeZone,
 	}
 
 	smContext := amfContext.NewSmContext(10)
@@ -138,7 +144,7 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 		t.Fatalf("expected pdu session id 10, got %d", receivedCreateData.GetPduSessionId())
 	}
 	n1SmMsg := receivedCreateData.GetN1SmMsg()
-	if n1SmMsg.ContentId != "n1SmMsg" {
+	if n1SmMsg.ContentId != n1SmMsgContentId {
 		t.Fatalf("expected N1 content id n1SmMsg, got %s", n1SmMsg.ContentId)
 	}
 	if !bytes.Equal(receivedNas, expectedNasPdu) {
@@ -169,7 +175,7 @@ func TestSendUpdateSmContextRequestSendsN2InfoAsMultipart(t *testing.T) {
 		parts, mediaType := readMultipartRequestParts(t, r)
 		receivedMediaType = mediaType
 
-		if err := json.Unmarshal(parts["jsonData"], &receivedUpdateData); err != nil {
+		if err := json.Unmarshal(parts[jsonDataPart], &receivedUpdateData); err != nil {
 			t.Fatalf("failed to decode jsonData part: %v", err)
 		}
 		receivedN2Info = parts["binaryDataN2SmInformation"]
@@ -309,7 +315,7 @@ func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) 
 			t.Fatalf("failed to marshal jsonData: %v", err)
 		}
 
-		jsonPart, err := writer.CreateFormField("jsonData")
+		jsonPart, err := writer.CreateFormField(jsonDataPart)
 		if err != nil {
 			t.Fatalf("failed to create jsonData part: %v", err)
 		}
@@ -317,7 +323,7 @@ func TestSendUpdateSmContextRequestParsesMultipartSuccessResponse(t *testing.T) 
 			t.Fatalf("failed to write jsonData part: %v", err)
 		}
 
-		n1Part, err := writer.CreateFormField("binaryDataN1SmMessage")
+		n1Part, err := writer.CreateFormField(binaryDataN1SmMessagePart)
 		if err != nil {
 			t.Fatalf("failed to create N1 part: %v", err)
 		}
@@ -464,7 +470,7 @@ func writeTempFile(t *testing.T, payload []byte) *os.File {
 func readMultipartRequestParts(t *testing.T, r *http.Request) (map[string][]byte, string) {
 	t.Helper()
 
-	return readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN2SmInformation"})
+	return readMultipartRequestPartsByName(t, r, []string{jsonDataPart, "binaryDataN2SmInformation"})
 }
 
 func readMultipartRequestPartsByName(t *testing.T, r *http.Request, expectedParts []string) (map[string][]byte, string) {
@@ -518,14 +524,14 @@ func writeMultipartRejection(t *testing.T, w http.ResponseWriter, status int, js
 	if err != nil {
 		t.Fatalf("failed to marshal jsonData: %v", err)
 	}
-	jsonPart, err := writer.CreateFormField("jsonData")
+	jsonPart, err := writer.CreateFormField(jsonDataPart)
 	if err != nil {
 		t.Fatalf("failed to create jsonData part: %v", err)
 	}
 	if _, err = jsonPart.Write(encoded); err != nil {
 		t.Fatalf("failed to write jsonData part: %v", err)
 	}
-	nasPart, err := writer.CreateFormFile("binaryDataN1SmMessage", "n1SmMsg")
+	nasPart, err := writer.CreateFormFile(binaryDataN1SmMessagePart, n1SmMsgContentId)
 	if err != nil {
 		t.Fatalf("failed to create binaryDataN1SmMessage part: %v", err)
 	}
@@ -569,7 +575,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 		self.SBIPort = originalSBIPort
 	}()
 
-	self.NfId = testAmfInstanceID
+	self.NfId = testNfInstanceID
 	self.ServedGuamiList = []models.Guami{{
 		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
 		AmfId:  "cafe00",
@@ -579,7 +585,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	self.SBIPort = 29518
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
+		readMultipartRequestPartsByName(t, r, []string{jsonDataPart, binaryDataN1SmMessagePart})
 
 		// Title and Detail are populated on purpose, and they sit nested under error rather than
 		// at the top level. That used to matter for a second reason - it was why FormatErrorMessage
@@ -591,7 +597,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 				Title:  openapi.PtrString("DNN_DENIED"),
 				Detail: openapi.PtrString("DNN not configured for the requested slice"),
 			},
-			N1SmMsg: &models.RefToBinaryData{ContentId: "n1SmMsg"},
+			N1SmMsg: &models.RefToBinaryData{ContentId: n1SmMsgContentId},
 		}, rejectNas)
 	}))
 	defer server.Close()
@@ -604,7 +610,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 			Tac:    "000001",
 		},
 		Guti:     "00101cafe00000001",
-		TimeZone: "+00:00",
+		TimeZone: utcTimeZone,
 	}
 
 	smContext := amfContext.NewSmContext(10)
@@ -657,10 +663,10 @@ func TestSendUpdateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	rejectNas := []byte{0x2e, 0x0a, 0xd1, 0x1f}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		readMultipartRequestPartsByName(t, r, []string{"jsonData", "binaryDataN1SmMessage"})
+		readMultipartRequestPartsByName(t, r, []string{jsonDataPart, binaryDataN1SmMessagePart})
 		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextUpdateError{
 			Error:   models.ExtProblemDetails{Title: openapi.PtrString("MODIFICATION_REJECTED")},
-			N1SmMsg: &models.RefToBinaryData{ContentId: "n1SmMsg"},
+			N1SmMsg: &models.RefToBinaryData{ContentId: n1SmMsgContentId},
 		}, rejectNas)
 	}))
 	defer server.Close()
@@ -824,14 +830,14 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 		self.ServedGuamiList = originalServedGuamiList
 	}()
 
-	self.NfId = testAmfInstanceID
+	self.NfId = testNfInstanceID
 	self.ServedGuamiList = []models.Guami{{
 		PlmnId: models.PlmnIdNid{Mcc: "001", Mnc: "01"},
-		AmfId:  "cafe00",
+		AmfId:  testAmfID,
 	}}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		readMultipartRequestPartsByName(t, r, []string{"jsonData"})
+		readMultipartRequestPartsByName(t, r, []string{jsonDataPart})
 
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusTooManyRequests)
@@ -854,7 +860,7 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 			Tac:    "000001",
 		},
 		Guti:     "00101cafe00000001",
-		TimeZone: "+00:00",
+		TimeZone: utcTimeZone,
 	}
 
 	smContext := amfContext.NewSmContext(10)

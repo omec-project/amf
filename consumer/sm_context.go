@@ -28,7 +28,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-const N2SMINFO_ID = "N2SmInfo"
+const (
+	n2SmInfoId       = "N2SmInfo"
+	n1SmMsgContentId = "n1SmMsg"
+)
 
 func getServingSmfIndex(smfNum int) (servingSmfIndex int) {
 	servingSmfIndexStr := os.Getenv("SERVING_SMF_INDEX")
@@ -302,7 +305,7 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	if requestType != nil {
 		smContextCreateData.SetRequestType(*requestType)
 	}
-	smContextCreateData.SetN1SmMsg(models.RefToBinaryData{ContentId: "n1SmMsg"})
+	smContextCreateData.SetN1SmMsg(models.RefToBinaryData{ContentId: n1SmMsgContentId})
 	smContextCreateData.SetAnType(smContext.AccessType())
 	if ue.RatType != "" {
 		smContextCreateData.SetRatType(ue.RatType)
@@ -412,7 +415,7 @@ func SendUpdateSmContextN2Info(
 ) {
 	updateData := models.SmContextUpdateData{}
 	updateData.SetN2SmInfoType(n2SmType)
-	updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
+	updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
 	updateData.UeLocation = &ue.Location
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
 }
@@ -428,7 +431,7 @@ func SendUpdateSmContextXnHandover(
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = &n2SmType
-		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
+		updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
 	}
 	updateData.SetToBeSwitched(true)
 	updateData.SetUeLocation(ue.Location)
@@ -450,7 +453,7 @@ func SendUpdateSmContextXnHandoverFailed(
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.SetN2SmInfoType(n2SmType)
-		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
+		updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
 	}
 	updateData.SetFailedToBeSwitched(true)
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
@@ -467,7 +470,7 @@ func SendUpdateSmContextN2HandoverPreparing(
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.N2SmInfoType = &n2SmType
-		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
+		updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
 	}
 	updateData.SetHoState(models.HOSTATE_PREPARING)
 	updateData.TargetId = targetId
@@ -486,7 +489,7 @@ func SendUpdateSmContextN2HandoverPrepared(
 	updateData := models.SmContextUpdateData{}
 	if n2SmType != "" {
 		updateData.SetN2SmInfoType(n2SmType)
-		updateData.N2SmInfo = models.NewRefToBinaryData(N2SMINFO_ID)
+		updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
 	}
 	updateData.SetHoState(models.HOSTATE_PREPARED)
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
@@ -878,7 +881,7 @@ func buildReleaseSmContextRequest(
 	}
 	if n2Info != nil {
 		releaseData.SetN2SmInfoType(n2SmInfoType)
-		releaseData.SetN2SmInfo(models.RefToBinaryData{ContentId: N2SMINFO_ID})
+		releaseData.SetN2SmInfo(models.RefToBinaryData{ContentId: n2SmInfoId})
 	}
 	// TODO: other param(ueLocation...)
 	return

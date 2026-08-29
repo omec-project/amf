@@ -57,9 +57,9 @@ func TestUEContextTransferRequestSendsRegistrationRequestAsMultipart(t *testing.
 
 	ue := &amf_context.AmfUe{
 		TargetAmfUri:        server.URL,
-		Supi:                "imsi-001010000000001",
+		Supi:                testSupi,
 		PlmnId:              models.PlmnId{Mcc: "001", Mnc: "01"},
-		Guti:                "00101cafe00000001",
+		Guti:                testGuti,
 		RegistrationRequest: nasMessage.NewRegistrationRequest(0),
 	}
 
@@ -124,7 +124,7 @@ func TestUEContextTransferRequestDecodesMultipartSuccessResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := models.NewUEContextTransfer200Response()
 		response.SetJsonData(models.UeContextTransferRspData{
-			UeContext:         models.UeContext{Supi: openapi.PtrString("imsi-001010000000001")},
+			UeContext:         models.UeContext{Supi: openapi.PtrString(testSupi)},
 			UeRadioCapability: models.NewN2InfoContent(models.RefToBinaryData{ContentId: "n2Info"}),
 		})
 		response.SetBinaryDataN2Information(binaryN2Info)
@@ -144,9 +144,9 @@ func TestUEContextTransferRequestDecodesMultipartSuccessResponse(t *testing.T) {
 
 	ue := &amf_context.AmfUe{
 		TargetAmfUri:        server.URL,
-		Supi:                "imsi-001010000000001",
+		Supi:                testSupi,
 		PlmnId:              models.PlmnId{Mcc: "001", Mnc: "01"},
-		Guti:                "00101cafe00000001",
+		Guti:                testGuti,
 		RegistrationRequest: nasMessage.NewRegistrationRequest(0),
 	}
 
@@ -166,15 +166,15 @@ func TestUEContextTransferRequestDecodesMultipartSuccessResponse(t *testing.T) {
 		t.Fatal("expected response to be set")
 	}
 	ueContext := response.GetUeContext()
-	if ueContext.Supi == nil || *ueContext.Supi != "imsi-001010000000001" {
-		t.Fatalf("unexpected SUPI %+v", ueContext.Supi)
+	if ueContext.GetSupi() != testSupi {
+		t.Fatalf("unexpected SUPI %+v", ueContext.GetSupi())
 	}
 	if !response.HasUeRadioCapability() {
 		t.Fatal("expected UE radio capability to be preserved from multipart success response")
 	}
 	n2Info := response.GetUeRadioCapability()
-	if n2Info.NgapData.ContentId != "n2Info" {
-		t.Fatalf("unexpected content id %q", n2Info.NgapData.ContentId)
+	if n2Info.NgapData.GetContentId() != "n2Info" {
+		t.Fatalf("unexpected content id %q", n2Info.NgapData.GetContentId())
 	}
 
 	if _, err = os.Stat(binaryN2Info.Name()); err != nil {

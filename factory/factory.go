@@ -22,7 +22,11 @@ import (
 
 var AmfConfig Config
 
-const AMFID_PATTERN = "^[A-Fa-f0-9]{6}$"
+const (
+	AMFID_PATTERN   = "^[A-Fa-f0-9]{6}$"
+	defaultAmfID    = "cafe00"
+	defaultWebuiURI = "http://webui:5001"
+)
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
@@ -34,11 +38,11 @@ func InitConfigFactory(f string) error {
 		return err
 	}
 	if AmfConfig.Configuration.AmfId == "" {
-		AmfConfig.Configuration.AmfId = "cafe00"
+		AmfConfig.Configuration.AmfId = defaultAmfID
 		logger.CfgLog.Infof("amfId not set in configuration file. Using %s", AmfConfig.Configuration.AmfId)
 	}
 	if AmfConfig.Configuration.WebuiUri == "" {
-		AmfConfig.Configuration.WebuiUri = "http://webui:5001"
+		AmfConfig.Configuration.WebuiUri = defaultWebuiURI
 		logger.CfgLog.Infof("webuiUri not set in configuration file. Using %s", AmfConfig.Configuration.WebuiUri)
 	}
 	if AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
