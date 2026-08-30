@@ -386,11 +386,13 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 		sendRegistrationAcceptForRegistration = originalSendRegistrationAcceptForRegistration
 	}()
 
-	getSubscribedNssaiForRegistration = func(ctx ctxt.Context, ue *context.AmfUe) {
+	getSubscribedNssaiForRegistration = func(ctx ctxt.Context, ue *context.AmfUe) error {
 		ue.SubscribedNssai = []models.SubscribedSnssai{{
 			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
 			DefaultIndication: openapi.PtrBool(true),
 		}}
+
+		return nil
 	}
 	communicateWithUDMForRegistration = func(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) error {
 		ue.SubscriptionDataValid = true
