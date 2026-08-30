@@ -51,8 +51,8 @@ func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interfa
 		r1, r2 := ueContextTransferProcedure(s1, msg)
 		return r1, "", r2, nil
 	case models.AssignEbiData:
-		r1, r2, r3 := assignEbiDataProcedure(s1, msg)
-		return r1, "", r3, r2
+		r1, r3 := assignEbiDataProcedure(s1, msg)
+		return r1, "", r3, nil
 	case models.UeRegStatusUpdateReqData:
 		r1, r2 := registrationStatusUpdateProcedure(ctx, s1, msg)
 		return r1, "", r2, nil
@@ -538,24 +538,24 @@ func HandleAssignEbiDataRequest(request *httpwrapper.Request) *httpwrapper.Respo
 }
 
 func assignEbiDataProcedure(ueContextID string, assignEbiData models.AssignEbiData) (
-	*models.AssignedEbiData, *models.AssignEbiError, *models.ProblemDetails,
+	*models.AssignedEbiData, *models.ProblemDetails,
 ) {
 	amfSelf := context.AMF_Self()
 
 	ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID)
 	if !ok {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
-		return nil, nil, problemDetails
+		return nil, problemDetails
 	}
 
-	// TODO: AssignEbiError not used, check it!
 	if _, ok := ue.SmContextFindByPDUSessionID(assignEbiData.GetPduSessionId()); ok {
 		assignedEbiData := models.NewAssignedEbiDataWithDefaults()
 		assignedEbiData.SetPduSessionId(assignEbiData.GetPduSessionId())
-		return assignedEbiData, nil, nil
+		return assignedEbiData, nil
 	} else {
 		logger.ProducerLog.Errorf("no SM context found for PDU session ID %d", assignEbiData.GetPduSessionId())
-		return nil, nil, nil
+		problemDetails := utils.ProblemDetailsContextNotFound("SM context not found")
+		return nil, problemDetails
 	}
 }
 

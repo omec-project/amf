@@ -11,6 +11,7 @@ import (
 	"time"
 
 	amf_context "github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/Nudm_SDM"
 	"github.com/omec-project/openapi/v2/models"
@@ -48,7 +49,14 @@ func PutUpuAck(ctx context.Context, ue *amf_context.AmfUe, upuMacIue string) err
 	defer cancel()
 	apiUpuAckRequest := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAck(ctx, ue.GetSupi())
 	apiUpuAckRequest = apiUpuAckRequest.AcknowledgeInfo(*ackInfo)
-	_, err := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAckExecute(apiUpuAckRequest)
+	httpResp, err := client.ProvidingAcknowledgementOfUEParametersUpdateAPI.UpuAckExecute(apiUpuAckRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("PutUpuAck response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	return err
 }
 
@@ -80,6 +88,13 @@ func SDMGetAmData(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 	apiGetAmDataRequest := client.AccessAndMobilitySubscriptionDataRetrievalAPI.GetAmData(ctx, ue.GetSupi())
 	apiGetAmDataRequest = apiGetAmDataRequest.PlmnId(*plmnId)
 	data, httpResp, localErr := client.AccessAndMobilitySubscriptionDataRetrievalAPI.GetAmDataExecute(apiGetAmDataRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("SDMGetAmData response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		ue.AccessAndMobilitySubscriptionData = data
 		if len(data.Gpsis) > 0 {
@@ -129,6 +144,13 @@ func SDMGetSmfSelectData(ctx context.Context, ue *amf_context.AmfUe) (problemDet
 	apiGetSmfSelDataRequest := client.SMFSelectionSubscriptionDataRetrievalAPI.GetSmfSelData(ctx, ue.GetSupi())
 	apiGetSmfSelDataRequest = apiGetSmfSelDataRequest.PlmnId(*plmnId)
 	data, httpResp, localErr := client.SMFSelectionSubscriptionDataRetrievalAPI.GetSmfSelDataExecute(apiGetSmfSelDataRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("SDMGetSmfSelectData response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		ue.SmfSelectionData = data
 	} else if httpResp != nil {
@@ -172,6 +194,13 @@ func SDMGetUeContextInSmfData(ctx context.Context, ue *amf_context.AmfUe) (probl
 
 	apiGetUeCtxInSmfDataRequest := client.UEContextInSMFDataRetrievalAPI.GetUeCtxInSmfData(ctx, ue.GetSupi())
 	data, httpResp, localErr := client.UEContextInSMFDataRetrievalAPI.GetUeCtxInSmfDataExecute(apiGetUeCtxInSmfDataRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("SDMGetUeContextInSmfData response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		ue.UeContextInSmfData = data
 	} else if httpResp != nil {
@@ -222,6 +251,13 @@ func SDMSubscribe(ctx context.Context, ue *amf_context.AmfUe) (problemDetails *m
 	apiSubscribeRequest := client.SubscriptionCreationAPI.Subscribe(ctx, ue.GetSupi())
 	apiSubscribeRequest = apiSubscribeRequest.SdmSubscription(sdmSubscription)
 	_, httpResp, localErr := client.SubscriptionCreationAPI.SubscribeExecute(apiSubscribeRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("SDMSubscribe response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		return nil, nil
 	} else if httpResp != nil {
@@ -266,6 +302,13 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 	apiGetNSSAIRequest := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAI(ctx, ue.GetSupi())
 	apiGetNSSAIRequest = apiGetNSSAIRequest.PlmnId(*plmnId)
 	nssai, httpResp, localErr := client.SliceSelectionSubscriptionDataRetrievalAPI.GetNSSAIExecute(apiGetNSSAIRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("SDMGetSliceSelectionSubscriptionData response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 
 	// Four outcomes have to be told apart, and only two of them were handled. A nil
 	// body is not an error to the generated client -- an empty or contentless response

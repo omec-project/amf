@@ -23,7 +23,11 @@ var (
 	configLoadErr  error
 )
 
-const testAmfID = "cafe00"
+const (
+	testAmfID = "cafe00"
+	sdValue1  = "01"
+	sdValue2  = "02"
+)
 
 func makeSnssaiWithSd(sst int32, sd string) nfConfigApi.Snssai {
 	s := nfConfigApi.NewSnssai(sst)
@@ -70,7 +74,7 @@ func TestUpdateAMFContext(t *testing.T) {
 			accessAndMobilityConfig: []nfConfigApi.AccessAndMobility{
 				{
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
-					Snssai: makeSnssaiWithSd(1, "01"),
+					Snssai: makeSnssaiWithSd(1, sdValue1),
 					Tacs:   []string{"1"},
 				},
 			},
@@ -100,7 +104,7 @@ func TestUpdateAMFContext(t *testing.T) {
 			accessAndMobilityConfig: []nfConfigApi.AccessAndMobility{
 				{
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
-					Snssai: makeSnssaiWithSd(1, "01"),
+					Snssai: makeSnssaiWithSd(1, sdValue1),
 					Tacs:   []string{},
 				},
 			},
@@ -125,12 +129,12 @@ func TestUpdateAMFContext(t *testing.T) {
 			accessAndMobilityConfig: []nfConfigApi.AccessAndMobility{
 				{
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
-					Snssai: makeSnssaiWithSd(1, "01"),
+					Snssai: makeSnssaiWithSd(1, sdValue1),
 					Tacs:   []string{"1"},
 				},
 				{
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "02"},
-					Snssai: makeSnssaiWithSd(2, "01"),
+					Snssai: makeSnssaiWithSd(2, sdValue2),
 					Tacs:   []string{"2"},
 				},
 			},
@@ -164,7 +168,7 @@ func TestUpdateAMFContext(t *testing.T) {
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "02"},
 					SNssaiList: []models.Snssai{
-						{Sst: 2, Sd: openapi.PtrString("01")},
+						{Sst: 2, Sd: openapi.PtrString(sdValue2)},
 					},
 				},
 			},
@@ -174,12 +178,12 @@ func TestUpdateAMFContext(t *testing.T) {
 			accessAndMobilityConfig: []nfConfigApi.AccessAndMobility{
 				{
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
-					Snssai: makeSnssaiWithSd(1, "01"),
+					Snssai: makeSnssaiWithSd(1, sdValue1),
 					Tacs:   []string{"1"},
 				},
 				{
 					PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
-					Snssai: makeSnssaiWithSd(2, "01"),
+					Snssai: makeSnssaiWithSd(2, sdValue1),
 					Tacs:   []string{"2"},
 				},
 			},

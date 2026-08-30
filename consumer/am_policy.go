@@ -65,6 +65,13 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 	apiCreateIndividualAMPolicyAssociationRequest := client.AMPolicyAssociationsCollectionAPI.CreateIndividualAMPolicyAssociation(ctx)
 	apiCreateIndividualAMPolicyAssociationRequest = apiCreateIndividualAMPolicyAssociationRequest.PolicyAssociationRequest(policyAssociationRequest)
 	res, httpResp, localErr := client.AMPolicyAssociationsCollectionAPI.CreateIndividualAMPolicyAssociationExecute(apiCreateIndividualAMPolicyAssociationRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("AMPolicyControlCreate response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		locationHeader := httpResp.Header.Get("Location")
 		logger.ConsumerLog.Debugf("location header: %+v", locationHeader)
@@ -140,6 +147,13 @@ func AMPolicyControlUpdate(ctx context.Context, ue *amf_context.AmfUe, updateReq
 	apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest := client.IndividualAMPolicyAssociationDocumentAPI.ReportObservedEventTriggersForIndividualAMPolicyAssociation(ctx, ue.PolicyAssociationId)
 	apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest = apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest.PolicyAssociationUpdateRequest(updateRequest)
 	res, httpResp, localErr := client.IndividualAMPolicyAssociationDocumentAPI.ReportObservedEventTriggersForIndividualAMPolicyAssociationExecute(apiReportObservedEventTriggersForIndividualAMPolicyAssociationRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("AMPolicyControlUpdate response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		if res.ServAreaRes != nil {
 			ue.AmPolicyAssociation.ServAreaRes = res.ServAreaRes
@@ -199,6 +213,13 @@ func AMPolicyControlDelete(ctx context.Context, ue *amf_context.AmfUe) (problemD
 
 	apiDeleteIndividualAMPolicyAssociationRequest := client.IndividualAMPolicyAssociationDocumentAPI.DeleteIndividualAMPolicyAssociation(ctx, ue.PolicyAssociationId)
 	httpResp, localErr := client.IndividualAMPolicyAssociationDocumentAPI.DeleteIndividualAMPolicyAssociationExecute(apiDeleteIndividualAMPolicyAssociationRequest)
+	if httpResp != nil {
+		defer func() {
+			if closeErr := httpResp.Body.Close(); closeErr != nil {
+				logger.ConsumerLog.Errorf("AMPolicyControlDelete response body cannot close: %+v", closeErr)
+			}
+		}()
+	}
 	if localErr == nil {
 		ue.RemoveAmPolicyAssociation()
 	} else if httpResp != nil {
