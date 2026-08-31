@@ -133,7 +133,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			}
 			for i, flag := range immediateFlags {
 				if flag {
-					report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
+					report, ok := NewAmfEventReport(ue, subscription.EventList[i].Type, newSubscriptionID)
 					if ok {
 						reportlist = append(reportlist, report)
 					}
@@ -154,7 +154,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			if ue.GroupID == subscription.GetGroupId() {
 				for i, flag := range immediateFlags {
 					if flag {
-						report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
+						report, ok := NewAmfEventReport(ue, subscription.EventList[i].Type, newSubscriptionID)
 						if ok {
 							reportlist = append(reportlist, report)
 						}
@@ -174,7 +174,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		}
 		for i, flag := range immediateFlags {
 			if flag {
-				report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
+				report, ok := NewAmfEventReport(ue, subscription.EventList[i].Type, newSubscriptionID)
 				if ok {
 					reportlist = append(reportlist, report)
 				}
@@ -282,13 +282,13 @@ func ModifyAMFEventSubscriptionProcedure(
 			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
 			return nil, problemDetails
 		}
-		lists := (subscription.EventList)
-		eventlistLen := len(subscription.EventList)
+		lists := subscription.GetEventList()
+		eventlistLen := len(subscription.GetEventList())
 		switch op {
 		case "replace":
 			event := arrayOfAmfUpdateEventSubscriptionItem.GetValue()
 			if index < eventlistLen {
-				(subscription.EventList)[index] = event
+				subscription.EventList[index] = event
 			}
 		case "remove":
 			if index < eventlistLen {
