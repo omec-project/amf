@@ -283,19 +283,20 @@ func ModifyAMFEventSubscriptionProcedure(
 			return nil, problemDetails
 		}
 		lists := subscription.GetEventList()
-		eventlistLen := len(subscription.GetEventList())
+		eventlistLen := len(lists)
 		switch op {
 		case "replace":
 			event := arrayOfAmfUpdateEventSubscriptionItem.GetValue()
 			if index < eventlistLen {
-				subscription.EventList[index] = event
+				lists[index] = event
+				subscription.SetEventList(lists)
 			}
 		case "remove":
 			if index < eventlistLen {
-				subscription.EventList = append(lists[:index], lists[index+1:]...)
+				subscription.SetEventList(append(lists[:index], lists[index+1:]...))
 			}
 		case "add":
-			subscription.EventList = append(lists, arrayOfAmfUpdateEventSubscriptionItem.GetValue())
+			subscription.SetEventList(append(lists, arrayOfAmfUpdateEventSubscriptionItem.GetValue()))
 		}
 	}
 
