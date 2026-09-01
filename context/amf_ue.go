@@ -12,7 +12,9 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"reflect"
 	"regexp"
@@ -231,6 +233,49 @@ type AmfUe struct {
 	ProducerLog *zap.SugaredLogger `json:"-"`
 }
 
+// serialisablePendingMessage copies a pending N1N2 message into a form that can be
+// stored and read back.
+//
+// Two things went wrong here before. It shared the live JsonData pointer and then
+// replaced its containers with empty ones, so storing a context **destroyed** the
+// pending message it was storing -- the copy-back that followed only ever copied the
+// empty container onto itself. And the empty containers it wrote carried empty 3GPP
+// enum values, which the strict decoders reject, so the whole stored context became
+// undecodable: the AMF reported a UE that was present in the database as absent, and
+// answered 404 to a request to page it.
+//
+// So: copy rather than share, and omit a container that has no content rather than
+// writing one the reader will refuse.
+func serialisablePendingMessage(pending *N1N2Message) *N1N2Message {
+	if pending == nil {
+		return nil
+	}
+
+	stored := *pending
+
+	if pending.Request.JsonData == nil {
+		return &stored
+	}
+
+	jsonData := *pending.Request.JsonData
+
+	jsonData.N1MessageContainer = nil
+	if src := pending.Request.JsonData.N1MessageContainer; src != nil && src.GetN1MessageClass() != "" {
+		container := *src
+		jsonData.N1MessageContainer = &container
+	}
+
+	jsonData.N2InfoContainer = nil
+	if src := pending.Request.JsonData.N2InfoContainer; src != nil && src.GetN2InformationClass() != "" {
+		container := *src
+		jsonData.N2InfoContainer = &container
+	}
+
+	stored.Request.JsonData = &jsonData
+
+	return &stored
+}
+
 func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	// The encoder walks maps that other goroutines write while holding this very
 	// mutex -- RanUe is written by AttachRanUe and DetachRanUe -- so marshalling them
@@ -249,35 +294,22 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	smCtxListVal := make(map[string]SmContext)
 	var ranUeNgapIDVal, amfUeNgapIDVal int64
 	var gnbId string
-	if ue.RanUe != nil && ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
-		gnbId = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].Ran.GnbId
-		if ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] != nil {
-			ranUeNgapIDVal = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].RanUeNgapId
-			amfUeNgapIDVal = ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS].AmfUeNgapId
+	if ranUe := ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS]; ranUe != nil {
+		ranUeNgapIDVal = ranUe.RanUeNgapId
+		amfUeNgapIDVal = ranUe.AmfUeNgapId
+
+		// Guarded: a RanUe exists before it is attached to a RAN, and one restored from
+		// the database may have no live RAN at all. Storing such a context used to
+		// panic here.
+		if ranUe.Ran != nil {
+			gnbId = ranUe.Ran.GnbId
 		}
 	}
 
 	for access, state := range ue.State {
 		stateVal[access] = string(state.Current())
 	}
-	var n1n2MsgPtr *N1N2Message
-	if ue.N1N2Message != nil {
-		n1n2MsgVal := *ue.N1N2Message
-		n1n2MsgVal.Request = ue.N1N2Message.Request
-		n1n2MsgVal.Request.JsonData = models.NewN1N2MessageTransferReqData()
-		if ue.N1N2Message.Request.JsonData != nil {
-			n1n2MsgVal.Request.JsonData = ue.N1N2Message.Request.JsonData
-			n1n2MsgVal.Request.JsonData.N1MessageContainer = models.NewN1MessageContainerWithDefaults()
-			n1n2MsgVal.Request.JsonData.N2InfoContainer = models.NewN2InfoContainerWithDefaults()
-			if ue.N1N2Message.Request.JsonData.N1MessageContainer != nil {
-				*n1n2MsgVal.Request.JsonData.N1MessageContainer = *ue.N1N2Message.Request.JsonData.N1MessageContainer
-			}
-			if ue.N1N2Message.Request.JsonData.N2InfoContainer != nil {
-				*n1n2MsgVal.Request.JsonData.N2InfoContainer = *ue.N1N2Message.Request.JsonData.N2InfoContainer
-			}
-		}
-		n1n2MsgPtr = &n1n2MsgVal
-	}
+	n1n2MsgPtr := serialisablePendingMessage(ue.N1N2Message)
 
 	ue.SmContextList.Range(func(key, val interface{}) bool {
 		smContext := val.(*SmContext)
@@ -433,6 +465,59 @@ type N1N2Message struct {
 	Request     models.N1N2MessageTransferRequest
 	Status      models.N1N2MessageTransferCause
 	ResourceUri string
+	// N1Msg and N2Info hold the payloads as they were when the message was stored.
+	// Request's binary fields are readers that the transfer procedure has already
+	// drained, so reading them again yields nothing at all -- and no error.
+	N1Msg  []byte
+	N2Info []byte
+}
+
+// Payloads returns the N1 message and N2 information of a pending message.
+//
+// The bytes captured at storage time are authoritative. Reading Request's binary
+// fields again returns zero bytes and no error, because the transfer procedure
+// consumed them before storing the message: that is how a paged UE came back and
+// received a PDU Session Resource Setup carrying an empty transfer, leaving it
+// connected with no user plane and nothing in the log to say why. Reading the
+// fields is kept as a fallback for a message that predates the captured bytes,
+// and a container declared without content is now an error rather than an empty
+// item on the wire.
+func (m *N1N2Message) Payloads() ([]byte, []byte, error) {
+	n1Msg, n2Info := m.N1Msg, m.N2Info
+
+	if len(n1Msg) == 0 {
+		if f := m.Request.GetBinaryDataN1Message(); f != nil {
+			b, err := io.ReadAll(f)
+			if err != nil {
+				return nil, nil, fmt.Errorf("read stored N1 message: %w", err)
+			}
+
+			n1Msg = b
+		}
+	}
+
+	if len(n2Info) == 0 {
+		if f := m.Request.GetBinaryDataN2Information(); f != nil {
+			b, err := io.ReadAll(f)
+			if err != nil {
+				return nil, nil, fmt.Errorf("read stored N2 information: %w", err)
+			}
+
+			n2Info = b
+		}
+	}
+
+	if reqData := m.Request.JsonData; reqData != nil {
+		if reqData.HasN1MessageContainer() && len(n1Msg) == 0 {
+			return nil, nil, errors.New("N1MessageContainer present but BinaryDataN1Message is missing")
+		}
+
+		if reqData.HasN2InfoContainer() && len(n2Info) == 0 {
+			return nil, nil, errors.New("N2InfoContainer present but BinaryDataN2Information is missing")
+		}
+	}
+
+	return n1Msg, n2Info, nil
 }
 
 type OnGoingProcedureWithPrio struct {

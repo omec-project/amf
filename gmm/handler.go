@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -57,6 +58,28 @@ var (
 	amPolicyControlCreateForRegistration  = consumer.AMPolicyControlCreate
 	sendRegistrationAcceptForRegistration = gmm_message.SendRegistrationAccept
 )
+
+// removePendingPayloadFiles deletes the temp files openapi.Decode created for a pending
+// message's binary parts.
+//
+// Payloads prefers the bytes captured when the message was stored and may never touch the
+// files, but nothing else removes them: reading them here is what used to do it, so taking
+// the read away would reinstate the leak fixed upstream in #799. One file per paged UE, and
+// a UE paged repeatedly leaves one per attempt.
+func removePendingPayloadFiles(m *context.N1N2Message) {
+	if m == nil {
+		return
+	}
+
+	for _, f := range []*os.File{
+		m.Request.GetBinaryDataN1Message(),
+		m.Request.GetBinaryDataN2Information(),
+	} {
+		if _, err := util.ReadAndCleanupBinaryTempFile(f); err != nil {
+			logger.GmmLog.Warnf("could not remove a pending N1N2 message temp file: %+v", err)
+		}
+	}
+}
 
 func HandleULNASTransport(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType,
 	ulNasTransport *nasMessage.ULNASTransport,
@@ -1174,34 +1197,18 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 		n1n2Message := ue.N1N2Message
 		if n1n2Message != nil {
 			requestData := n1n2Message.Request.JsonData
-			n1MsgFile := n1n2Message.Request.GetBinaryDataN1Message()
-			n2InfoFile := n1n2Message.Request.GetBinaryDataN2Information()
 
-			if requestData.HasN1MessageContainer() && n1MsgFile == nil {
-				logger.GmmLog.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
-				return fmt.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
-			}
-			if requestData.HasN2InfoContainer() && n2InfoFile == nil {
-				logger.GmmLog.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
-				return fmt.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
+			// Take the payloads captured when the message was stored. Re-reading the
+			// request's binary fields returns nothing and no error, so an empty
+			// payload used to travel to the RAN as a PDU Session Resource Setup with
+			// no transfer in it.
+			n1Msg, n2Info, err := n1n2Message.Payloads()
+			if err != nil {
+				logger.GmmLog.Errorf("pending N1N2 message unusable: %+v", err)
+				return err
 			}
 
-			var n1Msg, n2Info []byte
-			var err error
-			if n1MsgFile != nil {
-				n1Msg, err = util.ReadAndCleanupBinaryTempFile(n1MsgFile)
-				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", err)
-					return err
-				}
-			}
-			if n2InfoFile != nil {
-				n2Info, err = util.ReadAndCleanupBinaryTempFile(n2InfoFile)
-				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", err)
-					return err
-				}
-			}
+			removePendingPayloadFiles(n1n2Message)
 			// downlink signalling
 			if n2Info == nil {
 				if len(suList.List) != 0 {
@@ -2149,34 +2156,18 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	case nasMessage.ServiceTypeMobileTerminatedServices: // Trigger by Network
 		if n1n2Message != nil {
 			requestData := n1n2Message.Request.JsonData
-			n1MsgFile := n1n2Message.Request.GetBinaryDataN1Message()
-			n2InfoFile := n1n2Message.Request.GetBinaryDataN2Information()
 
-			if requestData.HasN1MessageContainer() && n1MsgFile == nil {
-				logger.GmmLog.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
-				return fmt.Errorf("N1MessageContainer present but BinaryDataN1Message is missing")
-			}
-			if requestData.HasN2InfoContainer() && n2InfoFile == nil {
-				logger.GmmLog.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
-				return fmt.Errorf("N2InfoContainer present but BinaryDataN2Information is missing")
+			// Take the payloads captured when the message was stored. Re-reading the
+			// request's binary fields returns nothing and no error, so an empty
+			// payload used to travel to the RAN as a PDU Session Resource Setup with
+			// no transfer in it.
+			n1Msg, n2Info, err := n1n2Message.Payloads()
+			if err != nil {
+				logger.GmmLog.Errorf("pending N1N2 message unusable: %+v", err)
+				return err
 			}
 
-			var n1Msg, n2Info []byte
-			var err error
-			if n1MsgFile != nil {
-				n1Msg, err = util.ReadAndCleanupBinaryTempFile(n1MsgFile)
-				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN1Message: %+v", err)
-					return err
-				}
-			}
-			if n2InfoFile != nil {
-				n2Info, err = util.ReadAndCleanupBinaryTempFile(n2InfoFile)
-				if err != nil {
-					logger.GmmLog.Errorf("error reading BinaryDataN2Information: %+v", err)
-					return err
-				}
-			}
+			removePendingPayloadFiles(n1n2Message)
 			// downlink signalling
 			if n2Info == nil {
 				err = sendServiceAccept(ue, anType, ctxList, suList, acceptPduSessionPsi,

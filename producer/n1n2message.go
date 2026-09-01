@@ -363,6 +363,8 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				Request:     n1n2MessageTransferRequest,
 				Status:      n1n2MessageTransferRspData.Cause,
 				ResourceUri: locationHeader,
+				N1Msg:       n1Msg,
+				N2Info:      n2Info,
 			}
 			ue.N1N2Message = &message
 			ue.SetOnGoing(anType, &context.OnGoingProcedureWithPrio{
@@ -405,6 +407,8 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 					Request:     n1n2MessageTransferRequest,
 					Status:      n1n2MessageTransferRspData.Cause,
 					ResourceUri: locationHeader,
+					N1Msg:       n1Msg,
+					N2Info:      n2Info,
 				}
 				ue.N1N2Message = &message
 				nasMsg, err := gmm_message.BuildNotification(ue, models.ACCESSTYPE_NON_3_GPP_ACCESS)
@@ -427,6 +431,8 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 				Request:     n1n2MessageTransferRequest,
 				Status:      n1n2MessageTransferRspData.Cause,
 				ResourceUri: locationHeader,
+				N1Msg:       n1Msg,
+				N2Info:      n2Info,
 			}
 			ue.N1N2Message = &message
 
