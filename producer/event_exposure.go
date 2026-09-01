@@ -133,7 +133,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			}
 			for i, flag := range immediateFlags {
 				if flag {
-					report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
+					report, ok := NewAmfEventReport(ue, subscription.EventList[i].Type, newSubscriptionID)
 					if ok {
 						reportlist = append(reportlist, report)
 					}
@@ -154,7 +154,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			if ue.GroupID == subscription.GetGroupId() {
 				for i, flag := range immediateFlags {
 					if flag {
-						report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
+						report, ok := NewAmfEventReport(ue, subscription.EventList[i].Type, newSubscriptionID)
 						if ok {
 							reportlist = append(reportlist, report)
 						}
@@ -174,7 +174,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 		}
 		for i, flag := range immediateFlags {
 			if flag {
-				report, ok := NewAmfEventReport(ue, (subscription.EventList)[i].Type, newSubscriptionID)
+				report, ok := NewAmfEventReport(ue, subscription.EventList[i].Type, newSubscriptionID)
 				if ok {
 					reportlist = append(reportlist, report)
 				}
@@ -277,25 +277,54 @@ func ModifyAMFEventSubscriptionProcedure(
 			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path")
 			return nil, problemDetails
 		}
-		index, err := strconv.Atoi(path[len(pathPrefix):])
-		if err != nil {
-			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
-			return nil, problemDetails
+		lists := subscription.GetEventList()
+		eventlistLen := len(lists)
+
+		indexStr := path[len(pathPrefix):]
+		var index int
+		if indexStr == "-" {
+			// RFC 6902: "-" refers to the (nonexistent) member after the last array element and is only valid for "add"
+			if op != "add" {
+				problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
+				return nil, problemDetails
+			}
+			index = eventlistLen
+		} else {
+			var err error
+			index, err = strconv.Atoi(indexStr)
+			if err != nil || index < 0 {
+				problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
+				return nil, problemDetails
+			}
 		}
-		lists := (subscription.EventList)
-		eventlistLen := len(subscription.EventList)
 		switch op {
 		case "replace":
-			event := arrayOfAmfUpdateEventSubscriptionItem.GetValue()
-			if index < eventlistLen {
-				(subscription.EventList)[index] = event
+			if index >= eventlistLen {
+				problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
+				return nil, problemDetails
 			}
+			lists[index] = arrayOfAmfUpdateEventSubscriptionItem.GetValue()
+			subscription.SetEventList(lists)
 		case "remove":
-			if index < eventlistLen {
-				subscription.EventList = append(lists[:index], lists[index+1:]...)
+			if index >= eventlistLen {
+				problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
+				return nil, problemDetails
 			}
+			subscription.SetEventList(append(lists[:index], lists[index+1:]...))
 		case "add":
-			subscription.EventList = append(lists, arrayOfAmfUpdateEventSubscriptionItem.GetValue())
+			// index == eventlistLen appends to the end of the array; RFC 6902 also allows the "-" path segment for this
+			if index > eventlistLen {
+				problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Invalid subscription patch path index")
+				return nil, problemDetails
+			}
+			updatedList := make([]models.AmfEvent, 0, eventlistLen+1)
+			updatedList = append(updatedList, lists[:index]...)
+			updatedList = append(updatedList, arrayOfAmfUpdateEventSubscriptionItem.GetValue())
+			updatedList = append(updatedList, lists[index:]...)
+			subscription.SetEventList(updatedList)
+		default:
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Unsupported subscription patch operation")
+			return nil, problemDetails
 		}
 	}
 
