@@ -668,6 +668,40 @@ func (ue *AmfUe) CmConnect(anType models.AccessType) bool {
 	return true
 }
 
+// HasLiveRanConnection reports whether an N2 message for this UE can actually reach a
+// RAN node right now.
+//
+// This is a narrower question than CmConnect, which answers "is this UE associated
+// over this access type" and is used for lookups where a stale RanUe is acceptable --
+// GetAnType is one such caller.
+//
+// A record of a past connection is not a connection. A context restored from the
+// database carries a RanUe, and that RanUe carries an AmfRan, but only the fields that
+// survive serialisation: Conn and Amf2RanMsgChan are json:"-" and come back nil, as
+// does the logger. Treating that as connected sent N2 messages into an association
+// that no longer existed, panicked in the send path on the nil logger, had the panic
+// swallowed by a recover that blamed the gNB, and still answered the SMF as though the
+// message had gone -- so an idle UE stayed unreachable after every AMF restart,
+// because nothing ever paged it.
+func (ue *AmfUe) HasLiveRanConnection(anType models.AccessType) bool {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	ranUe, ok := ue.RanUe[anType]
+	if !ok || ranUe == nil || ranUe.Ran == nil {
+		return false
+	}
+
+	// Under SCTP load balancing the AMF holds no socket of its own: messages leave
+	// through a channel, so Conn being nil means nothing there and the channel is what
+	// has to exist.
+	if AMF_Self().EnableSctpLb {
+		return ranUe.Ran.Amf2RanMsgChan != nil
+	}
+
+	return ranUe.Ran.Conn != nil
+}
+
 func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 	return !ue.CmConnect(anType)
 }

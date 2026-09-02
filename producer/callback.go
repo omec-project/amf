@@ -274,7 +274,7 @@ func AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID string,
 		// use go routine to write response first to ensure the order of the procedure
 		go func() {
 			// UE is CM-Connected State
-			if ue.CmConnect(models.ACCESSTYPE__3_GPP_ACCESS) {
+			if ue.HasLiveRanConnection(models.ACCESSTYPE__3_GPP_ACCESS) {
 				gmm_message.SendConfigurationUpdateCommand(ue, models.ACCESSTYPE__3_GPP_ACCESS, nil)
 				// UE is CM-IDLE => paging
 			} else {
