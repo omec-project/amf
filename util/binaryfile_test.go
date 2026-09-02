@@ -6,6 +6,7 @@ package util
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -93,7 +94,10 @@ func TestCleanupBinaryTempFileRemovesTempFile(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 	path := tmpFile.Name()
-	t.Cleanup(func() { _ = os.Remove(path) })
+	t.Cleanup(func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(path)
+	})
 
 	if err = CleanupBinaryTempFile(tmpFile); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -112,7 +116,10 @@ func TestCleanupBinaryTempFileToleratesAlreadyRemoved(t *testing.T) {
 		t.Fatalf("failed to create temp file: %v", err)
 	}
 	path := tmpFile.Name()
-	t.Cleanup(func() { _ = os.Remove(path) })
+	t.Cleanup(func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(path)
+	})
 
 	if err = CleanupBinaryTempFile(tmpFile); err != nil {
 		t.Fatalf("first cleanup: unexpected error: %v", err)
@@ -130,7 +137,7 @@ func TestCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(dir) })
 
-	path := dir + "/not-a-temp-file"
+	path := filepath.Join(dir, "not-a-temp-file")
 	if err = os.WriteFile(path, []byte{0x01}, 0o600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
@@ -139,6 +146,7 @@ func TestCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
+	t.Cleanup(func() { _ = f.Close() })
 
 	if err = CleanupBinaryTempFile(f); err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -161,7 +169,7 @@ func TestReadAndCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
 	})
-	path := dir + "/not-a-temp-file"
+	path := filepath.Join(dir, "not-a-temp-file")
 	if err = os.WriteFile(path, want, 0o600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
@@ -170,6 +178,7 @@ func TestReadAndCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
+	t.Cleanup(func() { _ = f.Close() })
 
 	got, err := ReadAndCleanupBinaryTempFile(f)
 	if err != nil {
