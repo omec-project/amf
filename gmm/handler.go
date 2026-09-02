@@ -63,9 +63,10 @@ var (
 // message's binary parts.
 //
 // Payloads prefers the bytes captured when the message was stored and may never touch the
-// files, but nothing else removes them: reading them here is what used to do it, so taking
-// the read away would reinstate the leak fixed upstream in #799. One file per paged UE, and
-// a UE paged repeatedly leaves one per attempt.
+// files, but nothing else removes them: the producer already drains and removes them for
+// the common case, so finding them gone here is expected, not a leak to warn about. One
+// file per paged UE that predates payload capture, and a UE paged repeatedly leaves one per
+// attempt.
 func removePendingPayloadFiles(m *context.N1N2Message) {
 	if m == nil {
 		return
@@ -75,7 +76,7 @@ func removePendingPayloadFiles(m *context.N1N2Message) {
 		m.Request.GetBinaryDataN1Message(),
 		m.Request.GetBinaryDataN2Information(),
 	} {
-		if _, err := util.ReadAndCleanupBinaryTempFile(f); err != nil {
+		if err := util.CleanupBinaryTempFile(f); err != nil {
 			logger.GmmLog.Warnf("could not remove a pending N1N2 message temp file: %+v", err)
 		}
 	}

@@ -4,12 +4,38 @@
 package util
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 )
+
+// CleanupBinaryTempFile closes and removes a temp file backing a binary multipart part,
+// without reading its content.
+//
+// A file already closed and removed by an earlier cleanup call is not an error: callers
+// that only want to guarantee a temp file is gone, rather than read it, call this repeatedly
+// as pending messages are retried.
+func CleanupBinaryTempFile(file *os.File) error {
+	if file == nil {
+		return nil
+	}
+
+	name := file.Name()
+	_ = file.Close()
+
+	if name == "" || !isUnderTempDir(name) {
+		return nil
+	}
+
+	if err := os.Remove(name); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+
+	return nil
+}
 
 // ReadAndCleanupBinaryTempFile reads a binary multipart part backed by a temp file
 // created by the openapi client, then closes and removes the temp file.

@@ -6,6 +6,7 @@ package util
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -81,6 +82,81 @@ func TestReadAndCleanupBinaryTempFileFallsBackWhenSeekFails(t *testing.T) {
 	}
 }
 
+func TestCleanupBinaryTempFileNil(t *testing.T) {
+	if err := CleanupBinaryTempFile(nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestCleanupBinaryTempFileRemovesTempFile(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "binaryfile-cleanup-test")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	path := tmpFile.Name()
+	t.Cleanup(func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(path)
+	})
+
+	if err = CleanupBinaryTempFile(tmpFile); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err = os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected temp file %q to be removed, stat error: %v", path, err)
+	}
+}
+
+// A file already closed and removed by an earlier cleanup call is the common case for a
+// pending message whose payload was captured at storage time: not an error to report.
+func TestCleanupBinaryTempFileToleratesAlreadyRemoved(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "binaryfile-cleanup-test-twice")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %v", err)
+	}
+	path := tmpFile.Name()
+	t.Cleanup(func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(path)
+	})
+
+	if err = CleanupBinaryTempFile(tmpFile); err != nil {
+		t.Fatalf("first cleanup: unexpected error: %v", err)
+	}
+
+	if err = CleanupBinaryTempFile(tmpFile); err != nil {
+		t.Fatalf("second cleanup on an already-removed file must not error, got: %v", err)
+	}
+}
+
+func TestCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
+	dir, err := os.MkdirTemp(".", "binaryfile-cleanup-test-non-temp")
+	if err != nil {
+		t.Fatalf("failed to create dir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+
+	path := filepath.Join(dir, "not-a-temp-file")
+	if err = os.WriteFile(path, []byte{0x01}, 0o600); err != nil {
+		t.Fatalf("failed to write file: %v", err)
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		t.Fatalf("failed to open file: %v", err)
+	}
+	t.Cleanup(func() { _ = f.Close() })
+
+	if err = CleanupBinaryTempFile(f); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err = os.Stat(path); err != nil {
+		t.Fatalf("expected non-temp file %q to still exist, stat error: %v", path, err)
+	}
+}
+
 func TestReadAndCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	want := []byte{0x01, 0x02, 0x03}
 
@@ -93,7 +169,7 @@ func TestReadAndCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	t.Cleanup(func() {
 		_ = os.RemoveAll(dir)
 	})
-	path := dir + "/not-a-temp-file"
+	path := filepath.Join(dir, "not-a-temp-file")
 	if err = os.WriteFile(path, want, 0o600); err != nil {
 		t.Fatalf("failed to write file: %v", err)
 	}
@@ -102,6 +178,7 @@ func TestReadAndCleanupBinaryTempFileDoesNotRemoveNonTempFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to open file: %v", err)
 	}
+	t.Cleanup(func() { _ = f.Close() })
 
 	got, err := ReadAndCleanupBinaryTempFile(f)
 	if err != nil {
