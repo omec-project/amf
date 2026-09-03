@@ -236,7 +236,15 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 	ue.NASLog.Debugln("securityHeaderType is", msg.SecurityHeaderType)
 	if msg.SecurityHeaderType == nas.SecurityHeaderTypePlainNas {
 		// RRCEstablishmentCause 0 is for emergency service
-		if ue.SecurityContextAvailable && ue.RanUe[accessType].RRCEstablishmentCause != "0" {
+		// SecurityContextAvailable first: this runs for every NAS message, and there is
+		// no reason to take the UE lock when the cheap test already answers it. ranUe is
+		// therefore non-nil only when the context is available.
+		var ranUe *context.RanUe
+		if ue.SecurityContextAvailable {
+			ranUe = ue.GetRanUe(accessType)
+		}
+
+		if ranUe != nil && ranUe.RRCEstablishmentCause != "0" {
 			ue.NASLog.Warnln("Received Plain NAS message")
 			ue.MacFailed = false
 			ue.SecurityContextAvailable = false
