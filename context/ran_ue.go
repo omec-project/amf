@@ -33,6 +33,19 @@ const (
 	UeContextReleaseHandover
 	UeContextReleaseUeContext
 	UeContextReleaseDueToNwInitiatedDeregistraion
+	// UeContextReleaseDueToUeInitiatedDeregistration is distinct from
+	// UeContextReleaseUeContext because that action must keep a stored context when a valid
+	// security context exists, and both of its senders rely on that guard.
+	// HandleSecurityModeReject clears SecurityContextAvailable immediately before releasing,
+	// so it takes the delete branch. HandleUEContextReleaseRequest sends this action only for
+	// an access that is not GMM-Registered -- a UE still mid-registration, which has held a
+	// security context since the Security Mode Command was built, or one still registered over
+	// the other access; a Registered access gets UeContextN2NormalRelease instead. Neither of
+	// those UEs has left the network, so their stored context has to survive.
+	// A UE with no access left in use has left the network, and keeping its context leaves a
+	// stored document that its next registration will meet; while the other access is still
+	// in use, only the named access is released.
+	UeContextReleaseDueToUeInitiatedDeregistration
 )
 
 type RanUe struct {

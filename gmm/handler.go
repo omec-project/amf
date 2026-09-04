@@ -2776,7 +2776,8 @@ func HandleDeregistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType mod
 	case nasMessage.AccessType3GPP:
 		if ranUe := ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS); ranUe != nil {
 			ngap_message.SendUEContextReleaseCommand(ranUe,
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToUeInitiatedDeregistration,
+				ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 		return GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 			ArgAmfUe:      ue,
@@ -2785,7 +2786,8 @@ func HandleDeregistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType mod
 	case nasMessage.AccessTypeNon3GPP:
 		if ranUe := ue.GetRanUe(models.ACCESSTYPE_NON_3_GPP_ACCESS); ranUe != nil {
 			ngap_message.SendUEContextReleaseCommand(ranUe,
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToUeInitiatedDeregistration,
+				ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 		return GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 			ArgAmfUe:      ue,
@@ -2794,11 +2796,13 @@ func HandleDeregistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType mod
 	case nasMessage.AccessTypeBoth:
 		if ranUe := ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS); ranUe != nil {
 			ngap_message.SendUEContextReleaseCommand(ranUe,
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToUeInitiatedDeregistration,
+				ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 		if ranUe := ue.GetRanUe(models.ACCESSTYPE_NON_3_GPP_ACCESS); ranUe != nil {
 			ngap_message.SendUEContextReleaseCommand(ranUe,
-				context.UeContextReleaseUeContext, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
+				context.UeContextReleaseDueToUeInitiatedDeregistration,
+				ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		}
 
 		err := GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
