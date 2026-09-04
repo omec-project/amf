@@ -65,7 +65,11 @@ func relayTestUe() *context.AmfUe {
 }
 
 // n1TempFile writes payload to a temp file shaped like the one openapi.Decode creates for a
-// multipart binary part. ReadAndCleanupBinaryTempFile removes it, so no cleanup is registered.
+// multipart binary part.
+//
+// The code under test removes the file when it reads it, but that cannot be relied on here: these
+// are built when the case table is built, so running one case with -run leaves the others' files
+// unread, and a case that fails before the read leaves its own. Removing again is harmless.
 func n1TempFile(t *testing.T, payload []byte) *os.File {
 	t.Helper()
 
@@ -73,6 +77,8 @@ func n1TempFile(t *testing.T, payload []byte) *os.File {
 	if err != nil {
 		t.Fatalf("creating the temp file: %v", err)
 	}
+	name := f.Name()
+	t.Cleanup(func() { _ = os.Remove(name) })
 	if _, err = f.Write(payload); err != nil {
 		t.Fatalf("writing the temp file: %v", err)
 	}
@@ -212,11 +218,16 @@ func establishmentRequestUL(pduSessionID uint8) *nasMessage.ULNASTransport {
 	requestType.SetRequestTypeValue(nasMessage.ULNASTransportRequestTypeInitialRequest)
 	ul.RequestType = requestType
 	payloadContainer := nasType.PayloadContainer{}
+	// SetLen allocates the buffer SetPayloadContainerContents copies into; without it the
+	// container arrives empty. No case asserts on the contents, since the create call is stubbed,
+	// but this is the payload the function forwards and it is worth being a real one.
 	payloadContainer.SetLen(4)
 	payloadContainer.SetPayloadContainerContents([]byte{0x2e, 0x01, 0x01, 0xc1})
 	ul.PayloadContainer = payloadContainer
+	// Only the presence of the DNN matters: it makes pickDNN return before it reads
+	// ue.ServingAMF, which is nil here, and the value goes to selectSmf, which the test stubs.
+	// SetDNN allocates the buffer and sets the length itself, unlike SetPayloadContainerContents.
 	dnn := nasType.NewDNN(nasMessage.ULNASTransportDNNType)
-	dnn.SetLen(9)
 	dnn.SetDNN([]byte("internet"))
 	ul.DNN = dnn
 
