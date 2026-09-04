@@ -50,6 +50,9 @@ const (
 var (
 	sendDLNASTransport                    = gmm_message.SendDLNASTransport
 	sendReleaseSmContextRequest           = consumer.SendReleaseSmContextRequest
+	selectSmf                             = consumer.SelectSmf
+	sendCreateSmContextRequest            = consumer.SendCreateSmContextRequest
+	sendUpdateSmContextRequest            = consumer.SendUpdateSmContextRequest
 	getSubscribedNssaiForRegistration     = getSubscribedNssai
 	communicateWithUDMForRegistration     = communicateWithUDM
 	handleRequestedNssaiForRegistration   = handleRequestedNssai
@@ -227,7 +230,7 @@ func transport5GSMMessage(
 		}
 		dnn := pickDNN(ulNasTransport, ue, snssai)
 
-		newSmCtx, cause, err := consumer.SelectSmf(ctx, ue, anType, pduID, snssai, dnn)
+		newSmCtx, cause, err := selectSmf(ctx, ue, anType, pduID, snssai, dnn)
 		if err != nil {
 			ue.GmmLog.Errorf("select SMF failed: %+v", err)
 			m := new(nas.Message)
@@ -259,7 +262,7 @@ func transport5GSMMessage(
 			return nil
 		}
 
-		_, smCtxRef, errResp, prob, err := consumer.SendCreateSmContextRequest(ctx, ue, newSmCtx, nil, smMsg)
+		_, smCtxRef, errResp, prob, err := sendCreateSmContextRequest(ctx, ue, newSmCtx, nil, smMsg)
 		if err != nil {
 			ue.GmmLog.Errorf("createSmContextRequest Error: %+v", err)
 			return nil
@@ -501,7 +504,7 @@ func forward5GSMMessageToSMF(
 		smContextUpdateData.SetAnType(accessType)
 	}
 
-	response, errResponse, problemDetail, err := consumer.SendUpdateSmContextRequest(ctx, smContext,
+	response, errResponse, problemDetail, err := sendUpdateSmContextRequest(ctx, smContext,
 		smContextUpdateData, smMessage, nil)
 
 	if err != nil {
