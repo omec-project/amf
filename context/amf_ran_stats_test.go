@@ -16,7 +16,10 @@ import (
 // gnbSessionProfileSeries returns the gnb_session_profile samples as "labels=value"
 // lines, sorted, so a test can state the whole family in one comparison. The gathered
 // types are used through their accessors only, so this needs no new module dependency.
-func gnbSessionProfileSeries(t *testing.T) string {
+// Scoped to the caller's own gNB id: asserting the whole family would couple this test
+// to every future test in the package that writes this metric, and break with a failure
+// naming the wrong culprit.
+func gnbSessionProfileSeries(t *testing.T, id string) string {
 	t.Helper()
 
 	families, err := prometheus.DefaultGatherer.Gather()
@@ -33,9 +36,19 @@ func gnbSessionProfileSeries(t *testing.T) string {
 
 		for _, metric := range family.GetMetric() {
 			labels := []string{}
+			mine := false
+
 			for _, label := range metric.GetLabel() {
 				labels = append(labels, label.GetName()+"="+label.GetValue())
+				if label.GetName() == "id" && label.GetValue() == id {
+					mine = true
+				}
 			}
+
+			if !mine {
+				continue
+			}
+
 			sort.Strings(labels)
 			lines = append(lines, fmt.Sprintf("{%s} %g", strings.Join(labels, ","), metric.GetGauge().GetValue()))
 		}
@@ -60,7 +73,7 @@ func TestSetRanStatsWritesBothStatesOnEveryTransition(t *testing.T) {
 
 	want := "{id=gnb-metric-test,ip=10.10.10.10,state=Connected,tac=000001} 1\n" +
 		"{id=gnb-metric-test,ip=10.10.10.10,state=Disconnected,tac=000001} 0"
-	if got := gnbSessionProfileSeries(t); got != want {
+	if got := gnbSessionProfileSeries(t, ran.Name); got != want {
 		t.Errorf("gnb_session_profile after connecting:\n%s\nwant:\n%s", got, want)
 	}
 
@@ -70,7 +83,7 @@ func TestSetRanStatsWritesBothStatesOnEveryTransition(t *testing.T) {
 	// dashboard summing that series could not see the gNB go away.
 	want = "{id=gnb-metric-test,ip=10.10.10.10,state=Connected,tac=000001} 0\n" +
 		"{id=gnb-metric-test,ip=10.10.10.10,state=Disconnected,tac=000001} 1"
-	if got := gnbSessionProfileSeries(t); got != want {
+	if got := gnbSessionProfileSeries(t, ran.Name); got != want {
 		t.Errorf("gnb_session_profile after disconnecting:\n%s\nwant:\n%s", got, want)
 	}
 }
@@ -86,10 +99,8 @@ func TestSetRanStatsRefusesAnUnknownState(t *testing.T) {
 
 	ran.SetRanStats("Reconnecting")
 
-	for _, line := range strings.Split(gnbSessionProfileSeries(t), "\n") {
-		if strings.Contains(line, "gnb-unknown-state") {
-			t.Errorf("gnb_session_profile carries %q for a state the gauge does not describe", line)
-		}
+	if got := gnbSessionProfileSeries(t, ran.Name); got != "" {
+		t.Errorf("gnb_session_profile carries %q for a state the gauge does not describe", got)
 	}
 }
 

@@ -304,7 +304,8 @@ func (ran *AmfRan) SetRanStats(state string) {
 		// Writing both series means the state has to be one of the two the gauge
 		// describes. Treating anything else as disconnected would record a state nobody
 		// asked for, which is the same class of quiet wrongness as the stale series.
-		logger.ContextLog.Warnf("RAN state %q is not recorded on gnb_session_profile", state)
+		logger.ContextLog.Warnf("RAN %q state %q is not recorded on gnb_session_profile",
+			ran.RanID(), state)
 		return
 	}
 
