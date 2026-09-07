@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/context"
@@ -76,6 +77,8 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 		logger.NgapLog.Infoln("dispatchLb, decode Messgae error", sctplbMsg.GnbId)
 		return
 	}
+
+	metrics.SetNgapLastMessage(time.Now())
 
 	ranUe, ngapId := FetchRanUeContext(ran, pdu)
 	if ngapId != nil {
@@ -167,6 +170,8 @@ func Dispatch(conn net.Conn, msg []byte) {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
 		return
 	}
+
+	metrics.SetNgapLastMessage(time.Now())
 
 	ranUe, _ := FetchRanUeContext(ran, pdu)
 
