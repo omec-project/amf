@@ -227,11 +227,11 @@ func reportAssociationCount() {
 	countMu.Lock()
 	defer countMu.Unlock()
 
-	metrics.SetNgapAssociations(AssociationCount())
+	metrics.SetNgapAssociations(associationCount())
 }
 
-// AssociationCount reports how many SCTP associations this AMF currently terminates.
-func AssociationCount() int {
+// associationCount reports how many SCTP associations this AMF currently terminates.
+func associationCount() int {
 	count := 0
 	connections.Range(func(_, _ any) bool {
 		count++
@@ -247,8 +247,15 @@ func AssociationCount() int {
 // It is false in exactly one case: the AMF has served at least one association and now
 // holds none, with no shutdown requested. That is the state a process-level check cannot
 // see — the AMF is up, its listener is bound, its SBI answers, and nobody is being
-// served, which looks identical to an idle deployment. A restart recovers it, because the
-// radio access network reconnects to whatever is listening.
+// served, which looks identical to an idle deployment.
+//
+// A restart recovers the element. Whether it recovers service depends on the radio access
+// network re-establishing its association, which not every implementation does, so the
+// value claimed here is that the condition ends visibly rather than that traffic resumes.
+//
+// It also cannot loop: the latch lives in the process, so a restarted AMF has served
+// nothing and reports healthy until a gNB attaches. A RAN that never comes back therefore
+// costs exactly one restart, not a restart every failureThreshold.
 //
 // The two exclusions matter as much as the rule. An AMF that has never served is healthy,
 // or a fresh deployment would restart in a loop before any gNB had the chance to connect,
@@ -264,7 +271,7 @@ func Healthy() (bool, string) {
 		return true, "no NGAP association has been served yet"
 	case shuttingDown.Load():
 		return true, "shutting down"
-	case AssociationCount() == 0:
+	case associationCount() == 0:
 		return false, "every NGAP association has been lost"
 	default:
 		return true, "serving"
