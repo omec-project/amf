@@ -293,9 +293,19 @@ func (ran *AmfRan) RanID() string {
 // summing that series could not see the gNB go away. Both series are written on every
 // transition so that each one means what it says.
 func (ran *AmfRan) SetRanStats(state string) {
-	connected, disconnected := uint64(0), uint64(1)
-	if state == RanConnected {
+	var connected, disconnected uint64
+
+	switch state {
+	case RanConnected:
 		connected, disconnected = 1, 0
+	case RanDisconnected:
+		connected, disconnected = 0, 1
+	default:
+		// Writing both series means the state has to be one of the two the gauge
+		// describes. Treating anything else as disconnected would record a state nobody
+		// asked for, which is the same class of quiet wrongness as the stale series.
+		logger.ContextLog.Warnf("RAN state %q is not recorded on gnb_session_profile", state)
+		return
 	}
 
 	snapshot := ran.statsSnapshot()

@@ -75,6 +75,24 @@ func TestSetRanStatsWritesBothStatesOnEveryTransition(t *testing.T) {
 	}
 }
 
+// A state the gauge does not describe is refused rather than recorded as its opposite,
+// which is what writing both series would otherwise turn an unknown value into.
+func TestSetRanStatsRefusesAnUnknownState(t *testing.T) {
+	ran := &AmfRan{
+		Name:            "gnb-unknown-state",
+		GnbIp:           "10.10.10.12",
+		SupportedTAList: []SupportedTAI{{Tai: models.Tai{Tac: "000009"}}},
+	}
+
+	ran.SetRanStats("Reconnecting")
+
+	for _, line := range strings.Split(gnbSessionProfileSeries(t), "\n") {
+		if strings.Contains(line, "gnb-unknown-state") {
+			t.Errorf("gnb_session_profile carries %q for a state the gauge does not describe", line)
+		}
+	}
+}
+
 // A RAN whose NGSetup carried no supported TA list has no series to write, and must not
 // panic on the way to finding that out.
 func TestSetRanStatsWithNoSupportedTAList(t *testing.T) {
