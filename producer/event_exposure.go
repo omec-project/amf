@@ -374,7 +374,7 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 
 	switch Type {
 	case models.AMFEVENTTYPE_LOCATION_REPORT:
-		report.SetLocation(ue.Location)
+		report.SetLocation(ue.GetLocation())
 	// case models.AMFEVENTTYPE_PRESENCE_IN_AOI_REPORT:
 	// report.AreaList = (*subscription.EventList)[eventIndex].AreaList
 	case models.AMFEVENTTYPE_TIMEZONE_REPORT:
@@ -401,7 +401,7 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 	case models.AMFEVENTTYPE_CONNECTIVITY_STATE_REPORT:
 		report.SetCmInfoList(ue.GetCmInfo())
 	case models.AMFEVENTTYPE_REACHABILITY_REPORT:
-		report.SetReachability(ue.Reachability)
+		report.SetReachability(ue.GetReachability())
 	// TODO: GA: Need to check the content of SubscribedData
 	// case models.AMFEVENTTYPE_SUBSCRIBED_DATA_REPORT:
 	// 	report.SubscribedData = &ue.SubscribedData
