@@ -30,8 +30,24 @@ var readTimeout syscall.Timeval = syscall.Timeval{Sec: 2, Usec: 0}
 
 var (
 	sctpListener *sctp.SCTPListener
-	connections  sync.Map
+	// listenerMu guards sctpListener, which listenAndServe writes on the goroutine Run
+	// starts and Stop reads on the goroutine that is terminating the AMF.
+	listenerMu  sync.RWMutex
+	connections sync.Map
 )
+
+func setListener(listener *sctp.SCTPListener) {
+	listenerMu.Lock()
+	sctpListener = listener
+	listenerMu.Unlock()
+}
+
+func currentListener() *sctp.SCTPListener {
+	listenerMu.RLock()
+	defer listenerMu.RUnlock()
+
+	return sctpListener
+}
 
 var handler NGAPHandler
 
@@ -75,17 +91,18 @@ func Run(addresses []string, port int, h NGAPHandler) {
 }
 
 func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
-	if listener, err := sctpConfig.Listen("sctp", addr); err != nil {
+	listener, err := sctpConfig.Listen("sctp", addr)
+	if err != nil {
 		logger.NgapLog.Errorf("failed to listen: %+v", err)
 		return
-	} else {
-		sctpListener = listener
 	}
 
-	logger.NgapLog.Infof("Listen on %s", sctpListener.Addr())
+	setListener(listener)
+
+	logger.NgapLog.Infof("Listen on %s", listener.Addr())
 
 	for {
-		newConn, err := sctpListener.AcceptSCTP()
+		newConn, err := listener.AcceptSCTP()
 		if err != nil {
 			switch err {
 			case syscall.EINTR, syscall.EAGAIN:
@@ -174,13 +191,25 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 
 func Stop() {
 	logger.NgapLog.Infoln("close SCTP server...")
-	if err := sctpListener.Close(); err != nil {
-		logger.NgapLog.Error(err)
-		logger.NgapLog.Infof("SCTP server may not close normally.")
+
+	// The listener is nil if Listen failed or if termination beat the bind, and Stop runs
+	// before the AMF tells its peers it is unavailable, so it must not end the process.
+	if listener := currentListener(); listener != nil {
+		if err := listener.Close(); err != nil {
+			logger.NgapLog.Error(err)
+			logger.NgapLog.Infof("SCTP server may not close normally.")
+		}
+	} else {
+		logger.NgapLog.Infoln("no SCTP listener to close")
 	}
 
-	connections.Range(func(key, value interface{}) bool {
-		conn := value.(net.Conn)
+	// The association is the key of this map; its value is a bool.
+	connections.Range(func(key, _ interface{}) bool {
+		conn, ok := key.(net.Conn)
+		if !ok {
+			logger.NgapLog.Errorf("connection map holds a %T key, cannot close it", key)
+			return true
+		}
 		if err := conn.Close(); err != nil {
 			logger.NgapLog.Error(err)
 		}
