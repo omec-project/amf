@@ -294,10 +294,17 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	smContextCreateData.SetDnn(smContext.Dnn())
 	smContextCreateData.SetServingNfId(context.NfId)
 	smContextCreateData.SetGuami(context.ServedGuamiList[0])
-	// take seving networking plmn from userlocation.Tai
-	if ue.Tai.PlmnId.GetMcc() != "" && ue.Tai.PlmnId.GetMnc() != "" {
-		smContextCreateData.ServingNetwork.SetMcc(ue.Tai.PlmnId.GetMcc())
-		smContextCreateData.ServingNetwork.SetMnc(ue.Tai.PlmnId.GetMnc())
+	// take seving networking plmn from userlocation.Tai.
+	//
+	// Snapshots, not repeated accessor calls: this function is reached from
+	// SmContextStatusNotifyProcedure's goroutine as well as from the UE's own, so the
+	// UE's procedures can write Tai, RatType and Location while it runs. Reading each
+	// twice could serve an Mcc and an Mnc from different locations.
+	tai := ue.GetTai()
+	ratType := ue.GetRatType()
+	if tai.PlmnId.GetMcc() != "" && tai.PlmnId.GetMnc() != "" {
+		smContextCreateData.ServingNetwork.SetMcc(tai.PlmnId.GetMcc())
+		smContextCreateData.ServingNetwork.SetMnc(tai.PlmnId.GetMnc())
 	} else {
 		ue.GmmLog.Warnf("tai is not received from Serving Network, Serving Plmn [Mcc %s, Mnc: %s] is taken from Guami List", context.ServedGuamiList[0].PlmnId.GetMcc(), context.ServedGuamiList[0].PlmnId.GetMnc())
 		smContextCreateData.SetServingNetwork(context.ServedGuamiList[0].PlmnId)
@@ -307,8 +314,8 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	}
 	smContextCreateData.SetN1SmMsg(models.RefToBinaryData{ContentId: n1SmMsgContentId})
 	smContextCreateData.SetAnType(smContext.AccessType())
-	if ue.RatType != "" {
-		smContextCreateData.SetRatType(ue.RatType)
+	if ratType != "" {
+		smContextCreateData.SetRatType(ratType)
 	}
 	// TS 24.501 subclause 4.23.4: "If the use of extended NAS timer for access via a satellite
 	// NG-RAN cell is indicated by the AMF ... the SMF shall calculate the value of the applicable
@@ -323,12 +330,12 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	// nothing.
 	if ue.UsesExtendedNasSmTimers() {
 		smContextCreateData.SetExtendedNasSmTimerInd(true)
-		ue.GmmLog.Infof("signalling the extended NAS SM timer indication to the SMF for RAT type %s", ue.RatType)
+		ue.GmmLog.Infof("signalling the extended NAS SM timer indication to the SMF for RAT type %s", ratType)
 	}
 	// Forward the UE location to the SMF at session creation, mirroring the
 	// SmContextUpdateData paths that already do so. ue.Location is populated
 	// during registration (gmm/handler.go) from NGAP UpdateLocation.
-	smContextCreateData.SetUeLocation(ue.Location)
+	smContextCreateData.SetUeLocation(ue.GetLocation())
 	smContextCreateData.SetUeTimeZone(ue.TimeZone)
 	smContextCreateData.SetSmContextStatusUri(context.GetIPv4Uri() + "/namf-callback/v1/smContextStatus/" +
 		ue.GetGuti() + "/" + strconv.Itoa(int(smContext.PduSessionID())))

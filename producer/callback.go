@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
@@ -162,7 +161,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 					ctx, ue, newSmContext, nil, smMessage)
 				if response != nil {
 					newSmContext.SetSmContextRef(smContextRef)
-					newSmContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
+					newSmContext.SetUserLocation(ue.GetLocation())
 					ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduSessionID)
 					ue.StoreSmContext(pduSessionID, newSmContext)
 					// TODO: handle response(response N2SmInfo to RAN if exists)
@@ -402,7 +401,10 @@ func N1MessageNotifyProcedure(n1MessageNotify models.N1MessageNotifyRequest) *mo
 		ranUe := ran.RanUeFindByRanUeNgapID(int64(registrationCtxtContainer.AnN2ApId))
 
 		ranUe.Location = registrationCtxtContainer.GetUserLocation()
-		amfUe.Location = registrationCtxtContainer.GetUserLocation()
+		// The setter, not a plain assignment: NewAmfUe has already put this UE in the
+		// UE pool, so an SBI handler can find it and read Location while this
+		// goroutine -- one N1MessageNotifyProcedure spawned -- is writing it.
+		amfUe.SetLocation(registrationCtxtContainer.GetUserLocation())
 		ranUe.UeContextRequest = registrationCtxtContainer.GetUeContextRequest()
 		ranUe.OldAmfName = registrationCtxtContainer.InitialAmfName
 

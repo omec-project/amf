@@ -19,18 +19,20 @@ import (
 )
 
 func ensureRatType(ue *amf_context.AmfUe, accessType models.AccessType) models.RatType {
-	if ue.RatType != "" {
-		return ue.RatType
+	if ratType := ue.GetRatType(); ratType != "" {
+		return ratType
 	}
 
+	var ratType models.RatType
 	switch accessType {
 	case models.ACCESSTYPE__3_GPP_ACCESS:
-		ue.RatType = models.RATTYPE_NR
+		ratType = models.RATTYPE_NR
 	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
-		ue.RatType = models.RATTYPE_WLAN
+		ratType = models.RATTYPE_WLAN
 	}
+	ue.SetRatType(ratType)
 
-	return ue.RatType
+	return ratType
 }
 
 func UeCmRegistration(ctx context.Context, ue *amf_context.AmfUe, accessType models.AccessType, initialRegistrationInd bool) (

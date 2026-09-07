@@ -87,11 +87,11 @@ func ProvideLocationInfoProcedure(requestLocInfo models.RequestLocInfo, ueContex
 	ranUe := ue.RanUe[anType]
 	if requestLocInfo.GetReq5gsLoc() || requestLocInfo.GetReqCurrentLoc() {
 		provideLocInfo.SetCurrentLoc(true)
-		provideLocInfo.SetLocation(ue.Location)
+		provideLocInfo.SetLocation(ue.GetLocation())
 	}
 
 	if requestLocInfo.GetReqRatType() {
-		provideLocInfo.SetRatType(ue.RatType)
+		provideLocInfo.SetRatType(ue.GetRatType())
 	}
 
 	if requestLocInfo.GetReqTimeZone() {
