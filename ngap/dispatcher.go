@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/context"
@@ -78,7 +77,7 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 		return
 	}
 
-	metrics.SetNgapLastMessage(time.Now())
+	metrics.SetNgapLastMessage()
 
 	ranUe, ngapId := FetchRanUeContext(ran, pdu)
 	if ngapId != nil {
@@ -171,7 +170,7 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
-	metrics.SetNgapLastMessage(time.Now())
+	metrics.SetNgapLastMessage()
 
 	ranUe, _ := FetchRanUeContext(ran, pdu)
 

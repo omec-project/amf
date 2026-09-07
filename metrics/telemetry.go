@@ -14,7 +14,6 @@ package metrics
 import (
 	"encoding/hex"
 	"net/http"
-	"time"
 	"unicode/utf8"
 
 	"github.com/omec-project/amf/logger"
@@ -60,9 +59,10 @@ func initAmfStats() *AmfStats {
 
 		ngapLastMessage: prometheus.NewGauge(prometheus.GaugeOpts{
 			Name: "amf_ngap_last_message_timestamp_seconds",
-			Help: "Unix time of the last NGAP message this AMF handled, or zero if it has " +
-				"handled none. Exposed as a timestamp rather than an age so that the staleness " +
-				"is computed at query time.",
+			Help: "Unix time of the last NGAP message this AMF received and decoded, or zero " +
+				"if it has received none. It advances at intake, before the message is " +
+				"handled, so a stalled handler behind a live intake still moves it. Exposed " +
+				"as a timestamp rather than an age so that staleness is computed at query time.",
 		}),
 	}
 }
@@ -143,11 +143,12 @@ func SetNgapAssociations(count int) {
 	amfStats.ngapAssociations.Set(float64(count))
 }
 
-// SetNgapLastMessage records that an NGAP message was handled at t. Paired with the
-// association count, a timestamp that stops advancing while the count is non-zero is a
-// different fault from the count going to zero, and the two are worth telling apart.
-func SetNgapLastMessage(t time.Time) {
-	amfStats.ngapLastMessage.Set(float64(t.Unix()))
+// SetNgapLastMessage records that an NGAP message has just been received and decoded.
+// Paired with the association count, a timestamp that stops advancing while the count is
+// non-zero is a different fault from the count going to zero, and the two are worth
+// telling apart.
+func SetNgapLastMessage() {
+	amfStats.ngapLastMessage.SetToCurrentTime()
 }
 
 // IncrementDbWriteDropped increments the counter of UE context writes dropped
