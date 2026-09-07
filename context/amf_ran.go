@@ -285,13 +285,22 @@ func (ran *AmfRan) RanID() string {
 	}
 }
 
+// SetRanStats records the RAN's connection state on the gnb_session_profile gauge.
+//
+// The state is a label, so writing only the series for the state being entered leaves the
+// series for the state being left at whatever it last held: a gNB that connected and then
+// disconnected went on reporting Connected=1 for the life of the process, and a dashboard
+// summing that series could not see the gNB go away. Both series are written on every
+// transition so that each one means what it says.
 func (ran *AmfRan) SetRanStats(state string) {
+	connected, disconnected := uint64(0), uint64(1)
+	if state == RanConnected {
+		connected, disconnected = 1, 0
+	}
+
 	snapshot := ran.statsSnapshot()
 	for _, tai := range snapshot.supportedTAList {
-		if state == RanConnected {
-			metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, state, tai.Tai.Tac, 1)
-		} else {
-			metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, state, tai.Tai.Tac, 0)
-		}
+		metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanConnected, tai.Tai.Tac, connected)
+		metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanDisconnected, tai.Tai.Tac, disconnected)
 	}
 }
