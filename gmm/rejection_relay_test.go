@@ -67,9 +67,11 @@ func relayTestUe() *context.AmfUe {
 // n1TempFile writes payload to a temp file shaped like the one openapi.Decode creates for a
 // multipart binary part.
 //
-// The code under test removes the file when it reads it, but that cannot be relied on here: these
-// are built when the case table is built, so running one case with -run leaves the others' files
-// unread, and a case that fails before the read leaves its own. Removing again is harmless.
+// The code under test closes and removes the file when it reads it, but that cannot be relied on
+// here: these are built when the case table is built, so running one case with -run leaves the
+// others' files unread, and a case that fails before the read leaves its own. Closing and removing
+// again is harmless - a second Close reports the file as already closed without touching a
+// descriptor that by then may belong to another file.
 func n1TempFile(t *testing.T, payload []byte) *os.File {
 	t.Helper()
 
@@ -78,7 +80,10 @@ func n1TempFile(t *testing.T, payload []byte) *os.File {
 		t.Fatalf("creating the temp file: %v", err)
 	}
 	name := f.Name()
-	t.Cleanup(func() { _ = os.Remove(name) })
+	t.Cleanup(func() {
+		_ = f.Close()
+		_ = os.Remove(name)
+	})
 	if _, err = f.Write(payload); err != nil {
 		t.Fatalf("writing the temp file: %v", err)
 	}
