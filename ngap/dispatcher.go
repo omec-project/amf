@@ -77,6 +77,8 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 		return
 	}
 
+	metrics.SetNgapLastMessage()
+
 	ranUe, ngapId := FetchRanUeContext(ran, pdu)
 	if ngapId != nil {
 		//ranUe.Log.Debugln("RanUe RanNgapId AmfNgapId: ", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
@@ -167,6 +169,8 @@ func Dispatch(conn net.Conn, msg []byte) {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
 		return
 	}
+
+	metrics.SetNgapLastMessage()
 
 	ranUe, _ := FetchRanUeContext(ran, pdu)
 

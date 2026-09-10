@@ -15,6 +15,7 @@ import (
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/ngap/v2"
 )
 
@@ -30,10 +31,12 @@ var readTimeout syscall.Timeval = syscall.Timeval{Sec: 2, Usec: 0}
 
 var (
 	sctpListener *sctp.SCTPListener
+	connections  sync.Map
+	countMu      sync.Mutex
+
 	// listenerMu guards sctpListener, which listenAndServe writes on the goroutine Run
 	// starts and Stop reads on the goroutine that is terminating the AMF.
-	listenerMu  sync.RWMutex
-	connections sync.Map
+	listenerMu sync.RWMutex
 )
 
 func setListener(listener *sctp.SCTPListener) {
@@ -184,9 +187,29 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 
 		logger.NgapLog.Infof("[AMF] SCTP Accept from: %+v", newConn.RemoteAddr())
 		connections.Store(newConn, true)
+		reportAssociationCount()
 
 		go handleConnection(newConn, readBufSize, handler)
 	}
+}
+
+// reportAssociationCount publishes how many associations the listener holds. The map is
+// the authority for that number: AmfRanPool is keyed three ways — by connection, by remote
+// address and by GnbId — so its length counts keys rather than associations.
+//
+// The count and the publish are taken under one lock so that two associations changing at
+// once cannot leave the gauge holding the earlier of the two counts until the next event.
+func reportAssociationCount() {
+	countMu.Lock()
+	defer countMu.Unlock()
+
+	count := 0
+	connections.Range(func(_, _ any) bool {
+		count++
+		return true
+	})
+
+	metrics.SetNgapAssociations(count)
 }
 
 func Stop() {
@@ -224,6 +247,7 @@ func handleConnection(conn *sctp.SCTPConn, bufsize uint32, handler NGAPHandler) 
 
 	defer func() {
 		connections.Delete(conn)
+		reportAssociationCount()
 
 		// Notify the NGAP dispatcher that this RAN connection has closed so that
 		// its AmfRan entry is removed from AmfRanPool
