@@ -48,6 +48,34 @@ func findRanUeByAmfNgapID(ran *context.AmfRan, aMFUENGAPID *ngapType.AMFUENGAPID
 	return context.AMF_Self().RanUeFindByAmfUeNgapID(aMFUENGAPID.Value)
 }
 
+// recordUnknownSmContext records a RAN message that named a PDU session this AMF holds no SM
+// context for. Every place in this file that reaches that condition comes through here, so that
+// what the AMF does about it is decided once.
+//
+// It deliberately does not try to resolve the condition, because neither route is open. The
+// session management function cannot be told: its URI lives in the SM context that is missing.
+// And the session cannot be released RAN-side by this element alone: TS 38.413 clause 9.2.1.3
+// carries the PDU Session Resource Release Command Transfer as mandatory in that message, and
+// clause 9.3.4.12 declares that IE transparent to the AMF - so the AMF relays one the SMF
+// authored rather than writing its own.
+//
+// So the obligation is to leave the condition discoverable instead of dropping it: the counter
+// says how often and for which message, and the log line names the UE and the session. A RAN
+// holding a tunnel and an SMF holding a pending session are then both findable, which is what
+// this element can honestly offer.
+func recordUnknownSmContext(ranUe *context.RanUe, message string, pduSessionID int32) {
+	metrics.IncrementUnknownSmContext(message)
+
+	// Nil-safe on purpose: this function exists because a missing pointer was dropped silently,
+	// and it must not become a second one.
+	log := logger.NgapLog
+	if ranUe != nil && ranUe.Log != nil {
+		log = ranUe.Log
+	}
+
+	log.Errorf("SmContext[PDU Session ID:%d] not found, named by %s", pduSessionID, message)
+}
+
 func FetchRanUeContext(ran *context.AmfRan, message *ngapType.NGAPPDU) (*context.RanUe, *ngapType.AMFUENGAPID) {
 	amfSelf := context.AMF_Self()
 
@@ -1161,7 +1189,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 					pduSessionID := int32(pduSessionReourceItem.PDUSessionID.Value)
 					smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 					if !ok {
-						ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+						recordUnknownSmContext(ranUe, "UEContextReleaseComplete", pduSessionID)
 						continue
 					}
 					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, cause)
@@ -1340,7 +1368,7 @@ func HandlePDUSessionResourceReleaseResponse(ctx ctxt.Context, ran *context.AmfR
 			transfer := item.PDUSessionResourceReleaseResponseTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				recordUnknownSmContext(ranUe, "PDUSessionResourceReleaseResponse", pduSessionID)
 				continue
 			}
 			_, responseErr, problemDetail, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -1830,7 +1858,7 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 				transfer := item.PDUSessionResourceSetupResponseTransfer
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
-					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					recordUnknownSmContext(ranUe, "PDUSessionResourceSetupResponse", pduSessionID)
 					continue
 				}
 				response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -1868,7 +1896,7 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 				transfer := item.PDUSessionResourceSetupUnsuccessfulTransfer
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
-					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					recordUnknownSmContext(ranUe, "PDUSessionResourceSetupResponse", pduSessionID)
 					continue
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -2000,7 +2028,7 @@ func HandlePDUSessionResourceModifyResponse(ctx ctxt.Context, ran *context.AmfRa
 				transfer := item.PDUSessionResourceModifyResponseTransfer
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
-					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					recordUnknownSmContext(ranUe, "PDUSessionResourceModifyResponse", pduSessionID)
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 					models.N2SMINFOTYPE_PDU_RES_MOD_RSP, transfer)
@@ -2023,7 +2051,7 @@ func HandlePDUSessionResourceModifyResponse(ctx ctxt.Context, ran *context.AmfRa
 				transfer := item.PDUSessionResourceModifyUnsuccessfulTransfer
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
-					ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+					recordUnknownSmContext(ranUe, "PDUSessionResourceModifyResponse", pduSessionID)
 				}
 				// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -2145,7 +2173,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 		transfer := item.PDUSessionResourceNotifyTransfer
 		smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 		if !ok {
-			ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+			recordUnknownSmContext(ranUe, "PDUSessionResourceNotify", pduSessionID)
 		}
 		response, errResponse, problemDetail, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 			models.N2SMINFOTYPE_PDU_RES_NTY, transfer)
@@ -2209,7 +2237,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 			transfer := item.PDUSessionResourceNotifyReleasedTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				recordUnknownSmContext(ranUe, "PDUSessionResourceNotify", pduSessionID)
 			}
 			response, errResponse, problemDetail, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 				models.N2SMINFOTYPE_PDU_RES_NTY_REL, transfer)
@@ -2371,7 +2399,7 @@ func HandlePDUSessionResourceModifyIndication(ctx ctxt.Context, ran *context.Amf
 		transfer := item.PDUSessionResourceModifyIndicationTransfer
 		smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 		if !ok {
-			ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+			recordUnknownSmContext(ranUe, "PDUSessionResourceModifyIndication", pduSessionID)
 			continue
 		}
 		response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -2487,7 +2515,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 			transfer := item.PDUSessionResourceSetupResponseTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				recordUnknownSmContext(ranUe, "InitialContextSetupResponse", pduSessionID)
 				return
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
@@ -2526,7 +2554,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 			transfer := item.PDUSessionResourceSetupUnsuccessfulTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				recordUnknownSmContext(ranUe, "InitialContextSetupResponse", pduSessionID)
 				return
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
@@ -2651,7 +2679,10 @@ func HandleInitialContextSetupFailure(ctx ctxt.Context, ran *context.AmfRan, mes
 			transfer := item.PDUSessionResourceSetupUnsuccessfulTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found. No need to send UpdateSmContext message to SMF", pduSessionID)
+				// Expected here rather than a fault: the context setup failed, so there
+				// is no established session to reconcile and nothing to tell the SMF.
+				// Counted under this message so it can be excluded from an alert.
+				recordUnknownSmContext(ranUe, "InitialContextSetupFailure", pduSessionID)
 				continue
 			}
 			_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -2766,7 +2797,7 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 					pduSessionID := int32(pduSessionReourceItem.PDUSessionID.Value)
 					smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 					if !ok {
-						ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+						recordUnknownSmContext(ranUe, "UEContextReleaseRequest", pduSessionID)
 						continue
 					}
 					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, causeAll)
@@ -3152,7 +3183,7 @@ func HandleHandoverNotify(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		for _, pduSessionid := range targetUe.SuccessPduSessionId {
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionid)
 			if !ok {
-				sourceUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionid)
+				recordUnknownSmContext(sourceUe, "HandoverNotify", pduSessionid)
 			}
 			_, _, _, err := consumer.SendUpdateSmContextN2HandoverComplete(ctx, amfUe, smContext, "", nil)
 			if err != nil {
@@ -3295,7 +3326,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			transfer := item.PathSwitchRequestTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionID)
+				recordUnknownSmContext(ranUe, "PathSwitchRequest", pduSessionID)
 			}
 			response, errResponse, _, err := consumer.SendUpdateSmContextXnHandover(ctx, amfUe, smContext,
 				models.N2SMINFOTYPE_PATH_SWITCH_REQ, transfer)
@@ -3332,7 +3363,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			transfer := item.PathSwitchRequestSetupFailedTransfer
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
-				ranUe.Log.Errorf("SmContext[PDU Session ID: %d] not found", pduSessionID)
+				recordUnknownSmContext(ranUe, "PathSwitchRequest", pduSessionID)
 			}
 			response, errResponse, _, err := consumer.SendUpdateSmContextXnHandoverFailed(ctx, amfUe, smContext,
 				models.N2SMINFOTYPE_PATH_SWITCH_SETUP_FAIL, transfer)
