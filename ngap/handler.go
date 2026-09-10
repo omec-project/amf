@@ -63,6 +63,11 @@ func findRanUeByAmfNgapID(ran *context.AmfRan, aMFUENGAPID *ngapType.AMFUENGAPID
 // says how often and for which message, and the log line names the UE and the session. A RAN
 // holding a tunnel and an SMF holding a pending session are then both findable, which is what
 // this element can honestly offer.
+//
+// A caller must not carry on to the session management function with the context it just failed
+// to find: SendUpdateSmContextRequest reads the SMF's URI out of it while opening its trace
+// span, before it builds anything, so a nil one ends the process rather than the message. No
+// caller does.
 func recordUnknownSmContext(ranUe *context.RanUe, message string, pduSessionID int32) {
 	metrics.IncrementUnknownSmContext(message)
 
@@ -2029,6 +2034,7 @@ func HandlePDUSessionResourceModifyResponse(ctx ctxt.Context, ran *context.AmfRa
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
 					recordUnknownSmContext(ranUe, "PDUSessionResourceModifyResponse", pduSessionID)
+					continue
 				}
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 					models.N2SMINFOTYPE_PDU_RES_MOD_RSP, transfer)
@@ -2052,6 +2058,7 @@ func HandlePDUSessionResourceModifyResponse(ctx ctxt.Context, ran *context.AmfRa
 				smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 				if !ok {
 					recordUnknownSmContext(ranUe, "PDUSessionResourceModifyResponse", pduSessionID)
+					continue
 				}
 				// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 				_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -2174,6 +2181,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 		smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 		if !ok {
 			recordUnknownSmContext(ranUe, "PDUSessionResourceNotify", pduSessionID)
+			continue
 		}
 		response, errResponse, problemDetail, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 			models.N2SMINFOTYPE_PDU_RES_NTY, transfer)
@@ -2238,6 +2246,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				recordUnknownSmContext(ranUe, "PDUSessionResourceNotify", pduSessionID)
+				continue
 			}
 			response, errResponse, problemDetail, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
 				models.N2SMINFOTYPE_PDU_RES_NTY_REL, transfer)
@@ -3184,6 +3193,7 @@ func HandleHandoverNotify(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionid)
 			if !ok {
 				recordUnknownSmContext(sourceUe, "HandoverNotify", pduSessionid)
+				continue
 			}
 			_, _, _, err := consumer.SendUpdateSmContextN2HandoverComplete(ctx, amfUe, smContext, "", nil)
 			if err != nil {
@@ -3327,6 +3337,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				recordUnknownSmContext(ranUe, "PathSwitchRequest", pduSessionID)
+				continue
 			}
 			response, errResponse, _, err := consumer.SendUpdateSmContextXnHandover(ctx, amfUe, smContext,
 				models.N2SMINFOTYPE_PATH_SWITCH_REQ, transfer)
@@ -3364,6 +3375,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				recordUnknownSmContext(ranUe, "PathSwitchRequest", pduSessionID)
+				continue
 			}
 			response, errResponse, _, err := consumer.SendUpdateSmContextXnHandoverFailed(ctx, amfUe, smContext,
 				models.N2SMINFOTYPE_PATH_SWITCH_SETUP_FAIL, transfer)

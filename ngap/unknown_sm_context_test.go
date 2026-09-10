@@ -204,3 +204,82 @@ func TestReleaseResponseIdentifiesASessionTheAmfCannotResolve(t *testing.T) {
 		t.Errorf("counter rose by %v for a release response naming one unresolvable session, want 1", got)
 	}
 }
+
+func notifyNaming(ranUe *context.RanUe, pduSessionID int64) *ngapType.NGAPPDU {
+	list := ngapType.PDUSessionResourceNotifyList{
+		List: []ngapType.PDUSessionResourceNotifyItem{
+			{
+				PDUSessionID:                     ngapType.PDUSessionID{Value: pduSessionID},
+				PDUSessionResourceNotifyTransfer: []byte{},
+			},
+		},
+	}
+
+	return &ngapType.NGAPPDU{
+		Present: ngapType.NGAPPDUPresentInitiatingMessage,
+		InitiatingMessage: &ngapType.InitiatingMessage{
+			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodePDUSessionResourceNotify},
+			Value: ngapType.InitiatingMessageValue{
+				Present: ngapType.InitiatingMessagePresentPDUSessionResourceNotify,
+				PDUSessionResourceNotify: &ngapType.PDUSessionResourceNotify{
+					ProtocolIEs: ngapType.ProtocolIEContainerPDUSessionResourceNotifyIEs{
+						List: []ngapType.PDUSessionResourceNotifyIEs{
+							{
+								Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDAMFUENGAPID},
+								Value: ngapType.PDUSessionResourceNotifyIEsValue{
+									Present:     ngapType.PDUSessionResourceNotifyIEsPresentAMFUENGAPID,
+									AMFUENGAPID: &ngapType.AMFUENGAPID{Value: ranUe.AmfUeNgapId},
+								},
+							},
+							{
+								Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDRANUENGAPID},
+								Value: ngapType.PDUSessionResourceNotifyIEsValue{
+									Present:     ngapType.PDUSessionResourceNotifyIEsPresentRANUENGAPID,
+									RANUENGAPID: &ngapType.RANUENGAPID{Value: ranUe.RanUeNgapId},
+								},
+							},
+							{
+								Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDPDUSessionResourceNotifyList},
+								Value: ngapType.PDUSessionResourceNotifyIEsValue{
+									Present:                      ngapType.PDUSessionResourceNotifyIEsPresentPDUSessionResourceNotifyList,
+									PDUSessionResourceNotifyList: &list,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// Seven of the sixteen sites recorded the missing context and then handed it to the session
+// management function consumer anyway. Its first act is to read the SMF's URI out of the
+// context, so the nil pointer ended the process - and the AMF's NGAP paths run with no
+// recover(), which means every UE on every gNB, not just this session. The recording is worth
+// little if the AMF does not survive to be scraped.
+func TestNotifyForAnUnresolvableSessionDoesNotEndTheProcess(t *testing.T) {
+	self := context.AMF_Self()
+
+	ran := context.NewAmfRanDefault()
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+
+	ranUe, err := ran.NewRanUe(703)
+	if err != nil {
+		t.Fatalf("NewRanUe() = %v", err)
+	}
+	ranUe.Log = logger.NgapLog
+
+	amfUe := self.NewAmfUe("")
+	amfUe.AttachRanUe(ranUe)
+
+	before := unknownSmContextCount(t, "PDUSessionResourceNotify")
+
+	// A panic here fails the test by unwinding it; the assertion below is for the quieter
+	// failure where the session is skipped without being recorded.
+	HandlePDUSessionResourceNotify(ctxt.Background(), ran, notifyNaming(ranUe, 7))
+
+	if got := unknownSmContextCount(t, "PDUSessionResourceNotify") - before; got != 1 {
+		t.Errorf("counter rose by %v for a notify naming one unresolvable session, want 1", got)
+	}
+}
