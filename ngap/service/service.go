@@ -52,6 +52,20 @@ func currentListener() *sctp.SCTPListener {
 	return sctpListener
 }
 
+// takeListener returns the listener and clears it in the same acquisition, so a second Stop
+// has nothing left to close. sctp.SCTPListener.Close is a bare syscall.Close on a descriptor
+// it does not invalidate, unlike a net.Listener, so closing the same one twice would close
+// whatever descriptor number the kernel had handed out in between.
+func takeListener() *sctp.SCTPListener {
+	listenerMu.Lock()
+	defer listenerMu.Unlock()
+
+	listener := sctpListener
+	sctpListener = nil
+
+	return listener
+}
+
 var handler NGAPHandler
 
 var sctpConfig sctp.SocketConfig = sctp.SocketConfig{
@@ -215,9 +229,10 @@ func reportAssociationCount() {
 func Stop() {
 	logger.NgapLog.Infoln("close SCTP server...")
 
-	// The listener is nil if Listen failed or if termination beat the bind, and Stop runs
-	// before the AMF tells its peers it is unavailable, so it must not end the process.
-	if listener := currentListener(); listener != nil {
+	// The listener is nil if Listen failed, if termination beat the bind, or if Stop has
+	// already run, and Stop runs before the AMF tells its peers it is unavailable, so it
+	// must not end the process.
+	if listener := takeListener(); listener != nil {
 		if err := listener.Close(); err != nil {
 			logger.NgapLog.Error(err)
 			logger.NgapLog.Infof("SCTP server may not close normally.")

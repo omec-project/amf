@@ -146,6 +146,16 @@ func TestStopTearsDownTheListener(t *testing.T) {
 	// closing the descriptor, so the handler's blocked read returns promptly; measured at
 	// about 14ms, against the 10s this allows.
 	awaitTrue(t, "the association to be closed", func() bool { return openAssociations() == 0 })
+
+	if listener := currentListener(); listener != nil {
+		t.Errorf("Stop left the listener in place: %v", listener.Addr())
+	}
+
+	// Termination is entered once today, but a second Stop must find nothing to close:
+	// sctp.SCTPListener.Close is a bare syscall.Close on a descriptor it does not
+	// invalidate, so closing the same one again could close whatever descriptor number
+	// the kernel had handed out in between.
+	Stop()
 }
 
 // Termination can beat the bind, and Listen can fail outright, in which case there is no
