@@ -333,7 +333,11 @@ func ModifyAMFEventSubscriptionProcedure(
 }
 
 func subReports(ue *context.AmfUe, subscriptionId string) {
-	subscriptionInfo, _ := ue.GetEventSubscription(subscriptionId)
+	subscriptionInfo, ok := ue.GetEventSubscription(subscriptionId)
+	if !ok {
+		return
+	}
+
 	remainReport := subscriptionInfo.RemainReports
 	if remainReport == nil {
 		return

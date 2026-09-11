@@ -58,6 +58,10 @@ func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
 		func() { _ = ue.RegistrationAreaLen(anType) },
 		func() { _, _ = ue.GetReleaseCause(anType) },
 		func() { _, _ = ue.GetEventSubscription("sub") },
+		func() {
+			for range ue.GetEventSubscriptions() { //nolint:revive // the range is the test
+			}
+		},
 		func() { _ = ue.GetOnGoing(anType) },
 		func() { _ = ue.GetRanUe(anType) },
 		func() { _ = ue.InAllowedNssai(models.Snssai{}, anType) },
