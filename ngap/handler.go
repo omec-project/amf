@@ -2525,7 +2525,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				recordUnknownSmContext(ranUe, "InitialContextSetupResponse", pduSessionID)
-				return
+				continue
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 			response, errResponse, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -2564,7 +2564,7 @@ func HandleInitialContextSetupResponse(ctx ctxt.Context, ran *context.AmfRan, me
 			smContext, ok := amfUe.SmContextFindByPDUSessionID(pduSessionID)
 			if !ok {
 				recordUnknownSmContext(ranUe, "InitialContextSetupResponse", pduSessionID)
-				return
+				continue
 			}
 			// response, _, _, err := consumer.SendUpdateSmContextN2Info(amfUe, pduSessionID,
 			_, _, _, err := consumer.SendUpdateSmContextN2Info(ctx, amfUe, smContext,
@@ -3530,36 +3530,40 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 			pduSessionID := item.PDUSessionID.Value
 			transfer := item.HandoverRequestAcknowledgeTransfer
 			pduSessionId := int32(pduSessionID)
-			if smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId); exist {
-				response, errResponse, problemDetails, err := consumer.SendUpdateSmContextN2HandoverPrepared(ctx, amfUe,
-					smContext, models.N2SMINFOTYPE_HANDOVER_REQ_ACK, transfer)
+			smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId)
+			if !exist {
+				recordUnknownSmContext(targetUe, "HandoverRequestAcknowledge", pduSessionId)
+				continue
+			}
+
+			response, errResponse, problemDetails, err := consumer.SendUpdateSmContextN2HandoverPrepared(ctx, amfUe,
+				smContext, models.N2SMINFOTYPE_HANDOVER_REQ_ACK, transfer)
+			if err != nil {
+				targetUe.Log.Errorf("send HandoverRequestAcknowledgeTransfer error: %v", err)
+			}
+			if problemDetails != nil {
+				targetUe.Log.Warnf("ProblemDetails[status: %d, Cause: %s]", problemDetails.GetStatus(), problemDetails.GetCause())
+			}
+			if response != nil && response.GetBinaryDataN2SmInformation() != nil {
+				handoverItem := ngapType.PDUSessionResourceHandoverItem{}
+				handoverItem.PDUSessionID = item.PDUSessionID
+				binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 				if err != nil {
-					targetUe.Log.Errorf("send HandoverRequestAcknowledgeTransfer error: %v", err)
+					targetUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
 				}
-				if problemDetails != nil {
-					targetUe.Log.Warnf("ProblemDetails[status: %d, Cause: %s]", problemDetails.GetStatus(), problemDetails.GetCause())
+				handoverItem.HandoverCommandTransfer = binaryDataN2SmInformation
+				pduSessionResourceHandoverList.List = append(pduSessionResourceHandoverList.List, handoverItem)
+				targetUe.SuccessPduSessionId = append(targetUe.SuccessPduSessionId, pduSessionId)
+			}
+			if errResponse != nil && errResponse.GetBinaryDataN2SmInformation() != nil {
+				releaseItem := ngapType.PDUSessionResourceToReleaseItemHOCmd{}
+				releaseItem.PDUSessionID = item.PDUSessionID
+				binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
+				if err != nil {
+					targetUe.Log.Errorf("readAll from errResponse.BinaryDataN2SmInformation error: %v", err)
 				}
-				if response != nil && response.GetBinaryDataN2SmInformation() != nil {
-					handoverItem := ngapType.PDUSessionResourceHandoverItem{}
-					handoverItem.PDUSessionID = item.PDUSessionID
-					binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
-					if err != nil {
-						targetUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
-					}
-					handoverItem.HandoverCommandTransfer = binaryDataN2SmInformation
-					pduSessionResourceHandoverList.List = append(pduSessionResourceHandoverList.List, handoverItem)
-					targetUe.SuccessPduSessionId = append(targetUe.SuccessPduSessionId, pduSessionId)
-				}
-				if errResponse != nil && errResponse.GetBinaryDataN2SmInformation() != nil {
-					releaseItem := ngapType.PDUSessionResourceToReleaseItemHOCmd{}
-					releaseItem.PDUSessionID = item.PDUSessionID
-					binaryDataN2SmInformation, err := util.ReadAndCleanupBinaryTempFile(errResponse.GetBinaryDataN2SmInformation())
-					if err != nil {
-						targetUe.Log.Errorf("readAll from errResponse.BinaryDataN2SmInformation error: %v", err)
-					}
-					releaseItem.HandoverPreparationUnsuccessfulTransfer = binaryDataN2SmInformation
-					pduSessionResourceToReleaseList.List = append(pduSessionResourceToReleaseList.List, releaseItem)
-				}
+				releaseItem.HandoverPreparationUnsuccessfulTransfer = binaryDataN2SmInformation
+				pduSessionResourceToReleaseList.List = append(pduSessionResourceToReleaseList.List, releaseItem)
 			}
 		}
 	}
@@ -3569,15 +3573,19 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 			pduSessionID := item.PDUSessionID.Value
 			transfer := item.HandoverResourceAllocationUnsuccessfulTransfer
 			pduSessionId := int32(pduSessionID)
-			if smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId); exist {
-				_, _, problemDetails, err := consumer.SendUpdateSmContextN2HandoverPrepared(ctx, amfUe, smContext,
-					models.N2SMINFOTYPE_HANDOVER_RES_ALLOC_FAIL, transfer)
-				if err != nil {
-					targetUe.Log.Errorf("Send HandoverResourceAllocationUnsuccessfulTransfer error: %v", err)
-				}
-				if problemDetails != nil {
-					targetUe.Log.Warnf("ProblemDetails[status: %d, Cause: %s]", problemDetails.Status, problemDetails.Cause)
-				}
+			smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId)
+			if !exist {
+				recordUnknownSmContext(targetUe, "HandoverRequestAcknowledge", pduSessionId)
+				continue
+			}
+
+			_, _, problemDetails, err := consumer.SendUpdateSmContextN2HandoverPrepared(ctx, amfUe, smContext,
+				models.N2SMINFOTYPE_HANDOVER_RES_ALLOC_FAIL, transfer)
+			if err != nil {
+				targetUe.Log.Errorf("Send HandoverResourceAllocationUnsuccessfulTransfer error: %v", err)
+			}
+			if problemDetails != nil {
+				targetUe.Log.Warnf("ProblemDetails[status: %d, Cause: %s]", problemDetails.Status, problemDetails.Cause)
 			}
 		}
 	}
@@ -3884,23 +3892,27 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		var pduSessionReqList ngapType.PDUSessionResourceSetupListHOReq
 		for _, pDUSessionResourceHoItem := range pDUSessionResourceListHORqd.List {
 			pduSessionId := int32(pDUSessionResourceHoItem.PDUSessionID.Value)
-			if smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId); exist {
-				response, _, _, err := consumer.SendUpdateSmContextN2HandoverPreparing(ctx, amfUe, smContext,
-					models.N2SMINFOTYPE_HANDOVER_REQUIRED, pDUSessionResourceHoItem.HandoverRequiredTransfer, "", &targetId)
+			smContext, exist := amfUe.SmContextFindByPDUSessionID(pduSessionId)
+			if !exist {
+				recordUnknownSmContext(sourceUe, "HandoverRequired", pduSessionId)
+				continue
+			}
+
+			response, _, _, err := consumer.SendUpdateSmContextN2HandoverPreparing(ctx, amfUe, smContext,
+				models.N2SMINFOTYPE_HANDOVER_REQUIRED, pDUSessionResourceHoItem.HandoverRequiredTransfer, "", &targetId)
+			if err != nil {
+				sourceUe.Log.Errorf("consumer.SendUpdateSmContextN2HandoverPreparing Error: %+v", err)
+			}
+			if response == nil {
+				sourceUe.Log.Errorf("SendUpdateSmContextN2HandoverPreparing Error for PduSessionId[%d]", pduSessionId)
+				continue
+			} else if response.GetBinaryDataN2SmInformation() != nil {
+				binaryData, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
 				if err != nil {
-					sourceUe.Log.Errorf("consumer.SendUpdateSmContextN2HandoverPreparing Error: %+v", err)
+					sourceUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
 				}
-				if response == nil {
-					sourceUe.Log.Errorf("SendUpdateSmContextN2HandoverPreparing Error for PduSessionId[%d]", pduSessionId)
-					continue
-				} else if response.GetBinaryDataN2SmInformation() != nil {
-					binaryData, err := util.ReadAndCleanupBinaryTempFile(response.GetBinaryDataN2SmInformation())
-					if err != nil {
-						sourceUe.Log.Errorf("readAll from response.BinaryDataN2SmInformation error: %v", err)
-					}
-					ngap_message.AppendPDUSessionResourceSetupListHOReq(&pduSessionReqList, pduSessionId,
-						smContext.Snssai(), binaryData)
-				}
+				ngap_message.AppendPDUSessionResourceSetupListHOReq(&pduSessionReqList, pduSessionId,
+					smContext.Snssai(), binaryData)
 			}
 		}
 		if len(pduSessionReqList.List) == 0 {
