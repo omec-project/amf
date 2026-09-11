@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ishidawataru/sctp"
+	"github.com/omec-project/amf/context"
 )
 
 // withCleanState runs a case against a known listener state and puts back whatever the
@@ -91,6 +92,18 @@ func TestHealthyWhileShuttingDown(t *testing.T) {
 	}
 }
 
+// withSctpLb runs a case against a known deployment mode and puts back what the context held.
+func withSctpLb(t *testing.T, enabled bool) {
+	t.Helper()
+
+	self := context.AMF_Self()
+	was := self.EnableSctpLb
+
+	t.Cleanup(func() { self.EnableSctpLb = was })
+
+	self.EnableSctpLb = enabled
+}
+
 // The fault above reached from the other side: an AMF whose listener never bound has served
 // nobody and never can, and Run starts exactly one listenAndServe with nothing to retry it.
 // Until this it answered the liveness endpoint with "no NGAP association has been served
@@ -102,6 +115,7 @@ func TestHealthyWhileShuttingDown(t *testing.T) {
 // bindFailed itself cannot fail if the bind path never stores it.
 func TestUnhealthyWhenTheListenerNeverBound(t *testing.T) {
 	withCleanState(t)
+	withSctpLb(t, false)
 
 	// TEST-NET-1, which is not a local address, so the bind cannot succeed.
 	listenAndServe(&sctp.SCTPAddr{
@@ -120,5 +134,29 @@ func TestUnhealthyWhenTheListenerNeverBound(t *testing.T) {
 
 	if reason == "" {
 		t.Error("Healthy() gave no reason for being unhealthy, which is what a probe's logs need")
+	}
+}
+
+// Run is called whether or not the SCTP load balancer fronts this AMF, so an AMF that serves
+// gNB traffic over gRPC from sctplb still opens this listener and then never uses it. A failed
+// bind there says nothing about whether that AMF can serve, and restarting it for an unused
+// socket would be the false positive this signal exists to avoid. What such a deployment's
+// health does rest on - the gRPC listener - is not represented here at all, which is why this
+// only declines to claim a fault rather than claiming health on its behalf.
+func TestALoadBalancedAmfIsNotUnhealthyForAnUnusedListener(t *testing.T) {
+	withCleanState(t)
+	withSctpLb(t, true)
+
+	listenAndServe(&sctp.SCTPAddr{
+		IPAddrs: []net.IPAddr{{IP: net.ParseIP("192.0.2.1")}},
+		Port:    38412,
+	}, NGAPHandler{})
+
+	if !bindFailed.Load() {
+		t.Fatal("listenAndServe returned without recording the bind failure")
+	}
+
+	if healthy, reason := Healthy(); !healthy {
+		t.Errorf("Healthy() = false (%s) for an AMF whose gNBs arrive through sctplb, want true", reason)
 	}
 }

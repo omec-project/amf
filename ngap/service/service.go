@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"github.com/ishidawataru/sctp"
+	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/ngap/v2"
@@ -47,9 +48,9 @@ var (
 	// its associations does not read as the fault this detects.
 	shuttingDown atomic.Bool
 	// bindFailed records that the listener could not be created at all. Run starts exactly
-	// one listenAndServe and nothing retries it, so the failure is terminal: this AMF will
-	// never serve anyone. Without it such an AMF answers the liveness endpoint exactly as a
-	// healthy one still waiting for its first gNB does.
+	// one listenAndServe and nothing retries it, so the failure is terminal for this socket.
+	// Whether it is terminal for the *AMF* depends on which path serves gNB traffic, which is
+	// why Healthy consults the deployment mode rather than this flag alone.
 	bindFailed atomic.Bool
 )
 
@@ -277,7 +278,13 @@ func Healthy() (bool, string) {
 	// First, because nothing that follows can make it untrue: an AMF that never bound has
 	// served nobody and never will, which is the same fault as one that has stopped
 	// serving, reached from the other side.
-	case bindFailed.Load():
+	//
+	// Only where this socket is what gNBs reach, though. Run is called unconditionally, so
+	// an AMF fronted by the SCTP load balancer also opens this listener and then never uses
+	// it - associations are terminated by sctplb and reach this AMF over gRPC. Failing that
+	// unused bind says nothing about whether such an AMF can serve, and restarting it for
+	// that would be the false positive this signal exists to avoid.
+	case bindFailed.Load() && !context.AMF_Self().EnableSctpLb:
 		return false, "the NGAP listener never bound"
 	case !served.Load():
 		return true, "no NGAP association has been served yet"
