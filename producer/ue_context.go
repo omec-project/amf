@@ -633,7 +633,13 @@ func registrationStatusUpdateProcedure(ctx ctxt.Context, ueContextID string, ueR
 			}
 			smContext, ok := ue.SmContextFindByPDUSessionID(pduSessionId)
 			if !ok {
-				ue.ProducerLog.Errorf("SmContext[PDU Session ID:%d] not found", pduSessionId)
+				// There is nothing to release, and nothing to release it with: the SMF's URI
+				// lives in the SM context that is missing, and SendReleaseSmContextRequest
+				// reads it before it builds anything. This procedure runs on the UE's
+				// event-channel goroutine, which has no recover, so handing the nil pointer
+				// on would end the process rather than the request.
+				ue.ProducerLog.Errorf("SmContext[PDU Session ID:%d] not found, nothing to release", pduSessionId)
+				continue
 			}
 			problem, err := consumer.SendReleaseSmContextRequest(ue, smContext, causeAll, "", nil)
 			if problem != nil {
