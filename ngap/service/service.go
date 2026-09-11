@@ -46,6 +46,11 @@ var (
 	// shuttingDown records that Stop was called, so that an orderly termination closing
 	// its associations does not read as the fault this detects.
 	shuttingDown atomic.Bool
+	// bindFailed records that the listener could not be created at all. Run starts exactly
+	// one listenAndServe and nothing retries it, so the failure is terminal: this AMF will
+	// never serve anyone. Without it such an AMF answers the liveness endpoint exactly as a
+	// healthy one still waiting for its first gNB does.
+	bindFailed atomic.Bool
 )
 
 func setListener(listener *sctp.SCTPListener) {
@@ -120,6 +125,8 @@ func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
 	listener, err := sctpConfig.Listen("sctp", addr)
 	if err != nil {
 		logger.NgapLog.Errorf("failed to listen: %+v", err)
+		bindFailed.Store(true)
+
 		return
 	}
 
@@ -267,6 +274,11 @@ func associationCount() int {
 // latches, and so is never reported unhealthy by it.
 func Healthy() (bool, string) {
 	switch {
+	// First, because nothing that follows can make it untrue: an AMF that never bound has
+	// served nobody and never will, which is the same fault as one that has stopped
+	// serving, reached from the other side.
+	case bindFailed.Load():
+		return false, "the NGAP listener never bound"
 	case !served.Load():
 		return true, "no NGAP association has been served yet"
 	case shuttingDown.Load():

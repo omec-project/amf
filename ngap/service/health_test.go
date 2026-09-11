@@ -6,18 +6,21 @@ package service
 import (
 	"net"
 	"testing"
+
+	"github.com/ishidawataru/sctp"
 )
 
 // withCleanState runs a case against a known listener state and puts back whatever the
-// package held, so the four cases below stay independent of their order.
+// package held, so the cases below stay independent of their order.
 func withCleanState(t *testing.T) {
 	t.Helper()
 
-	wasServed, wasShuttingDown := served.Load(), shuttingDown.Load()
+	wasServed, wasShuttingDown, wasBindFailed := served.Load(), shuttingDown.Load(), bindFailed.Load()
 
 	t.Cleanup(func() {
 		served.Store(wasServed)
 		shuttingDown.Store(wasShuttingDown)
+		bindFailed.Store(wasBindFailed)
 		connections.Range(func(key, _ any) bool {
 			connections.Delete(key)
 			return true
@@ -26,6 +29,7 @@ func withCleanState(t *testing.T) {
 
 	served.Store(false)
 	shuttingDown.Store(false)
+	bindFailed.Store(false)
 	connections.Range(func(key, _ any) bool {
 		connections.Delete(key)
 		return true
@@ -84,5 +88,37 @@ func TestHealthyWhileShuttingDown(t *testing.T) {
 
 	if healthy, reason := Healthy(); !healthy {
 		t.Errorf("Healthy() = false (%s) during shutdown, want true", reason)
+	}
+}
+
+// The fault above reached from the other side: an AMF whose listener never bound has served
+// nobody and never can, and Run starts exactly one listenAndServe with nothing to retry it.
+// Until this it answered the liveness endpoint with "no NGAP association has been served
+// yet" - the same answer a healthy AMF waiting for its first gNB gives - so from outside the
+// two were indistinguishable, and the element that could never serve was the one being left
+// alone.
+//
+// This drives listenAndServe rather than setting the flag, because a test that stores
+// bindFailed itself cannot fail if the bind path never stores it.
+func TestUnhealthyWhenTheListenerNeverBound(t *testing.T) {
+	withCleanState(t)
+
+	// TEST-NET-1, which is not a local address, so the bind cannot succeed.
+	listenAndServe(&sctp.SCTPAddr{
+		IPAddrs: []net.IPAddr{{IP: net.ParseIP("192.0.2.1")}},
+		Port:    38412,
+	}, NGAPHandler{})
+
+	if !bindFailed.Load() {
+		t.Fatal("listenAndServe returned without recording the bind failure")
+	}
+
+	healthy, reason := Healthy()
+	if healthy {
+		t.Errorf("Healthy() = true (%s) after the listener never bound, want false", reason)
+	}
+
+	if reason == "" {
+		t.Error("Healthy() gave no reason for being unhealthy, which is what a probe's logs need")
 	}
 }
