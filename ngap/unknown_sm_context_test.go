@@ -107,6 +107,17 @@ func TestSetupResponseCountsSessionsRatherThanMessages(t *testing.T) {
 	amfUe := self.NewAmfUe("")
 	amfUe.AttachRanUe(ranUe)
 
+	// The pools are global to the package, so what this test creates has to leave with it -
+	// both the RanUe and its AMF UE NGAP ID, which the generator would otherwise keep issued.
+	t.Cleanup(func() {
+		if leftover := self.RanUeFindByAmfUeNgapIDLocal(ranUe.AmfUeNgapId); leftover != nil {
+			if err := leftover.Remove(); err != nil {
+				t.Errorf("cleanup RanUe failed: %v", err)
+			}
+		}
+		amfUe.Remove()
+	})
+
 	before := unknownSmContextCount(t, "PDUSessionResourceSetupResponse")
 
 	// Two sessions, neither of which this AMF has an SM context for.
@@ -177,8 +188,8 @@ func releaseResponseNaming(ranUe *context.RanUe, pduSessionID int64) *ngapType.N
 	}
 }
 
-// The release shape owes the opposite of the setup shape: here the RAN has already let the
-// session go, so what must be discoverable is an SMF still holding one. Driving the handler
+// The release shape has the opposite consequence to the setup shape: here the RAN has
+// already let the session go, so what must be discoverable is an SMF still holding one. Driving the handler
 // rather than the recorder is the point — the defect was that this path reached no recorder
 // at all.
 func TestReleaseResponseIdentifiesASessionTheAmfCannotResolve(t *testing.T) {
@@ -195,6 +206,17 @@ func TestReleaseResponseIdentifiesASessionTheAmfCannotResolve(t *testing.T) {
 
 	amfUe := self.NewAmfUe("")
 	amfUe.AttachRanUe(ranUe)
+
+	// The pools are global to the package, so what this test creates has to leave with it -
+	// both the RanUe and its AMF UE NGAP ID, which the generator would otherwise keep issued.
+	t.Cleanup(func() {
+		if leftover := self.RanUeFindByAmfUeNgapIDLocal(ranUe.AmfUeNgapId); leftover != nil {
+			if err := leftover.Remove(); err != nil {
+				t.Errorf("cleanup RanUe failed: %v", err)
+			}
+		}
+		amfUe.Remove()
+	})
 
 	before := unknownSmContextCount(t, "PDUSessionResourceReleaseResponse")
 
@@ -272,6 +294,17 @@ func TestNotifyForAnUnresolvableSessionDoesNotEndTheProcess(t *testing.T) {
 
 	amfUe := self.NewAmfUe("")
 	amfUe.AttachRanUe(ranUe)
+
+	// The pools are global to the package, so what this test creates has to leave with it -
+	// both the RanUe and its AMF UE NGAP ID, which the generator would otherwise keep issued.
+	t.Cleanup(func() {
+		if leftover := self.RanUeFindByAmfUeNgapIDLocal(ranUe.AmfUeNgapId); leftover != nil {
+			if err := leftover.Remove(); err != nil {
+				t.Errorf("cleanup RanUe failed: %v", err)
+			}
+		}
+		amfUe.Remove()
+	})
 
 	before := unknownSmContextCount(t, "PDUSessionResourceNotify")
 
