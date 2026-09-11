@@ -26,6 +26,7 @@ type AmfStats struct {
 	ngapMsg           *prometheus.CounterVec
 	gnbSessionProfile *prometheus.GaugeVec
 	dbWriteDropped    prometheus.Counter
+	unknownSmContext  *prometheus.CounterVec
 	ngapAssociations  prometheus.Gauge
 	ngapLastMessage   prometheus.Gauge
 }
@@ -64,6 +65,16 @@ func initAmfStats() *AmfStats {
 				"handled, so a stalled handler behind a live intake still moves it. Exposed " +
 				"as a timestamp rather than an age so that staleness is computed at query time.",
 		}),
+
+		unknownSmContext: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "amf_ngap_unknown_sm_context_total",
+			Help: "PDU sessions named by a RAN message for which this AMF held no SM context. " +
+				"Counted per session rather than per message, because one message can name " +
+				"several and only some may be unresolvable. The label is 'message' rather " +
+				"than 'msg_type' on purpose: it carries the specific NGAP message, where " +
+				"ngap_messages_total's msg_type carries procedure names and cannot " +
+				"distinguish a UEContextReleaseComplete from a UEContextReleaseRequest.",
+		}, []string{"message"}),
 	}
 }
 
@@ -86,6 +97,10 @@ func (ps *AmfStats) register() error {
 	}
 	prometheus.Unregister(ps.ngapLastMessage)
 	if err := prometheus.Register(ps.ngapLastMessage); err != nil {
+		return err
+	}
+	prometheus.Unregister(ps.unknownSmContext)
+	if err := prometheus.Register(ps.unknownSmContext); err != nil {
 		return err
 	}
 	return nil
@@ -149,6 +164,12 @@ func SetNgapAssociations(count int) {
 // telling apart.
 func SetNgapLastMessage() {
 	amfStats.ngapLastMessage.SetToCurrentTime()
+}
+
+// IncrementUnknownSmContext counts one PDU session that a RAN message named and this AMF could
+// not resolve to an SM context.
+func IncrementUnknownSmContext(message string) {
+	amfStats.unknownSmContext.WithLabelValues(sanitizeLabelValue(message)).Inc()
 }
 
 // IncrementDbWriteDropped increments the counter of UE context writes dropped
