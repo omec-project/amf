@@ -38,6 +38,7 @@ func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
 		func(i int) { ue.SetOnGoing(anType, &OnGoingProcedureWithPrio{Procedure: OnGoingProcedureNothing}) },
 		func(i int) { ue.AttachRanUe(&RanUe{RanUeNgapId: int64(i), AmfUeNgapId: int64(i), Ran: ran}) },
 		func(i int) { ue.DetachRanUe(anType) },
+		func(i int) { ue.ClearRegistrationRequestData(anType) },
 	}
 
 	readers := []func(){
@@ -60,6 +61,8 @@ func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
 		func() { _ = ue.GetOnGoing(anType) },
 		func() { _ = ue.GetRanUe(anType) },
 		func() { _ = ue.InAllowedNssai(models.Snssai{}, anType) },
+		func() { _ = ue.GetNsiInformationFromSnssai(anType, models.Snssai{}) },
+		func() { _ = ue.TaiListInRegistrationArea([]models.Tai{{}}, anType) },
 	}
 
 	var wg sync.WaitGroup

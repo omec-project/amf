@@ -964,7 +964,14 @@ func (ue *AmfUe) InSubscribedNssai(targetSNssai *models.Snssai) bool {
 	return false
 }
 
+// GetNsiInformationFromSnssai returns the network slice instance recorded for one
+// allowed S-NSSAI. The returned pointer refers to the entry held in the map rather than
+// to a copy, which is unchanged from before the lock was added: no writer here mutates an
+// element in place, so nothing is written under a caller holding it.
 func (ue *AmfUe) GetNsiInformationFromSnssai(anType models.AccessType, snssai models.Snssai) *models.NsiInformation {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	for _, allowedSnssai := range ue.AllowedNssai[anType] {
 		if reflect.DeepEqual(allowedSnssai.AllowedSnssai, snssai) {
 			// TODO: select NsiInformation based on operator policy
@@ -977,6 +984,9 @@ func (ue *AmfUe) GetNsiInformationFromSnssai(anType models.AccessType, snssai mo
 }
 
 func (ue *AmfUe) TaiListInRegistrationArea(taiList []models.Tai, accessType models.AccessType) bool {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
 	for _, tai := range taiList {
 		if !InTaiList(tai, ue.RegistrationArea[accessType]) {
 			return false
@@ -1176,12 +1186,12 @@ func (ue *AmfUe) ClearRegistrationRequestData(accessType models.AccessType) {
 	ue.AuthFailureCauseSynchFailureTimes = 0
 	ue.ServingAmfChanged = false
 	ue.RegistrationAcceptForNon3GPPAccess = nil
-	if ue.RanUe != nil && ue.RanUe[accessType] != nil {
-		ue.RanUe[accessType].UeContextRequest = false
-		ue.RanUe[accessType].RecvdInitialContextSetupResponse = false
+	if ranUe := ue.GetRanUe(accessType); ranUe != nil {
+		ranUe.UeContextRequest = false
+		ranUe.RecvdInitialContextSetupResponse = false
 	}
 	ue.RetransmissionOfInitialNASMsg = false
-	ue.OnGoing[accessType].Procedure = OnGoingProcedureNothing
+	ue.SetOnGoing(accessType, &OnGoingProcedureWithPrio{Procedure: OnGoingProcedureNothing})
 }
 
 // this method called when we are reusing the same uecontext during the registration procedure
