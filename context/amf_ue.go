@@ -1202,6 +1202,22 @@ func (ue *AmfUe) GetEventSubscription(id string) (*AmfUeEventSubscription, bool)
 	return subscription, ok
 }
 
+// GetEventSubscriptions returns the event subscriptions this UE holds, in no
+// particular order. Ranging the map itself is the same defect as reading it: the
+// Namf_EventExposure handlers write it from their own goroutines, and Go's fatal
+// "concurrent map iteration and map write" fires on that pair too.
+func (ue *AmfUe) GetEventSubscriptions() []*AmfUeEventSubscription {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	subscriptions := make([]*AmfUeEventSubscription, 0, len(ue.EventSubscriptionsInfo))
+	for _, subscription := range ue.EventSubscriptionsInfo {
+		subscriptions = append(subscriptions, subscription)
+	}
+
+	return subscriptions
+}
+
 // SetAllowedNssai replaces the allowed NSSAI for one access type.
 func (ue *AmfUe) SetAllowedNssai(anType models.AccessType, allowed []models.AllowedSnssai) {
 	ue.Mutex.Lock()
