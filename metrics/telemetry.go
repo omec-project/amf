@@ -151,6 +151,18 @@ func SetGnbSessProfileStats(id, ip, state, tac string, count uint64) {
 	amfStats.gnbSessionProfile.WithLabelValues(id, ip, state, tac).Set(float64(count))
 }
 
+// DeleteGnbSessProfileStats removes one series rather than giving it a value. A gauge that is
+// only ever Set holds its last sample once nothing writes it again, so a tracking area the gNB
+// has stopped broadcasting cannot be corrected by writing zero from a loop that no longer
+// visits it - the series has to go, because the condition it describes no longer exists.
+func DeleteGnbSessProfileStats(id, ip, state, tac string) {
+	id = sanitizeLabelValue(id)
+	ip = sanitizeLabelValue(ip)
+	state = sanitizeLabelValue(state)
+	tac = sanitizeLabelValue(tac)
+	amfStats.gnbSessionProfile.DeleteLabelValues(id, ip, state, tac)
+}
+
 // SetNgapAssociations records how many SCTP associations the AMF currently terminates.
 // An AMF that has lost every association is indistinguishable from an idle one in its
 // logs, which is what this makes visible from outside the pod.
