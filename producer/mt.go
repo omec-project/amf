@@ -94,7 +94,7 @@ func ProvideDomainSelectionInfoProcedure(ueContextID string, infoClassQuery stri
 			ueContextInfo.SetSupportVoPS(ranUe.SupportVoPS)
 			ueContextInfo.SetSupportVoPSn3gpp(ranUe.SupportVoPSn3gpp)
 		}
-		ueContextInfo.SetRatType(ue.RatType)
+		ueContextInfo.SetRatType(ue.GetRatType())
 	}
 
 	return ueContextInfo, nil

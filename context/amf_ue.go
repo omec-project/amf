@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
+	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -73,11 +74,15 @@ type AmfUe struct {
 	// Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
 	Mutex sync.Mutex `json:"-"`
 	// identityMu guards the UE identity fields (Supi/Pei/Gpsi/Tmsi/Guti and
-	// RegistrationType5GS) so they can be read safely from goroutines other than
-	// the one running the UE's NAS procedure (e.g. SBI handlers, logging). Use the
-	// Get*/Set* accessors below; do not touch those fields directly across
-	// goroutines. It is deliberately separate from Mutex (which guards RanUe/CM
-	// state) so an accessor can never self-deadlock against a Mutex holder.
+	// RegistrationType5GS) and the user-location and reachability fields the service
+	// handlers read (RatType/Location/Tai/Reachability), so they can be read safely
+	// from goroutines other than the one running the UE's NAS procedure (e.g. SBI
+	// handlers, logging). Use the Get*/Set* accessors below; do not touch those
+	// fields directly across goroutines. It is deliberately separate from Mutex
+	// (which guards RanUe/CM state) so an accessor can never self-deadlock against a
+	// Mutex holder. Keep this list current: a reader checking whether a field is
+	// protected finds a definitive-looking enumeration, and one that has fallen
+	// behind the code is how the next sweep concludes a shared field is unshared.
 	identityMu sync.RWMutex `json:"-"`
 	/* the AMF which serving this AmfUe now */
 	// Not persisted. It points at the process-wide AMF context, which init() sets on
@@ -658,6 +663,66 @@ func (ue *AmfUe) SetRegistrationType5GS(v uint8) {
 	ue.identityMu.Unlock()
 }
 
+// User-location and reachability accessors. RatType, Location and Tai are written
+// by the UE's NAS and NGAP procedures and read by the Namf_EventExposure,
+// Namf_Location, Namf_MT and OAM handlers, which run on HTTP goroutines; they take
+// identityMu for the same reason the identity fields do. Reachability has no writer
+// anywhere in the tree -- it is brought under the lock as the same shape rather than
+// the same defect, so that it is not the one unguarded field in a guarded set.
+//
+// Location and Tai copy in both directions. models.UserLocation is five
+// pointer-bearing members (EutraLocation, NrLocation, N3gaLocation and the two
+// Nullable wrappers, each of which holds a *Location), and models.Tai holds a *Nid,
+// so passing either by value duplicates the pointers and the copy's members go on
+// aliasing the live state. A lock around a shallow copy leaves the read exactly
+// where it was, one level down, at a call site that now reads as deliberate. The
+// setters copy too, so that what the UE holds is owned by the UE and no caller
+// retains a path into it.
+
+func (ue *AmfUe) GetRatType() models.RatType {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return ue.RatType
+}
+
+func (ue *AmfUe) SetRatType(v models.RatType) {
+	ue.identityMu.Lock()
+	ue.RatType = v
+	ue.identityMu.Unlock()
+}
+
+func (ue *AmfUe) GetReachability() models.UeReachability {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return ue.Reachability
+}
+
+func (ue *AmfUe) GetLocation() models.UserLocation {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return deepcopy.Copy(ue.Location).(models.UserLocation)
+}
+
+func (ue *AmfUe) SetLocation(v models.UserLocation) {
+	location := deepcopy.Copy(v).(models.UserLocation)
+	ue.identityMu.Lock()
+	ue.Location = location
+	ue.identityMu.Unlock()
+}
+
+func (ue *AmfUe) GetTai() models.Tai {
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+	return deepcopy.Copy(ue.Tai).(models.Tai)
+}
+
+func (ue *AmfUe) SetTai(v models.Tai) {
+	tai := deepcopy.Copy(v).(models.Tai)
+	ue.identityMu.Lock()
+	ue.Tai = tai
+	ue.identityMu.Unlock()
+}
+
 func (ue *AmfUe) CmConnect(anType models.AccessType) bool {
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
@@ -724,7 +789,7 @@ func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 // reach at the time of writing — RatType stays generic NR and this is false, so the deployment
 // runs on configured timer values rather than on a signalled indication.
 func (ue *AmfUe) UsesExtendedNasSmTimers() bool {
-	switch ue.RatType {
+	switch ue.GetRatType() {
 	case models.RATTYPE_NR_MEO, models.RATTYPE_NR_GEO:
 		return true
 	}
@@ -735,7 +800,7 @@ func (ue *AmfUe) UsesExtendedNasSmTimers() bool {
 // Non-Terrestrial access, based on the Rel-18 RatType set during
 // registration (see HandleRegistrationRequest).
 func (ue *AmfUe) IsNtn() bool {
-	switch ue.RatType {
+	switch ue.GetRatType() {
 	case models.RATTYPE_NR_LEO, models.RATTYPE_NR_MEO, models.RATTYPE_NR_GEO, models.RATTYPE_NR_OTHER_SAT:
 		return true
 	}
