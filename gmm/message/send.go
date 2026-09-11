@@ -162,7 +162,7 @@ func SendConfigurationUpdateCommand(amfUe *context.AmfUe, accessType models.Acce
 		return
 	}
 	mobilityRestrictionList := ngap_message.BuildIEMobilityRestrictionList(amfUe)
-	ngap_message.SendDownlinkNasTransport(amfUe.RanUe[accessType], nasMsg, &mobilityRestrictionList)
+	ngap_message.SendDownlinkNasTransport(amfUe.GetRanUe(accessType), nasMsg, &mobilityRestrictionList)
 }
 
 func SendAuthenticationReject(ue *context.RanUe, eapMsg string) {
@@ -381,15 +381,16 @@ func SendRegistrationAccept(
 	if context.AMF_Self().T3550Cfg.Enable {
 		cfg := context.AMF_Self().T3550Cfg
 		ue.T3550 = context.NewTimer(cfg.ExpireTime, cfg.MaxRetryTimes, func(expireTimes int32) {
-			if ue.RanUe[anType] == nil {
+			ranUe := ue.GetRanUe(anType)
+			if ranUe == nil {
 				ue.GmmLog.Warnln("[NAS] UE Context released, abort retransmission of Registration Accept")
 				ue.T3550 = nil
 			} else {
-				if ue.RanUe[anType].UeContextRequest && !ue.RanUe[anType].RecvdInitialContextSetupResponse {
+				if ranUe.UeContextRequest && !ranUe.RecvdInitialContextSetupResponse {
 					ngap_message.SendInitialContextSetupRequest(ue, anType, nasMsg, pduSessionResourceSetupList, nil, nil, nil)
 				} else {
 					ue.GmmLog.Warnf("T3550 expires, retransmit Registration Accept (retry: %d)", expireTimes)
-					ngap_message.SendDownlinkNasTransport(ue.RanUe[anType], nasMsg, nil)
+					ngap_message.SendDownlinkNasTransport(ranUe, nasMsg, nil)
 				}
 			}
 		}, func() {

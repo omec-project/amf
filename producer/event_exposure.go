@@ -333,7 +333,12 @@ func ModifyAMFEventSubscriptionProcedure(
 }
 
 func subReports(ue *context.AmfUe, subscriptionId string) {
-	remainReport := ue.EventSubscriptionsInfo[subscriptionId].RemainReports
+	subscriptionInfo, ok := ue.GetEventSubscription(subscriptionId)
+	if !ok {
+		return
+	}
+
+	remainReport := subscriptionInfo.RemainReports
 	if remainReport == nil {
 		return
 	}
@@ -344,7 +349,7 @@ func subReports(ue *context.AmfUe, subscriptionId string) {
 func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscriptionId string) (
 	report models.AmfEventReport, ok bool,
 ) {
-	ueSubscription, ok := ue.EventSubscriptionsInfo[subscriptionId]
+	ueSubscription, ok := ue.GetEventSubscription(subscriptionId)
 	if !ok {
 		return report, ok
 	}
