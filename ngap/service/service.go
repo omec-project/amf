@@ -33,7 +33,38 @@ var (
 	sctpListener *sctp.SCTPListener
 	connections  sync.Map
 	countMu      sync.Mutex
+
+	// listenerMu guards sctpListener, which listenAndServe writes on the goroutine Run
+	// starts and Stop reads on the goroutine that is terminating the AMF.
+	listenerMu sync.RWMutex
 )
+
+func setListener(listener *sctp.SCTPListener) {
+	listenerMu.Lock()
+	sctpListener = listener
+	listenerMu.Unlock()
+}
+
+func currentListener() *sctp.SCTPListener {
+	listenerMu.RLock()
+	defer listenerMu.RUnlock()
+
+	return sctpListener
+}
+
+// takeListener returns the listener and clears it in the same acquisition, so a second Stop
+// has nothing left to close. sctp.SCTPListener.Close is a bare syscall.Close on a descriptor
+// it does not invalidate, unlike a net.Listener, so closing the same one twice would close
+// whatever descriptor number the kernel had handed out in between.
+func takeListener() *sctp.SCTPListener {
+	listenerMu.Lock()
+	defer listenerMu.Unlock()
+
+	listener := sctpListener
+	sctpListener = nil
+
+	return listener
+}
 
 var handler NGAPHandler
 
@@ -77,17 +108,18 @@ func Run(addresses []string, port int, h NGAPHandler) {
 }
 
 func listenAndServe(addr *sctp.SCTPAddr, handler NGAPHandler) {
-	if listener, err := sctpConfig.Listen("sctp", addr); err != nil {
+	listener, err := sctpConfig.Listen("sctp", addr)
+	if err != nil {
 		logger.NgapLog.Errorf("failed to listen: %+v", err)
 		return
-	} else {
-		sctpListener = listener
 	}
 
-	logger.NgapLog.Infof("Listen on %s", sctpListener.Addr())
+	setListener(listener)
+
+	logger.NgapLog.Infof("Listen on %s", listener.Addr())
 
 	for {
-		newConn, err := sctpListener.AcceptSCTP()
+		newConn, err := listener.AcceptSCTP()
 		if err != nil {
 			switch err {
 			case syscall.EINTR, syscall.EAGAIN:
@@ -196,13 +228,26 @@ func reportAssociationCount() {
 
 func Stop() {
 	logger.NgapLog.Infoln("close SCTP server...")
-	if err := sctpListener.Close(); err != nil {
-		logger.NgapLog.Error(err)
-		logger.NgapLog.Infof("SCTP server may not close normally.")
+
+	// The listener is nil if Listen failed, if termination beat the bind, or if Stop has
+	// already run, and Stop runs before the AMF tells its peers it is unavailable, so it
+	// must not end the process.
+	if listener := takeListener(); listener != nil {
+		if err := listener.Close(); err != nil {
+			logger.NgapLog.Error(err)
+			logger.NgapLog.Infof("SCTP server may not close normally.")
+		}
+	} else {
+		logger.NgapLog.Infoln("no SCTP listener to close")
 	}
 
-	connections.Range(func(key, value interface{}) bool {
-		conn := value.(net.Conn)
+	// The association is the key of this map; its value is a bool.
+	connections.Range(func(key, _ interface{}) bool {
+		conn, ok := key.(net.Conn)
+		if !ok {
+			logger.NgapLog.Errorf("connection map holds a %T key, cannot close it", key)
+			return true
+		}
 		if err := conn.Close(); err != nil {
 			logger.NgapLog.Error(err)
 		}
