@@ -5,6 +5,8 @@ package ngap
 
 import (
 	"encoding/hex"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/omec-project/amf/context"
@@ -211,5 +213,75 @@ func TestARetiredTrackingAreaLeavesTheGauge(t *testing.T) {
 	if _, stale := gnbSessProfileTACs(t, ran.Name, ran.GnbIp)["000001"]; stale {
 		t.Error("gnb_session_profile still carries a series for 000001 after the gNB stopped " +
 			"broadcasting it, so exported state outlives the condition it describes")
+	}
+}
+
+// Every NGAP message is dispatched in its own goroutine (`go DispatchNgapMsg`), so a
+// configuration update runs while other goroutines publish this gNB's gauge. Both paths read
+// the supported TA list and then write metrics from what they read, and the pair is now one
+// step, so a publisher cannot write from a list that stopped being true while it was working.
+//
+// Honest about what this covers: it drives both paths concurrently under the race detector and
+// checks the end state, but it does **not** pin that ordering. Removing the lock does not make
+// it fail, even with sixteen publishers, a hundred and twenty tracking areas and twenty update
+// cycles - because both loops walk the list in the same order and the publisher has to have
+// snapshotted first, so it stays ahead of the retirement unless it is preempted for longer than
+// the whole retirement takes. The interleaving is real but rare, the lock removes it by
+// construction, and no test here earns the claim that it is pinned.
+func TestARetiredTrackingAreaStaysRetiredUnderConcurrentPublishing(t *testing.T) {
+	many := make([]string, 0, 120)
+	for i := 1; i <= 120; i++ {
+		many = append(many, fmt.Sprintf("%06x", i))
+	}
+
+	serveTACs(t, "1")
+
+	ran := context.NewAmfRanDefault()
+	ran.SupportedTAList = context.NewSupportedTAIList()
+	ran.Name = "gnb-concurrent-test"
+	ran.GnbIp = "198.51.100.9"
+
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithTACs(many...))
+	ran.SetRanStats(context.RanConnected)
+
+	if _, published := gnbSessProfileTACs(t, ran.Name, ran.GnbIp)["000077"]; !published {
+		t.Fatal("the gauge has no series for 000077, so this test cannot show one being retired")
+	}
+
+	var publishing sync.WaitGroup
+
+	stop := make(chan struct{})
+
+	for range 4 {
+		publishing.Add(1)
+
+		go func() {
+			defer publishing.Done()
+
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					ran.SetRanStats(context.RanConnected)
+				}
+			}
+		}()
+	}
+
+	// The gNB now announces one tracking area where it announced 120.
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithTACs("000001"))
+
+	close(stop)
+	publishing.Wait()
+
+	// Whichever order things finished in, nothing may write from a list that stopped being
+	// true before the write: a publisher's snapshot and its writes are one step.
+	left := gnbSessProfileTACs(t, ran.Name, ran.GnbIp)
+	for _, tac := range many[1:] {
+		if _, stale := left[tac]; stale {
+			t.Fatalf("gnb_session_profile carries a series for %s again after the gNB stopped "+
+				"broadcasting it, so a concurrent publisher republished what the update retired", tac)
+		}
 	}
 }
