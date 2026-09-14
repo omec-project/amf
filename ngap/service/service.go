@@ -275,9 +275,15 @@ func associationCount() int {
 // latches, and so is never reported unhealthy by it.
 func Healthy() (bool, string) {
 	switch {
-	// First, because nothing that follows can make it untrue: an AMF that never bound has
-	// served nobody and never will, which is the same fault as one that has stopped
-	// serving, reached from the other side.
+	// First, and ahead of every fault below, because it is not a claim about whether this
+	// AMF can serve: it says the question is no longer being asked. A pod that was told to
+	// terminate is going away whatever the answer, so no fault of its own is worth
+	// reporting - including one that will outlive it, like a listener that never bound.
+	case shuttingDown.Load():
+		return true, "shutting down"
+	// An AMF that never bound has served nobody and never will, which is the same fault as
+	// one that has stopped serving, reached from the other side. It goes above the
+	// never-served case because that one is a phase and this one is terminal.
 	//
 	// Only where this socket is what gNBs reach, though. Run is called unconditionally, so
 	// an AMF fronted by the SCTP load balancer also opens this listener and then never uses
@@ -288,8 +294,6 @@ func Healthy() (bool, string) {
 		return false, "the NGAP listener never bound"
 	case !served.Load():
 		return true, "no NGAP association has been served yet"
-	case shuttingDown.Load():
-		return true, "shutting down"
 	case associationCount() == 0:
 		return false, "every NGAP association has been lost"
 	default:

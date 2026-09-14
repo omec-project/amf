@@ -160,3 +160,27 @@ func TestALoadBalancedAmfIsNotUnhealthyForAnUnusedListener(t *testing.T) {
 		t.Errorf("Healthy() = false (%s) for an AMF whose gNBs arrive through sctplb, want true", reason)
 	}
 }
+
+// A pod that was told to terminate is going away whatever this says, so the shutdown
+// exclusion has to sit above every fault - including one that outlives the pod, like a
+// listener that never bound. Reporting a fault at that point cannot help anyone and
+// contradicts what the exclusion is for.
+func TestShuttingDownOutranksAFailedBind(t *testing.T) {
+	withCleanState(t)
+	withSctpLb(t, false)
+
+	listenAndServe(&sctp.SCTPAddr{
+		IPAddrs: []net.IPAddr{{IP: net.ParseIP("192.0.2.1")}},
+		Port:    38412,
+	}, NGAPHandler{})
+
+	if !bindFailed.Load() {
+		t.Fatal("listenAndServe returned without recording the bind failure")
+	}
+
+	shuttingDown.Store(true)
+
+	if healthy, reason := Healthy(); !healthy {
+		t.Errorf("Healthy() = false (%s) while terminating after a failed bind, want true", reason)
+	}
+}
