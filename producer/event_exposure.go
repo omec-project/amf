@@ -333,16 +333,11 @@ func ModifyAMFEventSubscriptionProcedure(
 }
 
 func subReports(ue *context.AmfUe, subscriptionId string) {
-	subscriptionInfo, ok := ue.GetEventSubscription(subscriptionId)
-	if !ok {
-		return
-	}
-
-	remainReport := subscriptionInfo.RemainReports
-	if remainReport == nil {
-		return
-	}
-	*remainReport--
+	// Through the context rather than through the subscription this function used to fetch:
+	// the counter is shared with the encoder that persists the UE, and a decrement applied
+	// outside ue.Mutex raced it. It is also a read-modify-write, so two reports raised at
+	// once could lose one.
+	ue.DecrementRemainReports(subscriptionId)
 }
 
 // DO NOT handle AMFEVENTTYPE_PRESENCE_IN_AOI_REPORT and AMFEVENTTYPE_UES_IN_AREA_REPORT(about area)

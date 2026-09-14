@@ -1275,14 +1275,55 @@ func (ue *AmfUe) GetReleaseCause(anType models.AccessType) (*CauseAll, bool) {
 	return cause, ok
 }
 
-// GetEventSubscription returns one event subscription, and whether it exists.
+// GetEventSubscription returns a snapshot of one event subscription, and whether it
+// exists. See snapshot for what the copy does and does not cover.
 func (ue *AmfUe) GetEventSubscription(id string) (*AmfUeEventSubscription, bool) {
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
 
 	subscription, ok := ue.EventSubscriptionsInfo[id]
 
-	return subscription, ok
+	return subscription.snapshot(), ok
+}
+
+// snapshot copies a subscription and the report counter it points at, so a caller reading
+// either outside the lock reads its own. The counter is the field that moves: it is
+// decremented as reports are raised, and MarshalJSON walks these structs under ue.Mutex
+// when the context is persisted, so handing out the live pointer put an unguarded read and
+// a guarded one on the same int32.
+//
+// The nested EventSubscription is shared, not copied. Nothing here writes it -- the patch
+// path works on AMFContext's own store, not on this one -- and copying it would claim a
+// guarantee this change does not make.
+func (subscription *AmfUeEventSubscription) snapshot() *AmfUeEventSubscription {
+	if subscription == nil {
+		return nil
+	}
+
+	copied := *subscription
+
+	if subscription.RemainReports != nil {
+		remaining := *subscription.RemainReports
+		copied.RemainReports = &remaining
+	}
+
+	return &copied
+}
+
+// DecrementRemainReports takes one off the reports a subscription has left. The read and
+// the write are one operation under the lock: the counter is read-modify-written as each
+// report is raised, and two reports raised at once would otherwise lose one of the
+// decrements and keep a one-time subscription reporting.
+func (ue *AmfUe) DecrementRemainReports(id string) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	subscription, ok := ue.EventSubscriptionsInfo[id]
+	if !ok || subscription == nil || subscription.RemainReports == nil {
+		return
+	}
+
+	*subscription.RemainReports--
 }
 
 // GetEventSubscriptions returns the event subscriptions this UE holds, in no
@@ -1295,7 +1336,7 @@ func (ue *AmfUe) GetEventSubscriptions() []*AmfUeEventSubscription {
 
 	subscriptions := make([]*AmfUeEventSubscription, 0, len(ue.EventSubscriptionsInfo))
 	for _, subscription := range ue.EventSubscriptionsInfo {
-		subscriptions = append(subscriptions, subscription)
+		subscriptions = append(subscriptions, subscription.snapshot())
 	}
 
 	return subscriptions

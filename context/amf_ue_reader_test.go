@@ -5,6 +5,7 @@
 package context
 
 import (
+	"runtime"
 	"sync"
 	"testing"
 
@@ -18,6 +19,16 @@ import (
 //
 // Under -race this fails if any accessor stops taking it.
 func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
+	// The detector needs more than one P to see any of this: with a lock deliberately
+	// removed from GetReleaseCause, GOMAXPROCS=1 reported no races at all. A runner with one
+	// CPU would otherwise pass this test against a broken accessor, so the test asks for
+	// what it needs rather than depending on the machine it lands on.
+	if previous := runtime.GOMAXPROCS(0); previous < 2 {
+		runtime.GOMAXPROCS(2)
+
+		t.Cleanup(func() { runtime.GOMAXPROCS(previous) })
+	}
+
 	ue := &AmfUe{}
 	ue.init()
 	ue.Supi = testSupi
@@ -33,7 +44,11 @@ func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
 		func(i int) { ue.SetRegistrationArea(anType, nil) },
 		func(i int) { ue.AppendRegistrationArea(anType, models.Tai{}) },
 		func(i int) { ue.SetReleaseCause(anType, &CauseAll{}) },
-		func(i int) { ue.SetEventSubscription("sub", &AmfUeEventSubscription{}) },
+		func(i int) {
+			remaining := int32(i)
+			ue.SetEventSubscription("sub", &AmfUeEventSubscription{RemainReports: &remaining})
+		},
+		func(i int) { ue.DecrementRemainReports("sub") },
 		func(i int) { ue.DeleteEventSubscription("sub") },
 		func(i int) { ue.SetOnGoing(anType, &OnGoingProcedureWithPrio{Procedure: OnGoingProcedureNothing}) },
 		func(i int) { ue.AttachRanUe(&RanUe{RanUeNgapId: int64(i), AmfUeNgapId: int64(i), Ran: ran}) },
@@ -96,4 +111,60 @@ func TestReadingAContextWhileEveryMapIsWritten(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// A subscription handed out under the lock and then read outside it is read through the
+// same pointer the encoder walks when the context is persisted. The counter is copied, so
+// what a caller reads afterwards is its own.
+func TestGetEventSubscriptionReturnsItsOwnCounter(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	remaining := int32(3)
+	ue.SetEventSubscription("sub", &AmfUeEventSubscription{RemainReports: &remaining})
+
+	taken, ok := ue.GetEventSubscription("sub")
+	if !ok || taken.RemainReports == nil {
+		t.Fatalf("precondition: the subscription and its counter must come back")
+	}
+
+	*taken.RemainReports = 99
+
+	again, _ := ue.GetEventSubscription("sub")
+	if got := *again.RemainReports; got != 3 {
+		t.Errorf("the stored counter = %d after a caller wrote its copy, want 3: the caller was handed the live one", got)
+	}
+}
+
+// The decrement is a read-modify-write on a counter the encoder reads under ue.Mutex, so it
+// belongs to the context rather than to the caller holding a pointer into it.
+func TestDecrementRemainReportsTakesOneOff(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	remaining := int32(2)
+	ue.SetEventSubscription("sub", &AmfUeEventSubscription{RemainReports: &remaining})
+
+	ue.DecrementRemainReports("sub")
+
+	got, ok := ue.GetEventSubscription("sub")
+	if !ok || got.RemainReports == nil {
+		t.Fatalf("the subscription lost its counter")
+	}
+
+	if *got.RemainReports != 1 {
+		t.Errorf("reports left = %d after one report, want 1", *got.RemainReports)
+	}
+}
+
+// A subscription that has no counter is not a reason to end the process, and neither is one
+// that has been deleted between a report being built and its counter being taken down.
+func TestDecrementRemainReportsToleratesWhatIsNotThere(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	ue.DecrementRemainReports("never-set")
+
+	ue.SetEventSubscription("sub", &AmfUeEventSubscription{})
+	ue.DecrementRemainReports("sub")
 }
