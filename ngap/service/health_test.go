@@ -17,11 +17,13 @@ func withCleanState(t *testing.T) {
 	t.Helper()
 
 	wasServed, wasShuttingDown, wasBindFailed := served.Load(), shuttingDown.Load(), bindFailed.Load()
+	wasDirect := directSctpServing.Load()
 
 	t.Cleanup(func() {
 		served.Store(wasServed)
 		shuttingDown.Store(wasShuttingDown)
 		bindFailed.Store(wasBindFailed)
+		directSctpServing.Store(wasDirect)
 		connections.Range(func(key, _ any) bool {
 			connections.Delete(key)
 			return true
@@ -102,6 +104,10 @@ func withSctpLb(t *testing.T, enabled bool) {
 	t.Cleanup(func() { self.EnableSctpLb = was })
 
 	self.EnableSctpLb = enabled
+
+	// Through the same capture Run performs, so these cases exercise the path production
+	// takes rather than a field it no longer reads at check time.
+	captureServingPath()
 }
 
 // The fault above reached from the other side: an AMF whose listener never bound has served

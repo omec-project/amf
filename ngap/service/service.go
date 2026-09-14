@@ -50,8 +50,16 @@ var (
 	// bindFailed records that the listener could not be created at all. Run starts exactly
 	// one listenAndServe and nothing retries it, so the failure is terminal for this socket.
 	// Whether it is terminal for the *AMF* depends on which path serves gNB traffic, which is
-	// why Healthy consults the deployment mode rather than this flag alone.
+	// why Healthy consults directSctpServing rather than this flag alone.
 	bindFailed atomic.Bool
+	// directSctpServing records whether gNBs reach this AMF through the listener Run starts,
+	// rather than through the SCTP load balancer. Captured once by Run instead of read at
+	// check time: the server that answers the health endpoint is started before the
+	// configuration is parsed into the AMF context (service/init.go starts it, then calls
+	// InitAmfContext), so reading that field from a probe's goroutine races the startup
+	// write. Run is called from the same goroutine as InitAmfContext and after it, so the
+	// value it captures is settled.
+	directSctpServing atomic.Bool
 )
 
 func setListener(listener *sctp.SCTPListener) {
@@ -100,8 +108,17 @@ var sctpConfig sctp.SocketConfig = sctp.SocketConfig{
 	},
 }
 
+// captureServingPath records whether this AMF's own listener is what gNBs reach. Run calls it
+// on the goroutine that has already parsed the configuration, which is what makes the read
+// safe; Healthy then consults the result rather than the context.
+func captureServingPath() {
+	directSctpServing.Store(!context.AMF_Self().EnableSctpLb)
+}
+
 func Run(addresses []string, port int, h NGAPHandler) {
 	handler = h
+
+	captureServingPath()
 
 	ips := []net.IPAddr{}
 
@@ -252,10 +269,16 @@ func associationCount() int {
 // Healthy reports whether this AMF can serve a radio access network, and why not when it
 // cannot.
 //
-// It is false in exactly one case: the AMF has served at least one association and now
-// holds none, with no shutdown requested. That is the state a process-level check cannot
-// see — the AMF is up, its listener is bound, its SBI answers, and nobody is being
-// served, which looks identical to an idle deployment.
+// It is false in two cases, both of which a process-level check cannot see.
+//
+// The first is the one this exists for: the AMF has served at least one association and now
+// holds none, with no shutdown requested. The AMF is up, its listener is bound, its SBI
+// answers, and nobody is being served, which looks identical to an idle deployment.
+//
+// The second is the same fault reached from the other side: the listener never bound, so
+// this AMF has served nobody and never will. That one is reported only where this listener
+// is what gNBs reach, since an AMF fronted by the SCTP load balancer opens it and never
+// uses it.
 //
 // A restart recovers the element. Whether it recovers service depends on the radio access
 // network re-establishing its association, which not every implementation does, so the
@@ -272,7 +295,8 @@ func associationCount() int {
 //
 // The latch also keeps this quiet where it does not apply: in a deployment whose gNBs
 // connect to the SCTP load balancer, this AMF accepts no associations of its own, never
-// latches, and so is never reported unhealthy by it.
+// latches, and so is never reported unhealthy by either case. What such a deployment's
+// health does rest on, the gRPC server that sctplb connects to, is not represented here.
 func Healthy() (bool, string) {
 	switch {
 	// First, and ahead of every fault below, because it is not a claim about whether this
@@ -290,7 +314,7 @@ func Healthy() (bool, string) {
 	// it - associations are terminated by sctplb and reach this AMF over gRPC. Failing that
 	// unused bind says nothing about whether such an AMF can serve, and restarting it for
 	// that would be the false positive this signal exists to avoid.
-	case bindFailed.Load() && !context.AMF_Self().EnableSctpLb:
+	case bindFailed.Load() && directSctpServing.Load():
 		return false, "the NGAP listener never bound"
 	case !served.Load():
 		return true, "no NGAP association has been served yet"
