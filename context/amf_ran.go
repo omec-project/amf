@@ -52,6 +52,11 @@ type AmfRan struct {
 	Log *zap.SugaredLogger `json:"-"`
 
 	ranStateMu sync.RWMutex
+	// statsMu makes "read the list, then write the gauge from it" one step. Every NGAP
+	// message is dispatched in its own goroutine, so a configuration update replacing the
+	// list can otherwise land between another goroutine's snapshot and its write, and that
+	// goroutine then republishes the series this one just retired.
+	statsMu sync.Mutex
 }
 
 type SupportedTAI struct {
@@ -298,6 +303,9 @@ func (ran *AmfRan) RetireDepartedTacs(previous []SupportedTAI) {
 		return
 	}
 
+	ran.statsMu.Lock()
+	defer ran.statsMu.Unlock()
+
 	snapshot := ran.statsSnapshot()
 
 	kept := make(map[string]struct{}, len(snapshot.supportedTAList))
@@ -323,6 +331,9 @@ func (ran *AmfRan) RetireDepartedTacs(previous []SupportedTAI) {
 // summing that series could not see the gNB go away. Both series are written on every
 // transition so that each one means what it says.
 func (ran *AmfRan) SetRanStats(state string) {
+	ran.statsMu.Lock()
+	defer ran.statsMu.Unlock()
+
 	var connected, disconnected uint64
 
 	switch state {
