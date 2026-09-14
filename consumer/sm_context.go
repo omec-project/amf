@@ -294,7 +294,7 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	smContextCreateData.SetDnn(smContext.Dnn())
 	smContextCreateData.SetServingNfId(context.NfId)
 	smContextCreateData.SetGuami(context.ServedGuamiList[0])
-	// take seving networking plmn from userlocation.Tai.
+	// take serving network plmn from userlocation.Tai.
 	//
 	// Snapshots, not repeated accessor calls: this function is reached from
 	// SmContextStatusNotifyProcedure's goroutine as well as from the UE's own, so the
@@ -328,7 +328,7 @@ func buildCreateSmContextRequest(ue *amf_context.AmfUe, smContext *amf_context.S
 	// Sent only when true. The field is optional and an SMF that reads it treats absence and false
 	// alike, so an explicit false would add a field to every request on every deployment to say
 	// nothing.
-	if ue.UsesExtendedNasSmTimers() {
+	if amf_context.RatUsesExtendedNasSmTimers(ratType) {
 		smContextCreateData.SetExtendedNasSmTimerInd(true)
 		ue.GmmLog.Infof("signalling the extended NAS SM timer indication to the SMF for RAT type %s", ratType)
 	}

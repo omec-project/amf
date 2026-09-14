@@ -294,6 +294,15 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
 
+	// And identityMu, because the alias below hands the whole struct to the encoder,
+	// including the fields that lock guards. Guarding their accessors is not enough while
+	// something walks them directly: a store running against a registration's SetTai or
+	// SetLocation races on the same words. Order is ue.Mutex then identityMu, and nothing
+	// takes them the other way round - the identity accessors take identityMu alone and
+	// call nothing that locks.
+	ue.identityMu.RLock()
+	defer ue.identityMu.RUnlock()
+
 	type Alias AmfUe
 	stateVal := make(map[models.AccessType]string)
 	smCtxListVal := make(map[string]SmContext)
@@ -789,10 +798,19 @@ func (ue *AmfUe) CmIdle(anType models.AccessType) bool {
 // reach at the time of writing — RatType stays generic NR and this is false, so the deployment
 // runs on configured timer values rather than on a signalled indication.
 func (ue *AmfUe) UsesExtendedNasSmTimers() bool {
-	switch ue.GetRatType() {
+	return RatUsesExtendedNasSmTimers(ue.GetRatType())
+}
+
+// RatUsesExtendedNasSmTimers is the same question asked of a RAT type the caller already has.
+// A caller that has snapshotted the UE's RAT for a request must decide from that snapshot:
+// asking the UE again can answer for a different access than the one the request carries, and
+// the two travel together to the SMF.
+func RatUsesExtendedNasSmTimers(ratType models.RatType) bool {
+	switch ratType {
 	case models.RATTYPE_NR_MEO, models.RATTYPE_NR_GEO:
 		return true
 	}
+
 	return false
 }
 

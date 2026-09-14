@@ -204,6 +204,25 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	return nil
 }
 
+// sameTai reports whether two TAIs name the same tracking area. models.Tai carries Nid as a
+// pointer, so == compares pointer identity for it: two TAIs with equal values but built from
+// separate copies never match, and in an SNPN deployment every location update then looked
+// like a change and asked the policy function for a fresh decision.
+func sameTai(a, b models.Tai) bool {
+	if a.PlmnId != b.PlmnId || a.Tac != b.Tac {
+		return false
+	}
+
+	switch {
+	case a.Nid == nil && b.Nid == nil:
+		return true
+	case a.Nid == nil || b.Nid == nil:
+		return false
+	default:
+		return *a.Nid == *b.Nid
+	}
+}
+
 func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocationInformation) {
 	if userLocationInformation == nil {
 		return
@@ -250,7 +269,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			// HandleMobilityAndPeriodicRegistrationUpdating, on this UE's own
 			// goroutine, so unlike Location and Tai it has no cross-goroutine reader
 			// to guard against.
-			if ranUe.AmfUe.GetTai() != ranUe.Tai {
+			if !sameTai(ranUe.AmfUe.GetTai(), ranUe.Tai) {
 				ranUe.AmfUe.LocationChanged = true
 			}
 			ranUe.AmfUe.SetLocation(ranUe.Location)
@@ -289,7 +308,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			ranUe.Location.NrLocation.SetAgeOfLocationInformation(ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value))
 		}
 		if ranUe.AmfUe != nil {
-			if ranUe.AmfUe.GetTai() != ranUe.Tai {
+			if !sameTai(ranUe.AmfUe.GetTai(), ranUe.Tai) {
 				ranUe.AmfUe.LocationChanged = true
 			}
 			ranUe.AmfUe.SetLocation(ranUe.Location)
