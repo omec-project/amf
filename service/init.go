@@ -158,6 +158,8 @@ func (amf *AMF) Start() {
 		}
 	}
 
+	metrics.RegisterHealth(ngap_service.Healthy)
+
 	go metrics.InitMetrics()
 
 	if err = metrics.InitialiseKafkaStream(factory.AmfConfig.Configuration); err != nil {

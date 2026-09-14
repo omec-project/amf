@@ -13,6 +13,7 @@ package metrics
 
 import (
 	"encoding/hex"
+	"io"
 	"net/http"
 	"unicode/utf8"
 
@@ -112,6 +113,32 @@ func init() {
 	if err := amfStats.register(); err != nil {
 		logger.AppLog.Errorln("AMF Stats register failed", err)
 	}
+}
+
+// HealthHandler answers a liveness probe from check, which reports whether the element
+// can serve and why not when it cannot. The check is passed in rather than read from here,
+// because the state it describes belongs to the NGAP layer and this package must stay
+// importable from it.
+func HealthHandler(check func() (bool, string)) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		healthy, reason := check()
+
+		body := "ok: " + reason + "\n"
+		if !healthy {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			body = "unhealthy: " + reason + "\n"
+		}
+
+		if _, err := io.WriteString(w, body); err != nil {
+			logger.AppLog.Errorf("could not write health response: %v", err)
+		}
+	})
+}
+
+// RegisterHealth publishes the liveness endpoint on the same mux and port as /metrics, so
+// no new listener is involved.
+func RegisterHealth(check func() (bool, string)) {
+	http.Handle("/healthz", HealthHandler(check))
 }
 
 // InitMetrics initialises AMF stats
