@@ -19,7 +19,8 @@ import (
 //
 // The RAN Node Name IE is left out on purpose. It is optional (TS 38.413 clause 9.2.6.1) and the
 // handler copies it into ran.Name, which is the gauge's id label - so carrying it would let a test
-// change the label it reads back.
+// change the label it reads back. Tests that need to drive a rename use
+// ngSetupRequestWithNameAndTACs instead.
 func ngSetupRequestWithTACs(tacs ...string) *ngapType.NGAPPDU {
 	list := ngapType.SupportedTAList{}
 
@@ -81,6 +82,23 @@ func ngSetupRequestWithTACs(tacs ...string) *ngapType.NGAPPDU {
 			},
 		},
 	}
+}
+
+// ngSetupRequestWithNameAndTACs is ngSetupRequestWithTACs with a RAN Node Name IE added, for the
+// one thing that builder deliberately does not exercise: a setup that renames the RAN.
+func ngSetupRequestWithNameAndTACs(name string, tacs ...string) *ngapType.NGAPPDU {
+	pdu := ngSetupRequestWithTACs(tacs...)
+
+	ies := &pdu.InitiatingMessage.Value.NGSetup.ProtocolIEs
+	ies.List = append(ies.List, ngapType.NGSetupRequestIEs{
+		Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDRANNodeName},
+		Value: ngapType.NGSetupRequestIEsValue{
+			Present:     ngapType.NGSetupRequestIEsPresentRANNodeName,
+			RANNodeName: &ngapType.RANNodeName{Value: name},
+		},
+	})
+
+	return pdu
 }
 
 // HandleNGSetupRequest replaces the supported TA list, and has done since before the RAN
@@ -158,5 +176,40 @@ func TestARefusedNgSetupRetiresTheTacsItDropped(t *testing.T) {
 	if _, stale := gnbSessProfileTACs(t, ran.Name, ran.GnbIp)["000001"]; stale {
 		t.Error("gnb_session_profile still carries a series for 000001 after a refused NG Setup " +
 			"dropped it from the list, where nothing will ever write that series again")
+	}
+}
+
+// The gauge's id label is ran.Name, which the RAN Node Name IE can change on any NG Setup. Once
+// it does, nothing ever writes the old name again - not only for the TACs the new list dropped,
+// but for every TAC published under it, including ones the RAN still broadcasts.
+func TestARenamedNgSetupRetiresTheOldNamesSeries(t *testing.T) {
+	disableKafkaForTest(t)
+	serveTACs(t, "1")
+
+	ran := context.NewAmfRanDefault()
+	ran.SupportedTAList = context.NewSupportedTAIList()
+	ran.GnbIp = "198.51.100.13"
+
+	const oldName, newName = "gnb-before-rename", "gnb-after-rename"
+
+	HandleNGSetupRequest(ran, ngSetupRequestWithNameAndTACs(oldName, "000001"))
+
+	if ran.Name != oldName {
+		t.Fatalf("ran.Name = %q, want %q", ran.Name, oldName)
+	}
+	if _, published := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; !published {
+		t.Fatal("the gauge has no series under the old name, so this test cannot show one being retired")
+	}
+
+	// The gNB renames itself and keeps broadcasting the same tracking area.
+	HandleNGSetupRequest(ran, ngSetupRequestWithNameAndTACs(newName, "000001"))
+
+	if _, stale := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; stale {
+		t.Error("gnb_session_profile still carries a series under the old name after a rename, " +
+			"so exported state outlives the identity it describes")
+	}
+
+	if _, published := gnbSessProfileTACs(t, newName, ran.GnbIp)["000001"]; !published {
+		t.Error("gnb_session_profile has no series under the new name, which the response publishes")
 	}
 }

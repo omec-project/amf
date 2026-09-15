@@ -291,14 +291,23 @@ func (ran *AmfRan) RanID() string {
 }
 
 // RetireDepartedTacs removes the exported state of tracking areas the gNB has stopped
-// broadcasting. SetRanStats only ever walks the RAN's *current* list, so a tracking area
-// dropped by a RAN configuration update is never written again and keeps its last Connected
-// sample for the life of the process - exported state outliving the condition it describes,
-// which is the same fault as a departed gNB still reporting Connected, one level down.
+// broadcasting. SetRanStats only ever walks the RAN's *current* list under the RAN's *current*
+// name, so a tracking area dropped by a RAN configuration update is never written again and
+// keeps its last Connected sample for the life of the process - exported state outliving the
+// condition it describes, which is the same fault as a departed gNB still reporting Connected,
+// one level down.
+//
+// previousName and previousGnbIP are the identity the departed list was published under, taken
+// before the caller applied whatever changed. A RAN Node Name IE can rename the RAN in the same
+// request that replaces its TA list, and the gauge's id label is that name: once it changes,
+// nothing ever writes the old name again, so every series under it is orphaned, not only the
+// TACs that left the list. Comparing against the *current* identity therefore decides how much
+// of previous to retire - all of it on a rename, only the departed TACs otherwise - rather than
+// assuming the caller's rename and TA list changes are independent.
 //
 // The series is deleted rather than zeroed: this gNB is still connected, so neither state the
-// label carries is true of a tracking area it no longer serves.
-func (ran *AmfRan) RetireDepartedTacs(previous []SupportedTAI) {
+// label carries is true of a tracking area it no longer serves, or of a name it no longer has.
+func (ran *AmfRan) RetireDepartedTacs(previousName, previousGnbIP string, previous []SupportedTAI) {
 	if len(previous) == 0 {
 		return
 	}
@@ -308,9 +317,13 @@ func (ran *AmfRan) RetireDepartedTacs(previous []SupportedTAI) {
 
 	snapshot := ran.statsSnapshot()
 
+	renamed := previousName != snapshot.name || previousGnbIP != snapshot.gnbIP
+
 	kept := make(map[string]struct{}, len(snapshot.supportedTAList))
-	for _, tai := range snapshot.supportedTAList {
-		kept[tai.Tai.Tac] = struct{}{}
+	if !renamed {
+		for _, tai := range snapshot.supportedTAList {
+			kept[tai.Tai.Tac] = struct{}{}
+		}
 	}
 
 	for _, tai := range previous {
@@ -318,8 +331,8 @@ func (ran *AmfRan) RetireDepartedTacs(previous []SupportedTAI) {
 			continue
 		}
 
-		metrics.DeleteGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanConnected, tai.Tai.Tac)
-		metrics.DeleteGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanDisconnected, tai.Tai.Tac)
+		metrics.DeleteGnbSessProfileStats(previousName, previousGnbIP, RanConnected, tai.Tai.Tac)
+		metrics.DeleteGnbSessProfileStats(previousName, previousGnbIP, RanDisconnected, tai.Tai.Tac)
 	}
 }
 
