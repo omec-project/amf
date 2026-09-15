@@ -367,8 +367,9 @@ func SendUpdateSmContextActivateUpCnxState(
 ) {
 	updateData := models.SmContextUpdateData{}
 	updateData.SetUpCnxState(models.UPCNXSTATE_ACTIVATING)
-	if !amf_context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
-		updateData.SetUeLocation(ue.Location)
+	// A copy, not &ue.Location: that field is guarded by identityMu and read from other goroutines.
+	if location := ue.GetLocation(); !amf_context.CompareUserLocation(location, smContext.UserLocation()) {
+		updateData.SetUeLocation(location)
 	}
 	if smContext.AccessType() != accessType {
 		updateData.SetAnType(smContext.AccessType())
@@ -393,7 +394,8 @@ func SendUpdateSmContextDeactivateUpCnxState(ctx context.Context, ue *amf_contex
 	}
 	updateData := models.SmContextUpdateData{}
 	updateData.SetUpCnxState(models.UPCNXSTATE_DEACTIVATED)
-	updateData.SetUeLocation(ue.Location)
+	// A copy, not &ue.Location: that field is guarded by identityMu and read from other goroutines.
+	updateData.SetUeLocation(ue.GetLocation())
 	if cause.Cause != nil {
 		updateData.SetCause(*cause.Cause)
 	}
@@ -443,7 +445,8 @@ func SendUpdateSmContextXnHandover(
 		updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
 	}
 	updateData.SetToBeSwitched(true)
-	updateData.SetUeLocation(ue.Location)
+	// A copy, not &ue.Location: that field is guarded by identityMu and read from other goroutines.
+	updateData.SetUeLocation(ue.GetLocation())
 	if ladn, ok := ue.ServingAMF.LadnPool[smContext.Dnn()]; ok {
 		if amf_context.InTaiList(ue.Tai, ladn.TaiLists) {
 			updateData.SetPresenceInLadn(models.PRESENCESTATE_IN_AREA)
