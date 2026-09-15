@@ -732,43 +732,52 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		ue.NgKsi.Ksi = 0
 	}
 
-	// Copy UserLocation from ranUe
-	ue.Location = ranUe.Location
-	ue.Tai = ranUe.Tai
+	// Copy UserLocation from ranUe. The setters take identityMu, because the
+	// Namf_EventExposure, Namf_Location, Namf_MT and OAM handlers read these fields
+	// on their own HTTP goroutines while this procedure runs.
+	ue.SetLocation(ranUe.Location)
+	ue.SetTai(ranUe.Tai)
 
 	// Set ue.RatType from the access type. Without this, ue.RatType stays
 	// empty during normal registration and downstream SBI consumers
 	// (Nsmf_PDUSession CreateSMContext, Namf_Communication, location and
 	// MT services) send an empty ratType.
+	//
+	// Decided from ranUe rather than from ue, whose copies were just taken from it,
+	// so that the derivation does not read fields this goroutine has published to
+	// the handlers. Seeded with the current value because neither switch has a
+	// default: an access type that matches no arm must leave RatType as it was.
+	ratType := ue.GetRatType()
 	switch anType {
 	case models.ACCESSTYPE__3_GPP_ACCESS:
 		switch {
-		case ue.Location.NrLocation != nil:
-			ue.RatType = models.RATTYPE_NR
-		case ue.Location.EutraLocation != nil:
-			ue.RatType = models.RATTYPE_EUTRA
+		case ranUe.Location.NrLocation != nil:
+			ratType = models.RATTYPE_NR
+		case ranUe.Location.EutraLocation != nil:
+			ratType = models.RATTYPE_EUTRA
 		}
 	case models.ACCESSTYPE_NON_3_GPP_ACCESS:
-		ue.RatType = models.RATTYPE_WLAN
+		ratType = models.RATTYPE_WLAN
 	}
 
 	// Rel-18 NR-NTN: if the serving RAN advertised RATInformation for this
 	// TAC at NGSetup, upgrade the generic NR RatType to the orbit-specific
 	// value (NR_LEO/NR_MEO/NR_GEO/NR_OTHER_SAT) per 3GPP TS 29.571.
-	if ue.RatType == models.RATTYPE_NR && ranUe.Ran != nil {
-		if ratInfo := ranUe.Ran.RatInformationForTAC(ue.Tai.Tac); ratInfo != nil {
+	if ratType == models.RATTYPE_NR && ranUe.Ran != nil {
+		if ratInfo := ranUe.Ran.RatInformationForTAC(ranUe.Tai.Tac); ratInfo != nil {
 			switch ratInfo.Value {
 			case ngapType.RATInformationPresentNRLEO:
-				ue.RatType = models.RATTYPE_NR_LEO
+				ratType = models.RATTYPE_NR_LEO
 			case ngapType.RATInformationPresentNRMEO:
-				ue.RatType = models.RATTYPE_NR_MEO
+				ratType = models.RATTYPE_NR_MEO
 			case ngapType.RATInformationPresentNRGEO:
-				ue.RatType = models.RATTYPE_NR_GEO
+				ratType = models.RATTYPE_NR_GEO
 			case ngapType.RATInformationPresentNROTHERSAT:
-				ue.RatType = models.RATTYPE_NR_OTHER_SAT
+				ratType = models.RATTYPE_NR_OTHER_SAT
 			}
 		}
 	}
+	ue.SetRatType(ratType)
 
 	// Check TAI
 	taiList := make([]models.Tai, len(amfSelf.SupportTaiLists))

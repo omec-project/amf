@@ -204,6 +204,25 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	return nil
 }
 
+// sameTai reports whether two TAIs name the same tracking area. models.Tai carries Nid as a
+// pointer, so == compares pointer identity for it: two TAIs with equal values but built from
+// separate copies never match, and in an SNPN deployment every location update then looked
+// like a change and asked the policy function for a fresh decision.
+func sameTai(a, b models.Tai) bool {
+	if a.PlmnId != b.PlmnId || a.Tac != b.Tac {
+		return false
+	}
+
+	switch {
+	case a.Nid == nil && b.Nid == nil:
+		return true
+	case a.Nid == nil || b.Nid == nil:
+		return false
+	default:
+		return *a.Nid == *b.Nid
+	}
+}
+
 func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocationInformation) {
 	if userLocationInformation == nil {
 		return
@@ -246,11 +265,15 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 				locationInfoEUTRA.TimeStamp.Value))
 		}
 		if ranUe.AmfUe != nil {
-			if ranUe.AmfUe.Tai != ranUe.Tai {
+			// LocationChanged stays a direct write: its only readers are in
+			// HandleMobilityAndPeriodicRegistrationUpdating, on this UE's own
+			// goroutine, so unlike Location and Tai it has no cross-goroutine reader
+			// to guard against.
+			if !sameTai(ranUe.AmfUe.GetTai(), ranUe.Tai) {
 				ranUe.AmfUe.LocationChanged = true
 			}
-			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = deepcopy.Copy(ranUe.AmfUe.Location.EutraLocation.Tai).(models.Tai)
+			ranUe.AmfUe.SetLocation(ranUe.Location)
+			ranUe.AmfUe.SetTai(ranUe.Location.EutraLocation.Tai)
 		}
 	case ngapType.UserLocationInformationPresentUserLocationInformationNR:
 		locationInfoNR := userLocationInformation.UserLocationInformationNR
@@ -285,11 +308,11 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 			ranUe.Location.NrLocation.SetAgeOfLocationInformation(ngapConvert.TimeStampToInt32(locationInfoNR.TimeStamp.Value))
 		}
 		if ranUe.AmfUe != nil {
-			if ranUe.AmfUe.Tai != ranUe.Tai {
+			if !sameTai(ranUe.AmfUe.GetTai(), ranUe.Tai) {
 				ranUe.AmfUe.LocationChanged = true
 			}
-			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = deepcopy.Copy(ranUe.AmfUe.Location.NrLocation.Tai).(models.Tai)
+			ranUe.AmfUe.SetLocation(ranUe.Location)
+			ranUe.AmfUe.SetTai(ranUe.Location.NrLocation.Tai)
 		}
 	case ngapType.UserLocationInformationPresentUserLocationInformationN3IWF:
 		locationInfoN3IWF := userLocationInformation.UserLocationInformationN3IWF
@@ -319,8 +342,8 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Tai = deepcopy.Copy(ranUe.Location.N3gaLocation.GetN3gppTai()).(models.Tai)
 
 		if ranUe.AmfUe != nil {
-			ranUe.AmfUe.Location = deepcopy.Copy(ranUe.Location).(models.UserLocation)
-			ranUe.AmfUe.Tai = ranUe.Location.N3gaLocation.GetN3gppTai()
+			ranUe.AmfUe.SetLocation(ranUe.Location)
+			ranUe.AmfUe.SetTai(ranUe.Location.N3gaLocation.GetN3gppTai())
 		}
 	case ngapType.UserLocationInformationPresentNothing:
 	}

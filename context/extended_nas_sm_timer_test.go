@@ -66,3 +66,48 @@ func TestExtendedNasSmTimersAreASubsetOfNonTerrestrial(t *testing.T) {
 		t.Error("NR(LEO) must be non-terrestrial and must not warrant extended timers; deriving one predicate from the other is the mistake this pins")
 	}
 }
+
+// The flag and the RatType that travel to the SMF in one request have to describe the same
+// access. The caller snapshots the UE's RAT for the request, so it must decide from that
+// snapshot: asking the UE again can answer for an access the request does not carry, if a
+// registration changes it in between.
+func TestRatUsesExtendedNasSmTimersDecidesFromTheValueGiven(t *testing.T) {
+	tests := []struct {
+		ratType models.RatType
+		want    bool
+	}{
+		{models.RATTYPE_NR_MEO, true},
+		{models.RATTYPE_NR_GEO, true},
+		{models.RATTYPE_NR_LEO, false},
+		{models.RATTYPE_NR, false},
+		{models.RATTYPE_EUTRA, false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.ratType), func(t *testing.T) {
+			if got := RatUsesExtendedNasSmTimers(tt.ratType); got != tt.want {
+				t.Errorf("RatUsesExtendedNasSmTimers(%q) = %v, want %v", tt.ratType, got, tt.want)
+			}
+		})
+	}
+}
+
+// And the method stays the same question asked of the UE's current RAT, so callers that have
+// no snapshot keep working.
+func TestUsesExtendedNasSmTimersAsksTheUesCurrentRat(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	ue.SetRatType(models.RATTYPE_NR_GEO)
+
+	if !ue.UsesExtendedNasSmTimers() {
+		t.Error("UsesExtendedNasSmTimers() = false for NR(GEO), want true")
+	}
+
+	ue.SetRatType(models.RATTYPE_NR)
+
+	if ue.UsesExtendedNasSmTimers() {
+		t.Error("UsesExtendedNasSmTimers() = true for terrestrial NR, want false")
+	}
+}
