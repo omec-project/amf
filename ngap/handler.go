@@ -641,6 +641,14 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			ran.Log.Warnln("NG-Setup failure: SupportedTAList is missing")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+			// The RAN Node Name IE above may already have renamed ran, but this failure
+			// leaves ran.SupportedTAList untouched: publish it as "departed" so
+			// RetireDepartedTacs still retires the old name's series on a rename, and
+			// is a no-op otherwise since the TAC list did not actually change.
+			if len(ran.SupportedTAList) != 0 {
+				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+				copy(departedTAList, ran.SupportedTAList)
+			}
 			return true
 		}
 
@@ -4278,10 +4286,23 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
 			}
 		}
+		// TS 38.413 clause 9.2.6.9: the RAN Node Name IE, if present, replaces the value
+		// previously provided - same semantics as in NG Setup. Without this, ran.Name never
+		// changes here, so the rename retirement below never has a rename to detect.
+		if rANNodeName != nil {
+			ran.Name = rANNodeName.Value
+		}
 		if supportedTAList == nil {
 			ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+			// ran.SupportedTAList is untouched by this failure: publish it as "departed"
+			// so RetireDepartedTacs still retires the old identity's series if ran was
+			// renamed, and is a no-op otherwise since the list did not change.
+			if len(ran.SupportedTAList) != 0 {
+				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+				copy(departedTAList, ran.SupportedTAList)
+			}
 			return true
 		}
 

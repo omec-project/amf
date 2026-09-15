@@ -101,6 +101,34 @@ func ngSetupRequestWithNameAndTACs(name string, tacs ...string) *ngapType.NGAPPD
 	return pdu
 }
 
+// ngSetupRequestWithNameNoTACs carries a RAN Node Name IE but no Supported TA List IE, which TS
+// 38.413 clause 9.2.6.1 makes mandatory - so this setup takes the refused path in
+// HandleNGSetupRequest before ever looking at a tracking area.
+func ngSetupRequestWithNameNoTACs(name string) *ngapType.NGAPPDU {
+	return &ngapType.NGAPPDU{
+		Present: ngapType.NGAPPDUPresentInitiatingMessage,
+		InitiatingMessage: &ngapType.InitiatingMessage{
+			ProcedureCode: ngapType.ProcedureCode{Value: ngapType.ProcedureCodeNGSetup},
+			Value: ngapType.InitiatingMessageValue{
+				Present: ngapType.InitiatingMessagePresentNGSetup,
+				NGSetup: &ngapType.NGSetupRequest{
+					ProtocolIEs: ngapType.ProtocolIEContainerNGSetupRequestIEs{
+						List: []ngapType.NGSetupRequestIEs{
+							{
+								Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDRANNodeName},
+								Value: ngapType.NGSetupRequestIEsValue{
+									Present:     ngapType.NGSetupRequestIEsPresentRANNodeName,
+									RANNodeName: &ngapType.RANNodeName{Value: name},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // HandleNGSetupRequest replaces the supported TA list, and has done since before the RAN
 // configuration update path was taught to. The other half of that repair was missing here too:
 // gnb_session_profile is written by SetRanStats, which walks the RAN's *current* list, so a
@@ -211,5 +239,44 @@ func TestARenamedNgSetupRetiresTheOldNamesSeries(t *testing.T) {
 
 	if _, published := gnbSessProfileTACs(t, newName, ran.GnbIp)["000001"]; !published {
 		t.Error("gnb_session_profile has no series under the new name, which the response publishes")
+	}
+}
+
+// The RAN Node Name IE is applied to ran.Name before the Supported TA List IE is even looked at,
+// so a setup that carries a name but omits the mandatory list still renames the RAN on its way to
+// the refused path - and ran.SupportedTAList, untouched by that failure, is what was published
+// under the old name. Retirement must use it, not the empty departed list this refusal would
+// otherwise leave behind, or the old name's series are orphaned forever.
+func TestARenamedButRefusedNgSetupStillRetiresTheOldNamesSeries(t *testing.T) {
+	disableKafkaForTest(t)
+	serveTACs(t, "1")
+
+	ran := context.NewAmfRanDefault()
+	ran.SupportedTAList = context.NewSupportedTAIList()
+	ran.GnbIp = "198.51.100.14"
+
+	const oldName, newName = "gnb-before-rename-refused", "gnb-after-rename-refused"
+
+	HandleNGSetupRequest(ran, ngSetupRequestWithNameAndTACs(oldName, "000001"))
+
+	if _, published := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; !published {
+		t.Fatal("the gauge has no series under the old name, so this test cannot show one being retired")
+	}
+
+	// The gNB renames itself but omits the Supported TA List IE, so the setup is refused before
+	// ran.SupportedTAList is ever replaced.
+	HandleNGSetupRequest(ran, ngSetupRequestWithNameNoTACs(newName))
+
+	if ran.Name != newName {
+		t.Fatalf("ran.Name = %q, want %q - this test rests on the name being applied ahead of "+
+			"the missing-list refusal", ran.Name, newName)
+	}
+	if got := tacsOf(ran.SupportedTAList); len(got) != 1 || got[0] != "000001" {
+		t.Fatalf("after the refused NG Setup the TA list is %v, want it unchanged at [000001]", got)
+	}
+
+	if _, stale := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; stale {
+		t.Error("gnb_session_profile still carries a series under the old name after a rename, " +
+			"even though the refused setup never touched the TA list it describes")
 	}
 }
