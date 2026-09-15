@@ -423,7 +423,9 @@ func SendUpdateSmContextN2Info(
 	updateData := models.SmContextUpdateData{}
 	updateData.SetN2SmInfoType(n2SmType)
 	updateData.N2SmInfo = models.NewRefToBinaryData(n2SmInfoId)
-	updateData.UeLocation = &ue.Location
+	// A copy, not &ue.Location: that field is guarded by identityMu and read from other goroutines.
+	location := ue.GetLocation()
+	updateData.UeLocation = &location
 	return SendUpdateSmContextRequest(ctx, smContext, updateData, nil, N2SmInfo)
 }
 
