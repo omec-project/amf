@@ -57,6 +57,11 @@ type AmfRan struct {
 	// list can otherwise land between another goroutine's snapshot and its write, and that
 	// goroutine then republishes the series this one just retired.
 	statsMu sync.Mutex
+	// removed is set once, under statsMu, by Remove. NGAP handlers run in their own
+	// goroutine and can still be publishing Connected after the SCTP association's teardown
+	// has independently called Remove on this same RAN; without this, that publication lands
+	// after Remove's Disconnected write and resurrects Connected metrics for a dead RAN.
+	removed bool
 }
 
 type SupportedTAI struct {
@@ -117,7 +122,7 @@ func (ran *AmfRan) Remove() {
 		}
 	}
 
-	ran.SetRanStats(RanDisconnected)
+	ran.markRemoved()
 	ran.Log.Infof("remove RAN Context[ID: %+v]", ran.RanID())
 	ran.RemoveAllUeInRan()
 	if AMF_Self().EnableSctpLb {
@@ -343,9 +348,19 @@ func (ran *AmfRan) RetireDepartedTacs(previousName, previousGnbIP string, previo
 // disconnected went on reporting Connected=1 for the life of the process, and a dashboard
 // summing that series could not see the gNB go away. Both series are written on every
 // transition so that each one means what it says.
+//
+// Once Remove has run, this is a no-op: NGAP handlers run in their own goroutine and a
+// Connected publication already in flight when the association tears down would otherwise
+// land after Remove's Disconnected write and resurrect metrics for a RAN that no longer exists.
 func (ran *AmfRan) SetRanStats(state string) {
 	ran.statsMu.Lock()
 	defer ran.statsMu.Unlock()
+
+	if ran.removed {
+		logger.ContextLog.Debugf("RAN %q was removed, dropping stale %q publication on gnb_session_profile",
+			ran.RanID(), state)
+		return
+	}
 
 	var connected, disconnected uint64
 
@@ -367,5 +382,26 @@ func (ran *AmfRan) SetRanStats(state string) {
 	for _, tai := range snapshot.supportedTAList {
 		metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanConnected, tai.Tai.Tac, connected)
 		metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanDisconnected, tai.Tai.Tac, disconnected)
+	}
+}
+
+// markRemoved records this RAN as torn down and publishes Disconnected one final time, both
+// under statsMu so the two are one step: without that, a concurrent SetRanStats(RanConnected)
+// could interleave between the flag and the write and still publish Connected after removal.
+// Once set, SetRanStats refuses every further publication, including this RAN's own repeated
+// Disconnected writes from an idempotent Remove.
+func (ran *AmfRan) markRemoved() {
+	ran.statsMu.Lock()
+	defer ran.statsMu.Unlock()
+
+	if ran.removed {
+		return
+	}
+	ran.removed = true
+
+	snapshot := ran.statsSnapshot()
+	for _, tai := range snapshot.supportedTAList {
+		metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanConnected, tai.Tai.Tac, 0)
+		metrics.SetGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanDisconnected, tai.Tai.Tac, 1)
 	}
 }

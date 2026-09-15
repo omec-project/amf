@@ -4286,37 +4286,25 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
 			}
 		}
-		// TS 38.413 clause 9.2.6.9: the RAN Node Name IE, if present, replaces the value
-		// previously provided - same semantics as in NG Setup. Without this, ran.Name never
-		// changes here, so the rename retirement below never has a rename to detect.
-		if rANNodeName != nil {
-			ran.Name = rANNodeName.Value
-		}
 		if supportedTAList == nil {
 			ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
-			// ran.SupportedTAList is untouched by this failure: publish it as "departed"
-			// so RetireDepartedTacs still retires the old identity's series if ran was
-			// renamed, and is a no-op otherwise since the list did not change.
-			if len(ran.SupportedTAList) != 0 {
-				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
-				copy(departedTAList, ran.SupportedTAList)
-			}
+			// Neither ran.Name nor ran.SupportedTAList is touched by this failure, so
+			// there is nothing departed to retire: a refused update must leave the RAN's
+			// current identity and list, and what they published, exactly as they were.
 			return true
 		}
 
-		// The list is replaced, not added to: TS 38.413 clause 8.7.2.2 says that when the
-		// Supported TA List IE is included, the AMF shall overwrite the whole list of
-		// supported TAs and the slices of each. Without this the entries accumulate, so a
-		// tracking area the gNB has stopped broadcasting stays in the AMF's idea of what
-		// this RAN serves - and once the list reaches its capacity, a genuinely new one is
-		// dropped instead. HandleNGSetupRequest already clears in the same way.
-		if len(ran.SupportedTAList) != 0 {
-			departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
-			copy(departedTAList, ran.SupportedTAList)
-			ran.SupportedTAList = context.NewSupportedTAIList()
-		}
+		// Built without touching ran.Name or ran.SupportedTAList: whether this update is
+		// accepted is decided below from this candidate, and a refused update - RAN
+		// Configuration Update Failure - must leave the RAN's current identity and list,
+		// and what they published, exactly as they were. TS 38.413 clause 9.2.6.9 has the
+		// RAN Node Name IE, when present, replace the value previously provided - same
+		// semantics as NG Setup - but only once the update as a whole is accepted; staging
+		// it here keeps a rename and a rejected TA list from being applied independently
+		// of each other.
+		candidateTAList := context.NewSupportedTAIList()
 
 		for i := 0; i < len(supportedTAList.List); i++ {
 			supportedTAItem := supportedTAList.List[i]
@@ -4332,7 +4320,7 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 					ratInformation = &ngapType.RATInformation{Value: found.Value}
 				}
 			}
-			capOfSupportTai := cap(ran.SupportedTAList)
+			capOfSupportTai := cap(candidateTAList)
 			for j := 0; j < len(supportedTAItem.BroadcastPLMNList.List); j++ {
 				supportedTAI := context.NewSupportedTAI()
 				supportedTAI.Tai.Tac = tac
@@ -4360,15 +4348,15 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 					}
 				}
 				ran.Log.Debugf("PLMN_ID %+v TAC %s", plmnId, tac)
-				if len(ran.SupportedTAList) < capOfSupportTai {
-					ran.SupportedTAList = append(ran.SupportedTAList, supportedTAI)
+				if len(candidateTAList) < capOfSupportTai {
+					candidateTAList = append(candidateTAList, supportedTAI)
 				} else {
 					break
 				}
 			}
 		}
 
-		if len(ran.SupportedTAList) == 0 {
+		if len(candidateTAList) == 0 {
 			ran.Log.Warnln("RanConfigurationUpdate failure: No supported TA exist in RanConfigurationUpdate")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{
@@ -4382,7 +4370,7 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				taiList[i].Tac = util.TACConfigToModels(taiList[i].Tac)
 				ran.Log.Infof("Supported Tai List in AMF Plmn: %v, Tac: %v", taiList[i].PlmnId, taiList[i].Tac)
 			}
-			for i, tai := range ran.SupportedTAList {
+			for i, tai := range candidateTAList {
 				if context.InTaiList(tai.Tai, taiList) {
 					found = true
 					ran.Log.Debugf("SERVED_TAI_INDEX[%d]", i)
@@ -4399,6 +4387,23 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 		}
 
 		sendAcknowledge = cause.Present == ngapType.CausePresentNothing
+
+		// TS 38.413 clause 8.7.2.2 says that when the Supported TA List IE is included, the
+		// AMF shall overwrite the whole list of supported TAs and the slices of each - but
+		// only once it has decided to accept the update. Committing the candidate name and
+		// list ahead of that decision would have applied a rename, discarded the current
+		// list, and retired their metrics, on an update the AMF went on to refuse.
+		if sendAcknowledge {
+			if len(ran.SupportedTAList) != 0 {
+				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+				copy(departedTAList, ran.SupportedTAList)
+			}
+			ran.SupportedTAList = candidateTAList
+			if rANNodeName != nil {
+				ran.Name = rANNodeName.Value
+			}
+		}
+
 		return true
 	}()
 	if !shouldSend {
@@ -4411,6 +4416,12 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 	ran.RetireDepartedTacs(previousName, previousGnbIP, departedTAList)
 
 	if sendAcknowledge {
+		// Unlike NG Setup, this procedure has no response that republishes the gauge - and a
+		// rename or list change just retired above may have deleted every series this RAN
+		// had, old and new identity alike. The gNB sent this because it is still connected,
+		// so publish that under whatever identity and list are now current, or the RAN goes
+		// unrepresented until an unrelated connect or disconnect happens to touch it.
+		ran.SetRanStats(context.RanConnected)
 		ran.Log.Infoln("handle RanConfigurationUpdateAcknowledge")
 		ngap_message.SendRanConfigurationUpdateAcknowledge(ran, nil)
 	} else {
