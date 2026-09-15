@@ -561,13 +561,20 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 	sendResponse := false
-	// The tracking areas this setup replaces, kept so their exported state can be retired once
-	// the RAN's lock is released - RetireDepartedTacs takes the read lock through statsSnapshot,
-	// which cannot be acquired from inside the write lock held below.
+	// The tracking areas this setup replaces, and the identity they were published under, kept
+	// so their exported state can be retired once the RAN's lock is released - RetireDepartedTacs
+	// takes the read lock through statsSnapshot, which cannot be acquired from inside the write
+	// lock held below.
 	var departedTAList []context.SupportedTAI
+	var previousName, previousGnbIP string
 	shouldSend := func() bool {
 		ran.LockRanState()
 		defer ran.UnlockRanState()
+
+		// Captured before the RAN Node Name IE below can rename the RAN: the gauge's id label
+		// is this name, and a rename means nothing ever writes the old one again.
+		previousName = ran.Name
+		previousGnbIP = ran.GnbIp
 
 		initiatingMessage := message.InitiatingMessage
 		if initiatingMessage == nil {
@@ -634,6 +641,14 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			ran.Log.Warnln("NG-Setup failure: SupportedTAList is missing")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+			// The RAN Node Name IE above may already have renamed ran, but this failure
+			// leaves ran.SupportedTAList untouched: publish it as "departed" so
+			// RetireDepartedTacs still retires the old name's series on a rename, and
+			// is a no-op otherwise since the TAC list did not actually change.
+			if len(ran.SupportedTAList) != 0 {
+				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+				copy(departedTAList, ran.SupportedTAList)
+			}
 			return true
 		}
 
@@ -737,7 +752,7 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	// ever. This is outside the "did the setup succeed" question below, because the list is
 	// replaced before the AMF decides that - and a refused setup is the case where nothing writes
 	// the gauge at all.
-	ran.RetireDepartedTacs(departedTAList)
+	ran.RetireDepartedTacs(previousName, previousGnbIP, departedTAList)
 
 	ran.RLockRanState()
 	gnbID := ran.GnbId
@@ -4221,13 +4236,18 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 	}
 
 	sendAcknowledge := false
-	// The tracking areas this update replaces, kept so their exported state can be retired
-	// once the RAN's lock is released - SetRanStats and the metrics helpers take the read
-	// lock, which cannot be acquired from inside the write lock held below.
+	// The tracking areas this update replaces, and the identity they were published under, kept
+	// so their exported state can be retired once the RAN's lock is released - SetRanStats and
+	// the metrics helpers take the read lock, which cannot be acquired from inside the write lock
+	// held below.
 	var departedTAList []context.SupportedTAI
+	var previousName, previousGnbIP string
 	shouldSend := func() bool {
 		ran.LockRanState()
 		defer ran.UnlockRanState()
+
+		previousName = ran.Name
+		previousGnbIP = ran.GnbIp
 
 		initiatingMessage := message.InitiatingMessage
 		if initiatingMessage == nil {
@@ -4266,10 +4286,23 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
 			}
 		}
+		// TS 38.413 clause 9.2.6.9: the RAN Node Name IE, if present, replaces the value
+		// previously provided - same semantics as in NG Setup. Without this, ran.Name never
+		// changes here, so the rename retirement below never has a rename to detect.
+		if rANNodeName != nil {
+			ran.Name = rANNodeName.Value
+		}
 		if supportedTAList == nil {
 			ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
+			// ran.SupportedTAList is untouched by this failure: publish it as "departed"
+			// so RetireDepartedTacs still retires the old identity's series if ran was
+			// renamed, and is a no-op otherwise since the list did not change.
+			if len(ran.SupportedTAList) != 0 {
+				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+				copy(departedTAList, ran.SupportedTAList)
+			}
 			return true
 		}
 
@@ -4375,7 +4408,7 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 	// Replacing the list is only half of it: the gauge is written from the list, so a
 	// tracking area that has just left it would never be written again and would keep its
 	// last sample for ever. Retiring them here, outside the RAN's write lock.
-	ran.RetireDepartedTacs(departedTAList)
+	ran.RetireDepartedTacs(previousName, previousGnbIP, departedTAList)
 
 	if sendAcknowledge {
 		ran.Log.Infoln("handle RanConfigurationUpdateAcknowledge")

@@ -63,6 +63,23 @@ func ranConfigurationUpdateWithTACs(tacs ...string) *ngapType.NGAPPDU {
 	}
 }
 
+// ranConfigurationUpdateWithNameAndTACs is ranConfigurationUpdateWithTACs with a RAN Node Name IE
+// added, for driving a rename through RAN Configuration Update rather than NG Setup.
+func ranConfigurationUpdateWithNameAndTACs(name string, tacs ...string) *ngapType.NGAPPDU {
+	pdu := ranConfigurationUpdateWithTACs(tacs...)
+
+	ies := &pdu.InitiatingMessage.Value.RANConfigurationUpdate.ProtocolIEs
+	ies.List = append(ies.List, ngapType.RANConfigurationUpdateIEs{
+		Id: ngapType.ProtocolIEID{Value: ngapType.ProtocolIEIDRANNodeName},
+		Value: ngapType.RANConfigurationUpdateIEsValue{
+			Present:     ngapType.RANConfigurationUpdateIEsPresentRANNodeName,
+			RANNodeName: &ngapType.RANNodeName{Value: name},
+		},
+	})
+
+	return pdu
+}
+
 // serveTACs makes the AMF serve the given tracking areas for the duration of one test, so an
 // update naming them takes the acknowledged path. Clause 8.7.2.2's "shall overwrite" is in
 // Successful Operation, so a test that pins the replacement against a refused update would be
@@ -283,5 +300,39 @@ func TestARetiredTrackingAreaStaysRetiredUnderConcurrentPublishing(t *testing.T)
 			t.Fatalf("gnb_session_profile carries a series for %s again after the gNB stopped "+
 				"broadcasting it, so a concurrent publisher republished what the update retired", tac)
 		}
+	}
+}
+
+// TS 38.413 clause 9.2.6.9: the RAN Node Name IE, if present in a RAN CONFIGURATION UPDATE,
+// replaces the value previously provided - the same semantics as NG Setup. Without applying it
+// to ran.Name, this handler's rename retirement can never have a rename to detect.
+func TestARenamedRanConfigurationUpdateRetiresTheOldNamesSeries(t *testing.T) {
+	serveTACs(t, "1")
+
+	ran := context.NewAmfRanDefault()
+	ran.SupportedTAList = context.NewSupportedTAIList()
+	ran.GnbIp = "198.51.100.15"
+
+	const oldName, newName = "gnb-before-config-rename", "gnb-after-config-rename"
+
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithNameAndTACs(oldName, "000001"))
+	ran.SetRanStats(context.RanConnected)
+
+	if ran.Name != oldName {
+		t.Fatalf("ran.Name = %q, want %q", ran.Name, oldName)
+	}
+	if _, published := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; !published {
+		t.Fatal("the gauge has no series under the old name, so this test cannot show one being retired")
+	}
+
+	// The gNB renames itself and keeps broadcasting the same tracking area.
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithNameAndTACs(newName, "000001"))
+
+	if ran.Name != newName {
+		t.Fatalf("ran.Name = %q, want %q - the RAN Node Name IE was not applied", ran.Name, newName)
+	}
+	if _, stale := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; stale {
+		t.Error("gnb_session_profile still carries a series under the old name after a rename, " +
+			"so exported state outlives the identity it describes")
 	}
 }
