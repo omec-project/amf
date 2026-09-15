@@ -112,3 +112,32 @@ func TestSetRanStatsWithNoSupportedTAList(t *testing.T) {
 	ran.SetRanStats(RanConnected)
 	ran.SetRanStats(RanDisconnected)
 }
+
+// NGAP handlers run in their own goroutine and can still be publishing Connected after the
+// SCTP association's teardown has independently torn this RAN down: Remove's Disconnected
+// write must be the last word, or a dead RAN goes on reporting Connected=1 for the life of
+// the process.
+func TestSetRanStatsIsANoOpAfterRemoval(t *testing.T) {
+	ran := &AmfRan{
+		Name:            "gnb-removed-test",
+		GnbIp:           "10.10.10.13",
+		SupportedTAList: []SupportedTAI{{Tai: models.Tai{Tac: "000005"}}},
+	}
+
+	ran.markRemoved()
+
+	want := "{id=gnb-removed-test,ip=10.10.10.13,state=Connected,tac=000005} 0\n" +
+		"{id=gnb-removed-test,ip=10.10.10.13,state=Disconnected,tac=000005} 1"
+	if got := gnbSessionProfileSeries(t, ran.Name); got != want {
+		t.Fatalf("gnb_session_profile after removal:\n%s\nwant:\n%s", got, want)
+	}
+
+	// An update handler that read the RAN before removal, and only now gets to publish,
+	// must not resurrect Connected metrics for an association that no longer exists.
+	ran.SetRanStats(RanConnected)
+
+	if got := gnbSessionProfileSeries(t, ran.Name); got != want {
+		t.Errorf("gnb_session_profile after a stale post-removal Connected publication:\n%s\n"+
+			"want it unchanged at:\n%s", got, want)
+	}
+}

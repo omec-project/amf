@@ -4286,30 +4286,24 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 				ran.Log.Debugf("decode IE PagingDRX = [%d]", pagingDRX.Value)
 			}
 		}
-		// TS 38.413 clause 9.2.6.9: the RAN Node Name IE, if present, replaces the value
-		// previously provided - same semantics as in NG Setup. Without this, ran.Name never
-		// changes here, so the rename retirement below never has a rename to detect.
-		if rANNodeName != nil {
-			ran.Name = rANNodeName.Value
-		}
 		if supportedTAList == nil {
 			ran.Log.Warnln("RanConfigurationUpdate failure: Supported TA List is missing")
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
-			// ran.SupportedTAList is untouched by this failure: publish it as "departed"
-			// so RetireDepartedTacs still retires the old identity's series if ran was
-			// renamed, and is a no-op otherwise since the list did not change.
-			if len(ran.SupportedTAList) != 0 {
-				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
-				copy(departedTAList, ran.SupportedTAList)
-			}
+			// Neither ran.Name nor ran.SupportedTAList is touched by this failure, so
+			// there is nothing departed to retire: a refused update must leave the RAN's
+			// current identity and list, and what they published, exactly as they were.
 			return true
 		}
 
-		// Built without touching ran.SupportedTAList: whether this update is accepted is
-		// decided below from this candidate, and a refused update - RAN Configuration
-		// Update Failure - must leave the RAN's current list, and what it published,
-		// exactly as they were.
+		// Built without touching ran.Name or ran.SupportedTAList: whether this update is
+		// accepted is decided below from this candidate, and a refused update - RAN
+		// Configuration Update Failure - must leave the RAN's current identity and list,
+		// and what they published, exactly as they were. TS 38.413 clause 9.2.6.9 has the
+		// RAN Node Name IE, when present, replace the value previously provided - same
+		// semantics as NG Setup - but only once the update as a whole is accepted; staging
+		// it here keeps a rename and a rejected TA list from being applied independently
+		// of each other.
 		candidateTAList := context.NewSupportedTAIList()
 
 		for i := 0; i < len(supportedTAList.List); i++ {
@@ -4396,15 +4390,18 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 
 		// TS 38.413 clause 8.7.2.2 says that when the Supported TA List IE is included, the
 		// AMF shall overwrite the whole list of supported TAs and the slices of each - but
-		// only once it has decided to accept the update. Committing the candidate ahead of
-		// that decision would have discarded the current list, and retired its metrics, on
-		// an update the AMF went on to refuse.
+		// only once it has decided to accept the update. Committing the candidate name and
+		// list ahead of that decision would have applied a rename, discarded the current
+		// list, and retired their metrics, on an update the AMF went on to refuse.
 		if sendAcknowledge {
 			if len(ran.SupportedTAList) != 0 {
 				departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
 				copy(departedTAList, ran.SupportedTAList)
 			}
 			ran.SupportedTAList = candidateTAList
+			if rANNodeName != nil {
+				ran.Name = rANNodeName.Value
+			}
 		}
 
 		return true

@@ -380,3 +380,45 @@ func TestARejectedRanConfigurationUpdatePreservesTheSupportedTaListAndGauge(t *t
 			"update, so a refused candidate retired metrics it had no business touching")
 	}
 }
+
+// A RAN CONFIGURATION UPDATE can carry a RAN Node Name IE alongside a Supported TA List IE that
+// the AMF goes on to refuse. TS 38.413 clause 9.2.6.9 has the name replace the value previously
+// provided, but only as part of an update the AMF accepts: applying it ahead of the TA list
+// check would rename the RAN in AMF state and under the gauge's identity label while a refused
+// candidate leaves ran.SupportedTAList - and so what it still serves - unchanged, orphaning the
+// old name's series without ever publishing under the new one.
+func TestARejectedRenameLeavesTheNameAndGaugeUnderTheOldIdentity(t *testing.T) {
+	serveTACs(t, "1")
+
+	ran := context.NewAmfRanDefault()
+	ran.SupportedTAList = context.NewSupportedTAIList()
+	ran.GnbIp = "198.51.100.13"
+
+	const oldName, rejectedName = "gnb-before-rejected-rename", "gnb-after-rejected-rename"
+
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithNameAndTACs(oldName, "000001"))
+
+	if ran.Name != oldName {
+		t.Fatalf("ran.Name = %q, want %q", ran.Name, oldName)
+	}
+	if _, published := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; !published {
+		t.Fatal("the gauge has no series under the old name, so this test cannot show one surviving a rejection")
+	}
+
+	// The gNB renames itself but names a tracking area the AMF does not serve, so this
+	// update takes the refused path.
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithNameAndTACs(rejectedName, "000002"))
+
+	if ran.Name != oldName {
+		t.Errorf("ran.Name = %q after a rejected update, want it unchanged at %q - the RAN Node "+
+			"Name IE was applied ahead of the failure it was part of", ran.Name, oldName)
+	}
+	if _, published := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; !published {
+		t.Error("gnb_session_profile no longer carries a series under the old name after a " +
+			"rejected rename, so a refused candidate retired metrics it had no business touching")
+	}
+	if _, published := gnbSessProfileTACs(t, rejectedName, ran.GnbIp)["000001"]; published {
+		t.Error("gnb_session_profile carries a series under the rejected name, which was never " +
+			"applied to ran.Name")
+	}
+}
