@@ -52,6 +52,11 @@ type AmfRan struct {
 	Log *zap.SugaredLogger `json:"-"`
 
 	ranStateMu sync.RWMutex
+	// statsMu makes "read the list, then write the gauge from it" one step. Every NGAP
+	// message is dispatched in its own goroutine, so a configuration update replacing the
+	// list can otherwise land between another goroutine's snapshot and its write, and that
+	// goroutine then republishes the series this one just retired.
+	statsMu sync.Mutex
 }
 
 type SupportedTAI struct {
@@ -285,6 +290,39 @@ func (ran *AmfRan) RanID() string {
 	}
 }
 
+// RetireDepartedTacs removes the exported state of tracking areas the gNB has stopped
+// broadcasting. SetRanStats only ever walks the RAN's *current* list, so a tracking area
+// dropped by a RAN configuration update is never written again and keeps its last Connected
+// sample for the life of the process - exported state outliving the condition it describes,
+// which is the same fault as a departed gNB still reporting Connected, one level down.
+//
+// The series is deleted rather than zeroed: this gNB is still connected, so neither state the
+// label carries is true of a tracking area it no longer serves.
+func (ran *AmfRan) RetireDepartedTacs(previous []SupportedTAI) {
+	if len(previous) == 0 {
+		return
+	}
+
+	ran.statsMu.Lock()
+	defer ran.statsMu.Unlock()
+
+	snapshot := ran.statsSnapshot()
+
+	kept := make(map[string]struct{}, len(snapshot.supportedTAList))
+	for _, tai := range snapshot.supportedTAList {
+		kept[tai.Tai.Tac] = struct{}{}
+	}
+
+	for _, tai := range previous {
+		if _, stillServed := kept[tai.Tai.Tac]; stillServed {
+			continue
+		}
+
+		metrics.DeleteGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanConnected, tai.Tai.Tac)
+		metrics.DeleteGnbSessProfileStats(snapshot.name, snapshot.gnbIP, RanDisconnected, tai.Tai.Tac)
+	}
+}
+
 // SetRanStats records the RAN's connection state on the gnb_session_profile gauge.
 //
 // The state is a label, so writing only the series for the state being entered leaves the
@@ -293,6 +331,9 @@ func (ran *AmfRan) RanID() string {
 // summing that series could not see the gNB go away. Both series are written on every
 // transition so that each one means what it says.
 func (ran *AmfRan) SetRanStats(state string) {
+	ran.statsMu.Lock()
+	defer ran.statsMu.Unlock()
+
 	var connected, disconnected uint64
 
 	switch state {

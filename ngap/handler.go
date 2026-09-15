@@ -561,6 +561,10 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		return
 	}
 	sendResponse := false
+	// The tracking areas this setup replaces, kept so their exported state can be retired once
+	// the RAN's lock is released - RetireDepartedTacs takes the read lock through statsSnapshot,
+	// which cannot be acquired from inside the write lock held below.
+	var departedTAList []context.SupportedTAI
 	shouldSend := func() bool {
 		ran.LockRanState()
 		defer ran.UnlockRanState()
@@ -635,6 +639,8 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 
 		// Clearing any existing contents of ran.SupportedTAList
 		if len(ran.SupportedTAList) != 0 {
+			departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+			copy(departedTAList, ran.SupportedTAList)
 			ran.SupportedTAList = context.NewSupportedTAIList()
 		}
 
@@ -725,6 +731,13 @@ func HandleNGSetupRequest(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 	if !shouldSend {
 		return
 	}
+
+	// Replacing the list is only half of it: the gauge is written from the list, so a tracking
+	// area that has just left it would never be written again and would keep its last sample for
+	// ever. This is outside the "did the setup succeed" question below, because the list is
+	// replaced before the AMF decides that - and a refused setup is the case where nothing writes
+	// the gauge at all.
+	ran.RetireDepartedTacs(departedTAList)
 
 	ran.RLockRanState()
 	gnbID := ran.GnbId
@@ -4208,6 +4221,10 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 	}
 
 	sendAcknowledge := false
+	// The tracking areas this update replaces, kept so their exported state can be retired
+	// once the RAN's lock is released - SetRanStats and the metrics helpers take the read
+	// lock, which cannot be acquired from inside the write lock held below.
+	var departedTAList []context.SupportedTAI
 	shouldSend := func() bool {
 		ran.LockRanState()
 		defer ran.UnlockRanState()
@@ -4254,6 +4271,18 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 			cause.Present = ngapType.CausePresentMisc
 			cause.Misc = &ngapType.CauseMisc{Value: ngapType.CauseMiscPresentUnspecified}
 			return true
+		}
+
+		// The list is replaced, not added to: TS 38.413 clause 8.7.2.2 says that when the
+		// Supported TA List IE is included, the AMF shall overwrite the whole list of
+		// supported TAs and the slices of each. Without this the entries accumulate, so a
+		// tracking area the gNB has stopped broadcasting stays in the AMF's idea of what
+		// this RAN serves - and once the list reaches its capacity, a genuinely new one is
+		// dropped instead. HandleNGSetupRequest already clears in the same way.
+		if len(ran.SupportedTAList) != 0 {
+			departedTAList = make([]context.SupportedTAI, len(ran.SupportedTAList))
+			copy(departedTAList, ran.SupportedTAList)
+			ran.SupportedTAList = context.NewSupportedTAIList()
 		}
 
 		for i := 0; i < len(supportedTAList.List); i++ {
@@ -4342,6 +4371,11 @@ func HandleRanConfigurationUpdate(ran *context.AmfRan, message *ngapType.NGAPPDU
 	if !shouldSend {
 		return
 	}
+
+	// Replacing the list is only half of it: the gauge is written from the list, so a
+	// tracking area that has just left it would never be written again and would keep its
+	// last sample for ever. Retiring them here, outside the RAN's write lock.
+	ran.RetireDepartedTacs(departedTAList)
 
 	if sendAcknowledge {
 		ran.Log.Infoln("handle RanConfigurationUpdateAcknowledge")
