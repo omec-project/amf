@@ -305,7 +305,10 @@ func TestARetiredTrackingAreaStaysRetiredUnderConcurrentPublishing(t *testing.T)
 
 // TS 38.413 clause 9.2.6.9: the RAN Node Name IE, if present in a RAN CONFIGURATION UPDATE,
 // replaces the value previously provided - the same semantics as NG Setup. Without applying it
-// to ran.Name, this handler's rename retirement can never have a rename to detect.
+// to ran.Name, this handler's rename retirement can never have a rename to detect. And unlike NG
+// Setup, this procedure has no response that republishes the gauge, so retiring the old name's
+// series without also republishing under the new one would leave a still-connected RAN
+// unrepresented in gnb_session_profile.
 func TestARenamedRanConfigurationUpdateRetiresTheOldNamesSeries(t *testing.T) {
 	serveTACs(t, "1")
 
@@ -316,7 +319,6 @@ func TestARenamedRanConfigurationUpdateRetiresTheOldNamesSeries(t *testing.T) {
 	const oldName, newName = "gnb-before-config-rename", "gnb-after-config-rename"
 
 	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithNameAndTACs(oldName, "000001"))
-	ran.SetRanStats(context.RanConnected)
 
 	if ran.Name != oldName {
 		t.Fatalf("ran.Name = %q, want %q", ran.Name, oldName)
@@ -334,5 +336,47 @@ func TestARenamedRanConfigurationUpdateRetiresTheOldNamesSeries(t *testing.T) {
 	if _, stale := gnbSessProfileTACs(t, oldName, ran.GnbIp)["000001"]; stale {
 		t.Error("gnb_session_profile still carries a series under the old name after a rename, " +
 			"so exported state outlives the identity it describes")
+	}
+	if _, published := gnbSessProfileTACs(t, newName, ran.GnbIp)["000001"]; !published {
+		t.Error("gnb_session_profile has no series under the new name - the RAN Configuration " +
+			"Update Acknowledge does not republish it, unlike an NG Setup Response, so a still " +
+			"connected RAN would go unrepresented")
+	}
+}
+
+// A candidate is built before either the list or the gauge is touched, so an update that names
+// no AMF-served TAI - and so takes the refused path, RAN Configuration Update Failure - must
+// leave both exactly as they were. Committing the replacement first, ahead of this check, would
+// have discarded the current list and retired its metrics on an update the AMF went on to
+// refuse.
+func TestARejectedRanConfigurationUpdatePreservesTheSupportedTaListAndGauge(t *testing.T) {
+	serveTACs(t, "1")
+
+	ran := context.NewAmfRanDefault()
+	// Every production constructor in context gives the RAN its list; the bare test helper
+	// does not, and the append is guarded by that list's capacity - so without this the
+	// handler records nothing and the test would pass for the wrong reason.
+	ran.SupportedTAList = context.NewSupportedTAIList()
+	ran.Name = "gnb-reject-test"
+	ran.GnbIp = "198.51.100.11"
+
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithTACs("000001"))
+
+	if got := tacsOf(ran.SupportedTAList); len(got) != 1 || got[0] != "000001" {
+		t.Fatalf("before the rejected update the TA list is %v, want exactly [000001]", got)
+	}
+	if _, published := gnbSessProfileTACs(t, ran.Name, ran.GnbIp)["000001"]; !published {
+		t.Fatal("the gauge has no series for 000001, so this test cannot show one surviving a rejection")
+	}
+
+	// 000002 is not in the AMF's served TAI list, so this update takes the refused path.
+	HandleRanConfigurationUpdate(ran, ranConfigurationUpdateWithTACs("000002"))
+
+	if got := tacsOf(ran.SupportedTAList); len(got) != 1 || got[0] != "000001" {
+		t.Errorf("after the rejected update the TA list is %v, want it unchanged at [000001]", got)
+	}
+	if _, published := gnbSessProfileTACs(t, ran.Name, ran.GnbIp)["000001"]; !published {
+		t.Error("gnb_session_profile no longer carries a series for 000001 after a rejected " +
+			"update, so a refused candidate retired metrics it had no business touching")
 	}
 }
