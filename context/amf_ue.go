@@ -1545,6 +1545,13 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 		return
 	}
 
+	// SUPI is unresolved until primary authentication completes (Authentication state carries
+	// only the SUCI). Publishing here would key a subscriber entry off an empty imsi, and every
+	// later event for the real imsi is a Mod that no Add ever preceded.
+	if ueContext.GetSupi() == "" {
+		return
+	}
+
 	op := getPublishUeCtxtInfoOp(ueContext.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
 	kafkaSmCtxt := mi.CoreSubscriber{}
 
