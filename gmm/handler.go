@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
@@ -290,7 +289,7 @@ func transport5GSMMessage(
 		}
 
 		newSmCtx.SetSmContextRef(smCtxRef)
-		newSmCtx.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
+		newSmCtx.SetUserLocation(ue.GetLocation())
 		ue.StoreSmContext(pduID, newSmCtx)
 		ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduID)
 		ue.PublishUeCtxtInfo()
@@ -431,7 +430,7 @@ func releaseDuplicatePDUSession(
 		return nil
 	}
 
-	smCtx.SetUserLocation(ue.Location)
+	smCtx.SetUserLocation(ue.GetLocation())
 	n2, err := util.ReadAndCleanupBinaryTempFile(resp.GetBinaryDataN2SmInformation())
 	if err != nil {
 		ue.GmmLog.Errorf("could not read N2 SM information: %v", err)
@@ -496,8 +495,9 @@ func forward5GSMMessageToSMF(
 		N1SmMsg: n1SmMsg,
 	}
 	smContextUpdateData.SetPei(ue.GetPei())
-	if !context.CompareUserLocation(ue.Location, smContext.UserLocation()) {
-		smContextUpdateData.SetUeLocation(ue.Location)
+	// A copy, not &ue.Location: that field is guarded by identityMu and read from other goroutines.
+	if location := ue.GetLocation(); !context.CompareUserLocation(location, smContext.UserLocation()) {
+		smContextUpdateData.SetUeLocation(location)
 	}
 
 	if accessType != smContext.AccessType() {
@@ -531,7 +531,7 @@ func forward5GSMMessageToSMF(
 	} else if response != nil {
 		// update SmContext in AMF
 		smContext.SetAccessType(accessType)
-		smContext.SetUserLocation(ue.Location)
+		smContext.SetUserLocation(ue.GetLocation())
 
 		responseData := response.GetJsonData()
 		var n1Msg []byte
@@ -1282,7 +1282,7 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 						}
 						errCause = append(errCause, cause)
 					} else {
-						smContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
+						smContext.SetUserLocation(ue.GetLocation())
 						smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 						if response.GetBinaryDataN2SmInformation() != nil &&
 							response.JsonData.GetN2SmInfoType() == models.N2SMINFOTYPE_PDU_RES_SETUP_REQ {
@@ -1318,7 +1318,9 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	if ue.LocationChanged && ue.RequestTriggerLocationChange {
 		updateReq := models.PolicyAssociationUpdateRequest{}
 		updateReq.Triggers = append(updateReq.Triggers, models.REQUESTTRIGGER_LOC_CH)
-		updateReq.UserLoc = &ue.Location
+		// A copy, not &ue.Location: that field is guarded by identityMu and read from other goroutines.
+		location := ue.GetLocation()
+		updateReq.UserLoc = &location
 		problemDetails, err := consumer.AMPolicyControlUpdate(ctx, ue, updateReq)
 		if problemDetails != nil {
 			ue.GmmLog.Errorf("AM Policy Control Update Failed Problem[%+v]", problemDetails)
@@ -1616,7 +1618,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 				ranId := ranUe.Ran.RanId
 				ranNodeId := models.NewNullableGlobalRanNodeId(ranId)
 				allowedNssai := models.NewAllowedNssai(ue.AllowedNssai[anType], anType)
-				registerContext := models.NewRegistrationContextContainer(ueContext, anType, int32(ranUe.RanUeNgapId), *ranNodeId, amfSelf.Name, ue.Location)
+				registerContext := models.NewRegistrationContextContainer(ueContext, anType, int32(ranUe.RanUeNgapId), *ranNodeId, amfSelf.Name, ue.GetLocation())
 				registerContext.SetRrcEstCause(ranUe.RRCEstablishmentCause)
 				registerContext.SetUeContextRequest(ranUe.UeContextRequest)
 				registerContext.SetAnN2IPv4Addr(ranUe.Ran.GnbIp)
@@ -2236,7 +2238,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 							}
 							errCause = append(errCause, cause)
 						} else {
-							smContext.SetUserLocation(deepcopy.Copy(ue.Location).(models.UserLocation))
+							smContext.SetUserLocation(ue.GetLocation())
 							smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 							if response.GetBinaryDataN2SmInformation() != nil &&
 								response.JsonData.GetN2SmInfoType() == models.N2SMINFOTYPE_PDU_RES_SETUP_REQ {
