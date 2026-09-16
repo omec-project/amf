@@ -13,7 +13,7 @@ require (
 	github.com/omec-project/nas/v2 v2.2.3
 	github.com/omec-project/ngap/v2 v2.1.6
 	github.com/omec-project/openapi/v2 v2.2.3
-	github.com/omec-project/util v1.8.7
+	github.com/omec-project/util v1.8.8
 	github.com/prometheus/client_golang v1.24.1
 	github.com/urfave/cli/v3 v3.12.0
 	go.mongodb.org/mongo-driver/v2 v2.9.1
