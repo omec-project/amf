@@ -136,7 +136,6 @@ func ngSetupRequestWithNameNoTACs(name string) *ngapType.NGAPPDU {
 // its last Connected sample for the life of the process - including through the disconnect, whose
 // walk only sees the list that replaced it.
 func TestARepeatedNgSetupRetiresTheTacsItDrops(t *testing.T) {
-	disableKafkaForTest(t)
 	serveTACs(t, "1", "2")
 
 	ran := context.NewAmfRanDefault()
@@ -178,7 +177,6 @@ func TestARepeatedNgSetupRetiresTheTacsItDrops(t *testing.T) {
 // leaves the same orphans behind - and it is the case where nothing later writes the gauge at all.
 // This is what pins the retirement to the list being replaced rather than to the response.
 func TestARefusedNgSetupRetiresTheTacsItDropped(t *testing.T) {
-	disableKafkaForTest(t)
 	serveTACs(t, "1")
 
 	ran := context.NewAmfRanDefault()
@@ -211,7 +209,6 @@ func TestARefusedNgSetupRetiresTheTacsItDropped(t *testing.T) {
 // it does, nothing ever writes the old name again - not only for the TACs the new list dropped,
 // but for every TAC published under it, including ones the RAN still broadcasts.
 func TestARenamedNgSetupRetiresTheOldNamesSeries(t *testing.T) {
-	disableKafkaForTest(t)
 	serveTACs(t, "1")
 
 	ran := context.NewAmfRanDefault()
@@ -248,7 +245,6 @@ func TestARenamedNgSetupRetiresTheOldNamesSeries(t *testing.T) {
 // under the old name. Retirement must use it, not the empty departed list this refusal would
 // otherwise leave behind, or the old name's series are orphaned forever.
 func TestARenamedButRefusedNgSetupStillRetiresTheOldNamesSeries(t *testing.T) {
-	disableKafkaForTest(t)
 	serveTACs(t, "1")
 
 	ran := context.NewAmfRanDefault()

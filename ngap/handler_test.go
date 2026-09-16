@@ -8,46 +8,10 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/context"
-	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 )
-
-func disableKafkaForTest(t *testing.T) {
-	t.Helper()
-
-	originalConfig := factory.AmfConfig.Configuration
-	var originalEnableKafka *bool
-	var originalEnableKafkaValue bool
-	if originalConfig != nil {
-		originalEnableKafka = originalConfig.KafkaInfo.EnableKafka
-		if originalEnableKafka != nil {
-			originalEnableKafkaValue = *originalEnableKafka
-		}
-	}
-
-	if factory.AmfConfig.Configuration == nil {
-		factory.AmfConfig.Configuration = &factory.Configuration{}
-	}
-	disabled := false
-	factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = &disabled
-	t.Cleanup(func() {
-		if originalConfig == nil {
-			factory.AmfConfig.Configuration = nil
-			return
-		}
-
-		factory.AmfConfig.Configuration = originalConfig
-		if originalEnableKafka == nil {
-			factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = nil
-			return
-		}
-
-		factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = originalEnableKafka
-		*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = originalEnableKafkaValue
-	})
-}
 
 func TestHandleHandoverNotifyIgnoresMissingIDs(t *testing.T) {
 	ran := context.NewAmfRanDefault()
@@ -392,7 +356,6 @@ func TestHandleUEContextReleaseCompleteStaleHandoverDetachesLink(t *testing.T) {
 
 func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T) {
 	self := context.AMF_Self()
-	disableKafkaForTest(t)
 	sourceRan := context.NewAmfRanDefault()
 	sourceRan.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	targetRan := context.NewAmfRanDefault()
