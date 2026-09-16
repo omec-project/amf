@@ -47,8 +47,10 @@ func InitialiseKafkaStream(config *factory.Configuration) error {
 		Addr:                   kafka.TCP(brokerUrl),
 		Topic:                  topicName,
 		AllowAutoTopicCreation: true,
-		Balancer:               &kafka.LeastBytes{},
-		BatchTimeout:           10 * time.Millisecond,
+		// Hash routes same-key messages to the same partition, keeping this subscriber's Add before its
+		// later Mod/Del events; keyless messages fall back to round robin.
+		Balancer:     &kafka.Hash{},
+		BatchTimeout: 10 * time.Millisecond,
 	}
 
 	StatWriter = Writer{
@@ -64,7 +66,15 @@ func GetWriter() Writer {
 }
 
 func (writer Writer) SendMessage(message []byte) error {
-	msg := kafka.Message{Value: message}
+	return writer.sendMessage(kafka.Message{Value: message})
+}
+
+// SendMessageWithKey sends a message keyed for partition-stable, per-key ordering (see Hash balancer above).
+func (writer Writer) SendMessageWithKey(key, message []byte) error {
+	return writer.sendMessage(kafka.Message{Key: key, Value: message})
+}
+
+func (writer Writer) sendMessage(msg kafka.Message) error {
 	if err := writer.kafkaWriter.WriteMessages(context.Background(), msg); err != nil {
 		logger.KafkaLog.Errorf("kafka send message write error: %s", err.Error())
 		return err
@@ -83,10 +93,8 @@ func (writer Writer) PublishUeCtxtEvent(ctxt mi.CoreSubscriber, op mi.Subscriber
 		return err
 	}
 	logger.KafkaLog.Debugf("publishing ue context event: %s", string(msg))
-	if err := StatWriter.SendMessage(msg); err != nil {
-		logger.KafkaLog.Errorf("could not publish ue context event, error %s", err.Error())
-	}
-	return nil
+	// Key by IMSI so this subscriber's events stay on one partition and keep their order.
+	return StatWriter.SendMessageWithKey([]byte(ctxt.Imsi), msg)
 }
 
 func (writer Writer) PublishNfStatusEvent(msgEvent mi.MetricEvent) error {

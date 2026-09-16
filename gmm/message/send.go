@@ -124,7 +124,18 @@ func SendAuthenticationRequest(ue *context.RanUe) {
 		}, func() {
 			amfUe.GmmLog.Warnf("T3560 Expires %d times, abort authentication procedure & ongoing 5GMM procedure",
 				cfg.MaxRetryTimes)
-			amfUe.Remove()
+			accessType := models.ACCESSTYPE__3_GPP_ACCESS
+			if ue.Ran != nil {
+				accessType = ue.Ran.AnType
+			}
+			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
+			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
+			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
+			// same UE (e.g. a concurrent AuthenticationResponse publishing an Add).
+			amfUe.RunSerialized(func() {
+				amfUe.PublishUeCtxtInfoOnRemoval(accessType)
+				amfUe.Remove()
+			})
 		})
 	}
 }
@@ -275,7 +286,14 @@ func SendSecurityModeCommand(ue *context.RanUe, anType models.AccessType, eapSuc
 			ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 		}, func() {
 			amfUe.GmmLog.Warnf("T3560 Expires %d times, abort security mode control procedure", cfg.MaxRetryTimes)
-			amfUe.Remove()
+			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
+			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
+			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
+			// same UE (e.g. a concurrent AuthenticationResponse publishing an Add).
+			amfUe.RunSerialized(func() {
+				amfUe.PublishUeCtxtInfoOnRemoval(anType)
+				amfUe.Remove()
+			})
 		})
 	}
 }
@@ -310,21 +328,34 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 		}, func() {
 			amfUe.GmmLog.Warnf("T3522 Expires %d times, abort deregistration procedure", cfg.MaxRetryTimes)
 			amfUe.T3522 = nil // clear the timer
+			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
+			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
+			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
+			// same UE (e.g. a concurrent AuthenticationResponse publishing an Add).
 			switch accessType {
 			case nasMessage.AccessType3GPP:
 				amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
-				amfUe.Remove()
+				amfUe.RunSerialized(func() {
+					amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
+					amfUe.Remove()
+				})
 			case nasMessage.AccessTypeNon3GPP:
 				amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
-				amfUe.Remove()
+				amfUe.RunSerialized(func() {
+					amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE_NON_3_GPP_ACCESS)
+					amfUe.Remove()
+				})
 			default:
 				amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
 				amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
-				amfUe.Remove()
+				amfUe.RunSerialized(func() {
+					amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
+					amfUe.Remove()
+				})
 			}
 		})
 	}
