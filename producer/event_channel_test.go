@@ -43,6 +43,10 @@ func newUe(t *testing.T, supi string, withChannel bool) *context.AmfUe {
 	ue := context.AMF_Self().NewAmfUe(supi)
 
 	ran := context.NewAmfRanDefault()
+	// AttachRanUe keys ue.RanUe by ran.AnType, and DbFetch restores under the 3GPP key.
+	// Without this the RanUe lands under the empty access type, GetAnType returns "", and
+	// the handlers below take their no-access path instead of the one a restored UE hits.
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	ranUe, err := ran.NewRanUe(ranUeNgapID)
 	if err != nil {
 		t.Fatalf("could not create a RanUe: %v", err)
