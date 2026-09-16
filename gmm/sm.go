@@ -381,10 +381,16 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 	case SecurityModeAbortEvent:
 		logger.GmmLog.Debugln(event)
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
 		// stopping security mode command timer
 		amfUe.SecurityContextAvailable = false
 		amfUe.T3560.Stop()
 		amfUe.T3560 = nil
+		// SecurityModeAbortEvent always transitions SecurityMode -> Deregistered (see gmm/init.go), and
+		// Deregistered's own EntryEvent never publishes; without this, the Add published on SUPI
+		// resolution never gets a matching Del.
+		amfUe.State[accessType].Set(context.Deregistered)
+		amfUe.PublishUeCtxtInfo(accessType)
 	case NwInitiatedDeregistrationEvent:
 		logger.GmmLog.Debugln(event)
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -398,6 +404,13 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 		logger.GmmLog.Debugln(event)
 	case SecurityModeFailEvent:
 		logger.GmmLog.Debugln(event)
+		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
+		// SecurityModeFailEvent always transitions SecurityMode -> Deregistered (see gmm/init.go), and
+		// Deregistered's own EntryEvent never publishes; without this, the Add published on SUPI
+		// resolution never gets a matching Del.
+		amfUe.State[accessType].Set(context.Deregistered)
+		amfUe.PublishUeCtxtInfo(accessType)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 		return
@@ -539,6 +552,21 @@ func ContextSetup(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 		}
 	case ContextSetupFailEvent:
 		logger.GmmLog.Debugln(event)
+		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
+			return
+		}
+		accessType, ok := args[ArgAccessType].(models.AccessType)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
+			return
+		}
+		// ContextSetupFailEvent always transitions ContextSetup -> Deregistered (see gmm/init.go), and
+		// Deregistered's own EntryEvent never publishes; without this, the Add published on SUPI
+		// resolution never gets a matching Del.
+		amfUe.State[accessType].Set(context.Deregistered)
+		amfUe.PublishUeCtxtInfo(accessType)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 	default:

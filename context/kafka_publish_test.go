@@ -37,6 +37,29 @@ func disableKafkaForTest(t *testing.T) {
 	})
 }
 
+// TestAccessTypeForRemoval pins the access type a whole-UE-removal SBI procedure (UE context
+// release, inter-AMF transfer, OAM purge) keys its Kafka Del on: 3GPP unless that access is
+// already Deregistered and the other access is not.
+func TestAccessTypeForRemoval(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	if got := ue.AccessTypeForRemoval(); got != models.ACCESSTYPE__3_GPP_ACCESS {
+		t.Errorf("both Deregistered: got %v, want 3GPP", got)
+	}
+
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(Registered)
+	if got := ue.AccessTypeForRemoval(); got != models.ACCESSTYPE__3_GPP_ACCESS {
+		t.Errorf("3GPP active: got %v, want 3GPP", got)
+	}
+
+	ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(Deregistered)
+	ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(Registered)
+	if got := ue.AccessTypeForRemoval(); got != models.ACCESSTYPE_NON_3_GPP_ACCESS {
+		t.Errorf("only non-3GPP active: got %v, want non-3GPP", got)
+	}
+}
+
 // TestGetPublishUeCtxtInfoOp pins the state -> Kafka op mapping that the initial Add / later Mod /
 // Del ordering depends on: Authentication must map to Add, everything past it to Mod, and the
 // Deregistered states to Del.
@@ -198,18 +221,22 @@ func TestPublishUeCtxtInfoOnRemovalSkipsWithoutResolvedSupiOrKafka(t *testing.T)
 	// guards returned before touching metrics.GetWriter().
 }
 
-// TestRunSerializedFallsBackWithoutEventChannel guards RunSerialized's fallback path:
-// a GMM procedure timer can abort before this UE ever received a second message,
-// i.e. before EventChannel was ever created, so RunSerialized must still run fn directly instead
-// of blocking on a channel nobody is reading.
+// TestRunSerializedFallsBackWithoutEventChannel guards RunSerialized's lazy-creation path: a GMM
+// procedure timer can abort before this UE ever received a second message, i.e. before
+// EventChannel was ever created, so RunSerialized must create it (under ue.Mutex, matching
+// SetEventChannel) and still run fn via it rather than dropping the serialization guarantee.
 func TestRunSerializedFallsBackWithoutEventChannel(t *testing.T) {
 	ue := &AmfUe{}
 	ue.init()
+	t.Cleanup(func() { ue.EventChannel.Event <- "quit" })
 
-	ran := false
-	ue.RunSerialized(func() { ran = true })
-	if !ran {
-		t.Errorf("RunSerialized did not run fn when EventChannel was nil")
+	done := make(chan struct{})
+	ue.RunSerialized(func() { close(done) })
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("RunSerialized did not execute fn after lazily creating the EventChannel")
 	}
 }
 

@@ -18,11 +18,17 @@ import (
 // which has no recover(), handing it the missing context ended the process rather than the
 // request, taking every other UE with it.
 func TestTransferredReleaseSkipsASessionWithNoSmContext(t *testing.T) {
+	disableKafkaForTest(t)
 	self := context.AMF_Self()
 
 	ue := self.NewAmfUe("imsi-208930100007531")
 	ue.SetGuti("20893cafe0000531")
-	t.Cleanup(ue.Remove)
+	// A TRANSFERRED request has the procedure remove the UE itself; only clean up here if it did not.
+	t.Cleanup(func() {
+		if _, ok := self.AmfUeFindBySupi(ue.Supi); ok {
+			ue.Remove()
+		}
+	})
 
 	// Reaching the assertions at all is the point: without the guard this panics.
 	rsp, problemDetails := registrationStatusUpdateProcedure(ctxt.Background(), "5g-guti-20893cafe0000531",

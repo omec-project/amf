@@ -55,6 +55,21 @@ func init() {
 	gmm.Mockinit()
 }
 
+// disableKafkaForTest mirrors the helper of the same shape in the context, gmm and ngap test
+// packages: PublishUeCtxtInfo/PublishUeCtxtInfoOnRemoval dereference
+// factory.AmfConfig.Configuration.KafkaInfo.EnableKafka, which is enabled by default once the
+// package init() above loads a real config, and there is no live Kafka broker in unit tests.
+func disableKafkaForTest(t *testing.T) {
+	t.Helper()
+
+	originalEnableKafka := factory.AmfConfig.Configuration.KafkaInfo.EnableKafka
+	disabled := false
+	factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = &disabled
+	t.Cleanup(func() {
+		factory.AmfConfig.Configuration.KafkaInfo.EnableKafka = originalEnableKafka
+	})
+}
+
 func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 	tests := []struct {
 		name                               string
@@ -89,6 +104,7 @@ func TestHandleOAMPurgeUEContextRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			disableKafkaForTest(t)
 			self := context.AMF_Self()
 			var err error
 			self.Drsm, err = util.MockDrsmInit()

@@ -1512,14 +1512,21 @@ func (ue *AmfUe) SetEventChannel(ctx ctxt.Context, handler func(*AmfUe, NgapMsg)
 // RunSerialized submits fn to the UE's EventChannel, so it runs serialized with any in-flight
 // NAS/NGAP message for this UE instead of racing it from an independent goroutine (e.g. a GMM
 // procedure timer's abort callback publishing/removing while a message is still being handled).
-// Falls back to running fn directly if the channel has not been created yet (e.g. a timer armed
-// before this UE ever received a second message).
+// If the channel has not been created yet (e.g. a timer armed before this UE ever received a
+// second message), it is created here under the same ue.Mutex SetEventChannel uses, so a
+// concurrent SetEventChannel/message dispatch either happens fully before or fully after this
+// call instead of racing a direct fn() invocation against the newly created channel's goroutine.
 func (ue *AmfUe) RunSerialized(fn func()) {
-	if ue.EventChannel != nil {
-		ue.EventChannel.SubmitMessage(FuncMsg(fn))
-		return
+	ue.Mutex.Lock()
+	if ue.EventChannel == nil {
+		ue.TxLog.Debugln("creating new AmfUe EventChannel")
+		ue.EventChannel = ue.NewEventChannel()
+		ue.EventChannel.AmfUe = ue
+		go ue.EventChannel.Start(ctxt.Background())
 	}
-	fn()
+	ch := ue.EventChannel
+	ue.Mutex.Unlock()
+	ch.SubmitMessage(FuncMsg(fn))
 }
 
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
@@ -1556,6 +1563,19 @@ func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
 // two (3GPP and non-3GPP).
 func otherAccessType(accessType models.AccessType) models.AccessType {
 	if accessType == models.ACCESSTYPE__3_GPP_ACCESS {
+		return models.ACCESSTYPE_NON_3_GPP_ACCESS
+	}
+	return models.ACCESSTYPE__3_GPP_ACCESS
+}
+
+// AccessTypeForRemoval picks an access type to key a whole-UE removal's Kafka Del on, for SBI
+// procedures (e.g. UE context release, inter-AMF registration status transfer) that remove the UE
+// regardless of access: 3GPP, unless that access is already Deregistered and the other access is
+// not, so a UE that only ever registered over non-3GPP still gets a Del reflecting its own state
+// rather than 3GPP's untouched default.
+func (ue *AmfUe) AccessTypeForRemoval() models.AccessType {
+	if ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current() == Deregistered &&
+		ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Current() != Deregistered {
 		return models.ACCESSTYPE_NON_3_GPP_ACCESS
 	}
 	return models.ACCESSTYPE__3_GPP_ACCESS

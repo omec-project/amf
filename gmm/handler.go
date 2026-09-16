@@ -879,6 +879,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
 		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
 			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		ue.PublishUeCtxtInfoOnRemoval(anType)
 		ue.Remove()
 		return fmt.Errorf("allowed nssai list is nil")
 	}
@@ -1971,6 +1972,7 @@ func NetworkInitiatedDeregistrationProcedure(ctx ctxt.Context, ue *context.AmfUe
 				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		} else {
 			ue.GmmLog.Infof("Removing UE Context")
+			ue.PublishUeCtxtInfoOnRemoval(accessType)
 			ue.Remove()
 		}
 	}

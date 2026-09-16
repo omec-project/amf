@@ -246,6 +246,9 @@ func releaseUEContextProcedure(ueContextID string, ueContextRelease models.UECon
 	logger.CommLog.Debugf("Release UE Context NGAP cause: %+v", ueContextRelease.NgapCause)
 
 	if ue, ok := amfSelf.AmfUeFindByUeContextID(ueContextID); ok {
+		// Remove() deletes the whole UE regardless of access; publish the Del first or a
+		// resolved-SUPI subscriber is left stale in Kafka.
+		ue.PublishUeCtxtInfoOnRemoval(ue.AccessTypeForRemoval())
 		ue.Remove()
 	} else {
 		problemDetails := utils.ProblemDetailsContextNotFound("UE context not found")
@@ -658,6 +661,9 @@ func registrationStatusUpdateProcedure(ctx ctxt.Context, ueContextID string, ueR
 			}
 		}
 
+		// Remove() deletes the whole UE regardless of access; publish the Del first or a
+		// resolved-SUPI subscriber is left stale in Kafka.
+		ue.PublishUeCtxtInfoOnRemoval(ue.AccessTypeForRemoval())
 		ue.Remove()
 	} else {
 		// NOT_TRANSFERRED
