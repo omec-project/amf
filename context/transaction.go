@@ -8,6 +8,8 @@ package context
 
 import (
 	"context"
+
+	"github.com/omec-project/amf/logger"
 )
 
 type EventChannel struct {
@@ -113,7 +115,14 @@ func (ue *AmfUe) DispatchSbiMsg(
 		return <-msg.Result
 	}
 
-	ue.TxLog.Warnln("no event channel for this UE; running the service handler directly")
+	// Through the package logger rather than ue.TxLog, and identified by the accessor
+	// rather than the field: TxLog is written by AttachRanUe under ue.Mutex and by DbFetch
+	// under dbMutex, the latter four lines *after* the UE is published into UePool -- so a
+	// service request naming a UE that is still being restored, which is exactly what this
+	// branch is for, would race on the logger it used to report itself with. GetSupi takes
+	// identityMu, so it is safe from this goroutine.
+	logger.ContextLog.Warnf("no event channel for UE %s; running the service handler directly",
+		ue.GetSupi())
 	respData, locationHeader, problemDetails, transferErr := handler(
 		context.Background(), msg.UeContextId, msg.ReqUri, msg.Msg)
 	return SbiResponseMsg{
