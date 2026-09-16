@@ -243,12 +243,19 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 		if ue.SecurityContextAvailable {
 			ranUe = ue.GetRanUe(accessType)
 			if ranUe == nil {
-				// The message is decoded as plain NAS below, which is what an emergency
-				// connection gets, rather than ending the process the way dereferencing
-				// the absent association did. It is still a state worth reporting: a UE
-				// holding a security context and no RAN association should not be
-				// sending NAS at all.
-				ue.NASLog.Warnln("plain NAS from a UE with a security context and no RAN association")
+				// Refused, not decoded. Whether plain NAS may be accepted from a UE that holds a
+				// security context turns on the RRC establishment cause, and the association
+				// carrying it is gone -- so the one thing that could permit this message cannot
+				// be established. Decoding it anyway read a missing association as an emergency
+				// connection and accepted every message type, including the ones TS 24.501
+				// subclause 4.4.4.3 withholds until NAS security is up.
+				//
+				// A missing association is a release that has already happened, not evidence of
+				// an emergency. The caller logs this and drops the message, which also leaves the
+				// security context alone: the non-emergency branch below clears it, and doing that
+				// on a message this cannot place would let one unauthenticated packet cost a UE
+				// its context.
+				return nil, fmt.Errorf("plain NAS from a UE with a security context and no RAN association")
 			}
 		}
 
