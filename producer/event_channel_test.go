@@ -60,8 +60,14 @@ func newUe(t *testing.T, supi string, withChannel bool) *context.AmfUe {
 		// What context/db.go leaves behind on a restore.
 		ue.EventChannel = nil
 	}
+	// Conditional: the release and deregistration cases remove the UE inside the handler,
+	// and Remove is not written to be called twice -- its second run walks an empty RanUe
+	// map and logs "RanUe not found" at ERROR, which is noise this change's own
+	// "happy path does not emit errors" requirement would object to.
 	t.Cleanup(func() {
-		ue.Remove()
+		if _, stillPooled := context.AMF_Self().AmfUeFindBySupiLocal(supi); stillPooled {
+			ue.Remove()
+		}
 	})
 
 	return ue
@@ -73,6 +79,11 @@ func runBothWays(t *testing.T, supiWith, supiWithout string,
 	handle func(ue *context.AmfUe) *httpwrapper.Response,
 ) {
 	t.Helper()
+
+	// The release and deregistration paths publish a Del to Kafka before Remove (see
+	// producer/ue_context.go), and there is no broker in a unit test. Same helper the
+	// OAM tests in this package use.
+	disableKafkaForTest(t)
 
 	withChannel := handle(newUe(t, supiWith, true))
 	if withChannel == nil {
@@ -153,12 +164,24 @@ func TestDeregistrationNotificationAnswersWithoutEventChannel(t *testing.T) {
 	deregistrationData := models.DeregistrationData{}
 	deregistrationData.SetDeregReason("SUBSCRIPTION_WITHDRAWN")
 
+	var purged []string
 	runBothWays(t, "imsi-208930100007609", "imsi-208930100007610",
 		func(ue *context.AmfUe) *httpwrapper.Response {
+			supi := ue.GetSupi()
+			purged = append(purged, supi)
 			return HandleDeregistrationNotification(ctxt.Background(), &httpwrapper.Request{
-				Params: map[string]string{"supi": ue.GetSupi()},
+				Params: map[string]string{"supi": supi},
 				Body:   deregistrationData,
-				URL:    &url.URL{Path: "/namf-callback/v1/deregistration/" + ue.GetSupi()},
+				URL:    &url.URL{Path: "/namf-callback/v1/deregistration/" + supi},
 			})
 		})
+
+	// Matching the release test, and for the same reason: 204 with an empty body is what a
+	// fallback that quietly did nothing would also return. newUe starts Deregistered, so the
+	// handler's observable work is removing the UE -- assert that, not the status.
+	for _, supi := range purged {
+		if _, ok := context.AMF_Self().AmfUeFindBySupiLocal(supi); ok {
+			t.Fatalf("%s is still in the pool, so the purge did not reach the procedure", supi)
+		}
+	}
 }
