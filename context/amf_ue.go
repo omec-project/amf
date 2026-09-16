@@ -1509,6 +1509,26 @@ func (ue *AmfUe) SetEventChannel(ctx ctxt.Context, handler func(*AmfUe, NgapMsg)
 	}
 }
 
+// RunSerialized submits fn to the UE's EventChannel, so it runs serialized with any in-flight
+// NAS/NGAP message for this UE instead of racing it from an independent goroutine (e.g. a GMM
+// procedure timer's abort callback publishing/removing while a message is still being handled).
+// If the channel has not been created yet (e.g. a timer armed before this UE ever received a
+// second message), it is created here under the same ue.Mutex SetEventChannel uses, so a
+// concurrent SetEventChannel/message dispatch either happens fully before or fully after this
+// call instead of racing a direct fn() invocation against the newly created channel's goroutine.
+func (ue *AmfUe) RunSerialized(fn func()) {
+	ue.Mutex.Lock()
+	if ue.EventChannel == nil {
+		ue.TxLog.Debugln("creating new AmfUe EventChannel")
+		ue.EventChannel = ue.NewEventChannel()
+		ue.EventChannel.AmfUe = ue
+		go ue.EventChannel.Start(ctxt.Background())
+	}
+	ch := ue.EventChannel
+	ue.Mutex.Unlock()
+	ch.SubmitMessage(FuncMsg(fn))
+}
+
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
 	ue.TxLog.Infof("New EventChannel created")
 	tx = &EventChannel{
@@ -1539,13 +1559,47 @@ func getPublishUeCtxtInfoOp(state fsm.StateType) mi.SubscriberOp {
 	}
 }
 
-// Collect Ctxt info and publish on Kafka stream
-func (ueContext *AmfUe) PublishUeCtxtInfo() {
-	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
-		return
+// otherAccessType returns the access type other than the one given, since a UE only ever has the
+// two (3GPP and non-3GPP).
+func otherAccessType(accessType models.AccessType) models.AccessType {
+	if accessType == models.ACCESSTYPE__3_GPP_ACCESS {
+		return models.ACCESSTYPE_NON_3_GPP_ACCESS
 	}
+	return models.ACCESSTYPE__3_GPP_ACCESS
+}
 
-	op := getPublishUeCtxtInfoOp(ueContext.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
+// AccessTypeForRemoval picks an access type to key a whole-UE removal's Kafka Del on, for SBI
+// procedures (e.g. UE context release, inter-AMF registration status transfer) that remove the UE
+// regardless of access: 3GPP, unless that access is already Deregistered and the other access is
+// not, so a UE that only ever registered over non-3GPP still gets a Del reflecting its own state
+// rather than 3GPP's untouched default.
+func (ue *AmfUe) AccessTypeForRemoval() models.AccessType {
+	if ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current() == Deregistered &&
+		ue.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Current() != Deregistered {
+		return models.ACCESSTYPE_NON_3_GPP_ACCESS
+	}
+	return models.ACCESSTYPE__3_GPP_ACCESS
+}
+
+// buildKafkaSubscriberContext computes the Kafka subscriber event for the given access type's GMM
+// state, split out from PublishUeCtxtInfo so the op/context computation is testable without a live
+// Kafka writer.
+func (ueContext *AmfUe) buildKafkaSubscriberContext(accessType models.AccessType) (mi.CoreSubscriber, mi.SubscriberOp) {
+	op := getPublishUeCtxtInfoOp(ueContext.State[accessType].Current())
+	// The event is keyed only by IMSI with no per-access discriminator. Select the still-active
+	// access's payload whenever this access's RanUe is gone (N2 release only removes the RanUe,
+	// not the AmfUe, so op may still be Mod) or this access is Del while the other is still
+	// active (downgrade Del to Mod too) -- either way, publishing from the missing/deregistering
+	// access would overwrite the live record with zero RAN identifiers or stale state. Only
+	// delete once both access types have left the FSM's registered states.
+	if activeAccessType := otherAccessType(accessType); ueContext.State[activeAccessType] != nil &&
+		getPublishUeCtxtInfoOp(ueContext.State[activeAccessType].Current()) != mi.SubsOpDel &&
+		(op == mi.SubsOpDel || (op == mi.SubsOpMod && ueContext.GetRanUe(accessType) == nil)) {
+		if op == mi.SubsOpDel {
+			op = mi.SubsOpMod
+		}
+		accessType = activeAccessType
+	}
 	kafkaSmCtxt := mi.CoreSubscriber{}
 
 	// Populate kafka sm ctxt struct
@@ -1554,18 +1608,58 @@ func (ueContext *AmfUe) PublishUeCtxtInfo() {
 	kafkaSmCtxt.Guti = ueContext.GetGuti()
 	kafkaSmCtxt.Tmsi = ueContext.GetTmsi()
 	kafkaSmCtxt.AmfIp = ueContext.AmfInstanceIp
-	if ranUe := ueContext.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS); ranUe != nil {
+	if ranUe := ueContext.GetRanUe(accessType); ranUe != nil && ranUe.Ran != nil {
 		kafkaSmCtxt.AmfNgapId = ranUe.AmfUeNgapId
 		kafkaSmCtxt.RanNgapId = ranUe.RanUeNgapId
 		kafkaSmCtxt.GnbId = ranUe.Ran.GnbId
 		kafkaSmCtxt.TacId = ranUe.Tai.Tac
 	}
-	kafkaSmCtxt.AmfSubState = string(ueContext.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
-	ueState := ueContext.GetCmInfo()
-	kafkaSmCtxt.UeState = string(ueState[0].CmState)
+	kafkaSmCtxt.AmfSubState = string(ueContext.State[accessType].Current())
+	cmState := models.CMSTATE_IDLE
+	if ueContext.CmConnect(accessType) {
+		cmState = models.CMSTATE_CONNECTED
+	}
+	kafkaSmCtxt.UeState = string(cmState)
+
+	return kafkaSmCtxt, op
+}
+
+// Collect Ctxt info and publish on Kafka stream for the given access type's GMM state.
+func (ueContext *AmfUe) PublishUeCtxtInfo(accessType models.AccessType) {
+	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
+		return
+	}
+
+	// SUPI is unresolved until primary authentication completes (Authentication state carries
+	// only the SUCI). Publishing here would key a subscriber entry off an empty imsi, and every
+	// later event for the real imsi is a Mod that no Add ever preceded.
+	if ueContext.GetSupi() == "" {
+		return
+	}
+
+	kafkaSmCtxt, op := ueContext.buildKafkaSubscriberContext(accessType)
 
 	// Send to stream
 	if err := metrics.GetWriter().PublishUeCtxtEvent(kafkaSmCtxt, op); err != nil {
+		logger.ContextLog.Errorf("Could not publish Ue Context Event: %v", err)
+	}
+}
+
+// PublishUeCtxtInfoOnRemoval publishes an unconditional Del for the given access type, bypassing
+// buildKafkaSubscriberContext's dual-access Mod downgrade. Callers use this right before Remove()
+// tears down every access and deletes the UE from the pool, so the subscriber really is gone even
+// if the other access type's FSM state hasn't independently reached Deregistered.
+func (ueContext *AmfUe) PublishUeCtxtInfoOnRemoval(accessType models.AccessType) {
+	if !*factory.AmfConfig.Configuration.KafkaInfo.EnableKafka {
+		return
+	}
+	if ueContext.GetSupi() == "" {
+		return
+	}
+
+	kafkaSmCtxt, _ := ueContext.buildKafkaSubscriberContext(accessType)
+
+	if err := metrics.GetWriter().PublishUeCtxtEvent(kafkaSmCtxt, mi.SubsOpDel); err != nil {
 		logger.ContextLog.Errorf("Could not publish Ue Context Event: %v", err)
 	}
 }

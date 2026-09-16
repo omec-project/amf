@@ -80,7 +80,7 @@ func Registered(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args fs
 		amfUe.ClearRegistrationRequestData(accessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[Registered]")
 		// store context in DB. Registration procedure is complete.
-		amfUe.PublishUeCtxtInfo()
+		amfUe.PublishUeCtxtInfo(accessType)
 		context.StoreContextInDB(amfUe)
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -162,7 +162,7 @@ func Authentication(ctx ctxt.Context, state *fsm.State, event fsm.EventType, arg
 		amfUe.GmmLog = amfUe.GmmLog.With(logger.FieldSuci, amfUe.Suci)
 		amfUe.TxLog = amfUe.TxLog.With(logger.FieldSuci, amfUe.Suci)
 		amfUe.GmmLog.Debugln("entryEvent at GMM State[Authentication]")
-		amfUe.PublishUeCtxtInfo()
+		amfUe.PublishUeCtxtInfo(args[ArgAccessType].(models.AccessType))
 		fallthrough
 	case AuthRestartEvent:
 		amfUe = args[ArgAmfUe].(*context.AmfUe)
@@ -176,6 +176,11 @@ func Authentication(ctx ctxt.Context, state *fsm.State, event fsm.EventType, arg
 				ArgAccessType: accessType,
 			}); err != nil {
 				logger.GmmLog.Errorln(err)
+			}
+			// AuthErrorEvent transitions straight to Deregistered, whose entry does not publish -- a
+			// re-authentication with an already-resolved SUPI (Add already sent) needs the Del here.
+			if amfUe.State[accessType].Current() == context.Deregistered {
+				amfUe.PublishUeCtxtInfo(accessType)
 			}
 		}
 		if pass {
@@ -202,13 +207,27 @@ func Authentication(ctx ctxt.Context, state *fsm.State, event fsm.EventType, arg
 				logger.GmmLog.Errorln(err)
 			}
 		case nas.MsgTypeAuthenticationResponse:
+			// HandleAuthenticationResponse already publishes the Add on first SUPI resolution and
+			// drives the SecurityMode entry (which publishes its own Mod) on success; a trailing,
+			// unconditional publish here would duplicate that Add if the transition failed and
+			// state stayed Authentication with the SUPI now set. But on auth failure the FSM moves
+			// to Deregistered, whose entry doesn't publish -- so a UE with an already-resolved SUPI
+			// (e.g. re-authentication) needs the Del published here; the unresolved-SUPI guard in
+			// PublishUeCtxtInfo suppresses a spurious Del for a UE that never got a SUPI.
 			if err := HandleAuthenticationResponse(ctx, amfUe, accessType, gmmMessage.AuthenticationResponse); err != nil {
 				logger.GmmLog.Errorln(err)
 			}
-			amfUe.PublishUeCtxtInfo()
+			if amfUe.State[accessType].Current() == context.Deregistered {
+				amfUe.PublishUeCtxtInfo(accessType)
+			}
 		case nas.MsgTypeAuthenticationFailure:
 			if err := HandleAuthenticationFailure(ctx, amfUe, accessType, gmmMessage.AuthenticationFailure); err != nil {
 				logger.GmmLog.Errorln(err)
+			}
+			// Some failure causes send AuthFailEvent straight to Deregistered, whose entry does not
+			// publish -- a re-authentication with an already-resolved SUPI needs the Del here.
+			if amfUe.State[accessType].Current() == context.Deregistered {
+				amfUe.PublishUeCtxtInfo(accessType)
 			}
 		case nas.MsgTypeStatus5GMM:
 			if err := HandleStatus5GMM(amfUe, accessType, gmmMessage.Status5GMM); err != nil {
@@ -267,7 +286,7 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 		amfUe.TxLog = amfUe.TxLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
 		amfUe.GmmLog = amfUe.GmmLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
 		amfUe.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", amfUe.GetSupi()))
-		amfUe.PublishUeCtxtInfo()
+		amfUe.PublishUeCtxtInfo(accessType)
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[SecurityMode]")
 		if amfUe.SecurityContextIsValid() {
 			amfUe.GmmLog.Debugln("UE has a valid security context - skip security mode control procedure")
@@ -362,10 +381,16 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 	case SecurityModeAbortEvent:
 		logger.GmmLog.Debugln(event)
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
 		// stopping security mode command timer
 		amfUe.SecurityContextAvailable = false
 		amfUe.T3560.Stop()
 		amfUe.T3560 = nil
+		// SecurityModeAbortEvent always transitions SecurityMode -> Deregistered (see gmm/init.go), and
+		// Deregistered's own EntryEvent never publishes; without this, the Add published on SUPI
+		// resolution never gets a matching Del.
+		amfUe.State[accessType].Set(context.Deregistered)
+		amfUe.PublishUeCtxtInfo(accessType)
 	case NwInitiatedDeregistrationEvent:
 		logger.GmmLog.Debugln(event)
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
@@ -379,6 +404,13 @@ func SecurityMode(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 		logger.GmmLog.Debugln(event)
 	case SecurityModeFailEvent:
 		logger.GmmLog.Debugln(event)
+		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
+		// SecurityModeFailEvent always transitions SecurityMode -> Deregistered (see gmm/init.go), and
+		// Deregistered's own EntryEvent never publishes; without this, the Add published on SUPI
+		// resolution never gets a matching Del.
+		amfUe.State[accessType].Set(context.Deregistered)
+		amfUe.PublishUeCtxtInfo(accessType)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 		return
@@ -402,7 +434,7 @@ func ContextSetup(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 			return
 		}
 		amfUe.GmmLog.Debugln("EntryEvent at GMM State[ContextSetup]")
-		amfUe.PublishUeCtxtInfo()
+		amfUe.PublishUeCtxtInfo(accessType)
 		switch message := gmmMessage.(type) {
 		case *nasMessage.RegistrationRequest:
 			amfUe.RegistrationRequest = message
@@ -520,6 +552,21 @@ func ContextSetup(ctx ctxt.Context, state *fsm.State, event fsm.EventType, args 
 		}
 	case ContextSetupFailEvent:
 		logger.GmmLog.Debugln(event)
+		amfUe, ok := args[ArgAmfUe].(*context.AmfUe)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAmfUe")
+			return
+		}
+		accessType, ok := args[ArgAccessType].(models.AccessType)
+		if !ok {
+			logger.GmmLog.Errorln("invalid type assertion for ArgAccessType")
+			return
+		}
+		// ContextSetupFailEvent always transitions ContextSetup -> Deregistered (see gmm/init.go), and
+		// Deregistered's own EntryEvent never publishes; without this, the Add published on SUPI
+		// resolution never gets a matching Del.
+		amfUe.State[accessType].Set(context.Deregistered)
+		amfUe.PublishUeCtxtInfo(accessType)
 	case fsm.ExitEvent:
 		logger.GmmLog.Debugln(event)
 	default:
@@ -531,10 +578,10 @@ func DeregisteredInitiated(ctx ctxt.Context, state *fsm.State, event fsm.EventTy
 	switch event {
 	case fsm.EntryEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
+		accessType := args[ArgAccessType].(models.AccessType)
 		if args[ArgNASMessage] != nil {
 			gmmMessage := args[ArgNASMessage].(*nas.GmmMessage)
 			if gmmMessage != nil {
-				accessType := args[ArgAccessType].(models.AccessType)
 				amfUe.GmmLog.Debugln("EntryEvent at GMM State[DeregisteredInitiated]")
 				if err := HandleDeregistrationRequest(ctx, amfUe, accessType,
 					gmmMessage.DeregistrationRequestUEOriginatingDeregistration); err != nil {
@@ -542,7 +589,7 @@ func DeregisteredInitiated(ctx ctxt.Context, state *fsm.State, event fsm.EventTy
 				}
 			}
 		}
-		amfUe.PublishUeCtxtInfo()
+		amfUe.PublishUeCtxtInfo(accessType)
 	case GmmMessageEvent:
 		amfUe := args[ArgAmfUe].(*context.AmfUe)
 		gmmMessage := args[ArgNASMessage].(*nas.GmmMessage)

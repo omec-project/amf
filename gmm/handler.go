@@ -292,7 +292,7 @@ func transport5GSMMessage(
 		newSmCtx.SetUserLocation(ue.GetLocation())
 		ue.StoreSmContext(pduID, newSmCtx)
 		ue.GmmLog.Infof("create smContext[pduSessionID: %d] Success", pduID)
-		ue.PublishUeCtxtInfo()
+		ue.PublishUeCtxtInfo(anType)
 		return nil
 
 	case nasMessage.ULNASTransportRequestTypeModificationRequest,
@@ -573,7 +573,7 @@ func forward5GSMMessageToSMF(
 			ngap_message.SendDownlinkNasTransport(ue.GetRanUe(accessType), n1Msg, nil)
 		}
 	}
-	ue.PublishUeCtxtInfo()
+	ue.PublishUeCtxtInfo(accessType)
 	return nil
 }
 
@@ -879,6 +879,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
 		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
 			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		ue.PublishUeCtxtInfoOnRemoval(anType)
 		ue.Remove()
 		return fmt.Errorf("allowed nssai list is nil")
 	}
@@ -1971,6 +1972,7 @@ func NetworkInitiatedDeregistrationProcedure(ctx ctxt.Context, ue *context.AmfUe
 				context.UeContextReleaseDueToNwInitiatedDeregistraion, ngapType.CausePresentNas, ngapType.CauseNasPresentDeregister)
 		} else {
 			ue.GmmLog.Infof("Removing UE Context")
+			ue.PublishUeCtxtInfoOnRemoval(accessType)
 			ue.Remove()
 		}
 	}
@@ -2445,11 +2447,19 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		}
 		switch response.AuthResult {
 		case models.AUTHRESULT_AUTHENTICATION_SUCCESS:
+			supiWasEmpty := ue.GetSupi() == ""
 			ue.UnauthenticatedSupi = false
 			ue.Kseaf = response.GetKseaf()
 			ue.SetSupi(response.GetSupi())
 			ue.DerivateKamf()
 			ue.GmmLog.Debugln("ue.DerivateKamf()", ue.Kamf)
+			// Publish the Add here, while state is still Authentication, so Kafka never sees a Mod
+			// before the Add for this subscriber; only the first resolution publishes here --
+			// Authentication's entry callback already published the Add for a re-authentication that
+			// started with a known SUPI.
+			if supiWasEmpty {
+				ue.PublishUeCtxtInfo(accessType)
+			}
 			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthSuccessEvent, fsm.ArgsType{
 				ArgAmfUe:      ue,
 				ArgAccessType: accessType,
@@ -2479,13 +2489,24 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 
 		switch response.GetAuthResult() {
 		case models.AUTHRESULT_AUTHENTICATION_SUCCESS:
+			supiWasEmpty := ue.GetSupi() == ""
 			ue.UnauthenticatedSupi = false
 			ue.Kseaf = response.GetKSeaf()
 			ue.SetSupi(response.GetSupi())
 			ue.DerivateKamf()
+			// Publish the Add here, while state is still Authentication, so Kafka never sees a Mod
+			// before the Add for this subscriber; only the first resolution publishes here --
+			// Authentication's entry callback already published the Add for a re-authentication that
+			// started with a known SUPI.
+			if supiWasEmpty {
+				ue.PublishUeCtxtInfo(accessType)
+			}
 			// TODO: select enc/int algorithm based on ue security capability & amf's policy,
 			// then generate KnasEnc, KnasInt
-			return GmmFSM.SendEvent(ctx, ue.State[accessType], SecurityModeSuccessEvent, fsm.ArgsType{
+			// AuthSuccessEvent (not SecurityModeSuccessEvent, only valid from SecurityMode) drives
+			// Authentication->SecurityMode; SecurityMode's entry uses ArgEAPSuccess/ArgEAPMessage to
+			// embed the EAP result in the Security Mode Command.
+			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthSuccessEvent, fsm.ArgsType{
 				ArgAmfUe:      ue,
 				ArgAccessType: accessType,
 				ArgEAPSuccess: true,

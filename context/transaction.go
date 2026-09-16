@@ -20,6 +20,11 @@ type EventChannel struct {
 	ConfigHandler func(ctx context.Context, s1, s2, s3 string, msg any)
 }
 
+// FuncMsg is a closure submitted to a UE's EventChannel so it runs serialized with any in-flight
+// NAS/NGAP message for that UE, instead of racing it from an independent goroutine (e.g. a GMM
+// procedure timer's abort callback).
+type FuncMsg func()
+
 func (tx *EventChannel) UpdateNgapHandler(handler func(*AmfUe, NgapMsg)) {
 	tx.AmfUe.TxLog.Infof("updated ngaphandler")
 	tx.NgapHandler = handler
@@ -60,6 +65,8 @@ func (tx *EventChannel) Start(ctx context.Context) {
 				msg.Result <- res
 			case ConfigMsg:
 				tx.ConfigHandler(ctx, msg.Supi, msg.Sst, msg.Sd, msg.Msg)
+			case FuncMsg:
+				msg()
 			}
 		case event := <-tx.Event:
 			if event == "quit" {

@@ -75,6 +75,7 @@ func HandleOAMPurgeUEContextRequest(ctx ctxt.Context, supi, reqUri string, msg i
 		switch ueFsmState {
 		case context.Deregistered:
 			logger.ProducerLog.Info("Removing the UE : ", fmt.Sprintln(ue.GetSupi()))
+			ue.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
 			ue.Remove()
 		case context.Registered:
 			logger.ProducerLog.Info("Deregistration triggered for the UE : ", ue.GetSupi())

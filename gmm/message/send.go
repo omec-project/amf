@@ -124,7 +124,25 @@ func SendAuthenticationRequest(ue *context.RanUe) {
 		}, func() {
 			amfUe.GmmLog.Warnf("T3560 Expires %d times, abort authentication procedure & ongoing 5GMM procedure",
 				cfg.MaxRetryTimes)
-			amfUe.Remove()
+			accessType := models.ACCESSTYPE__3_GPP_ACCESS
+			if ue.Ran != nil {
+				accessType = ue.Ran.AnType
+			}
+			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
+			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
+			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
+			// same UE (e.g. a concurrent AuthenticationResponse publishing an Add). Re-checked inside
+			// the closure: an AuthenticationResponse already queued ahead of this one can advance the
+			// UE past Authentication before this runs, and this abort is then stale.
+			amfUe.RunSerialized(func() {
+				if amfUe.State[accessType].Current() != context.Authentication {
+					amfUe.GmmLog.Infof("T3560 abort for accessType[%v] is stale (state is now %v); skipping removal",
+						accessType, amfUe.State[accessType].Current())
+					return
+				}
+				amfUe.PublishUeCtxtInfoOnRemoval(accessType)
+				amfUe.Remove()
+			})
 		})
 	}
 }
@@ -275,7 +293,21 @@ func SendSecurityModeCommand(ue *context.RanUe, anType models.AccessType, eapSuc
 			ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 		}, func() {
 			amfUe.GmmLog.Warnf("T3560 Expires %d times, abort security mode control procedure", cfg.MaxRetryTimes)
-			amfUe.Remove()
+			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
+			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
+			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
+			// same UE (e.g. a concurrent SecurityModeComplete publishing a Mod). Re-checked inside the
+			// closure: a response already queued ahead of this one can advance the UE past
+			// SecurityMode before this runs, and this abort is then stale.
+			amfUe.RunSerialized(func() {
+				if amfUe.State[anType].Current() != context.SecurityMode {
+					amfUe.GmmLog.Infof("T3560 abort for accessType[%v] is stale (state is now %v); skipping removal",
+						anType, amfUe.State[anType].Current())
+					return
+				}
+				amfUe.PublishUeCtxtInfoOnRemoval(anType)
+				amfUe.Remove()
+			})
 		})
 	}
 }
@@ -310,21 +342,53 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 		}, func() {
 			amfUe.GmmLog.Warnf("T3522 Expires %d times, abort deregistration procedure", cfg.MaxRetryTimes)
 			amfUe.T3522 = nil // clear the timer
+			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
+			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
+			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
+			// same UE (e.g. a concurrent DeregistrationAccept publishing a Del itself). Each branch
+			// re-checks inside the closure that the access is still DeregistrationInitiated: a
+			// DeregistrationAccept already queued ahead of this one can advance the UE past it before
+			// this runs, and this abort is then stale.
 			switch accessType {
 			case nasMessage.AccessType3GPP:
 				amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
-				amfUe.Remove()
+				amfUe.RunSerialized(func() {
+					if amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Current() != context.DeregistrationInitiated {
+						amfUe.GmmLog.Infof("T3522 abort for accessType[3GPP] is stale (state is now %v); skipping removal",
+							amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
+						return
+					}
+					amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
+					amfUe.Remove()
+				})
 			case nasMessage.AccessTypeNon3GPP:
 				amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
-				amfUe.Remove()
+				amfUe.RunSerialized(func() {
+					if amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Current() != context.DeregistrationInitiated {
+						amfUe.GmmLog.Infof("T3522 abort for accessType[Non3GPP] is stale (state is now %v); skipping removal",
+							amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Current())
+						return
+					}
+					amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE_NON_3_GPP_ACCESS)
+					amfUe.Remove()
+				})
 			default:
 				amfUe.GmmLog.Warnln("UE accessType[3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
 				amfUe.GmmLog.Warnln("UE accessType[Non3GPP] transfer to Deregistered state")
-				amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
-				amfUe.Remove()
+				amfUe.RunSerialized(func() {
+					threeGppDeregistering := amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Current() == context.DeregistrationInitiated
+					non3GppDeregistering := amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Current() == context.DeregistrationInitiated
+					if !threeGppDeregistering && !non3GppDeregistering {
+						amfUe.GmmLog.Infoln("T3522 abort for both access types is stale; skipping removal")
+						return
+					}
+					amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
+					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
+					amfUe.Remove()
+				})
 			}
 		})
 	}
