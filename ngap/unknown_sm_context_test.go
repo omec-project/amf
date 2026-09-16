@@ -93,8 +93,6 @@ func setupResponseNaming(ranUe *context.RanUe, pduSessionIDs ...int64) *ngapType
 // could not express "two of the sessions in this message were stranded", which is why this is
 // its own metric rather than a result label on ngap_messages_total.
 func TestSetupResponseCountsSessionsRatherThanMessages(t *testing.T) {
-	disableKafkaForTest(t)
-
 	self := context.AMF_Self()
 
 	ran := context.NewAmfRanDefault()
@@ -195,8 +193,6 @@ func releaseResponseNaming(ranUe *context.RanUe, pduSessionID int64) *ngapType.N
 // rather than the recorder is the point — the defect was that this path reached no recorder
 // at all.
 func TestReleaseResponseIdentifiesASessionTheAmfCannotResolve(t *testing.T) {
-	disableKafkaForTest(t)
-
 	self := context.AMF_Self()
 
 	ran := context.NewAmfRanDefault()
@@ -285,8 +281,6 @@ func notifyNaming(ranUe *context.RanUe, pduSessionID int64) *ngapType.NGAPPDU {
 // recover(), which means every UE on every gNB, not just this session. The recording is worth
 // little if the AMF does not survive to be scraped.
 func TestNotifyForAnUnresolvableSessionDoesNotEndTheProcess(t *testing.T) {
-	disableKafkaForTest(t)
-
 	self := context.AMF_Self()
 
 	ran := context.NewAmfRanDefault()
