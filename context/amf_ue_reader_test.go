@@ -7,6 +7,7 @@ package context
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/omec-project/openapi/v2/models"
@@ -167,4 +168,67 @@ func TestDecrementRemainReportsToleratesWhatIsNotThere(t *testing.T) {
 
 	ue.SetEventSubscription("sub", &AmfUeEventSubscription{})
 	ue.DecrementRemainReports("sub")
+}
+
+// A subscription for any UE is created once and its wrapper shallow-copied into every UE in the
+// pool, so they all point at one report counter while each takes a different lock. ue.Mutex
+// therefore serialises nothing here: two UEs raising a report at once would lose a decrement and
+// keep the subscription reporting past its budget, and persisting one UE would race a report
+// raised for another.
+func TestOneCounterSharedBetweenUesIsDecrementedExactlyOnce(t *testing.T) {
+	if previous := runtime.GOMAXPROCS(0); previous < 2 {
+		runtime.GOMAXPROCS(2)
+
+		t.Cleanup(func() { runtime.GOMAXPROCS(previous) })
+	}
+
+	const (
+		ues    = 4
+		rounds = 500
+	)
+
+	shared := int32(ues * rounds)
+
+	subscribers := make([]*AmfUe, 0, ues)
+
+	for range ues {
+		ue := &AmfUe{}
+		ue.init()
+		// The shallow copy the any-UE path makes: one counter, many wrappers.
+		ue.SetEventSubscription("any-ue", &AmfUeEventSubscription{AnyUe: true, RemainReports: &shared})
+		subscribers = append(subscribers, ue)
+	}
+
+	var wg sync.WaitGroup
+
+	for _, ue := range subscribers {
+		wg.Add(2)
+
+		go func(ue *AmfUe) {
+			defer wg.Done()
+
+			for range rounds {
+				ue.DecrementRemainReports("any-ue")
+			}
+		}(ue)
+
+		go func(ue *AmfUe) {
+			defer wg.Done()
+
+			for range rounds {
+				if _, err := ue.MarshalJSON(); err != nil {
+					t.Errorf("persisting a context with a shared counter failed: %v", err)
+
+					return
+				}
+			}
+		}(ue)
+	}
+
+	wg.Wait()
+
+	if left := atomic.LoadInt32(&shared); left != 0 {
+		t.Errorf("reports left = %d after %d decrements of a budget of %d, want 0: decrements were lost",
+			left, ues*rounds, ues*rounds)
+	}
 }

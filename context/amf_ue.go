@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/bytedance/sonic"
@@ -466,6 +467,23 @@ type ConfigMsg struct {
 	Supi string
 	Sst  string
 	Sd   string
+}
+
+// MarshalJSON reads the report counter atomically, so persisting one UE's context does not
+// race a report raised for another UE of the same any-UE subscription -- they share the
+// counter, and the encoder would otherwise dereference it directly. The alias keeps the
+// document shape exactly as the default marshaller produced it.
+func (subscription AmfUeEventSubscription) MarshalJSON() ([]byte, error) {
+	type alias AmfUeEventSubscription
+
+	copied := alias(subscription)
+
+	if subscription.RemainReports != nil {
+		remaining := atomic.LoadInt32(subscription.RemainReports)
+		copied.RemainReports = &remaining
+	}
+
+	return sonic.Marshal(copied)
 }
 
 type AmfUeEventSubscription struct {
@@ -1292,6 +1310,13 @@ func (ue *AmfUe) GetEventSubscription(id string) (*AmfUeEventSubscription, bool)
 // when the context is persisted, so handing out the live pointer put an unguarded read and
 // a guarded one on the same int32.
 //
+// The copy is taken atomically because ue.Mutex is not enough on its own. A subscription for
+// any UE is created once and its wrapper shallow-copied into every UE in the pool, so all of
+// them point at one counter while each takes a different lock -- CreateAMFEventSubscription-
+// Procedure assigns Options.MaxReports and then copies the struct per UE. Whether that shared
+// budget is what the interface intends is not this change's question; making the accesses to
+// it safe is.
+//
 // The nested EventSubscription is shared, not copied. Nothing here writes it -- the patch
 // path works on AMFContext's own store, not on this one -- and copying it would claim a
 // guarantee this change does not make.
@@ -1303,27 +1328,29 @@ func (subscription *AmfUeEventSubscription) snapshot() *AmfUeEventSubscription {
 	copied := *subscription
 
 	if subscription.RemainReports != nil {
-		remaining := *subscription.RemainReports
+		remaining := atomic.LoadInt32(subscription.RemainReports)
 		copied.RemainReports = &remaining
 	}
 
 	return &copied
 }
 
-// DecrementRemainReports takes one off the reports a subscription has left. The read and
-// the write are one operation under the lock: the counter is read-modify-written as each
-// report is raised, and two reports raised at once would otherwise lose one of the
-// decrements and keep a one-time subscription reporting.
+// DecrementRemainReports takes one off the reports a subscription has left.
+//
+// The lock covers the map; the counter itself is decremented atomically, because a
+// subscription for any UE shares one counter across every UE in the pool and each of those
+// takes a different lock. Under ue.Mutex alone, two UEs raising a report at once would still
+// lose a decrement and keep a subscription reporting past its budget.
 func (ue *AmfUe) DecrementRemainReports(id string) {
 	ue.Mutex.Lock()
-	defer ue.Mutex.Unlock()
-
 	subscription, ok := ue.EventSubscriptionsInfo[id]
+	ue.Mutex.Unlock()
+
 	if !ok || subscription == nil || subscription.RemainReports == nil {
 		return
 	}
 
-	*subscription.RemainReports--
+	atomic.AddInt32(subscription.RemainReports, -1)
 }
 
 // GetEventSubscriptions returns the event subscriptions this UE holds, in no
