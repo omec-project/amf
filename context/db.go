@@ -311,6 +311,18 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 		return nil
 	}
 
+	// Lock order, because this is where the two meet: the caller holds ran.ranStateMu across
+	// this call, and the accessor below takes ue.Mutex. Nothing acquires them the other way
+	// round today -- RanUe.Remove releases the UE lock before it takes the RAN one, and
+	// RemoveAllUeInRan snapshots under a read lock and releases it before removing anything --
+	// so this is an ordering to keep rather than a cycle to break. Taking ue.Mutex while holding
+	// ran.ranStateMu is fine; taking ran.ranStateMu while holding ue.Mutex would not be.
+	//
+	// DbFetch above takes it once more, under dbMutex, making that call ran.ranStateMu ->
+	// dbMutex -> ue.Mutex. That one cannot contend with anything: the UE it locks was
+	// unmarshalled a few lines earlier and is not in RanUePool or UePool until after the call,
+	// so no other goroutine holds a reference to it yet.
+	//
 	// Check if some parallel procedure has already
 	// fetched AmfUe and stored the RanUE in context.
 	// If so, then return the stored RanUE
