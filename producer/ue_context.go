@@ -83,9 +83,7 @@ func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Res
 	}
 	var createUeContextRspData *models.CreateUEContext201Response
 	var ueContextCreateErr *models.UeContextCreateError
-	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(UeContextHandler, sbiMsg)
 	if msg.RespData != nil {
 		createUeContextRspData = msg.RespData.(*models.CreateUEContext201Response)
 	}
@@ -216,9 +214,7 @@ func HandleReleaseUEContextRequest(request *httpwrapper.Request) *httpwrapper.Re
 		Msg:         ueContextRelease,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(UeContextHandler, sbiMsg)
 
 	// problemDetails := releaseUEContextProcedure(ueContextID, ueContextRelease)
 	if msg.ProblemDetails != nil {
@@ -279,9 +275,7 @@ func HandleUEContextTransferRequest(request *httpwrapper.Request) *httpwrapper.R
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var ueContextTransferResponse *models.UEContextTransfer200Response
-	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(UeContextHandler, sbiMsg)
 	if msg.RespData != nil {
 		ueContextTransferResponse = msg.RespData.(*models.UEContextTransfer200Response)
 	}
@@ -521,9 +515,7 @@ func HandleAssignEbiDataRequest(request *httpwrapper.Request) *httpwrapper.Respo
 	}
 	var assignEbiRspData *models.AssignedEbiData
 	var assignEbiErr *models.AssignEbiError
-	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(UeContextHandler, sbiMsg)
 	if msg.RespData != nil {
 		assignEbiRspData = msg.RespData.(*models.AssignedEbiData)
 	}
@@ -587,13 +579,7 @@ func HandleRegistrationStatusUpdateRequest(request *httpwrapper.Request) *httpwr
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var ueRegStatusUpdateRspData *models.UeRegStatusUpdateRspData
-	ue.EventChannel.UpdateSbiHandler(UeContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg, read := <-sbiMsg.Result
-	if !read {
-		problemDetails := utils.ProblemDetailsWithCause("Message not received", http.StatusInternalServerError, "Message not received from channel", utils.CauseMessageNotReceived)
-		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
-	}
+	msg := ue.DispatchSbiMsg(UeContextHandler, sbiMsg)
 	ueRegStatusUpdateRspData, ok = msg.RespData.(*models.UeRegStatusUpdateRspData)
 	if !ok {
 		if msg.ProblemDetails != nil {

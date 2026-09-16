@@ -74,9 +74,7 @@ func HandleSmContextStatusNotify(request *httpwrapper.Request) *httpwrapper.Resp
 		Msg:         smContextStatusNotification,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(SmContextHandler, sbiMsg)
 	// problemDetails := SmContextStatusNotifyProcedure(guti, int32(pduSessionID), smContextStatusNotification)
 	if msg.ProblemDetails != nil {
 		return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
@@ -226,9 +224,7 @@ func HandleAmPolicyControlUpdateNotifyUpdate(request *httpwrapper.Request) *http
 		Msg:         policyUpdate,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(SmContextHandler, sbiMsg)
 	// problemDetails := AmPolicyControlUpdateNotifyUpdateProcedure(polAssoID, policyUpdate)
 
 	if msg.ProblemDetails != nil {
@@ -320,9 +316,7 @@ func HandleAmPolicyControlUpdateNotifyTerminate(request *httpwrapper.Request) *h
 		Msg:         terminationNotification,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.EventChannel.UpdateSbiHandler(SmContextHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(SmContextHandler, sbiMsg)
 
 	// problemDetails := AmPolicyControlUpdateNotifyTerminateProcedure(polAssoID, terminationNotification)
 	if msg.ProblemDetails != nil {
@@ -494,9 +488,7 @@ func HandleDeregistrationNotification(ctx ctxt.Context, request *httpwrapper.Req
 					Msg:         nil,
 					Result:      make(chan context.SbiResponseMsg, 10),
 				}
-				ue.EventChannel.UpdateSbiHandler(HandleOAMPurgeUEContextRequest)
-				ue.EventChannel.SubmitMessage(sbiMsg)
-				msg := <-sbiMsg.Result
+				msg := ue.DispatchSbiMsg(HandleOAMPurgeUEContextRequest, sbiMsg)
 				if msg.ProblemDetails != nil {
 					return httpwrapper.NewResponse(int(msg.ProblemDetails.(*models.ProblemDetails).GetStatus()), nil, msg.ProblemDetails.(*models.ProblemDetails))
 				} else {

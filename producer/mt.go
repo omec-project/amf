@@ -49,9 +49,7 @@ func HandleProvideDomainSelectionInfoRequest(request *httpwrapper.Request) *http
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var ueContextInfo *models.UeContextInfo
-	ue.EventChannel.UpdateSbiHandler(MtHandler)
-	ue.EventChannel.SubmitMessage(sbiMsg)
-	msg := <-sbiMsg.Result
+	msg := ue.DispatchSbiMsg(MtHandler, sbiMsg)
 	if msg.RespData != nil {
 		ueContextInfo = msg.RespData.(*models.UeContextInfo)
 	}

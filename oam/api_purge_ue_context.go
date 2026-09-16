@@ -54,9 +54,7 @@ func HTTPPurgeUEContext(c *gin.Context) {
 				Msg:         nil,
 				Result:      make(chan context.SbiResponseMsg, 10),
 			}
-			ue.EventChannel.UpdateSbiHandler(producer.HandleOAMPurgeUEContextRequest)
-			ue.EventChannel.SubmitMessage(sbiMsg)
-			msg := <-sbiMsg.Result
+			msg := ue.DispatchSbiMsg(producer.HandleOAMPurgeUEContextRequest, sbiMsg)
 			if msg.ProblemDetails != nil {
 				status, body := purgeUEContextProblemDetailsResponse(msg.ProblemDetails)
 				c.JSON(status, body)
