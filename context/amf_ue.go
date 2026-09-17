@@ -18,6 +18,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -1317,9 +1318,9 @@ func (ue *AmfUe) GetEventSubscription(id string) (*AmfUeEventSubscription, bool)
 // budget is what the interface intends is not this change's question; making the accesses to
 // it safe is.
 //
-// The nested EventSubscription is shared, not copied. Nothing here writes it -- the patch
-// path works on AMFContext's own store, not on this one -- and copying it would claim a
-// guarantee this change does not make.
+// The nested EventSubscription is copied too, and the event list inside it. Sharing it left a
+// snapshot stable in everything except the part a patch changes: the list a UE was given was the
+// subscription's own array, and patching a subscription writes into that array.
 func (subscription *AmfUeEventSubscription) snapshot() *AmfUeEventSubscription {
 	if subscription == nil {
 		return nil
@@ -1330,6 +1331,18 @@ func (subscription *AmfUeEventSubscription) snapshot() *AmfUeEventSubscription {
 	if subscription.RemainReports != nil {
 		remaining := atomic.LoadInt32(subscription.RemainReports)
 		copied.RemainReports = &remaining
+	}
+
+	// Nothing patches a UE's list today -- it is given one of its own when the subscription is
+	// created -- and this is what keeps that from being load-bearing: whatever a reader is handed
+	// here cannot be written through by anyone.
+	//
+	// The list, not what each event points at: an event is replaced or moved whole, never edited
+	// in place, so that is the depth at which sharing matters.
+	if subscription.EventSubscription != nil {
+		events := *subscription.EventSubscription
+		events.EventList = slices.Clone(subscription.EventSubscription.EventList)
+		copied.EventSubscription = &events
 	}
 
 	return &copied

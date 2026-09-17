@@ -61,8 +61,20 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 
 	// store subscription in context
 	ueEventSubscription := context.AmfUeEventSubscription{}
+	// The UE's copy gets a list of its own. NewExtAmfEventSubscription stores the slice it is
+	// handed, so passing the subscription's own list would leave the two sharing one array -- and
+	// a patch of that subscription writes into it: "replace" assigns an element in place, "remove"
+	// shifts the elements down. A UE's list would change underneath whoever is reading it, with
+	// nothing ordering the two, and be persisted half-patched.
+	//
+	// It is the list that is copied, not what each event points at. That is the depth the patching
+	// works at: it replaces and moves whole events, and never reaches inside one.
+	subscribedEvents := contextEventSubscription.EventSubscription.GetEventList()
+	ueEvents := make([]models.AmfEvent, len(subscribedEvents))
+	copy(ueEvents, subscribedEvents)
+
 	// TODO: GA: Review the constructor of NewExtAmfEventSubscription. Is there anything else missing?
-	extAmfEventSubscription := models.NewExtAmfEventSubscription(contextEventSubscription.EventSubscription.GetEventList(), contextEventSubscription.EventSubscription.GetEventNotifyUri(), contextEventSubscription.EventSubscription.GetNotifyCorrelationId(), contextEventSubscription.EventSubscription.GetNfId())
+	extAmfEventSubscription := models.NewExtAmfEventSubscription(ueEvents, contextEventSubscription.EventSubscription.GetEventNotifyUri(), contextEventSubscription.EventSubscription.GetNotifyCorrelationId(), contextEventSubscription.EventSubscription.GetNfId())
 	ueEventSubscription.EventSubscription = extAmfEventSubscription
 	ueEventSubscription.Timestamp = time.Now().UTC()
 

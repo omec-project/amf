@@ -232,3 +232,36 @@ func TestOneCounterSharedBetweenUesIsDecrementedExactlyOnce(t *testing.T) {
 			left, ues*rounds, ues*rounds)
 	}
 }
+
+// A snapshot is handed to readers that go on reading after the lock is released, so it has to
+// carry a list of its own. Sharing one meant a snapshot was stable in everything except the part
+// a patch changes -- an event replaced in place, or the tail shifted down by a removal, would
+// appear in a snapshot taken before it, halfway through, and be persisted that way.
+func TestASnapshotDoesNotShareItsEventList(t *testing.T) {
+	events := []models.AmfEvent{
+		{Type: models.AMFEVENTTYPE_LOCATION_REPORT},
+		{Type: models.AMFEVENTTYPE_REGISTRATION_STATE_REPORT},
+	}
+
+	subscription := &AmfUeEventSubscription{
+		EventSubscription: models.NewExtAmfEventSubscription(events, "http://callback.example.test", "corr-id", "nf-id"),
+	}
+
+	taken := subscription.snapshot()
+
+	// What a patch does to the list it is holding.
+	events[0] = models.AmfEvent{Type: models.AMFEVENTTYPE_SUBSCRIPTION_ID_CHANGE}
+
+	if got := taken.EventSubscription.EventList[0].Type; got != models.AMFEVENTTYPE_LOCATION_REPORT {
+		t.Errorf("the snapshot's first event became %v, want the %v it was taken of: the list is shared, so a patch rewrites what a reader is already reading",
+			got, models.AMFEVENTTYPE_LOCATION_REPORT)
+	}
+
+	if &taken.EventSubscription.EventList[0] == &subscription.EventSubscription.EventList[0] {
+		t.Error("the snapshot and the subscription name one array")
+	}
+
+	if taken.EventSubscription == subscription.EventSubscription {
+		t.Error("the snapshot points at the subscription it was taken of")
+	}
+}
