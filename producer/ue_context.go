@@ -463,7 +463,7 @@ func buildUEContextModel(ue *context.AmfUe) models.UeContext {
 		}
 	}
 
-	for _, eventSub := range ue.EventSubscriptionsInfo {
+	for _, eventSub := range ue.GetEventSubscriptions() {
 		if eventSub.EventSubscription != nil {
 			ueContext.EventSubscriptionList = append(ueContext.EventSubscriptionList, *eventSub.EventSubscription)
 		}

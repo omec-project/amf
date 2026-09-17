@@ -240,3 +240,60 @@ func TestNewAmfEventReportHandlesContinuousModeWithoutOptionalLimits(t *testing.
 		t.Fatal("expected remainReports to be omitted when maxReports is not set")
 	}
 }
+
+// A UE's subscription is given a list of its own when it is created. Handing it the subscription's
+// own slice left the two sharing one array, and patching the subscription writes into that array:
+// "replace" assigns an element in place and "remove" shifts the rest down. The UE's list would
+// then change underneath whoever was reading it, with nothing ordering the two, and be persisted
+// half-patched.
+func TestAUeSubscriptionKeepsItsOwnEventList(t *testing.T) {
+	amfSelf := context.AMF_Self()
+
+	ue := &context.AmfUe{
+		Supi:                   "imsi-208930000000077",
+		EventSubscriptionsInfo: make(map[string]*context.AmfUeEventSubscription),
+	}
+	amfSelf.UePool.Store(ue.Supi, ue)
+
+	t.Cleanup(func() { amfSelf.UePool.Delete(ue.Supi) })
+
+	// Through the procedure itself: what is under test is the list the UE's subscription is built
+	// with, and building one in the test would assert nothing about how the AMF builds it.
+	anyUe := true
+	created, problem := CreateAMFEventSubscriptionProcedure(models.AmfCreateEventSubscription{
+		Subscription: models.AmfEventSubscription{
+			AnyUE: &anyUe,
+			EventList: []models.AmfEvent{
+				{Type: models.AMFEVENTTYPE_LOCATION_REPORT},
+				{Type: models.AMFEVENTTYPE_REGISTRATION_STATE_REPORT},
+			},
+			EventNotifyUri:      "http://callback.example.test",
+			NotifyCorrelationId: "corr-id",
+			NfId:                "nf-id",
+		},
+	})
+	if problem != nil {
+		t.Fatalf("creating the subscription: %v", problem)
+	}
+
+	subscriptionID := created.GetSubscriptionId()
+	t.Cleanup(func() { amfSelf.DeleteEventSubscription(subscriptionID) })
+
+	// The stored subscription, not GetEventSubscription's: that hands back a snapshot with a list
+	// of its own, which is the right thing for a reader and would hide exactly what this asserts.
+	ueSubscription, held := ue.EventSubscriptionsInfo[subscriptionID]
+	if !held {
+		t.Fatal("the UE was given no subscription to keep a list for")
+	}
+
+	replacement := models.AmfEvent{Type: models.AMFEVENTTYPE_SUBSCRIPTION_ID_CHANGE}
+	if _, patchProblem := ModifyAMFEventSubscriptionProcedure(subscriptionID,
+		newEventListPatchRequest("replace", "/eventList/0", &replacement)); patchProblem != nil {
+		t.Fatalf("patching the subscription: %v", patchProblem)
+	}
+
+	if got := ueSubscription.EventSubscription.EventList[0].Type; got != models.AMFEVENTTYPE_LOCATION_REPORT {
+		t.Errorf("the UE's first event became %v, want the %v it was created with: the UE and the subscription share one array",
+			got, models.AMFEVENTTYPE_LOCATION_REPORT)
+	}
+}

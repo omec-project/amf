@@ -236,7 +236,30 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 	ue.NASLog.Debugln("securityHeaderType is", msg.SecurityHeaderType)
 	if msg.SecurityHeaderType == nas.SecurityHeaderTypePlainNas {
 		// RRCEstablishmentCause 0 is for emergency service
-		if ue.SecurityContextAvailable && ue.RanUe[accessType].RRCEstablishmentCause != "0" {
+		// SecurityContextAvailable first: this runs for every NAS message, and there is
+		// no reason to take the UE lock when the cheap test already answers it. ranUe is
+		// therefore non-nil only when the context is available.
+		var ranUe *context.RanUe
+		if ue.SecurityContextAvailable {
+			ranUe = ue.GetRanUe(accessType)
+			if ranUe == nil {
+				// Refused, not decoded. Whether plain NAS may be accepted from a UE that holds a
+				// security context turns on the RRC establishment cause, and the association
+				// carrying it is gone -- so the one thing that could permit this message cannot
+				// be established. Decoding it anyway read a missing association as an emergency
+				// connection and accepted every message type, including the ones TS 24.501
+				// subclause 4.4.4.3 withholds until NAS security is up.
+				//
+				// A missing association is a release that has already happened, not evidence of
+				// an emergency. The caller logs this and drops the message, which also leaves the
+				// security context alone: the non-emergency branch below clears it, and doing that
+				// on a message this cannot place would let one unauthenticated packet cost a UE
+				// its context.
+				return nil, fmt.Errorf("plain NAS from a UE with a security context and no RAN association")
+			}
+		}
+
+		if ranUe != nil && ranUe.RRCEstablishmentCause != "0" {
 			ue.NASLog.Warnln("Received Plain NAS message")
 			ue.MacFailed = false
 			ue.SecurityContextAvailable = false
