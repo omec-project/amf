@@ -173,6 +173,18 @@ func (amf *AMF) Start() {
 		if err != nil {
 			logger.InitLog.Errorf("initialise DRSM failed, %v", err.Error())
 		}
+
+		// Here, synchronously, rather than in a goroutine after the NGAP
+		// listener is up. Serving before the datastore is ready means a UE
+		// whose lookup misses the in-memory pool is answered as unknown, and a
+		// stored context can be duplicated or its release lost -- and since a
+		// setup failure ends the AMF, accepting UEs first only accepts them
+		// into a process about to exit. InitDrsm above already blocks on
+		// reaching MongoDB for the same reason, so this is where that wait
+		// already happens.
+		if setupErr := amfContext.SetupAmfCollection(); setupErr != nil {
+			logger.InitLog.Fatalf("could not set up the AMF collection: %v", setupErr)
+		}
 	}
 	ctx, cancelServices := ctxt.WithCancel(ctxt.Background())
 
@@ -244,10 +256,6 @@ func (amf *AMF) Start() {
 
 	if self.EnableSctpLb {
 		go StartGrpcServer(ctx, self.SctpGrpcPort)
-	}
-
-	if self.EnableDbStore {
-		go amfContext.SetupAmfCollection()
 	}
 
 	var tracerProvider *sdktrace.TracerProvider

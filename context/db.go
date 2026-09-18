@@ -7,9 +7,13 @@ package context
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/bytedance/sonic"
 	"github.com/omec-project/amf/factory"
@@ -26,6 +30,24 @@ var dbMutex sync.Mutex
 const (
 	dbWriteWorkers   = 4
 	dbWriteQueueSize = 256
+)
+
+const (
+	// indexEnsureBudget bounds the whole of ensureAmfUeIndexes. It is generous
+	// because the usual reason to need it is that MongoDB elects a primary later
+	// than the AMF started, and giving up before that happens only restarts the
+	// same wait.
+	indexEnsureBudget = 5 * time.Minute
+	// indexEnsureAttemptTimeout bounds one EnsureIndex call, which builds the
+	// index and then reads the collection's indexes back to confirm it.
+	indexEnsureAttemptTimeout = 30 * time.Second
+	indexEnsureInitialBackoff = 1 * time.Second
+	indexEnsureMaxBackoff     = 30 * time.Second
+
+	// mongoConnectAttempts bounds the connect loop. ConnectMongo waits three
+	// minutes per attempt, so this is a nine-minute ceiling before the AMF
+	// reports that it has no datastore.
+	mongoConnectAttempts = 3
 )
 
 type dbWriteOp struct {
@@ -74,6 +96,9 @@ func AllocateUniqueID(generator **idgenerator.IDGenerator, idName string) (int64
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 	if *generator == nil {
+		if !datastoreReady() {
+			return -1, errors.New("no connection to MongoDB, so no id range could be claimed")
+		}
 		logger.DataRepoLog.Infof("generator null. fetch offset from db")
 		val := mongoapi.CommonDBClient.GetUniqueIdentity(idName)
 		// Mongodb returns value starting from 1.
@@ -95,7 +120,21 @@ func AllocateUniqueID(generator **idgenerator.IDGenerator, idName string) (int64
 	return val, nil
 }
 
-func SetupAmfCollection() {
+// redactedMongoURL renders a connection string without its password, for a log
+// line that is otherwise the only record of which datastore the AMF used.
+//
+// A URL that will not parse is reported as its scheme alone rather than
+// verbatim: something unparseable is exactly the case where guessing which part
+// is the credential goes wrong.
+func redactedMongoURL(raw string) string {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "(unparseable connection string)"
+	}
+	return parsed.Redacted()
+}
+
+func SetupAmfCollection() error {
 	mongoDbUrl := "mongodb://mongodb:27017"
 	if factory.AmfConfig.Configuration.AmfDBName == "" {
 		factory.AmfConfig.Configuration.AmfDBName = "sdcore_amf"
@@ -106,47 +145,231 @@ func SetupAmfCollection() {
 		mongoDbUrl = factory.AmfConfig.Configuration.Mongodb.Url
 	}
 
-	logger.DataRepoLog.Infof("MondbName: %v, Url: %v", factory.AmfConfig.Configuration.AmfDBName, mongoDbUrl)
+	logger.DataRepoLog.Infof("MondbName: %v, Url: %v", factory.AmfConfig.Configuration.AmfDBName, redactedMongoURL(mongoDbUrl))
 
 	if Namespace != "" {
 		AmfUeDataColl = Namespace + "." + AmfUeDataColl
 	}
-	for {
+	// Bounded, where this used to retry for ever. ConnectMongo already waits
+	// three minutes per attempt, so a few of them is a long time to be up
+	// without a datastore -- and while this loop spins, NGAP is already
+	// accepting UEs whose contexts go nowhere. Giving up lets the caller shut
+	// the AMF down through its own lifecycle, which is the whole point of
+	// reporting rather than exiting here.
+	connected := false
+	for attempt := 1; attempt <= mongoConnectAttempts; attempt++ {
 		mongoapi.ConnectMongo(mongoDbUrl, factory.AmfConfig.Configuration.AmfDBName)
-		if mongoapi.CommonDBClient.(*mongoapi.MongoClient).Client == nil {
-			logger.DataRepoLog.Errorln("mongoDb Connection failed")
-		} else {
+		// ConnectMongo assigns CommonDBClient only once it has connected, so
+		// after it gives up the interface is still nil -- and a plain type
+		// assertion on a nil interface panics, which would end the process
+		// before any of the reporting below could run.
+		client, isMongo := mongoapi.CommonDBClient.(*mongoapi.MongoClient)
+		if isMongo && client.Client != nil {
 			logger.DataRepoLog.Infoln("successfully connected to Mongodb")
+			connected = true
 			break
 		}
+		logger.DataRepoLog.Errorf("mongoDb connection failed, attempt %d of %d", attempt, mongoConnectAttempts)
 	}
-	_, err := mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "supi")
-	if err != nil {
-		logger.DataRepoLog.Errorln("create index failed on Supi field")
+	if !connected {
+		// Without the URL: it is a connection string, and one carrying
+		// credentials would otherwise reach the logs through the caller that
+		// prints this.
+		return fmt.Errorf("no connection to MongoDB after %d attempts", mongoConnectAttempts)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), indexEnsureBudget)
+	defer cancel()
+
+	// Every index that asserts uniqueness goes in before a writer exists; the
+	// rest go in after the writers start. The split is by uniqueness because
+	// that is exactly what decides whether concurrent writes can make an index
+	// impossible to create.
+	//
+	// A unique index has to be in place first. Writes here are upserts, so two
+	// workers writing the same key concurrently can each insert while no unique
+	// index exists -- and a collection that has acquired such a pair can never
+	// have that index created again, on this start or any later one. For an AMF
+	// that refuses to run without it, that is a permanent failure to start.
+	// Ensuring them before any worker runs means no unindexed write is ever in
+	// flight, including across the drop and recreate that changing an existing
+	// index's options requires.
+	//
+	// A non-unique index cannot fail that way, whatever is written while it is
+	// missing, so those wait until the writers are running. That matters
+	// because ensuring them can take minutes against a MongoDB that has not
+	// elected a primary yet, and NGAP is already accepting UEs by the time this
+	// runs (service/init.go starts the listener first). With no worker draining
+	// it, the 256-entry queue fills and StoreContextInDB drops every further
+	// snapshot on the floor.
+	unique, rest := splitByUniqueness(amfUeIndexes())
+	if err := ensureIndexes(ctx, unique); err != nil {
+		return err
 	}
 
-	_, err = mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "guti")
-	if err != nil {
-		logger.DataRepoLog.Errorln("create index failed on Guti field")
-	}
-
-	_, err = mongoapi.CommonDBClient.CreateIndex(AmfUeDataColl, "tmsi")
-	if err != nil {
-		logger.DataRepoLog.Errorln("create index failed on Tmsi field")
-	}
-
-	/*_, err = CommonDBClient.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.amfUeNgapId")
-	if err != nil {
-		logger.DataRepoLog.Errorf("Create index failed on AmfUeNgapID field.")
-	}*/
-
-	// Indexing for ranUeNgapId would fail if we have multiple gnbs.
-	// TODO: We should create index with multiple fields (ranUeNgapId & ranIpAddr)
-	/*_, err = CommonDBClient.CreateIndex(AmfUeDataColl, "customFieldsAmfUe.ranUeNgapId")
-	if err != nil {
-		logger.DataRepoLog.Errorf("Create index failed on RanUeNgapID field.")
-	}*/
 	startDBWriteWorkers()
+
+	return ensureIndexes(ctx, rest)
+}
+
+// splitByUniqueness divides specs into those whose creation a concurrent write
+// can make impossible, and those it cannot.
+func splitByUniqueness(specs []mongoapi.IndexSpec) (unique, rest []mongoapi.IndexSpec) {
+	for _, spec := range specs {
+		if spec.Unique {
+			unique = append(unique, spec)
+			continue
+		}
+		rest = append(rest, spec)
+	}
+	return unique, rest
+}
+
+// amfUeIndexes are the indexes amf.data.amfState needs, one per filter the AMF
+// queries or writes that collection by. Every one of them is a seek the AMF
+// would otherwise do as a collection scan: a write is an upsert matched on
+// supi, and the three fetch paths filter on guti, on (ranId, ranUeNgapId) and
+// on amfUeNgapId.
+//
+// Uniqueness is asserted only where the field really carries it. supi
+// identifies the document and is the filter every write upserts on. guti and
+// tmsi are unique per UE but `omitempty`, so they are absent from a context
+// stored before one was assigned -- a unique index reads every such document as
+// null and rejects the second one with a duplicate key error, which the write
+// worker can only log. Sparse is what keeps the constraint without the
+// collision.
+//
+// The two RAN identifiers carry no uniqueness at all: ranUeNgapId is assigned
+// by the gNB and repeats across gNBs, which is why indexing it alone was
+// abandoned. They are also written as zero rather than omitted for a UE with no
+// current RAN association, so sparse cannot exclude those either -- the field is
+// present, it just holds a placeholder. A partial filter is what excludes them,
+// and it keeps the index to the documents a lookup can actually want.
+func amfUeIndexes() []mongoapi.IndexSpec {
+	// A context stored with no RAN association writes ranId as the empty
+	// string alongside both NGAP IDs as zero (see AmfUe.MarshalJSON), so this
+	// selects exactly the UEs a lookup by RAN identifier can return.
+	attachedToARan := bson.M{"customFieldsAmfUe.ranId": bson.M{"$gt": ""}}
+
+	return []mongoapi.IndexSpec{
+		amfUeSupiIndex(),
+		{
+			Name:   "amfUeByGuti",
+			Keys:   mongoapi.AscendingKeys("guti"),
+			Unique: true,
+			Sparse: true,
+		},
+		{
+			Name:   "amfUeByTmsi",
+			Keys:   mongoapi.AscendingKeys("tmsi"),
+			Unique: true,
+			Sparse: true,
+		},
+		{
+			// Keyed ranId first so the index also answers "every UE on this
+			// gNB", which NG Reset and RAN-wide cleanup want; both predicates
+			// are equality, so either order serves DbFetchRanUeByRanUeNgapID
+			// equally well and the prefix is the only thing the choice buys.
+			Name:          "amfUeByRan",
+			Keys:          mongoapi.AscendingKeys("customFieldsAmfUe.ranId", "customFieldsAmfUe.ranUeNgapId"),
+			PartialFilter: attachedToARan,
+		},
+		{
+			// Filtered on the field itself rather than on ranId: a partial
+			// index is only used when the query proves the filter, and a query
+			// on amfUeNgapId alone proves nothing about ranId. Zero is excluded
+			// because zero is what MarshalJSON writes for a UE with no RAN
+			// association, which is the overwhelming majority of the documents
+			// carrying it.
+			//
+			// Not quite all of them, though: with EnableDbStore the ID comes
+			// from drsm, which composes it as (chunk << 10) | offset over a
+			// chunk drawn from 16384 and offsets counted down from 999, so an
+			// AMF that draws chunk zero and exhausts it allocates a real UE the
+			// value zero. That UE's own lookup then falls back to a collection
+			// scan rather than returning a wrong answer, since the document is
+			// only missing from the index and not from the collection. The
+			// deeper problem there is that its context is indistinguishable
+			// from a detached one in the stored data itself, which no index can
+			// fix; tracked in harden-amf-availability-under-load.
+			Name:          "amfUeByAmfUeNgapId",
+			Keys:          mongoapi.AscendingKeys("customFieldsAmfUe.amfUeNgapId"),
+			PartialFilter: bson.M{"customFieldsAmfUe.amfUeNgapId": bson.M{"$gt": 0}},
+		},
+	}
+}
+
+// amfUeSupiIndex is the index over the field every write upserts on.
+//
+// Its specification is deliberately identical to what the CreateIndex call this
+// change replaces already produced -- key {supi: 1}, unique, nothing else, under
+// the name MongoDB generates for that key -- so that ensuring it on a collection
+// that has one is a no-op rather than a drop and recreate.
+//
+// That matters because the AMF is deployed as several instances against one
+// collection, and nothing here can stop the others writing. For guti and tmsi a
+// replacement window is worth it: they are unique over `omitempty` fields today,
+// which rejects the second UE that has no such value, and sparse is the fix. For
+// supi it is not. Every write is an upsert whose filter is {supi: ...}, and
+// MongoDB copies a filter's equality fields into any document it inserts, so no
+// document this code writes can lack the field -- sparse would guard against
+// something unreachable, at the price of dropping the one index that keeps
+// concurrent upserts from making two documents for one UE.
+func amfUeSupiIndex() mongoapi.IndexSpec {
+	return mongoapi.IndexSpec{
+		Name:   "supi_1",
+		Keys:   mongoapi.AscendingKeys("supi"),
+		Unique: true,
+	}
+}
+
+// ensureIndexes makes amf.data.amfState carry every index given, and reports
+// the first one it cannot.
+//
+// Creating an index is a write, so it fails while the replica set has no
+// writable primary yet -- routine when the AMF and MongoDB start together --
+// which is why this retries rather than logging once and carrying on. Carrying
+// on is what it must not do: every fetch below degrades to a collection scan
+// whose cost grows with the number of subscribers, and DbFetchRanUeByRanUeNgapID
+// runs that scan while holding the RAN's state lock, so one missing index
+// stalls a whole gNB association. None of that is visible in a log line.
+//
+// It reports rather than exits so the caller can shut the AMF down through its
+// own lifecycle: deregistering from the NRF and stopping SCTP first, which
+// ending the process here would skip.
+func ensureIndexes(ctx context.Context, specs []mongoapi.IndexSpec) error {
+	for _, spec := range specs {
+		if err := ensureIndexWithRetry(ctx, spec); err != nil {
+			return fmt.Errorf("could not ensure index %q on collection %q: %w",
+				spec.Name, AmfUeDataColl, err)
+		}
+		logger.DataRepoLog.Infof("index %q is present on collection %q", spec.Name, AmfUeDataColl)
+	}
+	return nil
+}
+
+// ensureIndexWithRetry calls EnsureIndex until it succeeds or ctx expires,
+// backing off between attempts.
+func ensureIndexWithRetry(ctx context.Context, spec mongoapi.IndexSpec) error {
+	backoff := indexEnsureInitialBackoff
+	for attempt := 1; ; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, indexEnsureAttemptTimeout)
+		err := mongoapi.CommonDBClient.EnsureIndex(attemptCtx, AmfUeDataColl, spec)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return fmt.Errorf("gave up after %d attempts: %w (last error: %v)", attempt, ctxErr, err)
+		}
+		logger.DataRepoLog.Warnf("attempt %d to ensure index %q on collection %q failed, retrying in %s: %v",
+			attempt, spec.Name, AmfUeDataColl, backoff, err)
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("gave up after %d attempts: %w (last error: %v)", attempt, ctx.Err(), err)
+		case <-time.After(backoff):
+		}
+		backoff = min(backoff*2, indexEnsureMaxBackoff)
+	}
 }
 
 // amfJSONBufInitialCap is the initial capacity for pooled JSON encoding buffers
@@ -196,6 +419,9 @@ func StoreContextInDB(ue *AmfUe) {
 func DeleteContextFromDB(ue *AmfUe) {
 	self := AMF_Self()
 	if self.EnableDbStore {
+		if !datastoreReady() {
+			return
+		}
 		filter := bson.M{"supi": ue.GetSupi()}
 
 		delErr := mongoapi.CommonDBClient.RestfulAPIDeleteOne(AmfUeDataColl, filter)
@@ -235,7 +461,30 @@ func dropEmptyEnumValues(value any) {
 	}
 }
 
+// datastoreReady reports whether there is a client to call.
+//
+// SetupAmfCollection is the only thing that sets one, and it runs only when
+// EnableDbStore is configured -- while not every path that reads the datastore
+// checks that flag first. HandleOAMActiveUEContextsFromDB is the plain example:
+// it calls DbFetchAllEntries for any operator that asks, whether or not the AMF
+// was configured with somewhere to fetch from. A method call on a nil interface
+// panics rather than failing, so each of those paths asks here instead.
+//
+// This is not about the startup window. Setup runs synchronously before the
+// NGAP listener and the SBI server (see service/init.go), so nothing races it
+// and nothing serves ahead of it.
+func datastoreReady() bool {
+	if mongoapi.CommonDBClient == nil {
+		logger.DataRepoLog.Warnln("no connection to MongoDB yet, skipping the datastore")
+		return false
+	}
+	return true
+}
+
 func DbFetch(collName string, filter bson.M) *AmfUe {
+	if !datastoreReady() {
+		return nil
+	}
 	ue := &AmfUe{}
 	ue.init()
 	result, getOneErr := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
@@ -407,6 +656,9 @@ func DbFetchUeBySupi(supi string) (ue *AmfUe, ok bool) {
 }
 
 func DbFetchAllEntries() (ueList []*AmfUe) {
+	if !datastoreReady() {
+		return nil
+	}
 	ue := &AmfUe{}
 	filter := bson.M{}
 	results, getManyErr := mongoapi.CommonDBClient.RestfulAPIGetMany(AmfUeDataColl, filter)
