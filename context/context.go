@@ -407,11 +407,46 @@ func (context *AMFContext) NewAmfRanId(GnbId string) *AmfRan {
 	return &ran
 }
 
+// AmfRanFindByGnbId returns the RAN with this GnbId, in either SCTP mode.
+//
+// AmfRanPool is keyed three ways: by net.Conn when the AMF terminates SCTP itself
+// (NewAmfRan), by remote address (NewAmfRanAddr), and by GnbId string only on the sctplb
+// path (NewAmfRanId). A Load therefore hits on the sctplb path and can never hit on the
+// direct-SCTP one -- even though SetRanId has populated GnbId there just the same. So the
+// Load is the fast path and the range is what makes the answer correct in both modes;
+// HandleSCTPNotificationLb already walks the pool on this same field.
+//
+// The range is skipped for an id that cannot identify one gNB, because a loose match on such
+// an id is worse than no match. SetRanId builds GnbId as "<mcc>:<mnc>:" and then appends the
+// gNB value, and ngapConvert.RanIdToModels leaves that value empty -- without returning an
+// error -- whenever the GNBID arrives on the CHOICE's extension arm rather than
+// GNBIDPresentGNBID. The result is a trailing colon: non-empty, and shared by every gNB on
+// that PLMN whose id degenerated the same way. An empty GnbId is the same problem from the
+// other side: a RAN that has not yet completed NG Setup has none.
+//
+// The Load is left unguarded. That key is whatever the caller stored, so its behaviour is
+// unchanged from before this fallback existed.
 func (context *AMFContext) AmfRanFindByGnbId(gnbId string) (*AmfRan, bool) {
 	if value, ok := context.AmfRanPool.Load(gnbId); ok {
 		return value.(*AmfRan), ok
 	}
-	return nil, false
+
+	if gnbId == "" || strings.HasSuffix(gnbId, ":") {
+		return nil, false
+	}
+
+	var ran *AmfRan
+	var found bool
+	context.AmfRanPool.Range(func(_, value any) bool {
+		amfRan := value.(*AmfRan)
+		if amfRan.GnbId == gnbId {
+			ran, found = amfRan, true
+			return false
+		}
+		return true
+	})
+
+	return ran, found
 }
 
 // use ranNodeID to find RAN context, return *AmfRan and ok bit
