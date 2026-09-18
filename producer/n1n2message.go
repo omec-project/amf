@@ -411,9 +411,20 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 		// Case B (UE is CM-IDLE in Non-3GPP access but CM-CONNECTED in 3GPP access and the associated
 		// access type is Non-3GPP access)in subclause 5.2.2.3.1.2 of TS29518
 		if ue.HasLiveRanConnection(models.ACCESSTYPE__3_GPP_ACCESS) {
+			// One read of the association, used for the whole branch: the guard above is
+			// already stale by the time this acts on it, since the NGAP reader can release
+			// the 3GPP RanUe concurrently with this SBI goroutine.
+			ranUe := ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
+			if ranUe == nil {
+				ue.ProducerLog.Warnln("UE's 3GPP RAN connection was released while transferring; cannot transfer")
+				problemDetails = utils.ProblemDetailsSystemFailure("UE has no RAN connection")
+
+				return nil, "", problemDetails, nil
+			}
+
 			if n2Info == nil {
 				n1n2MessageTransferRspData.Cause = models.N1N2MESSAGETRANSFERCAUSE_N1_N2_TRANSFER_INITIATED
-				gmm_message.SendDLNASTransport(ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS), models.ACCESSTYPE__3_GPP_ACCESS,
+				gmm_message.SendDLNASTransport(ranUe, models.ACCESSTYPE__3_GPP_ACCESS,
 					nasMessage.PayloadContainerTypeN1SMInfo, n1Msg, requestData.GetPduSessionId(), 0, nil, 0)
 			} else {
 				n1n2MessageTransferRspData.Cause = models.N1N2MESSAGETRANSFERCAUSE_ATTEMPTING_TO_REACH_UE
@@ -434,7 +445,7 @@ func N1N2MessageTransferProcedure(ueContextID string, reqUri string,
 					problemDetails = utils.ProblemDetailsSystemFailure(err.Error())
 					return nil, "", problemDetails, nil
 				}
-				gmm_message.SendNotification(ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS), nasMsg)
+				gmm_message.SendNotification(ranUe, nasMsg)
 			}
 			return n1n2MessageTransferRspData, locationHeader, nil, nil
 		} else {
