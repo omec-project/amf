@@ -21,10 +21,13 @@ import (
 )
 
 const (
+	pollingBackoffFactor = 2
+	pollingPath          = "/nfconfig/access-mobility"
+)
+
+var (
 	initialPollingInterval = 5 * time.Second
 	pollingMaxBackoff      = 40 * time.Second
-	pollingBackoffFactor   = 2
-	pollingPath            = "/nfconfig/access-mobility"
 )
 
 type nfConfigPoller struct {

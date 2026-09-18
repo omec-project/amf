@@ -58,12 +58,28 @@ func ranWithPagedUe(t *testing.T, ranUeNgapID int64) (*context.AmfRan, *context.
 	return ran, ranUe, amfUe
 }
 
+// stopPagingTimer halts a real T3513 retry timer SendPaging may have started. Without
+// this, the timer's goroutine keeps running after the test returns and, on every 6s
+// retry, broadcasts a stale Paging PDU to every RAN in the process-wide AmfRanPool that
+// serves this UE's TAI (208/93/000001) - including RANs later tests create for that same
+// TAI, clobbering whatever those tests expected to read back from their connection.
+func stopPagingTimer(amfUe *context.AmfUe) {
+	if amfUe.T3513 != nil {
+		amfUe.T3513.Stop()
+	}
+}
+
 // The defect: the AMF chose N2 over paging because the UE looked connected, the write
 // succeeded, and it answered N1N2_TRANSFER_INITIATED -- so nothing upstream retries. This
 // indication is the only notice it gets that the message went nowhere.
 func TestErrorIndicationForAStaleUeIdReleasesTheContextAndPages(t *testing.T) {
 	ran, ranUe, amfUe := ranWithPagedUe(t, 11)
 	amfUeNgapID := ranUe.AmfUeNgapId
+
+	// This test drives the real SendPaging, which starts a genuine T3513 retry timer
+	// (6s x 4 retries): left running, it goes on broadcasting Paging PDUs to every RAN
+	// serving this TAI - including other tests' - long after this test returns.
+	t.Cleanup(func() { stopPagingTimer(amfUe) })
 
 	recoverPendingMessageAfterStaleUeNgapID(ran, amfUeNgapIDIe(amfUeNgapID), nil,
 		staleUeErrorIndication())
@@ -152,6 +168,11 @@ func amfUeNgapIDIe(value int64) *ngapType.AMFUENGAPID {
 func TestHandleErrorIndicationRecoversThroughTheRealMessage(t *testing.T) {
 	ran, ranUe, amfUe := ranWithPagedUe(t, 15)
 	amfUeNgapID := ranUe.AmfUeNgapId
+
+	// This test drives the real SendPaging, which starts a genuine T3513 retry timer
+	// (6s x 4 retries): left running, it goes on broadcasting Paging PDUs to every RAN
+	// serving this TAI - including other tests' - long after this test returns.
+	t.Cleanup(func() { stopPagingTimer(amfUe) })
 
 	pdu := &ngapType.NGAPPDU{
 		Present: ngapType.NGAPPDUPresentInitiatingMessage,
