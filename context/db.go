@@ -275,8 +275,9 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	dbMutex.Lock()
 	defer dbMutex.Unlock()
 
-	// Read once. The UE is published to UePool three lines down, so from that point the
-	// entry can be replaced by another goroutine while this function is still using it.
+	// Read once. This function publishes the UE to UePool before it returns, and nothing
+	// serialises that against the other writers, so from that point the entry can be
+	// replaced by another goroutine while this function is still using it.
 	ranUe := ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
 	if ranUe == nil {
 		// A stored document without a 3GPP RanUe would otherwise be dereferenced below.
@@ -287,8 +288,6 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	}
 
 	ranUe.SetAmfUe(ue)
-	AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
-	AMF_Self().UePool.Store(ue.Supi, ue)
 	ue.EventChannel = nil
 	ue.NASLog = logger.NasLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 	ue.GmmLog = logger.GmmLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
@@ -296,6 +295,17 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	ue.ProducerLog = logger.ProducerLog.With(logger.FieldSupi, fmt.Sprintf("SUPI:%s", ue.Supi))
 	ue.AmfInstanceName = os.Getenv("HOSTNAME")
 	ue.AmfInstanceIp = os.Getenv("POD_IP")
+
+	// Published last, and this order is the point. Nothing above reads either pool, but
+	// everything above is state a reader needs: until it is written, a lookup that finds
+	// this UE gets a context with no loggers and no instance identity. AmfUeFindBySupi and
+	// AmfUeFindByGuti do not hold dbMutex, so such a reader is a service request arriving
+	// while the restore is still running -- and since a request for a UE with no event
+	// channel now runs its handler inline rather than failing, that reader reaches the
+	// procedure and the per-UE loggers it uses.
+	AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+	AMF_Self().UePool.Store(ue.Supi, ue)
+
 	ue.TxLog.Debugln("amfue fetched")
 	return ue
 }
