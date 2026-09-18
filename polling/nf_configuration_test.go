@@ -45,6 +45,22 @@ func cleanupPollingService(t *testing.T, cancel context.CancelFunc, serviceDone 
 	waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
 }
 
+// useFastPollingIntervals shrinks the package's polling interval and backoff cap for the
+// duration of a test. Restored only once the polling goroutine the test started has
+// stopped: register this before the cleanup that stops it, so cleanups run in the reverse
+// order (LIFO) and the goroutine is gone before these vars change under it.
+func useFastPollingIntervals(t *testing.T) {
+	t.Helper()
+	originalInterval := initialPollingInterval
+	originalMaxBackoff := pollingMaxBackoff
+	initialPollingInterval = 20 * time.Millisecond
+	pollingMaxBackoff = 80 * time.Millisecond
+	t.Cleanup(func() {
+		initialPollingInterval = originalInterval
+		pollingMaxBackoff = originalMaxBackoff
+	})
+}
+
 func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (nfConfigApi.AccessAndMobility, error) {
 	sstUint64, err := strconv.ParseUint(sst, 10, 8)
 	if err != nil {
@@ -65,6 +81,7 @@ func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (n
 }
 
 func TestStartPollingService_Success(t *testing.T) {
+	useFastPollingIntervals(t)
 	ctx, cancel := context.WithCancel(t.Context())
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
 	t.Cleanup(func() {
@@ -104,6 +121,7 @@ func TestStartPollingService_Success(t *testing.T) {
 }
 
 func TestStartPollingService_RetryAfterFailure(t *testing.T) {
+	useFastPollingIntervals(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
 	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig })
@@ -139,6 +157,7 @@ func TestStartPollingService_RetryAfterFailure(t *testing.T) {
 }
 
 func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
+	useFastPollingIntervals(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetcher := fetchAccessAndMobilityConfig
 	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetcher })
@@ -180,6 +199,7 @@ func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
 }
 
 func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
+	useFastPollingIntervals(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	originalFetcher := fetchAccessAndMobilityConfig
 	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetcher })
