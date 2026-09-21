@@ -21,7 +21,7 @@ func MtHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, s
 	switch msg := msg.(type) {
 	case string:
 		r1, r2 := ProvideDomainSelectionInfoProcedure(s1, s2, msg)
-		return r1, "", r2, nil
+		return anyOrNil(r1), "", anyOrNil(r2), nil
 	}
 
 	return nil, "", nil, nil

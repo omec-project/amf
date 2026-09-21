@@ -40,13 +40,13 @@ func SmContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interfa
 			pduSessionID = pduSessionIDTmp
 		}
 		r1 := SmContextStatusNotifyProcedure(ctx, s1, int32(pduSessionID), msg)
-		return nil, "", r1, nil
+		return nil, "", anyOrNil(r1), nil
 	case models.PolicyUpdate:
 		r1 := AmPolicyControlUpdateNotifyUpdateProcedure(s1, msg)
-		return nil, "", r1, nil
+		return nil, "", anyOrNil(r1), nil
 	case models.TerminationNotification:
 		r1 := AmPolicyControlUpdateNotifyTerminateProcedure(ctx, s1, msg)
-		return nil, "", r1, nil
+		return nil, "", anyOrNil(r1), nil
 	}
 
 	return nil, "", nil, nil

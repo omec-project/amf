@@ -21,7 +21,7 @@ func LocationInfoHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (inte
 	switch msg := msg.(type) {
 	case models.RequestLocInfo:
 		r1, r2 := ProvideLocationInfoProcedure(msg, s1)
-		return r1, "", r2, nil
+		return anyOrNil(r1), "", anyOrNil(r2), nil
 	}
 
 	return nil, "", nil, nil
