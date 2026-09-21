@@ -43,19 +43,19 @@ func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interfa
 	switch msg := msg.(type) {
 	case models.CreateUEContextRequest:
 		r1, r2 := createUEContextProcedure(s1, msg)
-		return r1, "", nil, r2
+		return anyOrNil(r1), "", nil, anyOrNil(r2)
 	case models.UEContextRelease:
 		r1 := releaseUEContextProcedure(s1, msg)
-		return nil, "", r1, nil
+		return nil, "", anyOrNil(r1), nil
 	case models.UEContextTransferRequest:
 		r1, r2 := ueContextTransferProcedure(s1, msg)
-		return r1, "", r2, nil
+		return anyOrNil(r1), "", anyOrNil(r2), nil
 	case models.AssignEbiData:
 		r1, r3 := assignEbiDataProcedure(s1, msg)
-		return r1, "", r3, nil
+		return anyOrNil(r1), "", anyOrNil(r3), nil
 	case models.UeRegStatusUpdateReqData:
 		r1, r2 := registrationStatusUpdateProcedure(ctx, s1, msg)
-		return r1, "", r2, nil
+		return anyOrNil(r1), "", anyOrNil(r2), nil
 	}
 
 	return nil, "", nil, nil

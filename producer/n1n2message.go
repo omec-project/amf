@@ -29,14 +29,19 @@ import (
 func ProducerHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
 	if msg == nil {
 		r1, r2 := N1N2MessageTransferStatusProcedure(s1, s2)
-		return r1, "", r2, nil
+		// &r1, not r1: N1N2MessageTransferCause is a string type, so boxing the value
+		// gives the caller an interface that is never nil and that its
+		// .(*models.N1N2MessageTransferCause) assertion cannot satisfy -- a panic on
+		// every call, recovered by gin as a 500. The caller wants the pointer.
+		return &r1, "", anyOrNil(r2), nil
 	}
 	switch msg := msg.(type) {
 	case models.N1N2MessageTransferRequest:
-		return N1N2MessageTransferProcedure(s1, s2, msg)
+		rspData, locationHeader, problemDetails, transferErr := N1N2MessageTransferProcedure(s1, s2, msg)
+		return anyOrNil(rspData), locationHeader, anyOrNil(problemDetails), anyOrNil(transferErr)
 	case models.UeN1N2InfoSubscriptionCreateData:
 		r1, r2 := N1N2MessageSubscribeProcedure(s1, msg)
-		return r1, "", r2, nil
+		return anyOrNil(r1), "", anyOrNil(r2), nil
 	}
 
 	return nil, "", nil, nil
