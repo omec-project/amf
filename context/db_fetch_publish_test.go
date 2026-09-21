@@ -31,6 +31,11 @@ func storedUeDocument(t *testing.T, supi string) map[string]any {
 
 	ran := AMF_Self().NewAmfRanId("208:93:storeddoc")
 	t.Cleanup(func() { AMF_Self().AmfRanPool.Delete("208:93:storeddoc") })
+	// AttachRanUe keys ue.RanUe by ran.AnType, and NewAmfRanId leaves it empty. Without
+	// this the RanUe lands under the empty access type, ue.RanUe[3GPP] is nil, and
+	// MarshalJSON writes amfUeNgapId 0 -- so the document would not describe a
+	// 3GPP-attached UE at all.
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 
 	ue := &AmfUe{}
 	ue.init()
@@ -68,10 +73,13 @@ func storedUeDocument(t *testing.T, supi string) map[string]any {
 // which is that nothing between the two positions reads either pool.
 //
 // What it does pin is the post-condition a reader depends on, expressed through the pool
-// rather than the return value, and -- via the embedded nil DBInterface -- that DbFetch needs
-// nothing from the datastore but the one read. Both are what make publishing last safe, and
-// both would catch a later change that reintroduced a pool read between building and
-// publishing.
+// rather than the return value -- including that the pooled RanUe is the restored one and not
+// the fixture's -- and, via the embedded nil DBInterface, that DbFetch reaches for nothing in
+// the datastore but the single document read.
+//
+// It would not catch a pool read reintroduced between building and publishing: such a read
+// has no effect this test can observe. An earlier version of this comment claimed otherwise,
+// which was wrong.
 func TestDbFetchPublishesAFullyInitialisedContext(t *testing.T) {
 	const supi = "imsi-208930100009101"
 
@@ -123,7 +131,14 @@ func TestDbFetchPublishesAFullyInitialisedContext(t *testing.T) {
 		t.Fatal("restored UE has no 3GPP RanUe")
 		return
 	}
-	if _, ok := AMF_Self().RanUePool.Load(ranUe.AmfUeNgapId); !ok {
-		t.Fatal("restored RanUe was never published into RanUePool")
+	// Identity, not presence: the fixture's own NewRanUe already stored a RanUe under this
+	// AmfUeNgapId, so a presence check passes whether or not DbFetch published anything.
+	published, ok := AMF_Self().RanUePool.Load(ranUe.AmfUeNgapId)
+	if !ok {
+		t.Fatal("nothing in RanUePool under the restored AmfUeNgapId")
+		return
+	}
+	if published != ranUe {
+		t.Fatal("RanUePool still holds the fixture's RanUe, not the restored one")
 	}
 }
