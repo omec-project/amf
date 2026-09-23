@@ -33,7 +33,7 @@ const (
 )
 
 const (
-	// indexEnsureBudget bounds the whole of ensureAmfUeIndexes. It is generous
+	// indexEnsureBudget bounds the whole of ensureIndexes. It is generous
 	// because the usual reason to need it is that MongoDB elects a primary later
 	// than the AMF started, and giving up before that happens only restarts the
 	// same wait.
@@ -294,7 +294,7 @@ func amfUeIndexes() []mongoapi.IndexSpec {
 			// only missing from the index and not from the collection. The
 			// deeper problem there is that its context is indistinguishable
 			// from a detached one in the stored data itself, which no index can
-			// fix; tracked in harden-amf-availability-under-load.
+			// fix.
 			Name:          "amfUeByAmfUeNgapId",
 			Keys:          mongoapi.AscendingKeys("customFieldsAmfUe.amfUeNgapId"),
 			PartialFilter: bson.M{"customFieldsAmfUe.amfUeNgapId": bson.M{"$gt": 0}},
