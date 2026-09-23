@@ -75,12 +75,15 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	} else if fqdn := amfCtx.RegisterFQDN(); fqdn != "" {
 		profile.SetFqdn(fqdn)
 	}
-	services := []models.NFService{}
+	services := map[string]models.NFService{}
+	serviceList := []models.NFService{}
 	for _, nfService := range amfCtx.NfService {
-		services = append(services, nfService)
+		services[nfService.GetServiceInstanceId()] = nfService
+		serviceList = append(serviceList, nfService)
 	}
 	if len(services) > 0 {
-		profile.NfServices = services
+		profile.SetNfServices(serviceList)
+		profile.SetNfServiceList(services)
 	}
 
 	defaultNotificationSubscription := models.NewDefaultNotificationSubscription(models.NOTIFICATIONTYPE_N1_MESSAGES, fmt.Sprintf("%s/namf-callback/v1/n1-message-notify", amfCtx.GetSbiUri()))

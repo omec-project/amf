@@ -14,7 +14,15 @@ import (
 func SearchNFServiceUri(nfProfile models.NFProfileDiscovery, serviceName models.ServiceName,
 	nfServiceStatus models.NFServiceStatus,
 ) (nfUri string) {
-	for _, service := range nfProfile.GetNfServices() {
+	nfServiceList := nfProfile.GetNfServiceList()
+	services := make([]models.NFService, 0, len(nfServiceList))
+	for _, service := range nfServiceList {
+		services = append(services, service)
+	}
+	if len(services) == 0 {
+		services = nfProfile.GetNfServices()
+	}
+	for _, service := range services {
 		if service.GetServiceName() == serviceName && service.GetNfServiceStatus() == nfServiceStatus {
 			port := int32(0)
 			if len(service.GetIpEndPoints()) > 0 {
