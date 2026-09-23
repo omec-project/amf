@@ -413,15 +413,18 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 		targetNfType, requestNfType models.NFType,
 		configure consumer.SearchNFInstancesRequestConfigurer,
 	) (*models.SearchResult, error) {
-		services := []models.NFService{{
-			ServiceName:     models.SERVICENAME_NPCF_AM_POLICY_CONTROL,
-			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
-			ApiPrefix:       openapi.PtrString("http://pcf.example.com"),
-		}}
-		return models.NewSearchResult(300, []models.NFProfileDiscovery{{
+		services := map[string]models.NFService{
+			"0": {
+				ServiceName:     models.SERVICENAME_NPCF_AM_POLICY_CONTROL,
+				NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
+				ApiPrefix:       openapi.PtrString("http://pcf.example.com"),
+			},
+		}
+		nfProfile := models.NFProfileDiscovery{
 			NfInstanceId: "pcf-instance",
-			NfServices:   services,
-		}}), nil
+		}
+		nfProfile.SetNfServiceList(services)
+		return models.NewSearchResult(300, []models.NFProfileDiscovery{nfProfile}), nil
 	}
 	amPolicyControlCreateForRegistration = func(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType) (*models.ProblemDetails, error) {
 		return nil, nil

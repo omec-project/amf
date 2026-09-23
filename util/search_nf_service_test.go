@@ -11,21 +11,20 @@ import (
 )
 
 func TestSearchNFServiceUriBuildsUriFromFqdn(t *testing.T) {
-	nfProfile := models.NFProfileDiscovery{
-		NfServices: []models.NFService{
-			{
-				ServiceName:     models.SERVICENAME_NAMF_COMM,
-				NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
-				Scheme:          models.URISCHEME_HTTP,
-				Fqdn:            openapi.PtrString("amf"),
-				IpEndPoints: []models.IpEndPoint{
-					{
-						Port: openapi.PtrInt32(29518),
-					},
+	nfProfile := models.NFProfileDiscovery{}
+	nfProfile.SetNfServiceList(map[string]models.NFService{
+		"0": {
+			ServiceName:     models.SERVICENAME_NAMF_COMM,
+			NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
+			Scheme:          models.URISCHEME_HTTP,
+			Fqdn:            openapi.PtrString("amf"),
+			IpEndPoints: []models.IpEndPoint{
+				{
+					Port: openapi.PtrInt32(29518),
 				},
 			},
 		},
-	}
+	})
 
 	if got := SearchNFServiceUri(nfProfile, models.SERVICENAME_NAMF_COMM, models.NFSERVICESTATUS_REGISTERED); got != "http://amf:29518" {
 		t.Fatalf("SearchNFServiceUri() = %q, want %q", got, "http://amf:29518")

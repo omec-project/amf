@@ -54,10 +54,11 @@ func TestGetNfProfileUsesFqdnForHostnameRegistration(t *testing.T) {
 	if len(profile.Ipv4Addresses) != 0 {
 		t.Fatalf("expected no ipv4Addresses, got %+v", profile.Ipv4Addresses)
 	}
-	if len(profile.NfServices) != 1 {
-		t.Fatalf("expected 1 nf service, got %d", len(profile.NfServices))
+	nfServiceList := profile.GetNfServiceList()
+	if len(nfServiceList) != 1 {
+		t.Fatalf("expected 1 nf service, got %d", len(nfServiceList))
 	}
-	service := profile.NfServices[0]
+	service := nfServiceList["0"]
 	if service.GetFqdn() != nfName {
 		t.Fatalf("service fqdn = %q, want %q", service.GetFqdn(), nfName)
 	}
@@ -103,7 +104,7 @@ func TestGetNfProfileUsesIpv4AddressForLiteralRegistration(t *testing.T) {
 	if len(profile.Ipv4Addresses) != 1 || profile.Ipv4Addresses[0] != registerIPv4 {
 		t.Fatalf("profile ipv4Addresses = %+v, want [%s]", profile.Ipv4Addresses, registerIPv4)
 	}
-	service := profile.NfServices[0]
+	service := profile.GetNfServiceList()["0"]
 	if service.GetFqdn() != "" {
 		t.Fatalf("service fqdn = %q, want empty", service.GetFqdn())
 	}
