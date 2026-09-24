@@ -24,12 +24,12 @@ import (
 
 func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (profile models.NFProfile, err error) {
 	if amfCtx == nil {
-		return profile, fmt.Errorf("amf context has not been intialized. NF profile cannot be built")
+		return profile, openapi.ReportError("amf context has not been initialized. NF profile cannot be built")
 	}
 	newSupportedTais, newPlmnSnssai, newGuamiList := amfContext.ConvertAccessAndMobilityList(accessAndMobilityConfig)
-	profile.NfInstanceId = amfCtx.NfId
-	profile.NfType = models.NFTYPE_AMF
-	profile.NfStatus = models.NFSTATUS_REGISTERED
+	profile.SetNfInstanceId(amfCtx.NfId)
+	profile.SetNfType(models.NFTYPE_AMF)
+	profile.SetNfStatus(models.NFSTATUS_REGISTERED)
 	plmns := make([]models.PlmnId, 0, len(accessAndMobilityConfig))
 	for _, accessAndMobilityData := range accessAndMobilityConfig {
 		nfPlmn := models.PlmnId{
@@ -38,7 +38,7 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 		}
 		plmns = append(plmns, nfPlmn)
 	}
-	profile.PlmnList = plmns
+	profile.SetPlmnList(plmns)
 	perPlmnSnssaiList := []models.PlmnSnssai{}
 	for _, plmnSnssai := range newPlmnSnssai {
 		perPlmnSnssai := models.PlmnSnssai{
@@ -47,10 +47,10 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 		}
 		perPlmnSnssaiList = append(perPlmnSnssaiList, perPlmnSnssai)
 	}
-	profile.PerPlmnSnssaiList = perPlmnSnssaiList
+	profile.SetPerPlmnSnssaiList(perPlmnSnssaiList)
 	var amfInfo models.AmfInfo
 	if len(newGuamiList) == 0 {
-		err = fmt.Errorf("guami list is empty in AMF")
+		err = openapi.ReportError("guami list is empty in AMF")
 		return profile, err
 	}
 	regionId, setId, _, err := util.SeparateAmfId(newGuamiList[0].AmfId)
@@ -61,17 +61,17 @@ func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfCon
 	amfInfo.AmfSetId = setId
 	amfInfo.GuamiList = newGuamiList
 	if len(newSupportedTais) == 0 {
-		err = fmt.Errorf("SupportTaiList is empty in AMF")
+		err = openapi.ReportError("SupportTaiList is empty in AMF")
 		return profile, err
 	}
 	amfInfo.TaiList = newSupportedTais
-	profile.AmfInfo = &amfInfo
+	profile.SetAmfInfo(amfInfo)
 	if amfCtx.RegisterIPv4 == "" {
-		err = fmt.Errorf("AMF Address is empty")
+		err = openapi.ReportError("AMF Address is empty")
 		return profile, err
 	}
 	if registerIPv4 := amfCtx.RegisterIPv4Address(); registerIPv4 != "" {
-		profile.Ipv4Addresses = append(profile.Ipv4Addresses, registerIPv4)
+		profile.SetIpv4Addresses(append(profile.Ipv4Addresses, registerIPv4))
 	} else if fqdn := amfCtx.RegisterFQDN(); fqdn != "" {
 		profile.SetFqdn(fqdn)
 	}
@@ -106,8 +106,8 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 		attribute.String("http.method", "PUT"),
 		attribute.String("nf.target", "nrf"),
 		attribute.String("net.peer.name", self.NrfUri),
-		attribute.String("amf.nf.id", nfProfile.NfInstanceId),
-		attribute.String("amf.nf.type", string(nfProfile.NfType)),
+		attribute.String("amf.nf.id", nfProfile.GetNfInstanceId()),
+		attribute.String("amf.nf.type", string(nfProfile.GetNfType())),
 	)
 
 	configuration := Nnrf_NFManagement.NewConfiguration()
@@ -117,14 +117,14 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 		serverConfig.Variables["apiRoot"] = apiRootVar
 	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
-	apiRegisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.RegisterNFInstance(ctx, nfProfile.NfInstanceId)
+	apiRegisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.RegisterNFInstance(ctx, nfProfile.GetNfInstanceId())
 	apiRegisterNFInstanceRequest = apiRegisterNFInstanceRequest.NFProfile(nfProfile)
 	receivedNfProfile, res, err := client.NFInstanceIDDocumentAPI.RegisterNFInstanceExecute(apiRegisterNFInstanceRequest)
 	if err != nil {
 		return models.NewNFProfileWithDefaults(), "", err
 	}
 	if res == nil {
-		return models.NewNFProfileWithDefaults(), "", fmt.Errorf("no response from server")
+		return models.NewNFProfileWithDefaults(), "", openapi.ReportError("no response from server")
 	}
 
 	switch res.StatusCode {
@@ -139,7 +139,7 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 		logger.ConsumerLog.Debugln("AMF NF profile registered to the NRF")
 		return receivedNfProfile, resourceNrfUri, nil
 	default:
-		return receivedNfProfile, "", fmt.Errorf("NRF returned unexpected status code %d", res.StatusCode)
+		return receivedNfProfile, "", openapi.ReportError("NRF returned unexpected status code %d", res.StatusCode)
 	}
 }
 
@@ -165,19 +165,18 @@ var SendDeregisterNFInstance = func(ctx context.Context) error {
 		serverConfig.Variables["apiRoot"] = apiRootVar
 	}
 	client := Nnrf_NFManagement.NewAPIClient(configuration)
-
 	apiDeregisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.DeregisterNFInstance(ctx, amfSelf.NfId)
 	res, err := client.NFInstanceIDDocumentAPI.DeregisterNFInstanceExecute(apiDeregisterNFInstanceRequest)
 	if err != nil {
 		return err
 	}
 	if res == nil {
-		return fmt.Errorf("no response from server")
+		return openapi.ReportError("no response from server")
 	}
 	if res.StatusCode == http.StatusNoContent {
 		return nil
 	}
-	return fmt.Errorf("unexpected response code")
+	return openapi.ReportError("unexpected response code")
 }
 
 var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile *models.NFProfile, problemDetails *models.ProblemDetails, err error) {
@@ -208,12 +207,12 @@ var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile
 	}
 
 	if res == nil {
-		return models.NewNFProfileWithDefaults(), nil, fmt.Errorf("no response from server")
+		return models.NewNFProfileWithDefaults(), nil, openapi.ReportError("no response from server")
 	}
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNoContent {
 		return receivedNfProfile, nil, nil
 	}
-	return models.NewNFProfileWithDefaults(), nil, fmt.Errorf("unexpected response code")
+	return models.NewNFProfileWithDefaults(), nil, openapi.ReportError("unexpected response code %d", res.StatusCode)
 }
 
 var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscriptionData models.SubscriptionData) (nrfSubData *models.SubscriptionData, problemDetails *models.ProblemDetails, err error) {
@@ -244,7 +243,8 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 	nrfSubData, res, err = client.SubscriptionsCollectionAPI.CreateSubscriptionExecute(apiCreateSubscriptionRequest)
 	if err == nil {
 		return nrfSubData, problemDetails, err
-	} else if res != nil {
+	}
+	if res != nil {
 		defer func() {
 			if resCloseErr := res.Body.Close(); resCloseErr != nil {
 				logger.ConsumerLog.Errorf("SendCreateSubscription response cannot close: %+v", resCloseErr)
@@ -259,7 +259,7 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 			return nrfSubData, problemDetails, err
 		}
 	} else {
-		err = fmt.Errorf("server no response")
+		err = openapi.ReportError("server no response")
 	}
 	return nrfSubData, problemDetails, err
 }
@@ -296,7 +296,7 @@ var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (p
 	} else if res != nil {
 		defer func() {
 			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
-				err = fmt.Errorf("RemoveSubscription's response body cannot close: %w", bodyCloseErr)
+				err = openapi.ReportError("RemoveSubscription's response body cannot close: %w", bodyCloseErr)
 			}
 		}()
 		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
@@ -305,7 +305,7 @@ var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (p
 			return problemDetails, err
 		}
 	} else {
-		err = fmt.Errorf("server no response")
+		err = openapi.ReportError("server no response")
 	}
 	return problemDetails, err
 }
