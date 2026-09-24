@@ -18,7 +18,6 @@ type EventChannel struct {
 	AmfUe         *AmfUe
 	NasHandler    func(*AmfUe, NasMsg)
 	NgapHandler   func(*AmfUe, NgapMsg)
-	SbiHandler    func(ctx context.Context, s1, s2 string, msg any) (any, string, any, any)
 	ConfigHandler func(ctx context.Context, s1, s2, s3 string, msg any)
 }
 
@@ -37,11 +36,6 @@ func (tx *EventChannel) UpdateNasHandler(handler func(*AmfUe, NasMsg)) {
 	tx.NasHandler = handler
 }
 
-func (tx *EventChannel) UpdateSbiHandler(handler func(ctx context.Context, s1, s2 string, msg any) (any, string, any, any)) {
-	tx.AmfUe.TxLog.Infof("updated sbihandler")
-	tx.SbiHandler = handler
-}
-
 func (tx *EventChannel) UpdateConfigHandler(handler func(ctx context.Context, s1, s2, s3 string, msg any)) {
 	tx.AmfUe.TxLog.Infof("updated confighandler")
 	tx.ConfigHandler = handler
@@ -57,7 +51,7 @@ func (tx *EventChannel) Start(ctx context.Context) {
 			case NgapMsg:
 				tx.NgapHandler(tx.AmfUe, msg)
 			case SbiMsg:
-				p_1, p_2, p_3, p_4 := tx.SbiHandler(ctx, msg.UeContextId, msg.ReqUri, msg.Msg)
+				p_1, p_2, p_3, p_4 := msg.Handler(ctx, msg.UeContextId, msg.ReqUri, msg.Msg)
 				res := SbiResponseMsg{
 					RespData:       p_1,
 					LocationHeader: p_2,
@@ -110,7 +104,7 @@ func (ue *AmfUe) DispatchSbiMsg(
 	ue.Mutex.Unlock()
 
 	if tx != nil {
-		tx.UpdateSbiHandler(handler)
+		msg.Handler = handler
 		tx.SubmitMessage(msg)
 		return <-msg.Result
 	}
