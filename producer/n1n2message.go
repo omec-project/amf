@@ -93,11 +93,11 @@ func HandleN1N2MessageTransferRequest(request *httpwrapper.Request) *httpwrapper
 		UeContextId: ueContextID,
 		ReqUri:      reqUri,
 		Msg:         n1n2MessageTransferRequest,
+		Handler:     ProducerHandler,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
 	var n1n2MessageTransferRspData *models.N1N2MessageTransferRspData
 	var transferErr *models.N1N2MessageTransferError
-	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 	if msg.RespData != nil {
@@ -520,9 +520,9 @@ func HandleN1N2MessageTransferStatusRequest(request *httpwrapper.Request) *httpw
 		UeContextId: ueContextID,
 		ReqUri:      reqUri,
 		Msg:         nil,
+		Handler:     ProducerHandler,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 
@@ -586,9 +586,9 @@ func HandleN1N2MessageSubscirbeRequest(request *httpwrapper.Request) *httpwrappe
 		UeContextId: ueContextID,
 		ReqUri:      "",
 		Msg:         ueN1N2InfoSubscriptionCreateData,
+		Handler:     ProducerHandler,
 		Result:      make(chan context.SbiResponseMsg, 10),
 	}
-	ue.EventChannel.UpdateSbiHandler(ProducerHandler)
 	ue.EventChannel.SubmitMessage(sbiMsg)
 	msg := <-sbiMsg.Result
 

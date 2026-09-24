@@ -459,6 +459,9 @@ type SbiMsg struct {
 	Msg         interface{}
 	UeContextId string
 	ReqUri      string
+	// Handler runs the message. It travels with the message, rather than being set on
+	// the UE's event channel, so that requests queued for one UE each run their own.
+	Handler func(ctx ctxt.Context, s1, s2 string, msg any) (any, string, any, any)
 
 	Result chan SbiResponseMsg
 }
