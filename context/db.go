@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"hash/maphash"
 	"net/url"
 	"os"
 	"sync"
@@ -28,7 +29,9 @@ import (
 var dbMutex sync.Mutex
 
 const (
-	dbWriteWorkers   = 4
+	dbWriteWorkers = 4
+	// dbWriteQueueSize is the capacity of all the write queues together; each
+	// worker's queue holds its share of it.
 	dbWriteQueueSize = 256
 )
 
@@ -50,21 +53,56 @@ const (
 	mongoConnectAttempts = 3
 )
 
+// dbWriteOp is one write to amf.data.amfState: an upsert of data or, when
+// removed is set, a delete, which closes removed once it has run. Either way it
+// is matched on filter, the UE's supi.
 type dbWriteOp struct {
-	filter bson.M
-	data   bson.M
+	filter  bson.M
+	data    bson.M
+	removed chan struct{}
 }
 
-var (
-	dbWriteCh   = make(chan dbWriteOp, dbWriteQueueSize)
-	dbWriteOnce sync.Once
-)
+// dbWriter runs the writes to amf.data.amfState off the caller's goroutine,
+// in order for each UE.
+//
+// Every write for a UE goes to the one queue its supi selects, and each queue
+// has a single worker, so a UE's writes land in the order they were made. That
+// is what makes a delete final. With one queue shared by every worker, a store
+// queued before the delete could still be waiting, or in flight on another
+// worker, when the delete ran -- and it would then recreate the document the
+// delete had just removed.
+type dbWriter struct {
+	queues []chan dbWriteOp
+	seed   maphash.Seed
+	once   sync.Once
+}
+
+func newDBWriter(workers, queueSize int) *dbWriter {
+	w := &dbWriter{queues: make([]chan dbWriteOp, workers), seed: maphash.MakeSeed()}
+	for i := range w.queues {
+		w.queues[i] = make(chan dbWriteOp, queueSize/workers)
+	}
+	return w
+}
+
+var amfUeWriter = newDBWriter(dbWriteWorkers, dbWriteQueueSize)
 
 func startDBWriteWorkers() {
-	dbWriteOnce.Do(func() {
-		for range dbWriteWorkers {
+	amfUeWriter.start()
+}
+
+func (w *dbWriter) start() {
+	w.once.Do(func() {
+		for _, queue := range w.queues {
 			go func() {
-				for op := range dbWriteCh {
+				for op := range queue {
+					if op.removed != nil {
+						if delErr := mongoapi.CommonDBClient.RestfulAPIDeleteOne(AmfUeDataColl, op.filter); delErr != nil {
+							logger.DataRepoLog.Warnln(delErr)
+						}
+						close(op.removed)
+						continue
+					}
 					if _, postErr := mongoapi.CommonDBClient.RestfulAPIPost(AmfUeDataColl, op.filter, op.data); postErr != nil {
 						logger.DataRepoLog.Warnln(postErr)
 					}
@@ -72,6 +110,30 @@ func startDBWriteWorkers() {
 			}()
 		}
 	})
+}
+
+func (w *dbWriter) queueFor(supi string) chan dbWriteOp {
+	return w.queues[maphash.String(w.seed, supi)%uint64(len(w.queues))]
+}
+
+// store queues an upsert, and reports false if the queue was full and the
+// write was dropped. A dropped store is superseded by the UE's next one.
+func (w *dbWriter) store(supi string, data bson.M) bool {
+	select {
+	case w.queueFor(supi) <- dbWriteOp{filter: bson.M{"supi": supi}, data: data}:
+		return true
+	default:
+		return false
+	}
+}
+
+// remove queues a delete behind every write already queued for the UE and
+// returns once it has run. A full queue is waited on rather than dropped:
+// nothing supersedes a dropped delete, so the document would stay.
+func (w *dbWriter) remove(supi string) {
+	op := dbWriteOp{filter: bson.M{"supi": supi}, removed: make(chan struct{})}
+	w.queueFor(supi) <- op
+	<-op.removed
 }
 
 type CustomFieldsAmfUe struct {
@@ -412,27 +474,23 @@ func StoreContextInDB(ue *AmfUe) {
 	if amfUeBsonA == nil {
 		return
 	}
-	filter := bson.M{"supi": ue.GetSupi()}
-	select {
-	case dbWriteCh <- dbWriteOp{filter: filter, data: amfUeBsonA}:
-	default:
+	if !amfUeWriter.store(ue.GetSupi(), amfUeBsonA) {
 		metrics.IncrementDbWriteDropped()
 		logger.DataRepoLog.Warnf("DB write queue full, dropping store for supi=%s", ue.GetSupi())
 	}
 }
 
+// DeleteContextFromDB deletes the UE's stored context behind every store
+// already queued for it, so that none of them can land afterwards, and returns
+// once the delete has run. It waits for the stores ahead of it on the same
+// queue, where it used to run at once and race them.
 func DeleteContextFromDB(ue *AmfUe) {
 	self := AMF_Self()
 	if self.EnableDbStore {
 		if !datastoreReady() {
 			return
 		}
-		filter := bson.M{"supi": ue.GetSupi()}
-
-		delErr := mongoapi.CommonDBClient.RestfulAPIDeleteOne(AmfUeDataColl, filter)
-		if delErr != nil {
-			logger.DataRepoLog.Warnln(delErr)
-		}
+		amfUeWriter.remove(ue.GetSupi())
 	}
 }
 
