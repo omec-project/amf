@@ -115,7 +115,7 @@ func TestN1N2MessageTransferStatusDoesNotPanic(t *testing.T) {
 	}
 
 	response := HandleN1N2MessageTransferStatusRequest(&httpwrapper.Request{
-		Params: map[string]string{paramUeContextID: ue.GetSupi(), "reqUri": reqURI},
+		Params: map[string]string{paramUeContextID: ue.GetSupi(), paramReqURI: reqURI},
 	})
 
 	if response == nil {

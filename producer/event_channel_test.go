@@ -30,6 +30,9 @@ import (
 // paramUeContextID is the path parameter the service handlers read the UE out of.
 const paramUeContextID = "ueContextId"
 
+// paramReqURI is the request parameter the N1N2 handlers read their resource URI from.
+const paramReqURI = "reqUri"
+
 // ranUeNgapID is arbitrary; each UE gets its own AmfRan, so they do not collide.
 const ranUeNgapID = 1
 
@@ -184,4 +187,37 @@ func TestDeregistrationNotificationAnswersWithoutEventChannel(t *testing.T) {
 			t.Fatalf("%s is still in the pool, so the purge did not reach the procedure", supi)
 		}
 	}
+}
+
+// The three N1N2 handlers used to guard a missing channel with a direct call of their
+// own. They now go through DispatchSbiMsg like the rest, so a UE without a channel has
+// one created and must be answered exactly as a UE that had one.
+
+func TestN1N2MessageTransferAnswersWithoutEventChannel(t *testing.T) {
+	runBothWays(t, "imsi-208930100007621", "imsi-208930100007622",
+		func(ue *context.AmfUe) *httpwrapper.Response {
+			return HandleN1N2MessageTransferRequest(&httpwrapper.Request{
+				Params: map[string]string{paramUeContextID: ue.GetSupi(), paramReqURI: "/n1-n2-messages"},
+				Body:   models.N1N2MessageTransferRequest{JsonData: models.NewN1N2MessageTransferReqData()},
+			})
+		})
+}
+
+func TestN1N2MessageTransferStatusAnswersWithoutEventChannel(t *testing.T) {
+	runBothWays(t, "imsi-208930100007623", "imsi-208930100007624",
+		func(ue *context.AmfUe) *httpwrapper.Response {
+			return HandleN1N2MessageTransferStatusRequest(&httpwrapper.Request{
+				Params: map[string]string{paramUeContextID: ue.GetSupi(), paramReqURI: "/n1-n2-messages/1"},
+			})
+		})
+}
+
+func TestN1N2MessageSubscribeAnswersWithoutEventChannel(t *testing.T) {
+	runBothWays(t, "imsi-208930100007625", "imsi-208930100007626",
+		func(ue *context.AmfUe) *httpwrapper.Response {
+			return HandleN1N2MessageSubscirbeRequest(&httpwrapper.Request{
+				Params: map[string]string{paramUeContextID: ue.GetSupi()},
+				Body:   models.UeN1N2InfoSubscriptionCreateData{},
+			})
+		})
 }

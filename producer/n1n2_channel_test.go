@@ -21,7 +21,7 @@ func TestN1N2TransferRunsItsProcedureThroughTheChannel(t *testing.T) {
 
 	// JsonData set, as HTTPN1N2MessageTransfer sets it before decoding the body.
 	response := HandleN1N2MessageTransferRequest(&httpwrapper.Request{
-		Params: map[string]string{paramUeContextID: ue.GetSupi(), "reqUri": "/n1-n2-messages"},
+		Params: map[string]string{paramUeContextID: ue.GetSupi(), paramReqURI: "/n1-n2-messages"},
 		Body:   models.N1N2MessageTransferRequest{JsonData: models.NewN1N2MessageTransferReqData()},
 	})
 
