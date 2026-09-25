@@ -504,9 +504,13 @@ func DeleteContextFromDB(ue *AmfUe) {
 // optional container written with no class, or ngKsi.tsc on a UE stored before
 // authentication finished.
 //
+// Arrays are rebuilt rather than walked in place, because an empty value can be an
+// element as well as a field: an enum array such as a policy association's triggers.
+// They arrive from the driver as bson.A, a named type that a []any case does not match.
+//
 // This runs only after a strict decode has already failed, so a well-formed record is
 // never touched by it.
-func dropEmptyEnumValues(value any) {
+func dropEmptyEnumValues(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, held := range typed {
@@ -515,13 +519,30 @@ func dropEmptyEnumValues(value any) {
 				continue
 			}
 
-			dropEmptyEnumValues(held)
+			typed[key] = dropEmptyEnumValues(held)
 		}
+	case bson.A:
+		return bson.A(dropEmptyElements(typed))
 	case []any:
-		for _, held := range typed {
-			dropEmptyEnumValues(held)
-		}
+		return dropEmptyElements(typed)
 	}
+
+	return value
+}
+
+// dropEmptyElements returns elements without its empty strings, with empty values
+// dropped from what remains.
+func dropEmptyElements(elements []any) []any {
+	kept := make([]any, 0, len(elements))
+	for _, held := range elements {
+		if str, isString := held.(string); isString && str == "" {
+			continue
+		}
+
+		kept = append(kept, dropEmptyEnumValues(held))
+	}
+
+	return kept
 }
 
 // datastoreReady reports whether there is a client to call.
