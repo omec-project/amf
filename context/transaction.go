@@ -9,7 +9,7 @@ package context
 import (
 	"context"
 
-	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/openapi/v2/utils"
 )
 
 type EventChannel struct {
@@ -17,6 +17,8 @@ type EventChannel struct {
 	Event         chan string
 	AmfUe         *AmfUe
 	ConfigHandler func(ctx context.Context, s1, s2, s3 string, msg any)
+	// done is closed when Start returns.
+	done chan struct{}
 }
 
 // FuncMsg is a closure submitted to a UE's EventChannel so it runs serialized with any in-flight
@@ -30,9 +32,23 @@ func (tx *EventChannel) UpdateConfigHandler(handler func(ctx context.Context, s1
 }
 
 func (tx *EventChannel) Start(ctx context.Context) {
+	defer close(tx.done)
 	for {
 		select {
 		case msg := <-tx.Message:
+			// Remove marks the UE before it can send quit, and select may take a queued
+			// message first, so the mark is checked as each message is taken: one taken
+			// after it is not run. A request is answered as for any removed UE; anything
+			// else has nothing to act on. A message that has passed the check is in flight,
+			// like one already running when Remove is called, and finishes. Remove is not
+			// made to wait for it: most removals run on this goroutine, and the rest run on
+			// an NGAP connection's reader, which must not stall behind a handler.
+			if tx.AmfUe.isRemoved() {
+				if request, isRequest := msg.(SbiMsg); isRequest {
+					request.Result <- ueRemovedResponse()
+				}
+				continue
+			}
 			switch msg := msg.(type) {
 			case NasMsg:
 				msg.Handler(tx.AmfUe, msg)
@@ -61,56 +77,60 @@ func (tx *EventChannel) Start(ctx context.Context) {
 	}
 }
 
-func (tx *EventChannel) SubmitMessage(msg any) {
-	tx.Message <- msg
+// SubmitMessage queues msg for the channel's goroutine, and reports false if the
+// goroutine has stopped -- the UE was removed -- so that nothing is left waiting on a
+// queue no one reads. The NGAP reader goroutine is one such sender, and blocking it
+// would stall every UE on that gNB.
+func (tx *EventChannel) SubmitMessage(msg any) bool {
+	// Checked first: once the goroutine has stopped, a buffer with room is ready too, and
+	// select would pick between the two at random.
+	select {
+	case <-tx.done:
+		return false
+	default:
+	}
+	select {
+	case tx.Message <- msg:
+		return true
+	case <-tx.done:
+		return false
+	}
 }
 
-// DispatchSbiMsg hands msg to the UE's event channel and waits for the reply.
+// DispatchSbiMsg runs msg on the UE's event channel and waits for the reply.
 //
-// A UE context restored from the datastore has no event channel: the field is
-// json:"-" and DbFetch clears it (context/db.go), while only the NAS and NGAP
-// dispatchers ever create one. A service handler that dispatches through the
-// channel without asking whether it is there therefore dereferences nil for
-// every request naming such a UE, which ginRecover turns into a 500 -- so the
-// UE is unreachable over the service interface until something re-creates the
-// channel. For that UE the handler is run on the caller's goroutine instead.
-//
-// The direct call uses a background context because the channel path never
-// hands the handler a request-scoped one: EventChannel.Start is given the
-// dispatcher's context and passes that to every SBI message it will ever run.
-// Cancelling a UE-mutating procedure half way through because the client hung
-// up is not the behaviour this is restoring.
+// A UE context restored from the datastore has no event channel: the field is json:"-"
+// and DbFetch clears it. The channel is created for it here, as RunSerialized does,
+// rather than running the handler on the caller's goroutine. Run there, the handler was
+// serialised with nothing: NAS, NGAP or a timer could create the channel meanwhile and
+// run this UE's work on it while the handler was still in progress.
 func (ue *AmfUe) DispatchSbiMsg(
 	handler func(ctx context.Context, s1, s2 string, msg any) (any, string, any, any),
 	msg SbiMsg,
 ) SbiResponseMsg {
-	// Mutex is the lock SetEventChannel and the NAS dispatcher take to create the
-	// channel, so the read is taken under it -- and released before the call,
-	// because the handlers reach StoreContextInDB and MarshalJSON takes it too.
-	ue.Mutex.Lock()
-	tx := ue.EventChannel
-	ue.Mutex.Unlock()
-
-	if tx != nil {
-		msg.Handler = handler
-		tx.SubmitMessage(msg)
-		return <-msg.Result
+	msg.Handler = handler
+	tx := ue.eventChannel()
+	if !tx.SubmitMessage(msg) {
+		return ueRemovedResponse()
 	}
-
-	// Through the package logger rather than ue.TxLog, and identified by the accessor
-	// rather than the field: TxLog is written by AttachRanUe under ue.Mutex and by DbFetch
-	// under dbMutex, the latter four lines *after* the UE is published into UePool -- so a
-	// service request naming a UE that is still being restored, which is exactly what this
-	// branch is for, would race on the logger it used to report itself with. GetSupi takes
-	// identityMu, so it is safe from this goroutine.
-	logger.ContextLog.Warnf("no event channel for UE %s; running the service handler directly",
-		ue.GetSupi())
-	respData, locationHeader, problemDetails, transferErr := handler(
-		context.Background(), msg.UeContextId, msg.ReqUri, msg.Msg)
-	return SbiResponseMsg{
-		RespData:       respData,
-		LocationHeader: locationHeader,
-		ProblemDetails: problemDetails,
-		TransferErr:    transferErr,
+	select {
+	case response := <-msg.Result:
+		return response
+	case <-tx.done:
+		// The goroutine stopped. It sends a result before it can stop, and Result is
+		// buffered, so one already produced is waiting here; otherwise the message was
+		// still queued when the UE was removed and nothing will answer it.
+		select {
+		case response := <-msg.Result:
+			return response
+		default:
+			return ueRemovedResponse()
+		}
 	}
+}
+
+// ueRemovedResponse answers a service request whose UE was removed before it was
+// handled: by then there is no context to act on.
+func ueRemovedResponse() SbiResponseMsg {
+	return SbiResponseMsg{ProblemDetails: utils.ProblemDetailsContextNotFound("UE context removed")}
 }
