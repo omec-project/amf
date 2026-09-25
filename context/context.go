@@ -137,6 +137,13 @@ func (context *AMFContext) AllocateAmfUeNgapID() (int64, error) {
 	if context.EnableDbStore {
 		var tmp int32
 		tmp, err = context.Drsm.AllocateInt32ID()
+		// A stored context with no RAN association carries amfUeNgapId 0, so a live UE
+		// given 0 could not be told apart from those. drsm can hand it out -- its ids
+		// are (chunk << 10) | offset, and chunk 0 can be drawn -- so take the next one.
+		// Zero stays allocated and is never used; the other allocator starts at 1.
+		if err == nil && tmp == 0 {
+			tmp, err = context.Drsm.AllocateInt32ID()
+		}
 		val = int64(tmp)
 	} else {
 		val, err = AllocateUniqueID(&amfUeNGAPIDGenerator, "amfUeNgapID")
