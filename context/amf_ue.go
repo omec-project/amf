@@ -440,12 +440,18 @@ type NasMsg struct {
 	NasMsg        []byte
 	ProcedureCode int64
 	Context       ctxt.Context
+	// Handler runs the message. It travels with the message rather than being set on the
+	// UE's event channel, where the dispatcher rewrote it for every message while the
+	// channel's goroutine read it.
+	Handler func(*AmfUe, NasMsg)
 }
 
 type NgapMsg struct {
 	SctplbMsg *sdcoreAmfServer.SctplbMessage
 	NgapMsg   *ngapType.NGAPPDU
 	Ran       *AmfRan
+	// Handler runs the message; see NasMsg.Handler.
+	Handler func(*AmfUe, NgapMsg)
 }
 
 type SbiResponseMsg struct {
@@ -1679,14 +1685,13 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	}
 }
 
-func (ue *AmfUe) SetEventChannel(ctx ctxt.Context, handler func(*AmfUe, NgapMsg)) {
+func (ue *AmfUe) SetEventChannel(ctx ctxt.Context) {
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
 	if ue.EventChannel == nil {
 		ue.TxLog.Debugln("creating new AmfUe EventChannel")
 		ue.EventChannel = ue.NewEventChannel()
 		ue.EventChannel.AmfUe = ue
-		ue.EventChannel.UpdateNgapHandler(handler)
 		go ue.EventChannel.Start(ctx)
 	}
 }

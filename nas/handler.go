@@ -78,10 +78,8 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		amfUe.Mutex.Lock()
 		if amfUe.EventChannel == nil {
 			amfUe.EventChannel = amfUe.NewEventChannel()
-			amfUe.EventChannel.UpdateNasHandler(DispatchMsg)
 			go amfUe.EventChannel.Start(ctx)
 		}
-		amfUe.EventChannel.UpdateNasHandler(DispatchMsg)
 		amfUe.Mutex.Unlock()
 
 		nasMsg := context.NasMsg{
@@ -89,6 +87,7 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 			AnType:        ue.Ran.AnType,
 			NasMsg:        nasPdu,
 			ProcedureCode: procedureCode,
+			Handler:       DispatchMsg,
 		}
 		amfUe.EventChannel.SubmitMessage(nasMsg)
 

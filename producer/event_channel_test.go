@@ -55,7 +55,7 @@ func newUe(t *testing.T, supi string, withChannel bool) *context.AmfUe {
 
 	if withChannel {
 		// What ngap/dispatcher.go does for a UE it is handling.
-		ue.SetEventChannel(ctxt.Background(), func(*context.AmfUe, context.NgapMsg) {})
+		ue.SetEventChannel(ctxt.Background())
 	} else {
 		// What context/db.go leaves behind on a restore.
 		ue.EventChannel = nil
