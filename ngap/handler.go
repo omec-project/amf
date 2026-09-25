@@ -32,6 +32,13 @@ import (
 	mi "github.com/omec-project/util/metricinfo"
 )
 
+// The datastore writes of a UE-initiated deregistration's release, as variables so a test can
+// see which one ran. The UE pool alone cannot tell a stored context from a deleted one.
+var (
+	storeContextInDB    = context.StoreContextInDB
+	deleteContextFromDB = context.DeleteContextFromDB
+)
+
 func findRanUeByRanNgapID(ran *context.AmfRan, ranUENGAPID *ngapType.RANUENGAPID) *context.RanUe {
 	if ranUENGAPID == nil {
 		ran.Log.Errorln("RANUENGAPID is nil")
@@ -1277,6 +1284,43 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		} else {
 			amfUe.PublishUeCtxtInfo(ran.AnType)
 			context.StoreContextInDB(amfUe)
+		}
+	case context.UeContextReleaseDueToUeInitiatedDeregistration:
+		ran.Log.Infof("Release UE[%s] Context Due to Ue Initiated Deregistration", amfUe.GetSupi())
+		if err := ranUe.Remove(); err != nil {
+			ran.Log.Errorln(err.Error())
+		}
+		// A deregistration can name a single access. While the other access is still in
+		// use the UE has not left: release only this access and keep the context, which
+		// PublishUeCtxtInfo reports as a Mod of the access still in use.
+		//
+		// The other access is in use while it is registered, and also while it still has
+		// a RanUe. A deregistration of both accesses sends a release command on each, and
+		// their Release Completes can arrive in either order; the first must not tear
+		// down the other access's RanUe before its own release completes, or that Release
+		// Complete finds no context and the RAN node is sent an Error Indication.
+		otherAnType := models.ACCESSTYPE_NON_3_GPP_ACCESS
+		if ran.AnType == models.ACCESSTYPE_NON_3_GPP_ACCESS {
+			otherAnType = models.ACCESSTYPE__3_GPP_ACCESS
+		}
+		other := amfUe.State[otherAnType]
+		otherRegistered := other != nil &&
+			!other.Is(context.Deregistered) && !other.Is(context.DeregistrationInitiated)
+		if otherRegistered || amfUe.GetRanUe(otherAnType) != nil {
+			amfUe.PublishUeCtxtInfo(ran.AnType)
+			storeContextInDB(amfUe)
+		} else {
+			// No access remains, so the stored context is not a head start for a later
+			// registration -- it is state that registration will find and have to
+			// reconcile. Delete it regardless of whether a security context exists, which
+			// is what UeContextReleaseUeContext cannot do without breaking its other
+			// senders.
+			//
+			// Remove() tears down every access, so force Del regardless of the other
+			// access's state -- the same reason the two sibling cases publish on removal.
+			amfUe.PublishUeCtxtInfoOnRemoval(ran.AnType)
+			amfUe.Remove()
+			deleteContextFromDB(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
 		ran.Log.Infof("Release UE[%s] Context Due to Nw Initiated: Release Ue Context", amfUe.GetSupi())
