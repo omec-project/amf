@@ -8,8 +8,6 @@ package context
 
 import (
 	"context"
-
-	"github.com/omec-project/amf/logger"
 )
 
 type EventChannel struct {
@@ -77,52 +75,18 @@ func (tx *EventChannel) SubmitMessage(msg any) {
 	tx.Message <- msg
 }
 
-// DispatchSbiMsg hands msg to the UE's event channel and waits for the reply.
+// DispatchSbiMsg runs msg on the UE's event channel and waits for the reply.
 //
-// A UE context restored from the datastore has no event channel: the field is
-// json:"-" and DbFetch clears it (context/db.go), while only the NAS and NGAP
-// dispatchers ever create one. A service handler that dispatches through the
-// channel without asking whether it is there therefore dereferences nil for
-// every request naming such a UE, which ginRecover turns into a 500 -- so the
-// UE is unreachable over the service interface until something re-creates the
-// channel. For that UE the handler is run on the caller's goroutine instead.
-//
-// The direct call uses a background context because the channel path never
-// hands the handler a request-scoped one: EventChannel.Start is given the
-// dispatcher's context and passes that to every SBI message it will ever run.
-// Cancelling a UE-mutating procedure half way through because the client hung
-// up is not the behaviour this is restoring.
+// A UE context restored from the datastore has no event channel: the field is json:"-"
+// and DbFetch clears it. The channel is created for it here, as RunSerialized does,
+// rather than running the handler on the caller's goroutine. Run there, the handler was
+// serialised with nothing: NAS, NGAP or a timer could create the channel meanwhile and
+// run this UE's work on it while the handler was still in progress.
 func (ue *AmfUe) DispatchSbiMsg(
 	handler func(ctx context.Context, s1, s2 string, msg any) (any, string, any, any),
 	msg SbiMsg,
 ) SbiResponseMsg {
-	// Mutex is the lock SetEventChannel and the NAS dispatcher take to create the
-	// channel, so the read is taken under it -- and released before the call,
-	// because the handlers reach StoreContextInDB and MarshalJSON takes it too.
-	ue.Mutex.Lock()
-	tx := ue.EventChannel
-	ue.Mutex.Unlock()
-
-	if tx != nil {
-		msg.Handler = handler
-		tx.SubmitMessage(msg)
-		return <-msg.Result
-	}
-
-	// Through the package logger rather than ue.TxLog, and identified by the accessor
-	// rather than the field: TxLog is written by AttachRanUe under ue.Mutex and by DbFetch
-	// under dbMutex, the latter four lines *after* the UE is published into UePool -- so a
-	// service request naming a UE that is still being restored, which is exactly what this
-	// branch is for, would race on the logger it used to report itself with. GetSupi takes
-	// identityMu, so it is safe from this goroutine.
-	logger.ContextLog.Warnf("no event channel for UE %s; running the service handler directly",
-		ue.GetSupi())
-	respData, locationHeader, problemDetails, transferErr := handler(
-		context.Background(), msg.UeContextId, msg.ReqUri, msg.Msg)
-	return SbiResponseMsg{
-		RespData:       respData,
-		LocationHeader: locationHeader,
-		ProblemDetails: problemDetails,
-		TransferErr:    transferErr,
-	}
+	msg.Handler = handler
+	ue.eventChannel().SubmitMessage(msg)
+	return <-msg.Result
 }

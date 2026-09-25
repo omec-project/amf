@@ -1699,16 +1699,27 @@ func (ue *AmfUe) SetEventChannel(ctx ctxt.Context, handler func(*AmfUe, NgapMsg)
 // concurrent SetEventChannel/message dispatch either happens fully before or fully after this
 // call instead of racing a direct fn() invocation against the newly created channel's goroutine.
 func (ue *AmfUe) RunSerialized(fn func()) {
+	ue.eventChannel().SubmitMessage(FuncMsg(fn))
+}
+
+// eventChannel returns the UE's event channel, first creating and starting one if the UE
+// has none, as a UE restored from the datastore does not. It is created under ue.Mutex,
+// the lock SetEventChannel and the NAS dispatcher take to create it, so whichever gets
+// there first creates it and every other caller submits to that one.
+//
+// Its goroutine is given a background context rather than a caller's: Start hands its
+// context to every SBI message it will ever run, so a request's context, cancelled when
+// that request ends, would reach all of them.
+func (ue *AmfUe) eventChannel() *EventChannel {
 	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
 	if ue.EventChannel == nil {
 		ue.TxLog.Debugln("creating new AmfUe EventChannel")
 		ue.EventChannel = ue.NewEventChannel()
 		ue.EventChannel.AmfUe = ue
 		go ue.EventChannel.Start(ctxt.Background())
 	}
-	ch := ue.EventChannel
-	ue.Mutex.Unlock()
-	ch.SubmitMessage(FuncMsg(fn))
+	return ue.EventChannel
 }
 
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
