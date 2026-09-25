@@ -565,12 +565,36 @@ func datastoreReady() bool {
 	return true
 }
 
+// decodeStoredUe decodes a stored UE context. A strict decode that fails is retried
+// without the empty values a strict enum decoder refuses: records written before those
+// values stopped being written are still in deployed databases, and a UE whose record
+// cannot be read is a UE that cannot be paged.
+func decodeStoredUe(result map[string]any) (*AmfUe, error) {
+	ue := &AmfUe{}
+	ue.init()
+	strictErr := sonic.Unmarshal(mapToByte(result), ue)
+	if strictErr == nil {
+		return ue, nil
+	}
+
+	dropEmptyEnumValues(result)
+
+	ue = &AmfUe{}
+	ue.init()
+	if err := sonic.Unmarshal(mapToByte(result), ue); err != nil {
+		return nil, err
+	}
+
+	logger.DataRepoLog.Warnf("read a stored UE context that a strict decode refused (%v); "+
+		"empty values were dropped", strictErr)
+
+	return ue, nil
+}
+
 func DbFetch(collName string, filter bson.M) *AmfUe {
 	if !datastoreReady() {
 		return nil
 	}
-	ue := &AmfUe{}
-	ue.init()
 	result, getOneErr := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
 	if getOneErr != nil {
 		logger.DataRepoLog.Warnln(getOneErr)
@@ -580,29 +604,14 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 		return nil
 	}
 
-	err := sonic.Unmarshal(mapToByte(result), ue)
+	ue, err := decodeStoredUe(result)
 	if err != nil {
-		// Retry without the empty values a strict enum decoder refuses. Records written
-		// before those values stopped being written are still in deployed databases,
-		// and a UE whose record cannot be read is a UE that cannot be paged.
-		strictErr := err
+		// Not the same thing as an absent document, and conflating them is what hid
+		// this for months: the context is there and unreadable, which is a fault to fix
+		// rather than a subscriber to go looking for.
+		logger.DataRepoLog.Errorf("stored UE context exists but could not be decoded: %v", err)
 
-		dropEmptyEnumValues(result)
-
-		ue = &AmfUe{}
-		ue.init()
-
-		if err = sonic.Unmarshal(mapToByte(result), ue); err != nil {
-			// Not the same thing as an absent document, and conflating them is what
-			// hid this for months: the context is there and unreadable, which is a
-			// fault to fix rather than a subscriber to go looking for.
-			logger.DataRepoLog.Errorf("stored UE context exists but could not be decoded: %v", err)
-
-			return nil
-		}
-
-		logger.DataRepoLog.Warnf("read a stored UE context that a strict decode refused (%v); "+
-			"empty values were dropped", strictErr)
+		return nil
 	}
 
 	dbMutex.Lock()
@@ -753,7 +762,6 @@ func DbFetchAllEntries() (ueList []*AmfUe) {
 	if !datastoreReady() {
 		return nil
 	}
-	ue := &AmfUe{}
 	filter := bson.M{}
 	results, getManyErr := mongoapi.CommonDBClient.RestfulAPIGetMany(AmfUeDataColl, filter)
 	if getManyErr != nil {
@@ -761,12 +769,12 @@ func DbFetchAllEntries() (ueList []*AmfUe) {
 	}
 
 	for _, val := range results {
-		ue = &AmfUe{}
-		ue.init()
-		err := sonic.Unmarshal(mapToByte(val), ue)
+		// One record that cannot be read is left out and reported, not allowed to
+		// empty the whole list.
+		ue, err := decodeStoredUe(val)
 		if err != nil {
-			logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
-			return nil
+			logger.DataRepoLog.Errorf("stored UE context exists but could not be decoded: %v", err)
+			continue
 		}
 		ueList = append(ueList, ue)
 	}
