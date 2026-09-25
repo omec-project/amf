@@ -246,7 +246,7 @@ func TestRunSerializedFallsBackWithoutEventChannel(t *testing.T) {
 func TestRunSerializedUsesEventChannel(t *testing.T) {
 	ue := &AmfUe{}
 	ue.init()
-	ue.SetEventChannel(ctxt.Background(), func(*AmfUe, NgapMsg) {})
+	ue.SetEventChannel(ctxt.Background())
 	t.Cleanup(func() { ue.EventChannel.Event <- "quit" })
 
 	done := make(chan struct{})

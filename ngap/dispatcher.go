@@ -118,13 +118,13 @@ func DispatchLb(ctx ctxt.Context, sctplbMsg *sdcoreAmfServer.SctplbMessage, Amf2
 
 	/* uecontext is found, submit the message to transaction queue*/
 	if amfUe := ranUe.GetAmfUe(); amfUe != nil {
-		amfUe.SetEventChannel(ctx, NgapMsgHandler)
+		amfUe.SetEventChannel(ctx)
 		// amfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
-		amfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:       ran,
 			NgapMsg:   pdu,
 			SctplbMsg: sctplbMsg,
+			Handler:   NgapMsgHandler,
 		}
 
 		amfUe.EventChannel.SubmitMessage(ngapMsg)
@@ -179,13 +179,13 @@ func Dispatch(conn net.Conn, msg []byte) {
 	// reader goroutine, which has no recover(), so a re-read that lands after a release
 	// clears the pointer ends the process for every UE on every gNB, not just this one.
 	if amfUe := ranUe.GetAmfUe(); amfUe != nil {
-		amfUe.SetEventChannel(ctx, NgapMsgHandler)
+		amfUe.SetEventChannel(ctx)
 		amfUe.TxLog.Infoln("Uecontext found. queuing ngap message to uechannel")
-		amfUe.EventChannel.UpdateNgapHandler(NgapMsgHandler)
 		ngapMsg := context.NgapMsg{
 			Ran:       ran,
 			NgapMsg:   pdu,
 			SctplbMsg: nil,
+			Handler:   NgapMsgHandler,
 		}
 		if ranUe.Ran.GnbId == ran.GnbId {
 			amfUe.TxLog.Infoln("gnbid match")
