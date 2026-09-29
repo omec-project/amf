@@ -18,18 +18,20 @@ import (
 	"unicode/utf8"
 
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/util/http2_util"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // AmfStats captures AMF level stats
 type AmfStats struct {
-	ngapMsg           *prometheus.CounterVec
-	gnbSessionProfile *prometheus.GaugeVec
-	dbWriteDropped    prometheus.Counter
-	unknownSmContext  *prometheus.CounterVec
-	ngapAssociations  prometheus.Gauge
-	ngapLastMessage   prometheus.Gauge
+	ngapMsg              *prometheus.CounterVec
+	gnbSessionProfile    *prometheus.GaugeVec
+	dbWriteDropped       prometheus.Counter
+	unknownSmContext     *prometheus.CounterVec
+	ngapAssociations     prometheus.Gauge
+	ngapLastMessage      prometheus.Gauge
+	sbiDroppedHandshakes prometheus.CounterFunc
 }
 
 var amfStats *AmfStats
@@ -76,15 +78,22 @@ func initAmfStats() *AmfStats {
 				"ngap_messages_total's msg_type carries procedure names and cannot " +
 				"distinguish a UEContextReleaseComplete from a UEContextReleaseRequest.",
 		}, []string{"message"}),
+
+		sbiDroppedHandshakes: prometheus.NewCounterFunc(prometheus.CounterOpts{
+			Name: "amf_sbi_dropped_handshake_probes_total",
+			Help: "Connections to the SBI listener closed before completing the TLS " +
+				"handshake, dropped from the error log as expected probe/health-check " +
+				"noise rather than logged as a peer failure.",
+		}, func() float64 { return float64(http2_util.DroppedHandshakeProbes()) }),
 	}
 }
 
 func (ps *AmfStats) register() error {
 	prometheus.Unregister(ps.ngapMsg)
-
 	if err := prometheus.Register(ps.ngapMsg); err != nil {
 		return err
 	}
+	prometheus.Unregister(ps.gnbSessionProfile)
 	if err := prometheus.Register(ps.gnbSessionProfile); err != nil {
 		return err
 	}
@@ -102,6 +111,10 @@ func (ps *AmfStats) register() error {
 	}
 	prometheus.Unregister(ps.unknownSmContext)
 	if err := prometheus.Register(ps.unknownSmContext); err != nil {
+		return err
+	}
+	prometheus.Unregister(ps.sbiDroppedHandshakes)
+	if err := prometheus.Register(ps.sbiDroppedHandshakes); err != nil {
 		return err
 	}
 	return nil

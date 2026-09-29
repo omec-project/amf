@@ -487,8 +487,8 @@ func DeleteContextFromDB(ue *AmfUe) {
 	}
 }
 
-// dropEmptyEnumValues removes keys whose value is an empty string, in place, walking
-// nested objects and arrays.
+// dropEmptyEnumValues removes empty-string values found while walking nested objects and
+// arrays: object keys are deleted in place, arrays are rebuilt without them.
 //
 // Decoding an object into Go treats an absent key and an empty string identically -- the
 // field is left at its zero value -- with one exception: the strict 3GPP enum decoders
@@ -523,8 +523,8 @@ func dropEmptyEnumValues(value any) any {
 	return value
 }
 
-// dropEmptyElements returns elements without its empty strings, with empty values
-// dropped from what remains.
+// dropEmptyElements returns elements with empty-string entries removed, and empty values
+// dropped from what remains of each kept element.
 func dropEmptyElements(elements []any) []any {
 	kept := make([]any, 0, len(elements))
 	for _, held := range elements {
