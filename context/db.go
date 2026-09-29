@@ -347,16 +347,9 @@ func amfUeIndexes() []mongoapi.IndexSpec {
 			// association, which is the overwhelming majority of the documents
 			// carrying it.
 			//
-			// Not quite all of them, though: with EnableDbStore the ID comes
-			// from drsm, which composes it as (chunk << 10) | offset over a
-			// chunk drawn from 16384 and offsets counted down from 999, so an
-			// AMF that draws chunk zero and exhausts it allocates a real UE the
-			// value zero. That UE's own lookup then falls back to a collection
-			// scan rather than returning a wrong answer, since the document is
-			// only missing from the index and not from the collection. The
-			// deeper problem there is that its context is indistinguishable
-			// from a detached one in the stored data itself, which no index can
-			// fix.
+			// No live UE is allocated zero -- AllocateAmfUeNgapID skips it when
+			// drsm hands it out -- and RanUeFindByAmfUeNgapID does not look zero
+			// up at all, so no query this index could serve is left out.
 			Name:          "amfUeByAmfUeNgapId",
 			Keys:          mongoapi.AscendingKeys("customFieldsAmfUe.amfUeNgapId"),
 			PartialFilter: bson.M{"customFieldsAmfUe.amfUeNgapId": bson.M{"$gt": 0}},
@@ -645,7 +638,12 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	// while the restore is still running -- and since a request for a UE with no event
 	// channel now runs its handler inline rather than failing, that reader reaches the
 	// procedure and the per-UE loggers it uses.
-	AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+	// A context stored without a RAN association restores a RanUe carrying
+	// AmfUeNgapId 0. Nothing may find it by that id, and every such context would
+	// otherwise claim the same key.
+	if ranUe.AmfUeNgapId != 0 {
+		AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+	}
 	AMF_Self().UePool.Store(ue.Supi, ue)
 
 	ue.TxLog.Debugln("amfue fetched")

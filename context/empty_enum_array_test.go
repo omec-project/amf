@@ -69,8 +69,9 @@ func restoreFrom(t *testing.T, supi string, doc map[string]any) *AmfUe {
 	mongoapi.CommonDBClient = oneDocDB{doc: doc}
 
 	restored := DbFetch(AmfUeDataColl, bson.M{"supi": supi})
-	// DbFetch publishes the restored UE into UePool and its RanUe into RanUePool. The
-	// fixture has no RAN, so that RanUe carries AmfUeNgapId 0 -- still an entry to remove.
+	// DbFetch publishes the restored UE into UePool, and its RanUe into RanUePool when it
+	// carries a real AmfUeNgapId. The fixture has no RAN, so its RanUe carries 0 and is not
+	// published; the delete is there for a fixture that has one.
 	t.Cleanup(func() {
 		mongoapi.CommonDBClient = original
 		AMF_Self().UePool.Delete(supi)
