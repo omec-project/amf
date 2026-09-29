@@ -579,6 +579,13 @@ func (context *AMFContext) RanUeFindByAmfUeNgapIDLocal(amfUeNgapID int64) *RanUe
 }
 
 func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
+	// 0 names no UE. The allocator never hands it out, and it is what every stored
+	// context without a RAN association carries, so a lookup by it -- in the pool or
+	// the datastore -- can only find a detached context, never the UE that was meant.
+	if amfUeNgapID == 0 {
+		logger.ContextLog.Warnln("ranUe lookup by AmfUeNgapID 0, which names no UE")
+		return nil
+	}
 	ranUe := context.RanUeFindByAmfUeNgapIDLocal(amfUeNgapID)
 	if ranUe != nil {
 		return ranUe
