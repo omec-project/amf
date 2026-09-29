@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	gojson "github.com/goccy/go-json"
@@ -584,10 +585,39 @@ func decodeStoredUe(result map[string]any) (*AmfUe, error) {
 	return ue, nil
 }
 
+// beingDeleted holds the SUPIs whose stored context a release is deleting. A lookup
+// that misses the pool falls back to the datastore, and between the UE leaving the pool
+// and its delete landing, that fallback would restore the context being deleted.
+var beingDeleted sync.Map
+
+// unmarked counts cleared marks. It is incremented before the mark is removed, so a
+// lookup that finds a mark gone also finds the count moved. The check has to follow the
+// read, since only the document names the SUPI, and a lookup that took the document
+// before the delete landed can check after the mark has been cleared; the count is how
+// it knows to read again. Nothing is held across the datastore read.
+var unmarked atomic.Uint64
+
+// RemoveUeAndDeleteItsContext removes the UE and deletes its stored context, and keeps a
+// lookup in between from restoring that context: the UE is marked before it leaves the
+// pool, and the mark is cleared once the delete -- synchronous -- has landed.
+func RemoveUeAndDeleteItsContext(ue *AmfUe) {
+	if supi := ue.GetSupi(); len(supi) > 0 {
+		beingDeleted.Store(supi, struct{}{})
+		defer func() {
+			unmarked.Add(1)
+			beingDeleted.Delete(supi)
+		}()
+	}
+
+	ue.Remove()
+	DeleteContextFromDB(ue)
+}
+
 func DbFetch(collName string, filter bson.M) *AmfUe {
 	if !datastoreReady() {
 		return nil
 	}
+	unmarkedBefore := unmarked.Load()
 	result, getOneErr := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
 	if getOneErr != nil {
 		logger.DataRepoLog.Warnln(getOneErr)
@@ -605,6 +635,26 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 		logger.DataRepoLog.Errorf("stored UE context exists but could not be decoded: %v", err)
 
 		return nil
+	}
+
+	// A lookup by SUPI, GUTI or AMF-UE-NGAP-ID all arrive here, so this one check covers
+	// them: a context whose release is deleting it is gone, not a UE to restore.
+	if _, deleting := beingDeleted.Load(ue.Supi); deleting {
+		logger.DataRepoLog.Infof("not restoring the stored context for %s: its release is deleting it", ue.Supi)
+		return nil
+	}
+	// A release finished during the read. If it was this UE's, its delete has landed,
+	// and the document read may be the one it deleted. The second read only asks whether
+	// the document is still there; an error counts as absence, as for the first read.
+	if unmarked.Load() != unmarkedBefore {
+		again, err := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
+		if err != nil {
+			logger.DataRepoLog.Warnln(err)
+		}
+		if len(again) == 0 {
+			logger.DataRepoLog.Infof("not restoring the stored context for %s: it was deleted during the lookup", ue.Supi)
+			return nil
+		}
 	}
 
 	dbMutex.Lock()

@@ -88,12 +88,15 @@ func newReleasingUe(t *testing.T, supi string, action context.RelAction, ngapId 
 func recordDatastoreWrites(t *testing.T) *[]string {
 	t.Helper()
 
-	originalStore, originalDelete := storeContextInDB, deleteContextFromDB
-	t.Cleanup(func() { storeContextInDB, deleteContextFromDB = originalStore, originalDelete })
+	originalStore, originalDelete := storeContextInDB, removeUeAndDeleteItsContext
+	t.Cleanup(func() { storeContextInDB, removeUeAndDeleteItsContext = originalStore, originalDelete })
 
 	writes := &[]string{}
 	storeContextInDB = func(ue *context.AmfUe) { *writes = append(*writes, "store "+ue.GetSupi()) }
-	deleteContextFromDB = func(ue *context.AmfUe) { *writes = append(*writes, "delete "+ue.GetSupi()) }
+	removeUeAndDeleteItsContext = func(ue *context.AmfUe) {
+		ue.Remove()
+		*writes = append(*writes, "delete "+ue.GetSupi())
+	}
 
 	return writes
 }
