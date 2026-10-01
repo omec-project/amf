@@ -151,6 +151,53 @@ func TestRemoveDoesNotBlockBehindARunningHandler(t *testing.T) {
 	close(release)
 }
 
+// TestRemoveWinningTheRaceToAdmitPreventsTheHandlerFromRunning pins the window admitMu
+// closes directly, rather than relying on timing to land in it: Remove must be able to run
+// to completion, including marking the UE removed, entirely inside the gap between a message
+// being taken off the channel and Start acquiring admitMu to admit it. That is a narrower
+// claim than TestRemoveDoesNotBlockBehindARunningHandler proves -- that one shows Remove does
+// not wait for a handler already admitted, not that Remove can still win a race against one
+// about to be -- and is the regression this channel exists to prevent: a handler running for
+// a UE that Remove had already marked gone by the time it started.
+func TestRemoveWinningTheRaceToAdmitPreventsTheHandlerFromRunning(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+	ue.eventChannel()
+
+	dequeued, proceed := make(chan struct{}), make(chan struct{})
+	afterMessageDequeued = func() {
+		close(dequeued)
+		<-proceed
+	}
+	t.Cleanup(func() { afterMessageDequeued = func() {} })
+
+	answered := make(chan SbiResponseMsg, 1)
+	go func() {
+		answered <- ue.DispatchSbiMsg(neverCalled(t), SbiMsg{Result: make(chan SbiResponseMsg, 1)})
+	}()
+
+	select {
+	case <-dequeued:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Start never dequeued the request")
+	}
+
+	// Remove must complete -- mark the UE removed and take, then release, admitMu -- while
+	// Start is paused right here: after the message was dequeued, before admitMu is
+	// acquired to admit it.
+	ue.Remove()
+	close(proceed)
+
+	select {
+	case response := <-answered:
+		if !isContextNotFound(response) {
+			t.Fatalf("answered %#v, want context not found", response)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the service request was never answered")
+	}
+}
+
 // awaitQueuedMessages waits until the channel holds n messages its goroutine has not taken.
 func awaitQueuedMessages(t *testing.T, tx *EventChannel, n int) {
 	t.Helper()

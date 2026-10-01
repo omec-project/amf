@@ -26,6 +26,11 @@ type EventChannel struct {
 	admitMu sync.Mutex
 }
 
+// afterMessageDequeued runs once a message has been taken off the channel, before admitMu is
+// acquired for it -- the window a test can use to drive Remove through it deterministically,
+// rather than approximate it with timing. A no-op in production.
+var afterMessageDequeued = func() {}
+
 // FuncMsg is a closure submitted to a UE's EventChannel so it runs serialized with any in-flight
 // NAS/NGAP message for that UE, instead of racing it from an independent goroutine (e.g. a GMM
 // procedure timer's abort callback).
@@ -41,6 +46,7 @@ func (tx *EventChannel) Start(ctx context.Context) {
 	for {
 		select {
 		case msg := <-tx.Message:
+			afterMessageDequeued()
 			// Remove marks the UE before it can send quit, and select may take a queued
 			// message first, so the mark is checked as each message is taken: one taken
 			// after it is not run. Held across the check and the handler it admits, so
