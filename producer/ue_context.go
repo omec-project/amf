@@ -84,6 +84,12 @@ func HandleCreateUEContextRequest(request *httpwrapper.Request) *httpwrapper.Res
 	var createUeContextRspData *models.CreateUEContext201Response
 	var ueContextCreateErr *models.UeContextCreateError
 	msg := ue.DispatchSbiMsg(UeContextHandler, sbiMsg)
+	// The procedure reports its failures as a UeContextCreateError; a problem comes only
+	// from the dispatch itself, when the UE was removed before the request was handled.
+	if msg.ProblemDetails != nil {
+		problemDetails := msg.ProblemDetails.(*models.ProblemDetails)
+		return httpwrapper.NewResponse(int(problemDetails.GetStatus()), nil, problemDetails)
+	}
 	if msg.RespData != nil {
 		createUeContextRspData = msg.RespData.(*models.CreateUEContext201Response)
 	}

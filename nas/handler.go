@@ -75,12 +75,7 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 		}
 		amfUe.AttachRanUe(ue)
 
-		amfUe.Mutex.Lock()
-		if amfUe.EventChannel == nil {
-			amfUe.EventChannel = amfUe.NewEventChannel()
-			go amfUe.EventChannel.Start(ctx)
-		}
-		amfUe.Mutex.Unlock()
+		eventChannel := amfUe.SetEventChannel(ctx)
 
 		nasMsg := context.NasMsg{
 			Context:       ctx,
@@ -89,7 +84,9 @@ func HandleNAS(ctx ctxt.Context, ue *context.RanUe, procedureCode int64, nasPdu 
 			ProcedureCode: procedureCode,
 			Handler:       DispatchMsg,
 		}
-		amfUe.EventChannel.SubmitMessage(nasMsg)
+		if !eventChannel.SubmitMessage(nasMsg) {
+			ue.Log.Debugln("UE removed; dropping its NAS message")
+		}
 
 		return
 	}

@@ -229,6 +229,10 @@ type AmfUe struct {
 	AmfInstanceName string        `json:"amfInstanceName,omitempty"`
 	AmfInstanceIp   string        `json:"amfInstanceIp,omitempty"`
 	EventChannel    *EventChannel `json:"-"`
+	// removed is set by Remove, under Mutex. A channel created afterwards is created
+	// stopped, so a caller still holding this UE cannot start a goroutine that nothing
+	// would ever stop.
+	removed bool
 	// logger
 	// NASLog      *logrus.Entry `json:"nasLog,omitempty" yaml:"nasLog" bson:"nasLog,omitempty"`
 	// GmmLog      *logrus.Entry `json:"gmmLog,omitempty" yaml:"gmmLog" bson:"gmmLog,omitempty"`
@@ -859,6 +863,9 @@ func (ue *AmfUe) Remove() {
 	for _, ranUe := range ue.RanUe {
 		ranUes = append(ranUes, ranUe)
 	}
+	// Under the lock that creating the channel takes, like every other read of it.
+	eventChannel := ue.EventChannel
+	ue.removed = true
 	ue.Mutex.Unlock()
 
 	for _, ranUe := range ranUes {
@@ -879,8 +886,8 @@ func (ue *AmfUe) Remove() {
 	if supi := ue.GetSupi(); len(supi) > 0 {
 		AMF_Self().UePool.Delete(supi)
 	}
-	if ue.EventChannel != nil {
-		ue.EventChannel.Event <- "quit"
+	if eventChannel != nil {
+		eventChannel.Event <- "quit"
 	}
 }
 
@@ -1685,15 +1692,27 @@ func (ue *AmfUe) SmContextFindByPDUSessionID(pduSessionID int32) (*SmContext, bo
 	}
 }
 
-func (ue *AmfUe) SetEventChannel(ctx ctxt.Context) {
+// isRemoved reports whether Remove has run for the UE.
+func (ue *AmfUe) isRemoved() bool {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+	return ue.removed
+}
+
+// SetEventChannel returns the UE's event channel, creating it with ctx if the UE has none.
+func (ue *AmfUe) SetEventChannel(ctx ctxt.Context) *EventChannel {
 	ue.Mutex.Lock()
 	defer ue.Mutex.Unlock()
 	if ue.EventChannel == nil {
 		ue.TxLog.Debugln("creating new AmfUe EventChannel")
 		ue.EventChannel = ue.NewEventChannel()
-		ue.EventChannel.AmfUe = ue
-		go ue.EventChannel.Start(ctx)
+		if ue.removed {
+			close(ue.EventChannel.done)
+		} else {
+			go ue.EventChannel.Start(ctx)
+		}
 	}
+	return ue.EventChannel
 }
 
 // RunSerialized submits fn to the UE's EventChannel, so it runs serialized with any in-flight
@@ -1704,16 +1723,22 @@ func (ue *AmfUe) SetEventChannel(ctx ctxt.Context) {
 // concurrent SetEventChannel/message dispatch either happens fully before or fully after this
 // call instead of racing a direct fn() invocation against the newly created channel's goroutine.
 func (ue *AmfUe) RunSerialized(fn func()) {
-	ue.Mutex.Lock()
-	if ue.EventChannel == nil {
-		ue.TxLog.Debugln("creating new AmfUe EventChannel")
-		ue.EventChannel = ue.NewEventChannel()
-		ue.EventChannel.AmfUe = ue
-		go ue.EventChannel.Start(ctxt.Background())
+	if !ue.eventChannel().SubmitMessage(FuncMsg(fn)) {
+		ue.TxLog.Debugln("UE removed; not running work queued for it")
 	}
-	ch := ue.EventChannel
-	ue.Mutex.Unlock()
-	ch.SubmitMessage(FuncMsg(fn))
+}
+
+// eventChannel returns the UE's event channel, first creating one if the UE has none, as
+// a UE restored from the datastore does not. It goes through SetEventChannel, under the
+// lock every creator takes, so whichever gets there first creates it and every other
+// caller submits to that one.
+//
+// A channel created here is given a background context rather than a caller's: Start
+// hands its context to every SBI message it will ever run, so a request's context,
+// cancelled when that request ends, would reach all of them. A channel NGAP or NAS
+// created first keeps the context they gave it.
+func (ue *AmfUe) eventChannel() *EventChannel {
+	return ue.SetEventChannel(ctxt.Background())
 }
 
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
@@ -1722,6 +1747,7 @@ func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
 		Message: make(chan interface{}, 10),
 		Event:   make(chan string, 10),
 		AmfUe:   ue,
+		done:    make(chan struct{}),
 	}
 	// tx.Message <- msg
 	return tx
