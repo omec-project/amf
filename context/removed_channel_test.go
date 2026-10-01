@@ -198,6 +198,59 @@ func TestRemoveWinningTheRaceToAdmitPreventsTheHandlerFromRunning(t *testing.T) 
 	}
 }
 
+// TestAnAdmittedHandlerRunsDespiteARemoveLosingTheRaceForAdmitMu pins the bound on what
+// admitMu guarantees, on the other side of the race
+// TestRemoveWinningTheRaceToAdmitPreventsTheHandlerFromRunning pins: once Start has admitted a
+// message -- acquired admitMu and read removed as false -- nothing undoes that. A Remove
+// racing it concurrently finds admitMu held, so its TryLock fails; it marks the UE removed and
+// tears it down anyway, unsynchronized with the handler, exactly as it would for one already
+// running when Remove was called. The handler still runs to completion, and its own result,
+// not a removed answer, is what the caller gets.
+//
+// Closing this side too would mean Remove waiting for the handler -- which
+// TestRemoveDoesNotBlockBehindARunningHandler pins it must not -- so this is pinned as the
+// accepted bound, not left for a future change to discover by breaking it.
+func TestAnAdmittedHandlerRunsDespiteARemoveLosingTheRaceForAdmitMu(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	removing, removed := make(chan struct{}), make(chan struct{})
+	//nolint:unparam // ProblemDetails is always nil here; the signature is SbiMsg.Handler's.
+	handler := func(ctxt.Context, string, string, any) (any, string, any, any) {
+		// admitMu is held for this whole call, so the concurrent Remove below is
+		// guaranteed to find it taken and lose the race, however it is scheduled.
+		close(removing)
+		<-removed
+		return "handler's own result", "", nil, nil
+	}
+
+	answered := make(chan SbiResponseMsg, 1)
+	go func() {
+		answered <- ue.DispatchSbiMsg(handler, SbiMsg{Result: make(chan SbiResponseMsg, 1)})
+	}()
+
+	select {
+	case <-removing:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the handler never started")
+	}
+
+	ue.Remove()
+	close(removed)
+
+	select {
+	case response := <-answered:
+		if isContextNotFound(response) {
+			t.Fatal("an admitted handler's own result was replaced with a removed answer")
+		}
+		if response.RespData != "handler's own result" {
+			t.Fatalf("answered %#v, want the handler's own result", response)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the admitted handler was never answered")
+	}
+}
+
 // awaitQueuedMessages waits until the channel holds n messages its goroutine has not taken.
 func awaitQueuedMessages(t *testing.T, tx *EventChannel, n int) {
 	t.Helper()

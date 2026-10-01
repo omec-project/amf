@@ -868,15 +868,28 @@ func (ue *AmfUe) Remove() {
 	ue.removed = true
 	ue.Mutex.Unlock()
 
-	// Closes the gap between the channel's goroutine taking a message past the removed check
-	// and that check actually running: if admitMu is free, the goroutine is not between the
-	// two right now, so taking it here guarantees the mark above is already set by the time
-	// any later check reads it. TryLock rather than Lock: a handler already admitted is let
-	// run to completion, same as one already in flight when Remove is called, and Remove must
-	// not stall behind it -- the NGAP connection reader calling this depends on that.
-	if eventChannel != nil && eventChannel.admitMu.TryLock() {
-		eventChannel.admitMu.Unlock()
-	}
+	// TryLock, not Lock: Remove must never wait on a handler's own admitMu hold -- the NGAP
+	// connection reader that calls this on a DRSM ownership mismatch depends on returning
+	// without stalling behind one, the same requirement TestRemoveDoesNotBlockBehindARunning-
+	// Handler pins.
+	//
+	// Winning it (admitMu was free, so the goroutine was not between a message's removed
+	// check and its handler call) is what the mark above alone cannot guarantee: without it,
+	// the goroutine could still be about to check removed on a message already dequeued, and
+	// read it before this write is visible. Held across the teardown below, not just the
+	// mark, so a check that runs immediately after either sees removed with nothing left to
+	// race -- the RanUe detach, the pool delete -- or, losing the race outright, never ran
+	// this close to the teardown to begin with.
+	//
+	// Losing it means a handler is already admitted and running on this same goroutine --
+	// mid-call or, reentrantly, this very call to Remove -- and this teardown proceeds
+	// unsynchronized against it exactly as it would against any other handler already in
+	// flight when Remove is called: left to finish, not raced or waited on. Admission is a
+	// one-way gate once granted; closing that window too would mean either waiting here,
+	// which the requirement above forbids, or deferring this teardown through the channel
+	// itself, which changes how soon a caller of Remove can rely on the pool and RAN state
+	// actually being gone -- a larger change than this bug warrants.
+	locked := eventChannel != nil && eventChannel.admitMu.TryLock()
 
 	for _, ranUe := range ranUes {
 		if err := ranUe.Remove(); err != nil {
@@ -896,6 +909,11 @@ func (ue *AmfUe) Remove() {
 	if supi := ue.GetSupi(); len(supi) > 0 {
 		AMF_Self().UePool.Delete(supi)
 	}
+
+	if locked {
+		eventChannel.admitMu.Unlock()
+	}
+
 	if eventChannel != nil {
 		eventChannel.Event <- "quit"
 	}
