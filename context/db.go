@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -436,7 +436,7 @@ func ensureIndexWithRetry(ctx context.Context, spec mongoapi.IndexSpec) error {
 // (32 KiB covers typical UE context sizes without frequent reallocation).
 const amfJSONBufInitialCap = 32 * 1024
 
-// amfJSONBufPool pools the bytes.Buffer used for sonic encoding to reduce GC pressure.
+// amfJSONBufPool pools the bytes.Buffer used for JSON encoding to reduce GC pressure.
 var amfJSONBufPool = sync.Pool{
 	New: func() any { return bytes.NewBuffer(make([]byte, 0, amfJSONBufInitialCap)) },
 }
@@ -444,13 +444,13 @@ var amfJSONBufPool = sync.Pool{
 func ToBsonM(data *AmfUe) (ret bson.M) {
 	buf := amfJSONBufPool.Get().(*bytes.Buffer)
 	buf.Reset()
-	enc := sonic.ConfigDefault.NewEncoder(buf)
+	enc := gojson.NewEncoder(buf)
 	if err := enc.Encode(data); err != nil {
 		amfJSONBufPool.Put(buf)
 		logger.DataRepoLog.Errorf("amfue marshal error: %v", err)
 		return
 	}
-	if err := sonic.Unmarshal(buf.Bytes(), &ret); err != nil {
+	if err := gojson.Unmarshal(buf.Bytes(), &ret); err != nil {
 		logger.DataRepoLog.Errorf("amfue unmarshal error: %v", err)
 	}
 	amfJSONBufPool.Put(buf)
@@ -565,7 +565,7 @@ func datastoreReady() bool {
 func decodeStoredUe(result map[string]any) (*AmfUe, error) {
 	ue := &AmfUe{}
 	ue.init()
-	strictErr := sonic.Unmarshal(mapToByte(result), ue)
+	strictErr := gojson.Unmarshal(mapToByte(result), ue)
 	if strictErr == nil {
 		return ue, nil
 	}
@@ -574,7 +574,7 @@ func decodeStoredUe(result map[string]any) (*AmfUe, error) {
 
 	ue = &AmfUe{}
 	ue.init()
-	if err := sonic.Unmarshal(mapToByte(result), ue); err != nil {
+	if err := gojson.Unmarshal(mapToByte(result), ue); err != nil {
 		return nil, err
 	}
 

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 )
 
 // init() points every UE at the process-wide AMF context. Persisting that pointer
@@ -21,7 +21,7 @@ func TestAStoredContextDoesNotCarryTheAmf(t *testing.T) {
 	ue.init()
 	ue.Supi = testSupi
 
-	stored, err := sonic.Marshal(ue)
+	stored, err := gojson.Marshal(ue)
 	if err != nil {
 		t.Fatalf("storing a context must not fail: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestRestoringAnOldDocumentLeavesTheRunningAmfAlone(t *testing.T) {
 	ue.init()
 
 	old := `{"supi":"imsi-208930100007487","servingAMF":{"Name":"a stored snapshot"}}`
-	if err := sonic.Unmarshal([]byte(old), ue); err != nil {
+	if err := gojson.Unmarshal([]byte(old), ue); err != nil {
 		t.Fatalf("restoring a context must not fail: %v", err)
 	}
 
@@ -70,7 +70,7 @@ func TestConcurrentRestoresDoNotShareAMap(t *testing.T) {
 				ue := &AmfUe{}
 				ue.init()
 
-				if err := sonic.Unmarshal(doc, ue); err != nil {
+				if err := gojson.Unmarshal(doc, ue); err != nil {
 					t.Errorf("restoring a context must not fail: %v", err)
 					return
 				}

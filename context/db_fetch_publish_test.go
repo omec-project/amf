@@ -6,7 +6,7 @@ package context
 import (
 	"testing"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/mongoapi"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -49,12 +49,12 @@ func storedUeDocument(t *testing.T, supi string) map[string]any {
 	ue.AttachRanUe(ranUe)
 	t.Cleanup(func() { AMF_Self().RanUePool.Delete(ranUe.AmfUeNgapId) })
 
-	raw, err := sonic.Marshal(ue)
+	raw, err := gojson.Marshal(ue)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 	doc := map[string]any{}
-	if err := sonic.Unmarshal(raw, &doc); err != nil {
+	if err := gojson.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("to map: %v", err)
 	}
 

@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/mongoapi"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -50,12 +50,12 @@ func storedUeWithTriggers(t *testing.T, supi string, triggers []models.RequestTr
 	ue.NgKsi = models.NgKsi{Tsc: models.SCTYPE_NATIVE, Ksi: 0}
 	ue.AmPolicyAssociation = &models.PolicyAssociation{Triggers: triggers}
 
-	raw, err := sonic.Marshal(ue)
+	raw, err := gojson.Marshal(ue)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 	doc := map[string]any{}
-	if err := sonic.Unmarshal(raw, &doc); err != nil {
+	if err := gojson.Unmarshal(raw, &doc); err != nil {
 		t.Fatalf("to map: %v", err)
 	}
 

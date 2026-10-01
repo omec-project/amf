@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2/models"
@@ -507,7 +507,7 @@ func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
 }
 
 func mapToByte(data map[string]interface{}) (ret []byte) {
-	ret, err := sonic.Marshal(data)
+	ret, err := gojson.Marshal(data)
 	if err != nil {
 		logger.ContextLog.Error(err)
 	}
