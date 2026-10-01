@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
@@ -304,7 +303,12 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 
 		ranUe.Location.NrLocation.Tai.PlmnId = plmnID
 		ranUe.Location.NrLocation.Tai.Tac = tac
-		ranUe.Tai = deepcopy.Copy(ranUe.Location.NrLocation.Tai).(models.Tai)
+		tai := ranUe.Location.NrLocation.GetTai()
+		taiCopy := models.NewTai(tai.GetPlmnId(), tai.GetTac())
+		if tai.HasNid() {
+			taiCopy.SetNid(tai.GetNid())
+		}
+		ranUe.Tai = *taiCopy
 
 		nRCGI := locationInfoNR.NRCGI
 		nRPlmnID, err := ngapConvert.PlmnIdToModels(nRCGI.PLMNIdentity)
@@ -352,7 +356,12 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		}
 		tac := fmt.Sprintf("%06x", tmp)
 		ranUe.Location.N3gaLocation.N3gppTai = models.NewTai(amfSelf.SupportTaiLists[0].GetPlmnId(), tac)
-		ranUe.Tai = deepcopy.Copy(ranUe.Location.N3gaLocation.GetN3gppTai()).(models.Tai)
+		tai := ranUe.Location.N3gaLocation.GetN3gppTai()
+		taiCopy := models.NewTai(tai.GetPlmnId(), tai.GetTac())
+		if tai.HasNid() {
+			taiCopy.SetNid(tai.GetNid())
+		}
+		ranUe.Tai = *taiCopy
 
 		if ranUe.AmfUe != nil {
 			ranUe.AmfUe.SetLocation(ranUe.Location)

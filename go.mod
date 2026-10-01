@@ -9,7 +9,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/google/uuid v1.6.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
-	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/omec-project/nas/v2 v2.2.6
 	github.com/omec-project/ngap/v2 v2.1.8
 	github.com/omec-project/openapi/v2 v2.2.5

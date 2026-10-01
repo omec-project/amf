@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/bytedance/sonic"
-	"github.com/mohae/deepcopy"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -741,11 +740,30 @@ func (ue *AmfUe) GetReachability() models.UeReachability {
 func (ue *AmfUe) GetLocation() models.UserLocation {
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
-	return deepcopy.Copy(ue.Location).(models.UserLocation)
+	data, err := sonic.Marshal(ue.Location)
+	if err != nil {
+		logger.ContextLog.Errorf("failed to marshal UserLocation: %v", err)
+		return models.UserLocation{}
+	}
+	var location models.UserLocation
+	if err := sonic.Unmarshal(data, &location); err != nil {
+		logger.ContextLog.Errorf("failed to unmarshal UserLocation: %v", err)
+		return models.UserLocation{}
+	}
+	return location
 }
 
 func (ue *AmfUe) SetLocation(v models.UserLocation) {
-	location := deepcopy.Copy(v).(models.UserLocation)
+	data, err := sonic.Marshal(v)
+	if err != nil {
+		logger.ContextLog.Errorf("failed to marshal UserLocation: %v", err)
+		return
+	}
+	var location models.UserLocation
+	if err := sonic.Unmarshal(data, &location); err != nil {
+		logger.ContextLog.Errorf("failed to unmarshal UserLocation: %v", err)
+		return
+	}
 	ue.identityMu.Lock()
 	ue.Location = location
 	ue.identityMu.Unlock()
@@ -754,13 +772,20 @@ func (ue *AmfUe) SetLocation(v models.UserLocation) {
 func (ue *AmfUe) GetTai() models.Tai {
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
-	return deepcopy.Copy(ue.Tai).(models.Tai)
+	tai := models.NewTai(ue.Tai.GetPlmnId(), ue.Tai.GetTac())
+	if ue.Tai.HasNid() {
+		tai.SetNid(ue.Tai.GetNid())
+	}
+	return *tai
 }
 
 func (ue *AmfUe) SetTai(v models.Tai) {
-	tai := deepcopy.Copy(v).(models.Tai)
+	tai := models.NewTai(v.GetPlmnId(), v.GetTac())
+	if v.HasNid() {
+		tai.SetNid(v.GetNid())
+	}
 	ue.identityMu.Lock()
-	ue.Tai = tai
+	ue.Tai = *tai
 	ue.identityMu.Unlock()
 }
 
