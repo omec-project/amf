@@ -8,6 +8,7 @@ package context
 
 import (
 	"context"
+	"sync"
 
 	"github.com/omec-project/openapi/v2/utils"
 )
@@ -19,6 +20,10 @@ type EventChannel struct {
 	ConfigHandler func(ctx context.Context, s1, s2, s3 string, msg any)
 	// done is closed when Start returns.
 	done chan struct{}
+	// admitMu is held from the removed check through the handler call it admits, so Remove's
+	// TryLock (see Remove) either lands before admission and is seen by the check, or finds
+	// admission already committed and leaves the running handler alone.
+	admitMu sync.Mutex
 }
 
 // FuncMsg is a closure submitted to a UE's EventChannel so it runs serialized with any in-flight
@@ -38,12 +43,17 @@ func (tx *EventChannel) Start(ctx context.Context) {
 		case msg := <-tx.Message:
 			// Remove marks the UE before it can send quit, and select may take a queued
 			// message first, so the mark is checked as each message is taken: one taken
-			// after it is not run. A request is answered as for any removed UE; anything
-			// else has nothing to act on. A message that has passed the check is in flight,
-			// like one already running when Remove is called, and finishes. Remove is not
-			// made to wait for it: most removals run on this goroutine, and the rest run on
-			// an NGAP connection's reader, which must not stall behind a handler.
+			// after it is not run. Held across the check and the handler it admits, so
+			// Remove's TryLock cannot land between the two: either it finds admitMu free
+			// and marks removal before this check runs, or it finds a handler already
+			// committed to and leaves it alone, like one already running when Remove is
+			// called. A request is answered as for any removed UE; anything else has
+			// nothing to act on. Remove is not made to wait for a running handler: most
+			// removals run on this goroutine, and the rest run on an NGAP connection's
+			// reader, which must not stall behind one.
+			tx.admitMu.Lock()
 			if tx.AmfUe.isRemoved() {
+				tx.admitMu.Unlock()
 				if request, isRequest := msg.(SbiMsg); isRequest {
 					request.Result <- ueRemovedResponse()
 				}
@@ -68,6 +78,7 @@ func (tx *EventChannel) Start(ctx context.Context) {
 			case FuncMsg:
 				msg()
 			}
+			tx.admitMu.Unlock()
 		case event := <-tx.Event:
 			if event == "quit" {
 				tx.AmfUe.TxLog.Infof("closed ue goroutine")

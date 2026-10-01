@@ -868,6 +868,16 @@ func (ue *AmfUe) Remove() {
 	ue.removed = true
 	ue.Mutex.Unlock()
 
+	// Closes the gap between the channel's goroutine taking a message past the removed check
+	// and that check actually running: if admitMu is free, the goroutine is not between the
+	// two right now, so taking it here guarantees the mark above is already set by the time
+	// any later check reads it. TryLock rather than Lock: a handler already admitted is let
+	// run to completion, same as one already in flight when Remove is called, and Remove must
+	// not stall behind it -- the NGAP connection reader calling this depends on that.
+	if eventChannel != nil && eventChannel.admitMu.TryLock() {
+		eventChannel.admitMu.Unlock()
+	}
+
 	for _, ranUe := range ranUes {
 		if err := ranUe.Remove(); err != nil {
 			logger.ContextLog.Errorf("Remove RanUe error: %v", err)

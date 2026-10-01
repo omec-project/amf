@@ -123,6 +123,34 @@ func TestARequestTakenAfterItsUeIsMarkedRemovedIsNotRun(t *testing.T) {
 	}
 }
 
+// Remove takes the channel's admission lock with TryLock, not Lock, so that a handler
+// already running -- holding it for the call's duration -- cannot make Remove wait for it.
+// The NGAP connection reader that calls Remove on a DRSM ownership mismatch depends on this:
+// stalling it behind a handler would stall every UE on that gNB.
+func TestRemoveDoesNotBlockBehindARunningHandler(t *testing.T) {
+	ue := &AmfUe{}
+	ue.init()
+
+	busy, release := make(chan struct{}), make(chan struct{})
+	ue.RunSerialized(func() {
+		close(busy)
+		<-release
+	})
+	<-busy
+
+	done := make(chan struct{})
+	go func() {
+		ue.Remove()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Remove blocked behind a running handler")
+	}
+	close(release)
+}
+
 // awaitQueuedMessages waits until the channel holds n messages its goroutine has not taken.
 func awaitQueuedMessages(t *testing.T, tx *EventChannel, n int) {
 	t.Helper()
