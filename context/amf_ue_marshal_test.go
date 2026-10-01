@@ -8,7 +8,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -53,7 +53,7 @@ func TestStoringAContextWhileItsRanUeChanges(t *testing.T) {
 		defer wg.Done()
 
 		for range rounds {
-			if _, err := sonic.Marshal(ue); err != nil {
+			if _, err := gojson.Marshal(ue); err != nil {
 				t.Errorf("marshalling a context must not fail: %v", err)
 				return
 			}

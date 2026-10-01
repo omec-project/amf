@@ -6,7 +6,7 @@ package context
 import (
 	"testing"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -50,7 +50,7 @@ func ueWithPendingMessage(t *testing.T) *AmfUe {
 func TestStoredContextWithPendingMessageRoundTrips(t *testing.T) {
 	ue := ueWithPendingMessage(t)
 
-	stored, err := sonic.Marshal(ue)
+	stored, err := gojson.Marshal(ue)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -59,22 +59,22 @@ func TestStoredContextWithPendingMessageRoundTrips(t *testing.T) {
 	// partly-populated context carries other empty enum values too -- ngKsi.tsc on a UE
 	// stored before authentication finished, for one.
 	var asStored map[string]any
-	if err := sonic.Unmarshal(stored, &asStored); err != nil {
+	if err := gojson.Unmarshal(stored, &asStored); err != nil {
 		t.Fatalf("re-read stored form: %v", err)
 	}
 
 	restored := &AmfUe{}
 	restored.init()
 
-	if err := sonic.Unmarshal(stored, restored); err != nil {
+	if err := gojson.Unmarshal(stored, restored); err != nil {
 		dropEmptyEnumValues(asStored)
 
-		relaxed, marshalErr := sonic.Marshal(asStored)
+		relaxed, marshalErr := gojson.Marshal(asStored)
 		if marshalErr != nil {
 			t.Fatalf("marshal relaxed form: %v", marshalErr)
 		}
 
-		if err := sonic.Unmarshal(relaxed, restored); err != nil {
+		if err := gojson.Unmarshal(relaxed, restored); err != nil {
 			t.Fatalf("a stored context must be readable, got: %v", err)
 		}
 	}
@@ -106,7 +106,7 @@ func TestStoredContextWithPendingMessageRoundTrips(t *testing.T) {
 func TestStoringDoesNotDestroyThePendingMessage(t *testing.T) {
 	ue := ueWithPendingMessage(t)
 
-	if _, err := sonic.Marshal(ue); err != nil {
+	if _, err := gojson.Marshal(ue); err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
 
@@ -205,7 +205,7 @@ func TestMarshalToleratesARanUeWithNoRan(t *testing.T) {
 	ue := ueWithPendingMessage(t)
 	ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = &RanUe{RanUeNgapId: 7, AmfUeNgapId: 9}
 
-	if _, err := sonic.Marshal(ue); err != nil {
+	if _, err := gojson.Marshal(ue); err != nil {
 		t.Fatalf("storing a context with no RAN attached must not fail: %v", err)
 	}
 }

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
@@ -60,12 +60,12 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 			if !reflect.DeepEqual(newAccessMobilityConfig, poller.currentAccessAndMobilityConfig) {
 				logger.PollConfigLog.Infof("Access and Mobility config changed. New: %+v", newAccessMobilityConfig)
 				registrationChannel <- newAccessMobilityConfig
-				data, err := sonic.Marshal(newAccessMobilityConfig)
+				data, err := gojson.Marshal(newAccessMobilityConfig)
 				if err != nil {
 					logger.PollConfigLog.Errorf("Failed to marshal AccessAndMobility config: %v", err)
 					continue
 				}
-				if err := sonic.Unmarshal(data, &poller.currentAccessAndMobilityConfig); err != nil {
+				if err := gojson.Unmarshal(data, &poller.currentAccessAndMobilityConfig); err != nil {
 					logger.PollConfigLog.Errorf("Failed to unmarshal AccessAndMobility config: %v", err)
 					continue
 				}
@@ -111,7 +111,7 @@ func (p *nfConfigPoller) fetchAccessAndMobilityConfig(pollingEndpoint string) ([
 		}
 
 		var config []nfConfigApi.AccessAndMobility
-		if err := sonic.Unmarshal(body, &config); err != nil {
+		if err := gojson.Unmarshal(body, &config); err != nil {
 			return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 		}
 		return config, nil

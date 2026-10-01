@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/bytedance/sonic"
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -361,7 +361,7 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 		RanId:       gnbId,
 	}
 
-	return sonic.Marshal(&struct {
+	return gojson.Marshal(&struct {
 		CustomAmfUe CustomFieldsAmfUe `json:"customFieldsAmfUe"`
 		*Alias
 	}{
@@ -378,7 +378,7 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	}{
 		Alias: (*Alias)(ue),
 	}
-	if err := sonic.Unmarshal(data, &auxCustom); err != nil {
+	if err := gojson.Unmarshal(data, &auxCustom); err != nil {
 		logger.ContextLog.Errorln("AMFUe Unmarshal failed : ", err)
 		return err
 	}
@@ -496,7 +496,7 @@ func (subscription AmfUeEventSubscription) MarshalJSON() ([]byte, error) {
 		copied.RemainReports = &remaining
 	}
 
-	return sonic.Marshal(copied)
+	return gojson.Marshal(copied)
 }
 
 type AmfUeEventSubscription struct {
@@ -740,13 +740,13 @@ func (ue *AmfUe) GetReachability() models.UeReachability {
 func (ue *AmfUe) GetLocation() models.UserLocation {
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
-	data, err := sonic.Marshal(ue.Location)
+	data, err := gojson.Marshal(ue.Location)
 	if err != nil {
 		logger.ContextLog.Errorf("failed to marshal UserLocation: %v", err)
 		return models.UserLocation{}
 	}
 	var location models.UserLocation
-	if err := sonic.Unmarshal(data, &location); err != nil {
+	if err := gojson.Unmarshal(data, &location); err != nil {
 		logger.ContextLog.Errorf("failed to unmarshal UserLocation: %v", err)
 		return models.UserLocation{}
 	}
@@ -754,13 +754,13 @@ func (ue *AmfUe) GetLocation() models.UserLocation {
 }
 
 func (ue *AmfUe) SetLocation(v models.UserLocation) {
-	data, err := sonic.Marshal(v)
+	data, err := gojson.Marshal(v)
 	if err != nil {
 		logger.ContextLog.Errorf("failed to marshal UserLocation: %v", err)
 		return
 	}
 	var location models.UserLocation
-	if err := sonic.Unmarshal(data, &location); err != nil {
+	if err := gojson.Unmarshal(data, &location); err != nil {
 		logger.ContextLog.Errorf("failed to unmarshal UserLocation: %v", err)
 		return
 	}
