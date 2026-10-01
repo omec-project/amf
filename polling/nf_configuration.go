@@ -7,7 +7,6 @@ package polling
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mohae/deepcopy"
+	"github.com/bytedance/sonic"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
@@ -59,9 +58,18 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 			}
 			interval = initialPollingInterval
 			if !reflect.DeepEqual(newAccessMobilityConfig, poller.currentAccessAndMobilityConfig) {
-				logger.PollConfigLog.Infof("Access and Mobility config changed. New Access and Mobility: %+v", newAccessMobilityConfig)
+				logger.PollConfigLog.Infof("Access and Mobility config changed. New: %+v", newAccessMobilityConfig)
 				registrationChannel <- newAccessMobilityConfig
-				poller.currentAccessAndMobilityConfig = deepcopy.Copy(newAccessMobilityConfig).([]nfConfigApi.AccessAndMobility)
+				data, err := sonic.Marshal(newAccessMobilityConfig)
+				if err != nil {
+					logger.PollConfigLog.Errorf("Failed to marshal AccessAndMobility config: %v", err)
+					continue
+				}
+				if err := sonic.Unmarshal(data, &poller.currentAccessAndMobilityConfig); err != nil {
+					logger.PollConfigLog.Errorf("Failed to unmarshal AccessAndMobility config: %v", err)
+					continue
+				}
+
 				contextUpdateChannel <- newAccessMobilityConfig
 			} else {
 				logger.PollConfigLog.Debugf("Access and Mobility config did not change %+v", newAccessMobilityConfig)
@@ -103,7 +111,7 @@ func (p *nfConfigPoller) fetchAccessAndMobilityConfig(pollingEndpoint string) ([
 		}
 
 		var config []nfConfigApi.AccessAndMobility
-		if err := json.Unmarshal(body, &config); err != nil {
+		if err := sonic.Unmarshal(body, &config); err != nil {
 			return nil, fmt.Errorf("failed to parse JSON response: %w", err)
 		}
 		return config, nil
