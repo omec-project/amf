@@ -585,46 +585,108 @@ func decodeStoredUe(result map[string]any) (*AmfUe, error) {
 	return ue, nil
 }
 
-// beingDeleted holds the SUPIs whose stored context a release is deleting. A lookup
-// that misses the pool falls back to the datastore, and between the UE leaving the pool
-// and its delete landing, that fallback would restore the context being deleted.
-var beingDeleted sync.Map
+// beingDeleted counts, per SUPI, the releases deleting its stored context. A lookup that
+// misses the pool falls back to the datastore, and between the UE leaving the pool and
+// its delete landing, that fallback would restore the context being deleted. A count
+// rather than a set, so that one of two overlapping releases of a SUPI does not clear the
+// other's mark. Guarded by restoreMu.
+var beingDeleted = map[string]int{}
 
-// unmarked counts cleared marks. It is incremented before the mark is removed, so a
-// lookup that finds a mark gone also finds the count moved. The check has to follow the
-// read, since only the document names the SUPI, and a lookup that took the document
-// before the delete landed can check after the mark has been cleared; the count is how
-// it knows to read again. Nothing is held across the datastore read.
-var unmarked atomic.Uint64
+// unmarked counts cleared marks, in shards by SUPI. A release moves its SUPI's shard
+// before it clears the mark, so a lookup that finds a mark gone also finds the shard
+// moved. The check has to follow the read, since only the document names the SUPI, and
+// a lookup that took the document before the delete landed can check after the mark has
+// been cleared; the count is how it knows to read again. Sharded so that a release of
+// one UE seldom makes a lookup for another read again. Nothing is held across the
+// datastore read.
+var unmarked [256]atomic.Uint64
+
+var unmarkedSeed = maphash.MakeSeed()
+
+func unmarkedShard(supi string) int {
+	return int(maphash.String(unmarkedSeed, supi) % uint64(len(unmarked)))
+}
+
+// unmarkedNow copies every shard: a lookup takes it before its read, when it does not
+// yet know which SUPI the document names.
+func unmarkedNow() (counts [len(unmarked)]uint64) {
+	for i := range unmarked {
+		counts[i] = unmarked[i].Load()
+	}
+	return counts
+}
+
+// restoreMu makes a release's mark and a lookup's last check-and-publish exclusive. A
+// lookup that publishes first has its UE taken out of UePool by the release that
+// follows, since Remove deletes by SUPI; one that checks after the mark finds it. Both
+// hold it for map operations only, never across the datastore.
+var restoreMu sync.Mutex
+
+// restoreAttempts bounds how often a lookup reads again because a release finished during
+// its read. A lookup that runs out treats the UE as absent rather than risk restoring a
+// deleted context.
+const restoreAttempts = 3
 
 // RemoveUeAndDeleteItsContext removes the UE and deletes its stored context, and keeps a
 // lookup in between from restoring that context: the UE is marked before it leaves the
 // pool, and the mark is cleared once the delete -- synchronous -- has landed.
 func RemoveUeAndDeleteItsContext(ue *AmfUe) {
 	if supi := ue.GetSupi(); len(supi) > 0 {
-		beingDeleted.Store(supi, struct{}{})
-		defer func() {
-			unmarked.Add(1)
-			beingDeleted.Delete(supi)
-		}()
+		markBeingDeleted(supi)
+		defer clearBeingDeleted(supi)
 	}
 
 	ue.Remove()
 	DeleteContextFromDB(ue)
 }
 
+func markBeingDeleted(supi string) {
+	restoreMu.Lock()
+	beingDeleted[supi]++
+	restoreMu.Unlock()
+}
+
+func clearBeingDeleted(supi string) {
+	unmarked[unmarkedShard(supi)].Add(1)
+
+	restoreMu.Lock()
+	beingDeleted[supi]--
+	if beingDeleted[supi] == 0 {
+		delete(beingDeleted, supi)
+	}
+	restoreMu.Unlock()
+}
+
+// DbFetch restores a stored UE context and publishes it to the pools. A lookup by SUPI,
+// GUTI or AMF-UE-NGAP-ID all arrive here, and nothing after it publishes the UE again:
+// the check against a release and the publication are one step, and a second publication
+// by the caller would follow the check without it.
 func DbFetch(collName string, filter bson.M) *AmfUe {
 	if !datastoreReady() {
 		return nil
 	}
-	unmarkedBefore := unmarked.Load()
+	for range restoreAttempts {
+		if ue, readAgain := dbFetchOnce(collName, filter); !readAgain {
+			return ue
+		}
+	}
+	logger.DataRepoLog.Warnf("not restoring the stored context matching %v: releases kept finishing during the lookup", filter)
+
+	return nil
+}
+
+// dbFetchOnce reads and restores once. readAgain reports that a release finished during
+// the read: if it was this UE's, its delete has landed and the document read may be the
+// one it deleted, so nothing was published and the caller should read again.
+func dbFetchOnce(collName string, filter bson.M) (ue *AmfUe, readAgain bool) {
+	unmarkedBefore := unmarkedNow()
 	result, getOneErr := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
 	if getOneErr != nil {
 		logger.DataRepoLog.Warnln(getOneErr)
 	}
 
 	if len(result) == 0 {
-		return nil
+		return nil, false
 	}
 
 	ue, err := decodeStoredUe(result)
@@ -634,27 +696,7 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 		// rather than a subscriber to go looking for.
 		logger.DataRepoLog.Errorf("stored UE context exists but could not be decoded: %v", err)
 
-		return nil
-	}
-
-	// A lookup by SUPI, GUTI or AMF-UE-NGAP-ID all arrive here, so this one check covers
-	// them: a context whose release is deleting it is gone, not a UE to restore.
-	if _, deleting := beingDeleted.Load(ue.Supi); deleting {
-		logger.DataRepoLog.Infof("not restoring the stored context for %s: its release is deleting it", ue.Supi)
-		return nil
-	}
-	// A release finished during the read. If it was this UE's, its delete has landed,
-	// and the document read may be the one it deleted. The second read only asks whether
-	// the document is still there; an error counts as absence, as for the first read.
-	if unmarked.Load() != unmarkedBefore {
-		again, err := mongoapi.CommonDBClient.RestfulAPIGetOne(collName, filter)
-		if err != nil {
-			logger.DataRepoLog.Warnln(err)
-		}
-		if len(again) == 0 {
-			logger.DataRepoLog.Infof("not restoring the stored context for %s: it was deleted during the lookup", ue.Supi)
-			return nil
-		}
+		return nil, false
 	}
 
 	dbMutex.Lock()
@@ -669,7 +711,7 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 		// Callers already handle a nil return from this function.
 		logger.DataRepoLog.Errorln("amfue restored without a 3GPP RanUe, discarding it")
 
-		return nil
+		return nil, false
 	}
 
 	ranUe.SetAmfUe(ue)
@@ -688,16 +730,35 @@ func DbFetch(collName string, filter bson.M) *AmfUe {
 	// while the restore is still running -- and since a request for a UE with no event
 	// channel now runs its handler inline rather than failing, that reader reaches the
 	// procedure and the per-UE loggers it uses.
-	// A context stored without a RAN association restores a RanUe carrying
-	// AmfUeNgapId 0. Nothing may find it by that id, and every such context would
-	// otherwise claim the same key.
-	if ranUe.AmfUeNgapId != 0 {
-		AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+	// Checked against a release under the lock its mark takes, and published in the same
+	// hold. A release of this UE is either already marked when the check runs, and the
+	// check sees the mark or the shard its clearing moved, or it cannot mark until the
+	// publication is done, and its Remove then takes the UE out of UePool.
+	shard := unmarkedShard(ue.Supi)
+	restoreMu.Lock()
+	deleting := beingDeleted[ue.Supi] > 0
+	releasedDuringRead := unmarked[shard].Load() != unmarkedBefore[shard]
+	if !deleting && !releasedDuringRead {
+		// A context stored without a RAN association restores a RanUe carrying
+		// AmfUeNgapId 0. Nothing may find it by that id, and every such context would
+		// otherwise claim the same key.
+		if ranUe.AmfUeNgapId != 0 {
+			AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+		}
+		AMF_Self().UePool.Store(ue.Supi, ue)
 	}
-	AMF_Self().UePool.Store(ue.Supi, ue)
+	restoreMu.Unlock()
+
+	switch {
+	case deleting:
+		logger.DataRepoLog.Infof("not restoring the stored context for %s: its release is deleting it", ue.Supi)
+		return nil, false
+	case releasedDuringRead:
+		return nil, true
+	}
 
 	ue.TxLog.Debugln("amfue fetched")
-	return ue
+	return ue, false
 }
 
 func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {

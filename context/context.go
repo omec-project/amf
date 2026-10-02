@@ -325,8 +325,9 @@ func (context *AMFContext) AmfUeFindBySupi(supi string) (ue *AmfUe, ok bool) {
 	} else if context.EnableDbStore {
 		ue, ok = DbFetchUeBySupi(supi)
 		if ue != nil && ok {
+			// DbFetch has published it; storing it again here would undo a release that
+			// ran since.
 			logger.ContextLog.Infoln("Ue with supi found in DB : ", supi)
-			context.UePool.Store(supi, ue)
 		} else {
 			logger.ContextLog.Infoln("Ue with Supi not found locally and in DB: ", supi)
 		}
@@ -547,8 +548,9 @@ func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
 	} else if context.EnableDbStore {
 		ue, ok = DbFetchUeByGuti(guti)
 		if ue != nil && ok {
+			// DbFetch has published it; storing it again here would undo a release that
+			// ran since.
 			logger.ContextLog.Infoln("Ue with Guti found in DB : ", guti)
-			context.UePool.Store(ue.GetSupi(), ue)
 		} else {
 			logger.ContextLog.Infoln("Ue with Guti not found locally and in DB: ", guti)
 		}
@@ -593,7 +595,8 @@ func (context *AMFContext) RanUeFindByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 		if context.EnableDbStore {
 			ranUe = DbFetchRanUeByAmfUeNgapID(amfUeNgapID)
 			if ranUe != nil {
-				context.RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
+				// DbFetch has published it, under the id it was looked up by; storing it
+				// again here would undo a release that ran since.
 				return ranUe
 			}
 		}
