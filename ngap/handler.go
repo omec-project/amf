@@ -33,10 +33,11 @@ import (
 )
 
 // The datastore writes of a UE-initiated deregistration's release, as variables so a test can
-// see which one ran. The UE pool alone cannot tell a stored context from a deleted one.
+// see which one ran. The UE pool alone cannot tell a stored context from a deleted one; the
+// second also removes the UE, since the two must happen together.
 var (
-	storeContextInDB    = context.StoreContextInDB
-	deleteContextFromDB = context.DeleteContextFromDB
+	storeContextInDB            = context.StoreContextInDB
+	removeUeAndDeleteItsContext = context.RemoveUeAndDeleteItsContext
 )
 
 func findRanUeByRanNgapID(ran *context.AmfRan, ranUENGAPID *ngapType.RANUENGAPID) *context.RanUe {
@@ -1279,8 +1280,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			ran.Log.Infof("Valid Security is not exist for the UE[%s], so deleting AmfUe Context", amfUe.GetSupi())
 			// Remove() tears down every access, so force Del regardless of the other access's state.
 			amfUe.PublishUeCtxtInfoOnRemoval(ran.AnType)
-			amfUe.Remove()
-			context.DeleteContextFromDB(amfUe)
+			context.RemoveUeAndDeleteItsContext(amfUe)
 		} else {
 			amfUe.PublishUeCtxtInfo(ran.AnType)
 			context.StoreContextInDB(amfUe)
@@ -1319,8 +1319,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 			// Remove() tears down every access, so force Del regardless of the other
 			// access's state -- the same reason the two sibling cases publish on removal.
 			amfUe.PublishUeCtxtInfoOnRemoval(ran.AnType)
-			amfUe.Remove()
-			deleteContextFromDB(amfUe)
+			removeUeAndDeleteItsContext(amfUe)
 		}
 	case context.UeContextReleaseDueToNwInitiatedDeregistraion:
 		ran.Log.Infof("Release UE[%s] Context Due to Nw Initiated: Release Ue Context", amfUe.GetSupi())
@@ -1330,8 +1329,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		}
 		// Remove() tears down every access, so force Del regardless of the other access's state.
 		amfUe.PublishUeCtxtInfoOnRemoval(ran.AnType)
-		amfUe.Remove()
-		context.DeleteContextFromDB(amfUe)
+		context.RemoveUeAndDeleteItsContext(amfUe)
 	case context.UeContextReleaseHandover:
 		ran.Log.Infof("Release UE[%s] Context : Release for Handover", amfUe.GetSupi())
 		// TODO: it's a workaround, need to fix it.
