@@ -24,7 +24,7 @@ import (
 
 var registerIPv4HostnamePattern = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)$`)
 
-const defaultDrsmMongoURL = "mongodb://mongodb-arbiter-headless"
+const defaultDrsmMongoURL = "mongodb://mongodb-headless:27017/?replicaSet=rs0"
 
 const defaultNgapLocalIP = "127.0.0.1"
 
