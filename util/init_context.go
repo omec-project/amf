@@ -24,11 +24,11 @@ import (
 
 var registerIPv4HostnamePattern = regexp.MustCompile(`^(?i:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*)$`)
 
-// defaultDrsmMongoURL is the fallback MongoDB URL used when no Mongodb URL is
+// defaultDrsmMongoURL is the fallback MongoDB URL used when no MongoDB URL is
 // configured. DRSM relies on MongoDB change streams (collection.Watch), which
 // are only available on a replica set, so the default assumes a replica set
 // named "rs0". Deployments using a different replica set name (or a managed
-// MongoDB endpoint) must override this via the Mongodb Url configuration.
+// MongoDB endpoint) must override this via the MongoDB URL configuration.
 const defaultDrsmMongoURL = "mongodb://mongodb-headless:27017/?replicaSet=rs0"
 
 const defaultNgapLocalIP = "127.0.0.1"
