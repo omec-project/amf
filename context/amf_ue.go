@@ -390,15 +390,42 @@ func (ue *AmfUe) UnmarshalJSON(data []byte) error {
 	}
 	for index, states := range aux.State {
 		ue.State[index] = fsm.NewState(fsm.StateType(states))
-		if ue.RanUe[index] == nil {
-			ue.RanUe[index] = &RanUe{}
+	}
+	// A RanUe in the document for an access other than 3GPP is kept only if its RAN is of that
+	// access: a genuine one is keyed by its own RAN's type. An AMF that predates this change
+	// invented one at every restore, with the 3GPP RAN or none, and stored it with the context.
+	// Restoring that again would bring back what the rest of this function no longer creates --
+	// and for an idle UE, whose custom fields no longer match it, with ids that may now belong
+	// to another UE.
+	for anType, ranUe := range ue.RanUe {
+		if anType == models.ACCESSTYPE__3_GPP_ACCESS {
+			continue
 		}
-		ue.RanUe[index].RanUeNgapId = aux.RanUeNgapId
-		ue.RanUe[index].AmfUeNgapId = aux.AmfUeNgapId
-		ue.RanUe[index].Log = logger.NgapLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ue.RanUe[index].AmfUeNgapId))
+		if ranUe == nil || ranUe.Ran == nil || ranUe.Ran.AnType != anType {
+			delete(ue.RanUe, anType)
+		}
+	}
+	// The custom fields describe the 3GPP RanUe alone -- MarshalJSON takes them from it -- so
+	// only that RanUe takes them, and only it is created when the document holds none: an idle
+	// UE is stored without one, and DbFetch restores no UE without a 3GPP RanUe. A RanUe for
+	// any other access comes only from the document. Creating one would put the UE on an access
+	// it is not on, with the 3GPP RanUe's ids: a deregistration then read the other access as
+	// still in use, and Remove released the shared id twice.
+	if _, ok := aux.State[models.ACCESSTYPE__3_GPP_ACCESS]; ok {
+		ranUe := ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS]
+		if ranUe == nil {
+			ranUe = &RanUe{}
+			ue.RanUe[models.ACCESSTYPE__3_GPP_ACCESS] = ranUe
+		}
+		ranUe.RanUeNgapId = aux.RanUeNgapId
+		ranUe.AmfUeNgapId = aux.AmfUeNgapId
 		if ran != nil {
-			// ran.RanUeList[ue.RanUe[index].RanUeNgapId] = ue.RanUe[index]
-			ue.RanUe[index].Ran = ran
+			ranUe.Ran = ran
+		}
+	}
+	for _, ranUe := range ue.RanUe {
+		if ranUe != nil {
+			ranUe.Log = logger.NgapLog.With(logger.FieldAmfUeNgapID, fmt.Sprintf("AMF_UE_NGAP_ID:%d", ranUe.AmfUeNgapId))
 		}
 	}
 	for key, val := range aux.SmCtxList {
