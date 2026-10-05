@@ -73,13 +73,18 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	ueEvents := make([]models.AmfEvent, len(subscribedEvents))
 	copy(ueEvents, subscribedEvents)
 
-	// TODO: GA: Review the constructor of NewExtAmfEventSubscription. Is there anything else missing?
 	extAmfEventSubscription := models.NewExtAmfEventSubscription(ueEvents, contextEventSubscription.EventSubscription.GetEventNotifyUri(), contextEventSubscription.EventSubscription.GetNotifyCorrelationId(), contextEventSubscription.EventSubscription.GetNfId())
+	// NewExtAmfEventSubscription only sets the required fields. Options carries the subscription's
+	// trigger/expiry/maxReports, which NewAmfEventReport reads to compute each report's state, so it
+	// must be propagated explicitly; the remaining fields are optional and unused by the AMF.
+	if subscription.HasOptions() {
+		extAmfEventSubscription.SetOptions(subscription.GetOptions())
+	}
 	ueEventSubscription.EventSubscription = extAmfEventSubscription
 	ueEventSubscription.Timestamp = time.Now().UTC()
 
-	if subscription.Options != nil && subscription.Options.Trigger == models.AMFEVENTTRIGGER_CONTINUOUS {
-		ueEventSubscription.RemainReports = subscription.Options.MaxReports
+	if subscription.HasOptions() && subscription.GetOptions().Trigger == models.AMFEVENTTRIGGER_CONTINUOUS {
+		ueEventSubscription.RemainReports = subscription.GetOptions().MaxReports
 	}
 
 	if subscription.EventList == nil {
@@ -128,8 +133,8 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	}
 
 	// delete subscription
-	if subscription.Options != nil {
-		contextEventSubscription.Expiry = subscription.Options.Expiry
+	if subscription.HasOptions() {
+		contextEventSubscription.Expiry = subscription.GetOptions().Expiry
 	}
 	amfSelf.NewEventSubscription(newSubscriptionID, &contextEventSubscription)
 
@@ -414,9 +419,6 @@ func NewAmfEventReport(ue *context.AmfUe, Type models.AmfEventType, subscription
 		report.SetCmInfoList(ue.GetCmInfo())
 	case models.AMFEVENTTYPE_REACHABILITY_REPORT:
 		report.SetReachability(ue.GetReachability())
-	// TODO: GA: Need to check the content of SubscribedData
-	// case models.AMFEVENTTYPE_SUBSCRIBED_DATA_REPORT:
-	// 	report.SubscribedData = &ue.SubscribedData
 	case models.AMFEVENTTYPE_COMMUNICATION_FAILURE_REPORT:
 		// TODO : report.CommFailure
 	case models.AMFEVENTTYPE_SUBSCRIPTION_ID_CHANGE:
