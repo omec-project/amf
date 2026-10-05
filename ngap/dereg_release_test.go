@@ -8,11 +8,15 @@ import (
 	"slices"
 	"testing"
 
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
+	"github.com/omec-project/util/drsm"
 	"github.com/omec-project/util/fsm"
+	"github.com/omec-project/util/mongoapi"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // releaseCompletePdu builds a UE Context Release Complete naming the given RanUe,
@@ -224,5 +228,94 @@ func TestDeregistrationRemovesTheUeOnlyOnceTheOtherAccessIsOutOfUse(t *testing.T
 				t.Errorf("datastore writes = %v, want %v", *writes, want)
 			}
 		})
+	}
+}
+
+// storedDocDB serves one stored context.
+type storedDocDB struct {
+	mongoapi.DBInterface
+	doc map[string]any
+}
+
+func (s storedDocDB) RestfulAPIGetOne(string, bson.M) (map[string]any, error) {
+	return s.doc, nil
+}
+
+// allocatingDrsm hands out one id and accepts every release.
+type allocatingDrsm struct{ drsm.DrsmInterface }
+
+func (allocatingDrsm) AllocateInt32ID() (int32, error) { return 4242, nil }
+
+func (allocatingDrsm) ReleaseInt32ID(int32) error { return nil }
+
+// A UE restored from its stored context -- after an AMF restart, say -- that comes back and
+// deregisters has left the network as surely as one the AMF never forgot. The restore gave it
+// a non-3GPP RanUe for an access it was never on, and this release read that as the other
+// access still in use, so it stored the context instead of deleting it: every UE that had ever
+// been restored kept its stored context past its deregistration.
+func TestARestoredUesDeregistrationDeletesItsStoredContext(t *testing.T) {
+	self := context.AMF_Self()
+
+	const supi = "imsi-208930000000201"
+	ran := self.NewAmfRanId("208:93:restoredereg")
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	ran.Log = logger.NgapLog
+	t.Cleanup(func() { self.AmfRanPool.Delete("208:93:restoredereg") })
+
+	// The UE as stored before the restart.
+	stored := self.NewAmfUe(supi)
+	stored.SecurityContextAvailable = true
+	first, err := ran.NewRanUe(201)
+	if err != nil {
+		t.Fatalf("creating RanUe: %v", err)
+	}
+	stored.AttachRanUe(first)
+	raw, err := gojson.Marshal(stored)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	doc := map[string]any{}
+	if err = gojson.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("to map: %v", err)
+	}
+	// The restart: the AMF's memory of the UE is gone, its stored context is not.
+	stored.Remove()
+
+	originalClient, originalStore, originalDrsm := mongoapi.CommonDBClient, self.EnableDbStore, self.Drsm
+	mongoapi.CommonDBClient, self.EnableDbStore, self.Drsm = storedDocDB{doc: doc}, true, allocatingDrsm{}
+	t.Cleanup(func() {
+		mongoapi.CommonDBClient, self.EnableDbStore, self.Drsm = originalClient, originalStore, originalDrsm
+	})
+
+	restored, ok := self.AmfUeFindBySupi(supi)
+	if !ok {
+		t.Fatal("the stored context was not restored")
+	}
+
+	// The UE comes back on a new RanUe, as an Initial UE Message attaches it, and deregisters.
+	second, err := ran.NewRanUe(202)
+	if err != nil {
+		t.Fatalf("creating RanUe: %v", err)
+	}
+	second.Log = logger.NgapLog
+	second.ReleaseAction = context.UeContextReleaseDueToUeInitiatedDeregistration
+	restored.AttachRanUe(second)
+	t.Cleanup(func() {
+		if leftover := self.RanUeFindByAmfUeNgapIDLocal(second.AmfUeNgapId); leftover != nil {
+			if err := leftover.Remove(); err != nil {
+				t.Logf("removing the leftover RanUe: %v", err)
+			}
+		}
+		self.UePool.Delete(supi)
+	})
+
+	writes := recordDatastoreWrites(t)
+	HandleUEContextReleaseComplete(ctxt.Background(), ran, releaseCompletePdu(second))
+
+	if !slices.Equal(*writes, []string{"delete " + supi}) {
+		t.Errorf("datastore writes = %v, want the restored UE's context deleted", *writes)
+	}
+	if _, ok := self.UePool.Load(supi); ok {
+		t.Error("a restored UE that deregistered was kept in the pool")
 	}
 }
