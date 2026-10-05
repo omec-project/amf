@@ -65,15 +65,16 @@ func TestResolveStableAmfNfId(t *testing.T) {
 }
 
 func TestResolveDrsmMongoURL(t *testing.T) {
-	t.Run("uses legacy default when mongodb url is unset", func(t *testing.T) {
+	t.Run("uses replica-set default when mongodb url is unset", func(t *testing.T) {
+		const wantURL = "mongodb://mongodb-headless:27017/?replicaSet=rs0"
 		cfg := &factory.Configuration{}
-		if got := resolveDrsmMongoURL(cfg); got != defaultDrsmMongoURL {
-			t.Fatalf("resolveDrsmMongoURL() = %q, want %q", got, defaultDrsmMongoURL)
+		if got := resolveDrsmMongoURL(cfg); got != wantURL {
+			t.Fatalf("resolveDrsmMongoURL() = %q, want %q", got, wantURL)
 		}
 	})
 
 	t.Run("uses configured mongodb url when set", func(t *testing.T) {
-		cfg := &factory.Configuration{Mongodb: &factory.Mongodb{Url: "mongodb://mongodb-headless:27017/?replicaSet=rs0"}}
+		cfg := &factory.Configuration{Mongodb: &factory.Mongodb{Url: "mongodb://custom-mongo:27017/?replicaSet=custom"}}
 		if got := resolveDrsmMongoURL(cfg); got != cfg.Mongodb.Url {
 			t.Fatalf("resolveDrsmMongoURL() = %q, want %q", got, cfg.Mongodb.Url)
 		}
