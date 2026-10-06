@@ -1540,6 +1540,39 @@ func (ue *AmfUe) SetEventSubscription(id string, subscription *AmfUeEventSubscri
 	ue.EventSubscriptionsInfo[id] = subscription
 }
 
+// SetEventSubscriptionExpiry updates the expiry carried in a stored subscription's options.
+//
+// Report generation reads the subscription expiry from each UE's own options (see
+// NewAmfEventReport), so a modified expiry must be written here for later reports to reflect it --
+// the context-level copy the modify procedure also updates is not on that read path.
+//
+// An any-UE/group subscription gives every UE its own AmfUeEventSubscription wrapper but a single
+// shared *ExtAmfEventSubscription (CreateAMFEventSubscriptionProcedure copies the wrapper, not the
+// pointer inside it). Writing options through that shared pointer would change every UE's options
+// while holding only this UE's lock, racing reports and snapshots guarded by other UEs' locks. So
+// the wrapper is deep-copied and this UE repointed at the copy before the write lands -- mirroring
+// snapshot(), which clones the same object and its event list for the same reason.
+func (ue *AmfUe) SetEventSubscriptionExpiry(id string, expiry time.Time) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	subscription, ok := ue.EventSubscriptionsInfo[id]
+	if !ok || subscription == nil || subscription.EventSubscription == nil {
+		return
+	}
+	options, ok := subscription.EventSubscription.GetOptionsOk()
+	if !ok || options == nil {
+		return
+	}
+
+	copied := *subscription.EventSubscription
+	copied.SetEventList(slices.Clone(subscription.EventSubscription.GetEventList()))
+	updatedOptions := *options
+	updatedOptions.SetExpiry(expiry)
+	copied.SetOptions(updatedOptions)
+	subscription.EventSubscription = &copied
+}
+
 // DeleteEventSubscription removes an event-exposure subscription.
 func (ue *AmfUe) DeleteEventSubscription(id string) {
 	ue.Mutex.Lock()

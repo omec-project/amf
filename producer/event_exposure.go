@@ -8,6 +8,7 @@ package producer
 import (
 	"net/http"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -78,13 +79,22 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	// trigger/expiry/maxReports, which NewAmfEventReport reads to compute each report's state, so it
 	// must be propagated explicitly; the remaining fields are optional and unused by the AMF.
 	if subscription.HasOptions() {
-		extAmfEventSubscription.SetOptions(subscription.GetOptions())
+		options := subscription.GetOptions()
+		if options.HasMaxReports() {
+			maxReports := options.GetMaxReports()
+			options.SetMaxReports(maxReports)
+		}
+		extAmfEventSubscription.SetOptions(options)
 	}
 	ueEventSubscription.EventSubscription = extAmfEventSubscription
 	ueEventSubscription.Timestamp = time.Now().UTC()
 
 	if subscription.HasOptions() && subscription.GetOptions().Trigger == models.AMFEVENTTRIGGER_CONTINUOUS {
-		ueEventSubscription.RemainReports = subscription.GetOptions().MaxReports
+		opts := subscription.GetOptions()
+		if opts.HasMaxReports() {
+			remaining := opts.GetMaxReports()
+			ueEventSubscription.RemainReports = &remaining
+		}
 	}
 
 	if subscription.EventList == nil {
@@ -136,10 +146,14 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	if subscription.HasOptions() {
 		contextEventSubscription.Expiry = subscription.GetOptions().Expiry
 	}
+	// Snapshot the subscription for the response before publishing it: once it is in the map a
+	// concurrent PATCH on the (predictable) ID could mutate the shared EventList/Options while this
+	// response is being serialized. The copy gives the response its own event list and options.
+	responseSubscription := cloneEventSubscriptionForResponse(subscription)
 	amfSelf.NewEventSubscription(newSubscriptionID, &contextEventSubscription)
 
 	// build response
-	createdEventSubscription := models.NewAmfCreatedEventSubscription(subscription, newSubscriptionID)
+	createdEventSubscription := models.NewAmfCreatedEventSubscription(responseSubscription, newSubscriptionID)
 
 	// for immediate use
 	if subscription.GetAnyUE() {
@@ -205,8 +219,12 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	if len(reportlist) > 0 {
 		createdEventSubscription.ReportList = reportlist
 		// delete subscription
-		if !reportlist[0].State.Active {
-			amfSelf.DeleteEventSubscription(newSubscriptionID)
+		if !reportlist[0].State.GetActive() {
+			// Route removal through the lock-and-identity-checked path instead of freeing the ID
+			// directly: a bare context delete here would bypass the subscription mutex, so it could
+			// free the ID for reuse while a concurrent modify or delete holds the lock, and the
+			// in-flight operation would then corrupt the replacement subscription's entries.
+			_ = DeleteAMFEventSubscriptionProcedure(newSubscriptionID)
 		}
 	}
 
@@ -231,6 +249,19 @@ func DeleteAMFEventSubscriptionProcedure(subscriptionID string) *models.ProblemD
 
 	subscription, ok := amfSelf.FindEventSubscription(subscriptionID)
 	if !ok {
+		problemDetails := utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "Event subscription not found", utils.CauseSubscriptionNotFound)
+		return problemDetails
+	}
+
+	// Serialize with ModifyAMFEventSubscriptionProcedure on the same object: it holds this mutex
+	// across its per-UE writes, so taking it here keeps the delete -- which frees the subscription
+	// ID for reuse -- from interleaving mid-modify and redirecting a PATCH to a reused ID. After
+	// locking, confirm the map still points at this object; a concurrent delete may already have
+	// removed it, and freeing an ID that a create has since reused would corrupt the new entry.
+	subscription.Mutex.Lock()
+	defer subscription.Mutex.Unlock()
+
+	if current, found := amfSelf.FindEventSubscription(subscriptionID); !found || current != subscription {
 		problemDetails := utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "Event subscription not found", utils.CauseSubscriptionNotFound)
 		return problemDetails
 	}
@@ -262,6 +293,12 @@ func HandleModifyAMFEventSubscription(request *httpwrapper.Request) *httpwrapper
 	}
 }
 
+// modifyAfterLookupHook runs, when set, between locating the subscription and acquiring its lock in
+// ModifyAMFEventSubscriptionProcedure. It is a test seam for deterministically interposing a
+// delete/recreate that reuses the subscription ID, exercising the post-lock identity revalidation.
+// It is nil in production and carries no cost beyond a nil check.
+var modifyAfterLookupHook func()
+
 func ModifyAMFEventSubscriptionProcedure(
 	subscriptionID string,
 	modifySubscriptionRequest models.ModifySubscriptionRequest) (
@@ -275,9 +312,85 @@ func ModifyAMFEventSubscriptionProcedure(
 		return nil, problemDetails
 	}
 
+	if modifyAfterLookupHook != nil {
+		modifyAfterLookupHook()
+	}
+
+	// The subscription is a single object shared through a sync.Map that has no lock of its own, so
+	// guard both patch paths and the response snapshot below: concurrent modify requests otherwise
+	// race on its options and event list, and a later modify races the serialization of a response
+	// returned to an earlier one. The expiry path nests ue.Mutex under this lock when it propagates
+	// to each UE; no path takes them in the opposite order, so the ordering is deadlock-free.
+	contextSubscription.Mutex.Lock()
+	defer contextSubscription.Mutex.Unlock()
+
+	// A delete can remove this subscription -- freeing its ID for reuse by a later create -- between
+	// the lookup above and acquiring the lock. Confirm the map still points at the object we locked
+	// before touching any UE state; otherwise a reused ID would misdirect this PATCH to a different
+	// subscription's per-UE entries. Delete takes the same mutex, so once this check passes the
+	// object cannot be removed while the lock is held.
+	if current, found := amfSelf.FindEventSubscription(subscriptionID); !found || current != contextSubscription {
+		problemDetails := utils.ProblemDetailsWithCause("Subscription not found", http.StatusNotFound, "Event subscription not found", utils.CauseSubscriptionNotFound)
+		return nil, problemDetails
+	}
+
 	if modifySubscriptionRequest.ArrayOfAmfUpdateEventOptionItem != nil {
-		expiry0 := (*modifySubscriptionRequest.ArrayOfAmfUpdateEventOptionItem)[0].GetValue()
+		optionItems := *modifySubscriptionRequest.ArrayOfAmfUpdateEventOptionItem
+		// An empty patch list changes nothing; reject it rather than acknowledge a no-op, and so the
+		// indexing below is always safe.
+		if len(optionItems) == 0 {
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Option patch list is empty")
+			return nil, problemDetails
+		}
+		// Validate every item before touching state. The AMF acts only on the expiry; the other two
+		// paths the v2.2.5 model defines (notifFlag, mutingExcInstructions) are schema-valid but the
+		// AMF does not implement muting, so they are rejected as a capability gap (501) rather than as
+		// malformed input (400). Anything outside the model's path set, or a non-replace op on expiry,
+		// is genuinely malformed.
+		const (
+			expiryPath    = "/options/expiry"
+			notifFlagPath = "/options/notifFlag"
+			mutingExcPath = "/options/mutingExcInstructions"
+		)
+		for _, item := range optionItems {
+			switch item.GetPath() {
+			case expiryPath:
+				if item.GetOp() != "replace" {
+					problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Unsupported operation for " + expiryPath + "; only replace is supported")
+					return nil, problemDetails
+				}
+			case notifFlagPath, mutingExcPath:
+				problemDetails := utils.ProblemDetailsNotImplemented("Modifying " + item.GetPath() + " is not supported by the AMF")
+				return nil, problemDetails
+			default:
+				problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Unsupported option patch path " + item.GetPath())
+				return nil, problemDetails
+			}
+		}
+		// A /options/expiry patch targets the subscription's options block, which is optional and may
+		// be absent. Reject the patch before mutating anything rather than acknowledging an update
+		// that cannot take effect: without options the canonical response carries no expiry and
+		// SetEventSubscriptionExpiry no-ops for every UE, so a success response would be a lie.
+		options, ok := contextSubscription.EventSubscription.GetOptionsOk()
+		if !ok || options == nil {
+			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Subscription has no options to modify")
+			return nil, problemDetails
+		}
+		// RFC 6902 applies patch operations in order; every item here replaces the same expiry field,
+		// so the final value is the last item's -- equivalent to applying each in turn.
+		expiry0 := optionItems[len(optionItems)-1].GetValue()
 		contextSubscription.Expiry = &expiry0
+		// Reflect the new expiry where it is actually read: contextSubscription.Expiry alone is on
+		// no read path. The canonical subscription's options feed the response returned below, and
+		// NewAmfEventReport reads expiry from each UE's own options, so both must be updated or a
+		// later report would use the original expiry and return the wrong active state.
+		options.SetExpiry(expiry0)
+		for _, supi := range contextSubscription.UeSupiList {
+			expiry := expiry0
+			if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
+				ue.SetEventSubscriptionExpiry(subscriptionID, expiry)
+			}
+		}
 	} else if modifySubscriptionRequest.ArrayOfAmfUpdateEventSubscriptionItem != nil {
 		subscription := &contextSubscription.EventSubscription
 		if !contextSubscription.IsAnyUe && !contextSubscription.IsGroupUe {
@@ -343,10 +456,33 @@ func ModifyAMFEventSubscriptionProcedure(
 			problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Unsupported subscription patch operation")
 			return nil, problemDetails
 		}
+	} else {
+		// Neither patch list is present: there is nothing to apply, so reject the request rather than
+		// return a success that changed nothing. A ModifySubscriptionRequest must carry an option or
+		// an event-subscription patch list.
+		problemDetails := utils.ProblemDetailsMandatoryIeIncorrect("Modify request carries no option or event-subscription patch")
+		return nil, problemDetails
 	}
 
-	updatedEventSubscription := models.NewAmfUpdatedEventSubscription(contextSubscription.EventSubscription)
+	// Serialization of the response runs in the HTTP layer after this function returns and the lock
+	// is released, so hand it a copy whose mutable fields are independent of the shared object.
+	updatedEventSubscription := models.NewAmfUpdatedEventSubscription(cloneEventSubscriptionForResponse(contextSubscription.EventSubscription))
 	return updatedEventSubscription, nil
+}
+
+// cloneEventSubscriptionForResponse copies a subscription so the modify response owns the fields the
+// procedure rewrites. The event list and options are reachable through pointers the shared object
+// keeps mutating ("replace" patches the list in place and the option path rewrites the expiry), so
+// cloning them lets the response be serialized after the subscription lock is released without
+// racing a later modify.
+func cloneEventSubscriptionForResponse(src models.AmfEventSubscription) models.AmfEventSubscription {
+	cloned := src
+	cloned.EventList = slices.Clone(src.GetEventList())
+	if src.HasOptions() {
+		options := src.GetOptions()
+		cloned.SetOptions(options)
+	}
+	return cloned
 }
 
 func subReports(ue *context.AmfUe, subscriptionId string) {
