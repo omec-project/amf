@@ -101,6 +101,12 @@ type AMFContext struct {
 }
 
 type AMFContextEventSubscription struct {
+	// Mutex guards in-place mutations of this subscription and snapshots taken for responses. The
+	// object is shared through the EventSubscriptions sync.Map, whose own synchronization only
+	// covers the map entry, not the value: concurrent modify requests mutate EventSubscription and
+	// Expiry, and a response returned to one request is serialized by the HTTP layer while another
+	// may be mutating the same object.
+	Mutex             sync.Mutex
 	IsAnyUe           bool
 	IsGroupUe         bool
 	UeSupiList        []string

@@ -1005,6 +1005,11 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	ue.Mutex.Unlock()
 
 	if oldRanUe != nil {
+		// Capture the logger before spawning: this goroutine sleeps, so it reads the value
+		// long after the call returns. logger.ContextLog is a package variable that tests
+		// reassign, and a deferred read of it here would race those writes from a goroutine
+		// that outlives the test. Reading it now keeps the goroutine self-contained.
+		detachLog := logger.ContextLog
 		go func(oldRanUe, newRanUe *RanUe, anType models.AccessType) {
 			time.Sleep(time.Second * 2)
 
@@ -1012,7 +1017,7 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 			defer ue.Mutex.Unlock()
 
 			if oldRanUe.GetAmfUe() == ue && ue.RanUe[anType] == newRanUe {
-				logger.ContextLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
+				detachLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
 				oldRanUe.DetachAmfUe()
 			}
 		}(oldRanUe, ranUe, anType)
@@ -1535,6 +1540,39 @@ func (ue *AmfUe) SetEventSubscription(id string, subscription *AmfUeEventSubscri
 	ue.EventSubscriptionsInfo[id] = subscription
 }
 
+// SetEventSubscriptionExpiry updates the expiry carried in a stored subscription's options.
+//
+// Report generation reads the subscription expiry from each UE's own options (see
+// NewAmfEventReport), so a modified expiry must be written here for later reports to reflect it --
+// the context-level copy the modify procedure also updates is not on that read path.
+//
+// An any-UE/group subscription gives every UE its own AmfUeEventSubscription wrapper but a single
+// shared *ExtAmfEventSubscription (CreateAMFEventSubscriptionProcedure copies the wrapper, not the
+// pointer inside it). Writing options through that shared pointer would change every UE's options
+// while holding only this UE's lock, racing reports and snapshots guarded by other UEs' locks. So
+// the wrapper is deep-copied and this UE repointed at the copy before the write lands -- mirroring
+// snapshot(), which clones the same object and its event list for the same reason.
+func (ue *AmfUe) SetEventSubscriptionExpiry(id string, expiry time.Time) {
+	ue.Mutex.Lock()
+	defer ue.Mutex.Unlock()
+
+	subscription, ok := ue.EventSubscriptionsInfo[id]
+	if !ok || subscription == nil || subscription.EventSubscription == nil {
+		return
+	}
+	options, ok := subscription.EventSubscription.GetOptionsOk()
+	if !ok || options == nil {
+		return
+	}
+
+	copied := *subscription.EventSubscription
+	copied.SetEventList(slices.Clone(subscription.EventSubscription.GetEventList()))
+	updatedOptions := *options
+	updatedOptions.SetExpiry(expiry)
+	copied.SetOptions(updatedOptions)
+	subscription.EventSubscription = &copied
+}
+
 // DeleteEventSubscription removes an event-exposure subscription.
 func (ue *AmfUe) DeleteEventSubscription(id string) {
 	ue.Mutex.Lock()
@@ -1662,11 +1700,8 @@ func (ue *AmfUe) CopyDataFromUeContextModel(ueContext models.UeContext) {
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_LOC_CH)
 			case models.POLICYREQTRIGGER_PRA_CHANGE:
 				ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_PRA_CH)
-			// TODO: GA: Review the below two policies that were removed in Rel-18
-			// case models.POLICYREQTRIGGER_SARI_CHANGE:
-			// 	ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_SERV_AREA_CH)
-			// case models.POLICYREQTRIGGER_RFSP_INDEX_CHANGE:
-			// 	ue.AmPolicyAssociation.Triggers = append(ue.AmPolicyAssociation.Triggers, models.REQUESTTRIGGER_RFSP_CH)
+			// PolicyReqTrigger in the openapi models in use has no SARI_CHANGE or
+			// RFSP_INDEX_CHANGE value, so there is nothing to map to SERV_AREA_CH / RFSP_CH.
 			default:
 				logger.ContextLog.Errorf("Policy trigger is %v", trigger)
 				panic("Policy trigger error")

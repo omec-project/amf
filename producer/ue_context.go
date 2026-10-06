@@ -488,11 +488,8 @@ func buildAmPolicyReqTriggers(triggers []models.RequestTrigger) (amPolicyReqTrig
 			amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_LOCATION_CHANGE)
 		case models.REQUESTTRIGGER_PRA_CH:
 			amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_PRA_CHANGE)
-			// TODO: GA: POLICYREQTRIGGER_SARI_CHANGE and POLICYREQTRIGGER_RFSP_INDEX_CHANGE not implemented in context package
-			// case models.REQUESTTRIGGER_SERV_AREA_CH:
-			// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_SARI_CHANGE)
-			// case models.REQUESTTRIGGER_RFSP_CH:
-			// 	amPolicyReqTriggers = append(amPolicyReqTriggers, models.POLICYREQTRIGGER_RFSP_INDEX_CHANGE)
+			// SERV_AREA_CH and RFSP_CH have no PolicyReqTrigger counterpart in the openapi models
+			// in use (no SARI_CHANGE / RFSP_INDEX_CHANGE value).
 		}
 	}
 	return
