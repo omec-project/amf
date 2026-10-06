@@ -986,14 +986,22 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	// A PCF that refused or could not be reached says nothing about whether this
 	// subscriber is entitled to 5G service, so it must not be answered with cause #7.
 	problemDetails, err := amPolicyControlCreateForRegistration(ctx, ue, anType)
-	if problemDetails != nil {
-		ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
-		sendRegistrationRejectForRegistration(ranUe, nasMessage.Cause5GMMCongestion, "")
+	if problemDetails != nil || err != nil {
+		if problemDetails != nil {
+			ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
+			err = fmt.Errorf("AMPolicy Control Create failed at PCF")
+		} else {
+			ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
+		}
 
-		return fmt.Errorf("AMPolicy Control Create failed at PCF")
-	} else if err != nil {
-		ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
+		// Torn down as for an empty allowed NSSAI. Congestion has the UE retry, and a
+		// context left in ContextSetup would take that retry for a state mismatch and drop
+		// it.
 		sendRegistrationRejectForRegistration(ranUe, nasMessage.Cause5GMMCongestion, "")
+		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
+			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		ue.PublishUeCtxtInfoOnRemoval(anType)
+		ue.Remove()
 
 		return err
 	}
@@ -1547,16 +1555,14 @@ func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) error {
 	return sliceSubscriptionUnavailable(problemDetails, err)
 }
 
-// sliceSubscriptionUnavailable tells a slice-selection fetch the UDM did not answer
-// from one it answered. A 4xx is an answer -- for this subscriber there is no such
-// data -- and is treated like any other empty NSSAI, except 408 and 429, which ask the
-// caller to try again. Those, a server error, a problem with no status, or no response
-// at all mean the UDM did not answer.
+// sliceSubscriptionUnavailable tells a slice-selection fetch that settled the subscription
+// from one that did not. Only a 404 settles it: the UDM holds no slice data for this
+// subscriber, which is treated like any other empty NSSAI. Any other problem -- a 400, 401
+// or 403 about the AMF's own request, a 408 or 429 asking it to try again, a server error,
+// or a problem with no status -- and no response at all leave the subscription unknown.
 func sliceSubscriptionUnavailable(problemDetails *models.ProblemDetails, err error) error {
 	if problemDetails != nil {
-		status := problemDetails.GetStatus()
-		retryable := status == http.StatusRequestTimeout || status == http.StatusTooManyRequests
-		if status >= 400 && status < 500 && !retryable {
+		if problemDetails.GetStatus() == http.StatusNotFound {
 			return nil
 		}
 

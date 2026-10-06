@@ -13,6 +13,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
+	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
@@ -45,6 +46,7 @@ func rejectTestUe() *context.AmfUe {
 
 	ran := context.NewAmfRanDefault()
 	ran.RanId = models.NewGlobalRanNodeId(models.PlmnId{Mcc: "001", Mnc: "01"})
+	ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
 	ranUe := &context.RanUe{
 		AmfUe: ue,
 		Ran:   ran,
@@ -59,6 +61,39 @@ func rejectTestUe() *context.AmfUe {
 	ue.RegistrationRequest = &nasMessage.RegistrationRequest{Capability5GMM: capability}
 
 	return ue
+}
+
+// pooledRejectTestUe is rejectTestUe in the UE pool, where a registration finds it.
+func pooledRejectTestUe(t *testing.T) *context.AmfUe {
+	t.Helper()
+
+	ue := rejectTestUe()
+	pool := &context.AMF_Self().UePool
+	pool.Store(ue.Supi, ue)
+	t.Cleanup(func() { pool.Delete(ue.Supi) })
+
+	return ue
+}
+
+// assertTornDown checks that a reject left nothing for the UE's retry to meet: an N2
+// release was sent for its RanUe, and the UE has left the pool and has no RanUe. A UE
+// left in ContextSetup takes its next Registration Request for a state mismatch and
+// drops it.
+func assertTornDown(t *testing.T, ue *context.AmfUe) {
+	t.Helper()
+
+	releaseCause, ok := ue.GetReleaseCause(models.ACCESSTYPE__3_GPP_ACCESS)
+	if !ok || releaseCause == nil || releaseCause.NgapCause == nil ||
+		releaseCause.NgapCause.Group != int32(ngapType.CausePresentNas) ||
+		releaseCause.NgapCause.Value != int32(ngapType.CauseNasPresentNormalRelease) {
+		t.Errorf("no N2 release was sent for the rejected UE (release cause %+v)", releaseCause)
+	}
+	if _, ok := context.AMF_Self().UePool.Load(ue.Supi); ok {
+		t.Error("the rejected UE is still in the pool")
+	}
+	if ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS) != nil {
+		t.Error("the rejected UE still has its RanUe")
+	}
 }
 
 // captureRejectCause replaces the registration reject sender for the test and returns a
@@ -114,8 +149,9 @@ func TestAnEmptyAllowedNssaiIsCause7OnlyWhenTheUdmAnswered(t *testing.T) {
 				return nil
 			}
 			cause := captureRejectCause(t)
+			ue := pooledRejectTestUe(t)
 
-			if err := HandleInitialRegistration(ctxt.Background(), rejectTestUe(),
+			if err := HandleInitialRegistration(ctxt.Background(), ue,
 				models.ACCESSTYPE__3_GPP_ACCESS); err == nil {
 				t.Fatal("HandleInitialRegistration succeeded with an empty allowed NSSAI")
 			}
@@ -126,13 +162,15 @@ func TestAnEmptyAllowedNssaiIsCause7OnlyWhenTheUdmAnswered(t *testing.T) {
 			if **cause != tt.wantCause {
 				t.Errorf("reject cause = %d, want %d", **cause, tt.wantCause)
 			}
+			assertTornDown(t, ue)
 		})
 	}
 }
 
 // The PCF decides policy, not entitlement: the UDM has already accepted the subscriber
 // by the time the AM policy association is created, so a PCF that refuses or cannot be
-// reached is a condition to retry after, not a reason to invalidate the USIM.
+// reached is a condition to retry after, not a reason to invalidate the USIM. The UE does
+// retry, so the context is torn down as for an empty allowed NSSAI.
 func TestAPolicyAssociationFailureIsAnsweredWithCongestion(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -151,6 +189,8 @@ func TestAPolicyAssociationFailureIsAnsweredWithCongestion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// The teardown publishes the UE's removal, which reads the Kafka setting.
+			disableKafkaForRelayTest(t)
 			stubRegistrationUpToPolicy(t)
 			originalPolicy := amPolicyControlCreateForRegistration
 			t.Cleanup(func() { amPolicyControlCreateForRegistration = originalPolicy })
@@ -160,8 +200,9 @@ func TestAPolicyAssociationFailureIsAnsweredWithCongestion(t *testing.T) {
 				return tt.problemDetails, tt.err
 			}
 			cause := captureRejectCause(t)
+			ue := pooledRejectTestUe(t)
 
-			if err := HandleInitialRegistration(ctxt.Background(), rejectTestUe(),
+			if err := HandleInitialRegistration(ctxt.Background(), ue,
 				models.ACCESSTYPE__3_GPP_ACCESS); err == nil {
 				t.Fatal("HandleInitialRegistration succeeded without an AM policy association")
 			}
@@ -172,6 +213,7 @@ func TestAPolicyAssociationFailureIsAnsweredWithCongestion(t *testing.T) {
 			if **cause != nasMessage.Cause5GMMCongestion {
 				t.Errorf("reject cause = %d, want congestion (%d)", **cause, nasMessage.Cause5GMMCongestion)
 			}
+			assertTornDown(t, ue)
 		})
 	}
 }
@@ -226,9 +268,9 @@ func stubRegistrationUpToPolicy(t *testing.T) {
 	}
 }
 
-// A 4xx is the UDM answering, and must not be mistaken for the UDM being unreachable:
-// that would answer a subscriber with no slice data with congestion, and the UE would
-// retry an answer that is not going to change.
+// A 404 is the UDM answering that the subscriber has no slice data, and must not be
+// mistaken for the UDM being unreachable: the UE would retry an answer that is not going to
+// change. No other problem says anything about the subscriber, so none may end in cause 7.
 func TestSliceSubscriptionUnavailableTellsNoAnswerFromAnAnswer(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -240,6 +282,21 @@ func TestSliceSubscriptionUnavailableTellsNoAnswerFromAnAnswer(t *testing.T) {
 		{
 			name:           "404: the UDM has no slice data for the subscriber",
 			problemDetails: &models.ProblemDetails{Status: openapi.PtrInt32(404)},
+		},
+		{
+			name:            "400: the AMF's request was wrong",
+			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(400)},
+			wantUnavailable: true,
+		},
+		{
+			name:            "401: the AMF was not authorised",
+			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(401)},
+			wantUnavailable: true,
+		},
+		{
+			name:            "403: the AMF was not allowed",
+			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(403)},
+			wantUnavailable: true,
 		},
 		{
 			name:            "429: the UDM asked the AMF to slow down",
