@@ -68,7 +68,7 @@ type ActiveUeContext struct {
 
 type ActiveUeContexts []ActiveUeContext
 
-func HandleOAMPurgeUEContextRequest(ctx ctxt.Context, supi, reqUri string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func HandleOAMPurgeUEContextRequest(ctx ctxt.Context, supi, reqUri string, msg any) (any, string, any, any) {
 	amfSelf := context.AMF_Self()
 	if ue, ok := amfSelf.AmfUeFindBySupi(supi); ok {
 		ueFsmState := ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current()
@@ -135,7 +135,7 @@ func HandleOAMActiveUEContextsFromDB(request *httpwrapper.Request) *httpwrapper.
 		ueContext.AmfInstanceIp = ue.AmfInstanceIp
 
 		accessType := models.ACCESSTYPE__3_GPP_ACCESS
-		ue.SmContextList.Range(func(key, value interface{}) bool {
+		ue.SmContextList.Range(func(key, value any) bool {
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == accessType {
 				snssai := smContext.Snssai()
@@ -180,7 +180,7 @@ func OAMRegisteredUEContextProcedure(supi string) (UEContexts, *models.ProblemDe
 			return nil, problemDetails
 		}
 	} else {
-		amfSelf.UePool.Range(func(key, value interface{}) bool {
+		amfSelf.UePool.Range(func(key, value any) bool {
 			ue := value.(*context.AmfUe)
 			ueContext := buildUEContext(ue, models.ACCESSTYPE__3_GPP_ACCESS)
 			if ueContext != nil {
@@ -212,7 +212,7 @@ func buildUEContext(ue *context.AmfUe, accessType models.AccessType) *UEContext 
 			Tac:        tai.Tac,
 		}
 
-		ue.SmContextList.Range(func(key, value interface{}) bool {
+		ue.SmContextList.Range(func(key, value any) bool {
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == accessType {
 				snssai := smContext.Snssai()

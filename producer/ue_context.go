@@ -39,7 +39,7 @@ func createTempBinaryFile(data []byte) (*os.File, error) {
 	return tmpFile, nil
 }
 
-func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func UeContextHandler(ctx ctxt.Context, s1, s2 string, msg any) (any, string, any, any) {
 	switch msg := msg.(type) {
 	case models.CreateUEContextRequest:
 		r1, r2 := createUEContextProcedure(s1, msg)
@@ -339,7 +339,7 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 		ueContextTransferRspData.SetUeContext(buildUEContextModel(ue))
 
 		sessionContextList := &ueContextTransferRspData.UeContext.SessionContextList
-		ue.SmContextList.Range(func(key, value interface{}) bool {
+		ue.SmContextList.Range(func(key, value any) bool {
 			smContext := value.(*context.SmContext)
 			snssai := smContext.Snssai()
 			pduSessionContext := models.PduSessionContext{
@@ -373,7 +373,7 @@ func ueContextTransferProcedure(ueContextID string, ueContextTransferRequest mod
 		ueContextTransferRspData.SetUeContext(buildUEContextModel(ue))
 
 		sessionContextList := &ueContextTransferRspData.UeContext.SessionContextList
-		ue.SmContextList.Range(func(key, value interface{}) bool {
+		ue.SmContextList.Range(func(key, value any) bool {
 			smContext := value.(*context.SmContext)
 			snssai := smContext.Snssai()
 			pduSessionContext := models.PduSessionContext{

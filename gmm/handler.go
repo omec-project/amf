@@ -1928,7 +1928,7 @@ func NetworkInitiatedDeregistrationProcedure(ctx ctxt.Context, ue *context.AmfUe
 	// TODO: Need to implement Nudm_SDM_Unsubscribe
 
 	var problemDetails *models.ProblemDetails
-	ue.SmContextList.Range(func(key, value interface{}) bool {
+	ue.SmContextList.Range(func(key, value any) bool {
 		smContext := value.(*context.SmContext)
 
 		if smContext.AccessType() == accessType {
@@ -2098,7 +2098,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	if serviceRequest.UplinkDataStatus != nil {
 		uplinkDataPsi := nasConvert.PSIToBooleanArray(serviceRequest.UplinkDataStatus.Buffer)
 		reactivationResult = new([16]bool)
-		ue.SmContextList.Range(func(key, value interface{}) bool {
+		ue.SmContextList.Range(func(key, value any) bool {
 			pduSessionID := key.(int32)
 			smContext := value.(*context.SmContext)
 
@@ -2147,7 +2147,7 @@ func HandleServiceRequest(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 	if serviceRequest.PDUSessionStatus != nil {
 		acceptPduSessionPsi = new([16]bool)
 		psiArray := nasConvert.PSIToBooleanArray(serviceRequest.PDUSessionStatus.Buffer)
-		ue.SmContextList.Range(func(key, value interface{}) bool {
+		ue.SmContextList.Range(func(key, value any) bool {
 			pduSessionID := key.(int32)
 			smContext := value.(*context.SmContext)
 			if smContext.AccessType() == anType {
@@ -2730,7 +2730,7 @@ func HandleDeregistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType mod
 	ue.GmmLog.Info("Handle Deregistration Request(UE Originating)")
 
 	targetDeregistrationAccessType := deregistrationRequest.GetAccessType()
-	ue.SmContextList.Range(func(key, value interface{}) bool {
+	ue.SmContextList.Range(func(key, value any) bool {
 		smContext := value.(*context.SmContext)
 
 		if smContext.AccessType() == anType ||

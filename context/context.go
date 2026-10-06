@@ -345,7 +345,7 @@ func (context *AMFContext) AmfUeFindBySupi(supi string) (ue *AmfUe, ok bool) {
 }
 
 func (context *AMFContext) AmfUeFindByPei(pei string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.GetPei() == pei); ok {
 			ue = candidate
@@ -357,7 +357,7 @@ func (context *AMFContext) AmfUeFindByPei(pei string) (ue *AmfUe, ok bool) {
 }
 
 func (context *AMFContext) AmfUeFindBySuci(suci string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.Suci == suci); ok {
 			ue = candidate
@@ -369,7 +369,7 @@ func (context *AMFContext) AmfUeFindBySuci(suci string) (ue *AmfUe, ok bool) {
 }
 
 func (context *AMFContext) AmfUeDeleteBySuci(suci string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.Suci == suci); ok {
 			context.UePool.Delete(candidate.GetSupi())
@@ -467,7 +467,7 @@ func (context *AMFContext) AmfRanFindByGnbId(gnbId string) (*AmfRan, bool) {
 func (context *AMFContext) AmfRanFindByRanID(ranNodeID models.GlobalRanNodeId) (*AmfRan, bool) {
 	var ran *AmfRan
 	var ok bool
-	context.AmfRanPool.Range(func(key, value interface{}) bool {
+	context.AmfRanPool.Range(func(key, value any) bool {
 		amfRan := value.(*AmfRan)
 		switch amfRan.RanPresent {
 		case RanPresentGNbId:
@@ -513,7 +513,7 @@ func (context *AMFContext) InPlmnSupportList(snssai models.Snssai) bool {
 	return false
 }
 
-func mapToByte(data map[string]interface{}) (ret []byte) {
+func mapToByte(data map[string]any) (ret []byte) {
 	ret, err := gojson.Marshal(data)
 	if err != nil {
 		logger.ContextLog.Error(err)
@@ -522,7 +522,7 @@ func mapToByte(data map[string]interface{}) (ret []byte) {
 }
 
 func (context *AMFContext) AmfUeFindByGutiLocal(guti string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.GetGuti() == guti); ok {
 			ue = candidate
@@ -535,7 +535,7 @@ func (context *AMFContext) AmfUeFindByGutiLocal(guti string) (ue *AmfUe, ok bool
 }
 
 func (context *AMFContext) AmfUeFindBySupiLocal(supi string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.GetSupi() == supi); ok {
 			ue = candidate
@@ -567,7 +567,7 @@ func (context *AMFContext) AmfUeFindByGuti(guti string) (ue *AmfUe, ok bool) {
 }
 
 func (context *AMFContext) AmfUeFindByPolicyAssociationID(polAssoId string) (ue *AmfUe, ok bool) {
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		candidate := value.(*AmfUe)
 		if ok = (candidate.PolicyAssociationId == polAssoId); ok {
 			ue = candidate
@@ -669,22 +669,22 @@ func (context *AMFContext) InitNFService(serivceName []string, version string) {
 
 // Reset AMF Context
 func (context *AMFContext) Reset() {
-	context.AmfRanPool.Range(func(key, value interface{}) bool {
+	context.AmfRanPool.Range(func(key, value any) bool {
 		context.UePool.Delete(key)
 		return true
 	})
 	for key := range context.LadnPool {
 		delete(context.LadnPool, key)
 	}
-	context.RanUePool.Range(func(key, value interface{}) bool {
+	context.RanUePool.Range(func(key, value any) bool {
 		context.RanUePool.Delete(key)
 		return true
 	})
-	context.UePool.Range(func(key, value interface{}) bool {
+	context.UePool.Range(func(key, value any) bool {
 		context.UePool.Delete(key)
 		return true
 	})
-	context.EventSubscriptions.Range(func(key, value interface{}) bool {
+	context.EventSubscriptions.Range(func(key, value any) bool {
 		context.DeleteEventSubscription(key.(string))
 		return true
 	})

@@ -330,7 +330,7 @@ func (ue *AmfUe) MarshalJSON() ([]byte, error) {
 	}
 	n1n2MsgPtr := serialisablePendingMessage(ue.N1N2Message)
 
-	ue.SmContextList.Range(func(key, val interface{}) bool {
+	ue.SmContextList.Range(func(key, val any) bool {
 		smContext := val.(*SmContext)
 		pduSessId := smContext.PduSessionID()
 		newSmCtx := NewSmContext(pduSessId)
@@ -453,7 +453,7 @@ const (
 	NasMessage
 )
 
-type InterfaceMsg interface{}
+type InterfaceMsg any
 
 /*type InterfaceMsg struct {
 	AnType        models.AccessType
@@ -485,14 +485,14 @@ type NgapMsg struct {
 }
 
 type SbiResponseMsg struct {
-	RespData       interface{}
+	RespData       any
 	LocationHeader string
-	ProblemDetails interface{}
-	TransferErr    interface{}
+	ProblemDetails any
+	TransferErr    any
 }
 
 type SbiMsg struct {
-	Msg         interface{}
+	Msg         any
 	UeContextId string
 	ReqUri      string
 	// Handler runs the message. It travels with the message, rather than being set on
@@ -503,7 +503,7 @@ type SbiMsg struct {
 }
 
 type ConfigMsg struct {
-	Msg  interface{}
+	Msg  any
 	Supi string
 	Sst  string
 	Sd   string
@@ -1324,7 +1324,7 @@ func (ue *AmfUe) ClearRegistrationData() {
 	ue.AllowedNssai = make(map[models.AccessType][]models.AllowedSnssai)
 	ue.SubscriptionDataValid = false
 	// Clearing SMContextList locally
-	ue.SmContextList.Range(func(key, _ interface{}) bool {
+	ue.SmContextList.Range(func(key, _ any) bool {
 		ue.SmContextList.Delete(key)
 		return true
 	})
@@ -1859,7 +1859,7 @@ func (ue *AmfUe) eventChannel() *EventChannel {
 func (ue *AmfUe) NewEventChannel() (tx *EventChannel) {
 	ue.TxLog.Infof("New EventChannel created")
 	tx = &EventChannel{
-		Message: make(chan interface{}, 10),
+		Message: make(chan any, 10),
 		Event:   make(chan string, 10),
 		AmfUe:   ue,
 		done:    make(chan struct{}),

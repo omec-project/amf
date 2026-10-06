@@ -76,7 +76,7 @@ func SendN1N2TransferFailureNotification(ue *amf_context.AmfUe, cause models.N1N
 func SendN1MessageNotify(ue *amf_context.AmfUe, n1class models.N1MessageClass, n1Msg []byte,
 	registerContext *models.RegistrationContextContainer,
 ) {
-	ue.N1N2MessageSubscription.Range(func(key, value interface{}) bool {
+	ue.N1N2MessageSubscription.Range(func(key, value any) bool {
 		subscriptionID := key.(int64)
 		subscription := value.(models.UeN1N2InfoSubscriptionCreateData)
 

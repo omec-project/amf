@@ -26,7 +26,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func ProducerHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func ProducerHandler(ctx ctxt.Context, s1, s2 string, msg any) (any, string, any, any) {
 	if msg == nil {
 		r1, r2 := N1N2MessageTransferStatusProcedure(s1, s2)
 		// &r1, not r1: N1N2MessageTransferCause is a string type, so boxing the value

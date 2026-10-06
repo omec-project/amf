@@ -18,7 +18,7 @@ import (
 func SendAmfStatusChangeNotify(amfStatus models.StatusChange, guamiList []models.Guami) {
 	amfSelf := amf_context.AMF_Self()
 
-	amfSelf.AMFStatusSubscriptions.Range(func(key, value interface{}) bool {
+	amfSelf.AMFStatusSubscriptions.Range(func(key, value any) bool {
 		subscriptionData := value.(models.SubscriptionDataAmf)
 		amfStatusNotification := models.AmfStatusChangeNotification{}
 		amfStatusInfo := models.AmfStatusInfo{}

@@ -343,7 +343,7 @@ func Stop() {
 	}
 
 	// The association is the key of this map; its value is a bool.
-	connections.Range(func(key, _ interface{}) bool {
+	connections.Range(func(key, _ any) bool {
 		conn, ok := key.(net.Conn)
 		if !ok {
 			logger.NgapLog.Errorf("connection map holds a %T key, cannot close it", key)
