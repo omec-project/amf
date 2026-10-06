@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/omec-project/amf/logger"
@@ -74,6 +75,9 @@ type RanUe struct {
 	AmfUe   *AmfUe `json:"-"`
 	amfUeMu sync.RWMutex
 	Ran     *AmfRan
+	// restoredUnlisted is set while a restore has published this RanUe in RanUePool and no
+	// RAN has listed it since. AttachRanUe reads it when it replaces the RanUe.
+	restoredUnlisted atomic.Bool
 
 	/* Routing ID */
 	RoutingID string
@@ -203,7 +207,8 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	delete(oldRan.RanUeList, ranUe.RanUeNgapId)
 	oldRan.ranStateMu.Unlock()
 
-	// add ranUe to newRan
+	// add ranUe to newRan, clearing the restore's mark first: see RanUeFindByRanUeNgapID
+	ranUe.restoredUnlisted.Store(false)
 	newRan.ranStateMu.Lock()
 	newRan.RanUeList[ranUeNgapId] = ranUe
 	newRan.ranStateMu.Unlock()
