@@ -112,7 +112,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	if subscription.GetAnyUE() {
 		contextEventSubscription.IsAnyUe = true
 		ueEventSubscription.AnyUe = true
-		amfSelf.UePool.Range(func(key, value interface{}) bool {
+		amfSelf.UePool.Range(func(key, value any) bool {
 			ue := value.(*context.AmfUe)
 			ueSubscription := ueEventSubscription
 			ue.SetEventSubscription(newSubscriptionID, &ueSubscription)
@@ -122,7 +122,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 	} else if subscription.GetGroupId() != "" {
 		contextEventSubscription.IsGroupUe = true
 		ueEventSubscription.AnyUe = true
-		amfSelf.UePool.Range(func(key, value interface{}) bool {
+		amfSelf.UePool.Range(func(key, value any) bool {
 			ue := value.(*context.AmfUe)
 			if ue.GroupID == subscription.GetGroupId() {
 				ueSubscription := ueEventSubscription
@@ -157,7 +157,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 
 	// for immediate use
 	if subscription.GetAnyUE() {
-		amfSelf.UePool.Range(func(key, value interface{}) bool {
+		amfSelf.UePool.Range(func(key, value any) bool {
 			ue := value.(*context.AmfUe)
 			if isImmediate {
 				subReports(ue, newSubscriptionID)
@@ -177,7 +177,7 @@ func CreateAMFEventSubscriptionProcedure(createEventSubscription models.AmfCreat
 			return true
 		})
 	} else if subscription.GetGroupId() != "" {
-		amfSelf.UePool.Range(func(key, value interface{}) bool {
+		amfSelf.UePool.Range(func(key, value any) bool {
 			ue := value.(*context.AmfUe)
 			if isImmediate {
 				subReports(ue, newSubscriptionID)

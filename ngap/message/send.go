@@ -631,7 +631,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 	// 	ngaplog.Errorf("build Paging failed: %s", err.Error())
 	// }
 	taiList := ue.GetRegistrationArea(models.ACCESSTYPE__3_GPP_ACCESS)
-	context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
+	context.AMF_Self().AmfRanPool.Range(func(key, value any) bool {
 		ran := value.(*context.AmfRan)
 		for _, item := range ran.SupportedTAListSnapshot() {
 			if context.InTaiList(item.Tai, taiList) {
@@ -648,7 +648,7 @@ func SendPaging(ue *context.AmfUe, ngapBuf []byte) {
 		cfg := context.AMF_Self().T3513Cfg
 		ue.T3513 = context.NewTimer(cfg.ExpireTime, cfg.MaxRetryTimes, func(expireTimes int32) {
 			ue.GmmLog.Warnf("T3513 expires, retransmit Paging (retry: %d)", expireTimes)
-			context.AMF_Self().AmfRanPool.Range(func(key, value interface{}) bool {
+			context.AMF_Self().AmfRanPool.Range(func(key, value any) bool {
 				ran := value.(*context.AmfRan)
 				for _, item := range ran.SupportedTAListSnapshot() {
 					if context.InTaiList(item.Tai, taiList) {

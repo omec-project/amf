@@ -517,7 +517,7 @@ func HandleSCTPNotificationLb(gnbId string) {
 	}
 
 	// Removing Stale Connections in AmfRanPool
-	amfSelf.AmfRanPool.Range(func(key, value interface{}) bool {
+	amfSelf.AmfRanPool.Range(func(key, value any) bool {
 		amfRan := value.(*context.AmfRan)
 
 		if amfRan.GnbId == gnbId {

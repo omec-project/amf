@@ -30,7 +30,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func SmContextHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func SmContextHandler(ctx ctxt.Context, s1, s2 string, msg any) (any, string, any, any) {
 	switch msg := msg.(type) {
 	case models.SmContextStatusNotification:
 		var pduSessionID int

@@ -6,7 +6,7 @@ package producer
 // anyOrNil boxes a pointer for the interface-typed fields of context.SbiResponseMsg, and
 // returns an untyped nil when the pointer is nil.
 //
-// The SBI handlers hand their results back as interface{}, and a nil *T stored in an
+// The SBI handlers hand their results back as any, and a nil *T stored in an
 // interface is not nil -- the interface carries the type. Every caller tests the field it
 // was given, so `if msg.ProblemDetails != nil` is true on a successful procedure, and the
 // three ways that goes wrong are all reachable today:

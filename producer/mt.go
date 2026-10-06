@@ -17,7 +17,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func MtHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func MtHandler(ctx ctxt.Context, s1, s2 string, msg any) (any, string, any, any) {
 	switch msg := msg.(type) {
 	case string:
 		r1, r2 := ProvideDomainSelectionInfoProcedure(s1, s2, msg)

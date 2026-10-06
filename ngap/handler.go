@@ -1242,7 +1242,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 				}
 			} else {
 				ranUe.Log.Infoln("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
-				amfUe.SmContextList.Range(func(key, value interface{}) bool {
+				amfUe.SmContextList.Range(func(key, value any) bool {
 					smContext := value.(*context.SmContext)
 					response, _, _, err := consumer.SendUpdateSmContextDeactivateUpCnxState(ctx, amfUe, smContext, cause)
 					if err != nil {
@@ -2890,7 +2890,7 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 				}
 			} else {
 				ranUe.Log.Infoln("Pdu Session IDs not received from gNB, Releasing the UE Context with SMF using local context")
-				amfUe.SmContextList.Range(func(key, value interface{}) bool {
+				amfUe.SmContextList.Range(func(key, value any) bool {
 					smContext := value.(*context.SmContext)
 					if !smContext.IsPduSessionActive() {
 						ranUe.Log.Infoln("Pdu Session is inactive so not sending deactivate to SMF")
@@ -2907,7 +2907,7 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 			}
 		} else {
 			ranUe.Log.Infoln("Ue Context in Non GMM-Registered")
-			amfUe.SmContextList.Range(func(key, value interface{}) bool {
+			amfUe.SmContextList.Range(func(key, value any) bool {
 				smContext := value.(*context.SmContext)
 				detail, err := consumer.SendReleaseSmContextRequest(amfUe, smContext, &causeAll, "", nil)
 				if err != nil {
@@ -3767,7 +3767,7 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 	} else {
 		amfUe := targetUe.AmfUe
 		if amfUe != nil {
-			amfUe.SmContextList.Range(func(key, value interface{}) bool {
+			amfUe.SmContextList.Range(func(key, value any) bool {
 				pduSessionID := key.(int32)
 				smContext := value.(*context.SmContext)
 				causeAll := context.CauseAll{
@@ -4095,7 +4095,7 @@ func HandleHandoverCancel(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		ran.Log.Debugf("target: RAN_UE_NGAP_ID[%d] AMF_UE_NGAP_ID[%d]", targetUe.RanUeNgapId, targetUe.AmfUeNgapId)
 		amfUe := sourceUe.AmfUe
 		if amfUe != nil {
-			amfUe.SmContextList.Range(func(key, value interface{}) bool {
+			amfUe.SmContextList.Range(func(key, value any) bool {
 				pduSessionID := key.(int32)
 				smContext := value.(*context.SmContext)
 				causeAll := context.CauseAll{

@@ -17,7 +17,7 @@ import (
 	"github.com/omec-project/util/httpwrapper"
 )
 
-func LocationInfoHandler(ctx ctxt.Context, s1, s2 string, msg interface{}) (interface{}, string, interface{}, interface{}) {
+func LocationInfoHandler(ctx ctxt.Context, s1, s2 string, msg any) (any, string, any, any) {
 	switch msg := msg.(type) {
 	case models.RequestLocInfo:
 		r1, r2 := ProvideLocationInfoProcedure(msg, s1)

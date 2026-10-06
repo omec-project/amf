@@ -99,7 +99,7 @@ func RegisterNgapServiceServer(s grpc.ServiceRegistrar, srv NgapServiceServer) {
 	s.RegisterService(&NgapService_ServiceDesc, srv)
 }
 
-func _NgapService_HandleMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+func _NgapService_HandleMessage_Handler(srv any, stream grpc.ServerStream) error {
 	return srv.(NgapServiceServer).HandleMessage(&ngapServiceHandleMessageServer{stream})
 }
 
