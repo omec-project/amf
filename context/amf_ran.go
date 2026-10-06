@@ -192,6 +192,9 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 		ranUe = DbFetchRanUeByRanUeNgapID(ranUeNgapID, ran)
 		if ranUe != nil {
 			ranUe.Ran = ran
+			// Cleared before the RanUe is listed, so that a replacement racing this sees a
+			// listed RanUe as unmarked; the other order could remove one from RanUePool.
+			ranUe.restoredUnlisted.Store(false)
 			ran.RanUeList[ranUeNgapID] = ranUe
 			return ranUe
 		}

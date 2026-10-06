@@ -758,6 +758,7 @@ func dbFetchOnce(collName string, filter bson.M) (ue *AmfUe, readAgain bool) {
 			// A context stored without a RAN association restores a RanUe carrying
 			// AmfUeNgapId 0. Nothing may find it by that id, and every such context would
 			// otherwise claim the same key.
+			ranUe.restoredUnlisted.Store(true)
 			AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
 		}
 		ue.Mutex.Unlock()

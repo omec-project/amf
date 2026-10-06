@@ -255,6 +255,9 @@ func (allocatingDrsm) ReleaseInt32ID(int32) error { return nil }
 // been restored kept its stored context past its deregistration.
 func TestARestoredUesDeregistrationDeletesItsStoredContext(t *testing.T) {
 	self := context.AMF_Self()
+	sctpLb := self.EnableSctpLb
+	self.EnableSctpLb = false // the AMF terminates SCTP itself
+	t.Cleanup(func() { self.EnableSctpLb = sctpLb })
 
 	const supi = "imsi-208930000000201"
 	ran := self.NewAmfRanId("208:93:restoredereg")
@@ -291,6 +294,7 @@ func TestARestoredUesDeregistrationDeletesItsStoredContext(t *testing.T) {
 	if !ok {
 		t.Fatal("the stored context was not restored")
 	}
+	restoredRanUe := restored.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
 
 	// The UE comes back on a new RanUe, as an Initial UE Message attaches it, and deregisters.
 	second, err := ran.NewRanUe(202)
@@ -300,6 +304,12 @@ func TestARestoredUesDeregistrationDeletesItsStoredContext(t *testing.T) {
 	second.Log = logger.NgapLog
 	second.ReleaseAction = context.UeContextReleaseDueToUeInitiatedDeregistration
 	restored.AttachRanUe(second)
+
+	// The AMF terminates SCTP itself here, so no release will come for the restored RanUe, which
+	// no RAN lists: replacing it takes it out of RanUePool.
+	if self.RanUeFindByAmfUeNgapIDLocal(restoredRanUe.AmfUeNgapId) == restoredRanUe {
+		t.Errorf("the replaced restored RanUe is still in RanUePool under %d", restoredRanUe.AmfUeNgapId)
+	}
 	t.Cleanup(func() {
 		if leftover := self.RanUeFindByAmfUeNgapIDLocal(second.AmfUeNgapId); leftover != nil {
 			if err := leftover.Remove(); err != nil {
