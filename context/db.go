@@ -657,10 +657,11 @@ func clearBeingDeleted(supi string) {
 	restoreMu.Unlock()
 }
 
-// DbFetch restores a stored UE context and publishes it to the pools. A lookup by SUPI,
-// GUTI or AMF-UE-NGAP-ID all arrive here, and nothing after it publishes the UE again:
-// the check against a release and the publication are one step, and a second publication
-// by the caller would follow the check without it.
+// DbFetch restores a stored UE context and publishes it to the pools, or returns the UE the
+// AMF already holds for that SUPI rather than replace it. A lookup by SUPI, GUTI or
+// AMF-UE-NGAP-ID all arrive here, and nothing after it publishes the UE again: the check
+// against a release and the publication are one step, and a second publication by the
+// caller would follow the check without it.
 func DbFetch(collName string, filter bson.M) *AmfUe {
 	if !datastoreReady() {
 		return nil
@@ -738,14 +739,28 @@ func dbFetchOnce(collName string, filter bson.M) (ue *AmfUe, readAgain bool) {
 	restoreMu.Lock()
 	deleting := beingDeleted[ue.Supi] > 0
 	releasedDuringRead := unmarked[shard].Load() != unmarkedBefore[shard]
+	var held *AmfUe
 	if !deleting && !releasedDuringRead {
-		// A context stored without a RAN association restores a RanUe carrying
-		// AmfUeNgapId 0. Nothing may find it by that id, and every such context would
-		// otherwise claim the same key.
-		if ranUe.AmfUeNgapId != 0 {
+		// Published only if the AMF does not already hold this UE. One it holds is newer than
+		// any stored copy -- another restore published it, or the UE is live and this lookup
+		// came by an id it no longer has -- and a second context would split the UE's state
+		// between them.
+		//
+		// Under the new UE's own lock, across both writes. From the UePool write on, any
+		// lookup can find the UE, and a Remove started then -- releaseUEContextProcedure calls
+		// one directly, with no mark -- would delete both pool entries before the RanUe's is
+		// written, which would then publish a removed RanUe under a released id. Remove takes
+		// this lock first, so it waits until both writes are done.
+		ue.Mutex.Lock()
+		if value, loaded := AMF_Self().UePool.LoadOrStore(ue.Supi, ue); loaded {
+			held = value.(*AmfUe)
+		} else if ranUe.AmfUeNgapId != 0 {
+			// A context stored without a RAN association restores a RanUe carrying
+			// AmfUeNgapId 0. Nothing may find it by that id, and every such context would
+			// otherwise claim the same key.
 			AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
 		}
-		AMF_Self().UePool.Store(ue.Supi, ue)
+		ue.Mutex.Unlock()
 	}
 	restoreMu.Unlock()
 
@@ -755,6 +770,9 @@ func dbFetchOnce(collName string, filter bson.M) (ue *AmfUe, readAgain bool) {
 		return nil, false
 	case releasedDuringRead:
 		return nil, true
+	case held != nil:
+		logger.DataRepoLog.Infof("not restoring the stored context for %s: the AMF already holds it", ue.Supi)
+		return held, false
 	}
 
 	ue.TxLog.Debugln("amfue fetched")
@@ -777,7 +795,9 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 	// round today -- RanUe.Remove releases the UE lock before it takes the RAN one, and
 	// RemoveAllUeInRan snapshots under a read lock and releases it before removing anything --
 	// so this is an ordering to keep rather than a cycle to break. Taking ue.Mutex while holding
-	// ran.ranStateMu is fine; taking ran.ranStateMu while holding ue.Mutex would not be.
+	// ran.ranStateMu is fine; taking ran.ranStateMu while holding ue.Mutex would not be. The UE
+	// may be one the AMF already holds, which DbFetch returns in place of its stored copy; the
+	// same order covers it.
 	//
 	// DbFetch above takes it once more, under dbMutex, making that call ran.ranStateMu ->
 	// dbMutex -> ue.Mutex. That one cannot contend with anything: the UE it locks was
@@ -793,7 +813,14 @@ func DbFetchRanUeByRanUeNgapID(ranUeNgapID int64, ran *AmfRan) *RanUe {
 	if ranUe != nil {
 		return ranUe
 	}
-	return ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
+	// RAN-UE-NGAP-IDs are per RAN, so the RanUe has to be on this one as well. A UE the AMF
+	// already holds may have a newer RanUe, or none -- its release may have removed it -- and
+	// then the id names no RanUe: the caller would otherwise move the UE's current one here.
+	ranUe = ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
+	if ranUe == nil || ranUe.RanUeNgapId != ranUeNgapID || ranUe.Ran == nil || ranUe.Ran.GnbId != ran.GnbId {
+		return nil
+	}
+	return ranUe
 }
 
 func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
@@ -815,7 +842,13 @@ func DbFetchRanUeByAmfUeNgapID(amfUeNgapID int64) *RanUe {
 	if ranUe != nil {
 		return ranUe
 	}
-	return ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
+	// A UE the AMF already holds may have a newer RanUe, or none -- its release may have
+	// removed it -- and then the id names no RanUe.
+	ranUe = ue.GetRanUe(models.ACCESSTYPE__3_GPP_ACCESS)
+	if ranUe == nil || ranUe.AmfUeNgapId != amfUeNgapID {
+		return nil
+	}
+	return ranUe
 }
 
 func DbFetchUeByGuti(guti string) (ue *AmfUe, ok bool) {
