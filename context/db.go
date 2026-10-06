@@ -745,6 +745,13 @@ func dbFetchOnce(collName string, filter bson.M) (ue *AmfUe, readAgain bool) {
 		// any stored copy -- another restore published it, or the UE is live and this lookup
 		// came by an id it no longer has -- and a second context would split the UE's state
 		// between them.
+		//
+		// Under the new UE's own lock, across both writes. From the UePool write on, any
+		// lookup can find the UE, and a Remove started then -- releaseUEContextProcedure calls
+		// one directly, with no mark -- would delete both pool entries before the RanUe's is
+		// written, which would then publish a removed RanUe under a released id. Remove takes
+		// this lock first, so it waits until both writes are done.
+		ue.Mutex.Lock()
 		if value, loaded := AMF_Self().UePool.LoadOrStore(ue.Supi, ue); loaded {
 			held = value.(*AmfUe)
 		} else if ranUe.AmfUeNgapId != 0 {
@@ -753,6 +760,7 @@ func dbFetchOnce(collName string, filter bson.M) (ue *AmfUe, readAgain bool) {
 			// otherwise claim the same key.
 			AMF_Self().RanUePool.Store(ranUe.AmfUeNgapId, ranUe)
 		}
+		ue.Mutex.Unlock()
 	}
 	restoreMu.Unlock()
 
