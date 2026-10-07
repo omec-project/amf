@@ -24,24 +24,53 @@ import (
 func TestAnEmptyAllowedNssaiIsCause7OnlyWhenTheUdmAnswered_OverHTTP(t *testing.T) {
 	tests := []struct {
 		name      string
-		problem   *models.ProblemDetails // nil: no UDM is listening
+		answer    *udmAnswer // nil: no UDM is listening
 		wantCause uint8
 	}{
 		{
 			// The body the UDM sends when the subscription holds no NSSAI.
 			name:      "the UDM answered 404: the subscriber has no slice data",
-			problem:   utils.ProblemDetailsDataNotFound(),
+			answer:    problemAnswer(t, utils.ProblemDetailsDataNotFound()),
+			wantCause: nasMessage.Cause5GMM5GSServicesNotAllowed,
+		},
+		{
+			// The status line answers even when the problem leaves its status out.
+			name: "the UDM answered 404 with a problem that has no status",
+			answer: &udmAnswer{
+				status:      http.StatusNotFound,
+				contentType: "application/problem+json",
+				body:        `{"title":"Data not found","cause":"DATA_NOT_FOUND"}`,
+			},
+			wantCause: nasMessage.Cause5GMM5GSServicesNotAllowed,
+		},
+		{
+			name:      "the UDM answered 404 with no body",
+			answer:    &udmAnswer{status: http.StatusNotFound},
+			wantCause: nasMessage.Cause5GMM5GSServicesNotAllowed,
+		},
+		{
+			name: "the UDM answered 404 with a body that is not a problem",
+			answer: &udmAnswer{
+				status:      http.StatusNotFound,
+				contentType: "text/plain; charset=utf-8",
+				body:        "404 page not found",
+			},
 			wantCause: nasMessage.Cause5GMM5GSServicesNotAllowed,
 		},
 		{
 			// About the AMF's request, not the subscriber.
 			name:      "the UDM answered 403",
-			problem:   utils.ProblemDetails("Forbidden", http.StatusForbidden, ""),
+			answer:    problemAnswer(t, utils.ProblemDetails("Forbidden", http.StatusForbidden, "")),
 			wantCause: nasMessage.Cause5GMMCongestion,
 		},
 		{
 			name:      "the UDM answered 503",
-			problem:   utils.ProblemDetails("Service unavailable", http.StatusServiceUnavailable, ""),
+			answer:    problemAnswer(t, utils.ProblemDetails("Service unavailable", http.StatusServiceUnavailable, "")),
+			wantCause: nasMessage.Cause5GMMCongestion,
+		},
+		{
+			name:      "the UDM answered 503 with no body",
+			answer:    &udmAnswer{status: http.StatusServiceUnavailable},
 			wantCause: nasMessage.Cause5GMMCongestion,
 		},
 		{
@@ -53,7 +82,7 @@ func TestAnEmptyAllowedNssaiIsCause7OnlyWhenTheUdmAnswered_OverHTTP(t *testing.T
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			disableKafkaForRelayTest(t)
-			udmUri := udmAnswering(t, tt.problem)
+			udmUri := udmAnswering(t, tt.answer)
 			nrfDiscovering(t, udmUri)
 
 			originalNssai := handleRequestedNssaiForRegistration
@@ -81,23 +110,44 @@ func TestAnEmptyAllowedNssaiIsCause7OnlyWhenTheUdmAnswered_OverHTTP(t *testing.T
 	}
 }
 
-// udmAnswering returns the URI of a UDM that answers every request with problem, or, for
-// a nil problem, of one that is no longer listening.
-func udmAnswering(t *testing.T, problem *models.ProblemDetails) string {
+// udmAnswer is what the UDM sends back: a status line and, if contentType is set, a body.
+type udmAnswer struct {
+	status      int
+	contentType string
+	body        string
+}
+
+// problemAnswer is problem sent as the UDM sends one, under its own status.
+func problemAnswer(t *testing.T, problem *models.ProblemDetails) *udmAnswer {
+	t.Helper()
+
+	body, err := json.Marshal(problem)
+	if err != nil {
+		t.Fatalf("encoding the UDM's problem: %v", err)
+	}
+
+	return &udmAnswer{
+		status:      int(problem.GetStatus()),
+		contentType: "application/problem+json",
+		body:        string(body),
+	}
+}
+
+// udmAnswering returns the URI of a UDM that answers every request with answer, or, for a
+// nil answer, of one that is no longer listening.
+func udmAnswering(t *testing.T, answer *udmAnswer) string {
 	t.Helper()
 
 	udm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		body, err := json.Marshal(problem)
-		if err != nil {
-			t.Errorf("encoding the UDM's problem: %v", err)
+		if answer.contentType != "" {
+			w.Header().Set("Content-Type", answer.contentType)
 		}
-		w.Header().Set("Content-Type", "application/problem+json")
-		w.WriteHeader(int(problem.GetStatus()))
-		if _, err := w.Write(body); err != nil {
-			t.Errorf("writing the UDM's problem: %v", err)
+		w.WriteHeader(answer.status)
+		if _, err := w.Write([]byte(answer.body)); err != nil {
+			t.Errorf("writing the UDM's answer: %v", err)
 		}
 	}))
-	if problem == nil {
+	if answer == nil {
 		udm.Close()
 	} else {
 		t.Cleanup(udm.Close)

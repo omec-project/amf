@@ -1546,13 +1546,17 @@ func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) error {
 		}
 	}
 	problemDetails, err := consumer.SDMGetSliceSelectionSubscriptionData(ctx, ue)
-	if problemDetails != nil {
-		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data Failed Problem[%+v]", problemDetails)
-	} else if err != nil {
-		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data Error[%+v]", err)
+	unavailable := sliceSubscriptionUnavailable(problemDetails, err)
+	switch {
+	case unavailable != nil:
+		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data unavailable: %+v", unavailable)
+	case problemDetails != nil:
+		// A 404: the UDM holds no slice data for this subscriber. A normal answer that
+		// leaves SubscribedNssai empty, not a failure to log as an error.
+		ue.GmmLog.Debugf("the UDM has no slice subscription for the subscriber: %+v", problemDetails)
 	}
 
-	return sliceSubscriptionUnavailable(problemDetails, err)
+	return unavailable
 }
 
 // sliceSubscriptionUnavailable tells a slice-selection fetch that settled the subscription
