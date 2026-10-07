@@ -16,6 +16,7 @@ import (
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
+	"github.com/omec-project/amf/nasconv"
 	"github.com/omec-project/nas/v2"
 	"github.com/omec-project/nas/v2/nasConvert"
 	"github.com/omec-project/nas/v2/nasMessage"
@@ -142,7 +143,7 @@ func BuildAuthenticationRequest(ue *context.AmfUe) ([]byte, error) {
 	authenticationRequest.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
 	authenticationRequest.SpareHalfOctetAndSecurityHeaderType.SetSpareHalfOctet(0)
 	authenticationRequest.SetMessageType(nas.MsgTypeAuthenticationRequest)
-	authenticationRequest.SpareHalfOctetAndNgksi = nasConvert.SpareHalfOctetAndNgksiToNas(ue.NgKsi)
+	authenticationRequest.SpareHalfOctetAndNgksi = nasconv.SpareHalfOctetAndNgksiToNas(ue.NgKsi)
 	authenticationRequest.ABBA.SetLen(uint8(len(ue.ABBA)))
 	authenticationRequest.SetABBAContents(ue.ABBA)
 
@@ -273,7 +274,7 @@ func BuildAuthenticationResult(ue *context.AmfUe, eapSuccess bool, eapMsg string
 	authenticationResult.SetSecurityHeaderType(nas.SecurityHeaderTypePlainNas)
 	authenticationResult.SpareHalfOctetAndSecurityHeaderType.SetSpareHalfOctet(0)
 	authenticationResult.SetMessageType(nas.MsgTypeAuthenticationResult)
-	authenticationResult.SpareHalfOctetAndNgksi = nasConvert.SpareHalfOctetAndNgksiToNas(ue.NgKsi)
+	authenticationResult.SpareHalfOctetAndNgksi = nasconv.SpareHalfOctetAndNgksiToNas(ue.NgKsi)
 	rawEapMsg, err := base64.StdEncoding.DecodeString(eapMsg)
 	if err != nil {
 		return nil, err
@@ -370,7 +371,7 @@ func BuildSecurityModeCommand(ue *context.AmfUe, anType models.AccessType, eapSu
 	securityModeCommand.SelectedNASSecurityAlgorithms.SetTypeOfCipheringAlgorithm(ue.CipheringAlg)
 	securityModeCommand.SelectedNASSecurityAlgorithms.SetTypeOfIntegrityProtectionAlgorithm(ue.IntegrityAlg)
 
-	securityModeCommand.SpareHalfOctetAndNgksi = nasConvert.SpareHalfOctetAndNgksiToNas(ue.NgKsi)
+	securityModeCommand.SpareHalfOctetAndNgksi = nasconv.SpareHalfOctetAndNgksiToNas(ue.NgKsi)
 
 	securityModeCommand.ReplayedUESecurityCapabilities.SetLen(ue.UESecurityCapability.GetLen())
 	securityModeCommand.ReplayedUESecurityCapabilities.Buffer = ue.UESecurityCapability.Buffer
