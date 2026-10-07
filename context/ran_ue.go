@@ -76,13 +76,17 @@ type RanUe struct {
 	AmfUe   *AmfUe `json:"-"`
 	amfUeMu sync.RWMutex
 	Ran     *AmfRan
-	// listing orders a replacement's removal of this RanUe from RanUePool against a RAN
-	// listing it; see unpoolIfRestoredUnlisted and markListed.
+	// listing orders a RAN listing this RanUe against a replacement taking it out of
+	// RanUePool and against its removal; see listOn. A listing by listOn changes Ran and
+	// RanUeNgapId under it, and Remove reads them under it; handlers that set them directly
+	// do not take it.
 	listing sync.Mutex
 	// restoredUnlisted: a restore published this RanUe in RanUePool, and no RAN has listed it
-	// since. unpooled: a replacement took it out of RanUePool while it was unlisted.
+	// since. unpooled: a replacement took it out of RanUePool while it was unlisted. removed:
+	// Remove has started on it.
 	restoredUnlisted bool
 	unpooled         bool
+	removed          bool
 
 	/* Routing ID */
 	RoutingID string
@@ -119,7 +123,7 @@ func (ranUe *RanUe) Remove() error {
 	if ranUe == nil {
 		return fmt.Errorf("RanUe not found in RemoveRanUe")
 	}
-	ran := ranUe.Ran
+	ran, ranUeNgapID := ranUe.markRemoved()
 	if ran == nil {
 		return fmt.Errorf("RanUe not found in Ran")
 	}
@@ -133,7 +137,7 @@ func (ranUe *RanUe) Remove() error {
 	}
 
 	ran.ranStateMu.Lock()
-	delete(ran.RanUeList, ranUe.RanUeNgapId)
+	delete(ran.RanUeList, ranUeNgapID)
 	ran.ranStateMu.Unlock()
 	self := AMF_Self()
 	if self.EnableDbStore {
@@ -224,19 +228,52 @@ func (ranUe *RanUe) unpoolIfRestoredUnlisted() {
 	}
 }
 
-// markListed records that a RAN lists this RanUe. Its release, through that RAN, then has to
-// find it in RanUePool, so one a replacement took out while it was unlisted is published
-// again, unless its id has gone to another RanUe since. The removal takes the same lock, so
-// whichever of the two comes second sees what the first did.
-func (ranUe *RanUe) markListed() {
+// markRemoved records that Remove has started on this RanUe, so that no RAN lists it and no
+// listing publishes it again after this, and returns the RAN and RAN-UE-NGAP-ID it is listed
+// under, read under the lock a listing changes them under. A RanUe with no RAN is not marked;
+// Remove leaves it as it is.
+func (ranUe *RanUe) markRemoved() (*AmfRan, int64) {
 	ranUe.listing.Lock()
 	defer ranUe.listing.Unlock()
 
+	if ranUe.Ran != nil {
+		ranUe.removed = true
+	}
+
+	return ranUe.Ran, ranUe.RanUeNgapId
+}
+
+// listedAt returns the RAN and RAN-UE-NGAP-ID this RanUe is listed under.
+func (ranUe *RanUe) listedAt() (*AmfRan, int64) {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	return ranUe.Ran, ranUe.RanUeNgapId
+}
+
+// listOn lists this RanUe on ran under ranUeNgapID and makes them its RAN and RAN-UE-NGAP-ID,
+// unless Remove has started on it, and reports whether it did. The caller holds ran's
+// ranStateMu. It clears the restore's mark and, if a replacement took the RanUe out of
+// RanUePool while it was unlisted, publishes it again, since its release through this RAN has
+// to find it, unless its id has gone to another RanUe since. The removal from RanUePool and
+// Remove take the same lock, so whichever comes second sees what the first did.
+func (ranUe *RanUe) listOn(ran *AmfRan, ranUeNgapID int64) bool {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	if ranUe.removed {
+		return false
+	}
 	ranUe.restoredUnlisted = false
 	if ranUe.unpooled {
 		ranUe.unpooled = false
 		AMF_Self().RanUePool.LoadOrStore(ranUe.AmfUeNgapId, ranUe)
 	}
+	ran.RanUeList[ranUeNgapID] = ranUe
+	ranUe.Ran = ran
+	ranUe.RanUeNgapId = ranUeNgapID
+
+	return true
 }
 
 func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
@@ -248,24 +285,23 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 		return fmt.Errorf("newRan is nil")
 	}
 
-	oldRan := ranUe.Ran
+	oldRan, oldRanUeNgapID := ranUe.listedAt()
 
 	// remove ranUe from oldRan
 	oldRan.ranStateMu.Lock()
-	delete(oldRan.RanUeList, ranUe.RanUeNgapId)
+	delete(oldRan.RanUeList, oldRanUeNgapID)
 	oldRan.ranStateMu.Unlock()
 
-	// add ranUe to newRan
-	ranUe.markListed()
+	// add ranUe to newRan, and switch to it
 	newRan.ranStateMu.Lock()
-	newRan.RanUeList[ranUeNgapId] = ranUe
+	listed := ranUe.listOn(newRan, ranUeNgapId)
 	newRan.ranStateMu.Unlock()
+	if !listed {
+		return fmt.Errorf("RanUe[AmfUeNgapID: %d] was removed before it could switch to Ran[Name: %s]",
+			ranUe.AmfUeNgapId, newRan.Name)
+	}
 
-	// switch to newRan
-	ranUe.Ran = newRan
-	ranUe.RanUeNgapId = ranUeNgapId
-
-	logger.ContextLog.Infof("RanUe[RanUeNgapID: %d] Switch to new Ran[Name: %s]", ranUe.RanUeNgapId, ranUe.Ran.Name)
+	logger.ContextLog.Infof("RanUe[RanUeNgapID: %d] Switch to new Ran[Name: %s]", ranUeNgapId, newRan.Name)
 	return nil
 }
 

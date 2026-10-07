@@ -176,3 +176,69 @@ func TestARestoredRanUeListedAfterItsRemovalIsPublishedAgain(t *testing.T) {
 		}
 	})
 }
+
+// Remove and a listing take the RanUe's listing lock, so whichever comes first decides: a
+// RanUe removed first is neither listed nor published again, and one listed first is taken off
+// the RAN it was listed on.
+func TestARemovedRanUeIsNotListedAgain(t *testing.T) {
+	withSctpLb(t, false)
+	self := AMF_Self()
+
+	target := func(t *testing.T, gnbID string) *AmfRan {
+		t.Helper()
+
+		ran := self.NewAmfRanId(gnbID)
+		ran.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+		t.Cleanup(func() { self.AmfRanPool.Delete(gnbID) })
+
+		return ran
+	}
+
+	t.Run("removed, then switched", func(t *testing.T) {
+		_, _, live, _ := liveUeWithItsDocument(t, "imsi-208930100009958", 958)
+		if err := live.Remove(); err != nil {
+			t.Fatalf("Remove: %v", err)
+		}
+		newRan := target(t, "208:93:removed-target")
+
+		if err := live.SwitchToRan(newRan, 959); err == nil {
+			t.Error("a removed RanUe switched to another RAN")
+		}
+		if newRan.RanUeFindByRanUeNgapIDLocal(959) != nil {
+			t.Error("a removed RanUe is on the RAN it switched to")
+		}
+		if self.RanUeFindByAmfUeNgapIDLocal(live.AmfUeNgapId) == live {
+			t.Error("a removed RanUe is back in RanUePool")
+		}
+	})
+
+	t.Run("unpooled by a replacement, removed, then switched", func(t *testing.T) {
+		ran, restored, restoredRanUe := restoredAfterARestart(t, "imsi-208930100009960", 960)
+		restored.AttachRanUe(newRanUeOn(t, ran, 961))
+		if err := restoredRanUe.Remove(); err != nil {
+			t.Fatalf("Remove: %v", err)
+		}
+
+		if err := restoredRanUe.SwitchToRan(target(t, "208:93:unpooled-target"), 962); err == nil {
+			t.Error("a removed RanUe switched to another RAN")
+		}
+		if self.RanUeFindByAmfUeNgapIDLocal(restoredRanUe.AmfUeNgapId) == restoredRanUe {
+			t.Error("a listing published a removed RanUe in RanUePool again")
+		}
+	})
+
+	t.Run("switched, then removed", func(t *testing.T) {
+		_, _, live, _ := liveUeWithItsDocument(t, "imsi-208930100009963", 963)
+		newRan := target(t, "208:93:switched-target")
+		if err := live.SwitchToRan(newRan, 964); err != nil {
+			t.Fatalf("SwitchToRan: %v", err)
+		}
+		if err := live.Remove(); err != nil {
+			t.Fatalf("Remove: %v", err)
+		}
+
+		if newRan.RanUeFindByRanUeNgapIDLocal(964) != nil {
+			t.Error("Remove left the RanUe on the RAN it had switched to")
+		}
+	})
+}
