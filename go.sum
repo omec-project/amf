@@ -81,8 +81,8 @@ github.com/omec-project/ngap/v2 v2.1.8 h1:iSWyMQmuj/w+v5IJiV8/ESrh9H7GPtm03IrLeS
 github.com/omec-project/ngap/v2 v2.1.8/go.mod h1:HjDXoNHJSqX5R0Blxxk6K1fKm98uSzbV7+9ZukJgD98=
 github.com/omec-project/openapi/v2 v2.2.5 h1:G2mqm2W56+Gdgehu6L+fAmPMlVVqdvqnse4GutnIaEI=
 github.com/omec-project/openapi/v2 v2.2.5/go.mod h1:eCINoLdvAXP3BBFx93kOOfq0KHGqfMUshJzaYwNadPM=
-github.com/omec-project/util v1.8.13 h1:AZt8QDXjqZy3Od8qmVA0KV4v9VOqBMk8f87zYAcxcpU=
-github.com/omec-project/util v1.8.13/go.mod h1:g850w4VFZEIzxYLJTU/XM9nRyMXE1UvIgYhWla/fkSw=
+github.com/omec-project/util v1.9.1 h1:oHcQXj8impvHmX4+JNyI6Gyx2U4OEhwZNhS6RgA6Fk8=
+github.com/omec-project/util v1.9.1/go.mod h1:ogG9rA4hBMsSnXfzXFO4WsW0Dl8Mi5bITdZ6nlKmFRY=
 github.com/pelletier/go-toml/v2 v2.4.3 h1:GTRvJQutkOSftxIFD5xw9aepkYNuPWmVJpffdDPYVpY=
 github.com/pelletier/go-toml/v2 v2.4.3/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/pierrec/lz4/v4 v4.1.33 h1:GjG1TJ1V4IzKP8L96muuuDNpTwd7D+l2ccXrjAbe014=
@@ -130,8 +130,8 @@ github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gi
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 h1:ilQV1hzziu+LLM3zUTJ0trRztfwgjqKnBWNtSRkbmwM=
 github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78/go.mod h1:aL8wCCfTfSfmXjznFBSZNN13rSJjlIOI1fUNAtF7rmI=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
-go.mongodb.org/mongo-driver/v2 v2.9.1 h1:jewiFs2m1/VOQp8qhFshX6hWZ+EAXDhZHXExAUMcOgQ=
-go.mongodb.org/mongo-driver/v2 v2.9.1/go.mod h1:SHKN0IWkKmEVGHLjXnni6s4wPKX4v86FTgOeJJFuXcA=
+go.mongodb.org/mongo-driver/v2 v2.9.2 h1:OCAdjI37pC/SVxucz/9CM8zD4jCdegtsY5QcKzYFCgE=
+go.mongodb.org/mongo-driver/v2 v2.9.2/go.mod h1:SHKN0IWkKmEVGHLjXnni6s4wPKX4v86FTgOeJJFuXcA=
 go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=
 go.opentelemetry.io/auto/sdk v1.2.1/go.mod h1:KRTj+aOaElaLi+wW1kO/DZRXwkF4C5xPbEe3ZiIhN7Y=
 go.opentelemetry.io/otel v1.47.0 h1:j7ALJ/zgkS7Z6aeJW09p8VC9804bC+PpeTfCD4XPnOM=
