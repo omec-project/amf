@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"reflect"
 	"strconv"
@@ -59,6 +60,7 @@ var (
 	sendSearchNFInstancesForRegistration  = consumer.SendSearchNFInstances
 	amPolicyControlCreateForRegistration  = consumer.AMPolicyControlCreate
 	sendRegistrationAcceptForRegistration = gmm_message.SendRegistrationAccept
+	sendRegistrationRejectForRegistration = gmm_message.SendRegistrationReject
 )
 
 // removePendingPayloadFiles deletes the temp files openapi.Decode created for a pending
@@ -863,8 +865,11 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	ue.UpdateSecurityContext(anType)
 
 	// Registration with AMF re-allocation (TS 23.502 4.2.2.2.3)
+	subscriptionUnavailable := false
 	if len(ue.SubscribedNssai) == 0 {
-		getSubscribedNssaiForRegistration(ctx, ue)
+		if err := getSubscribedNssaiForRegistration(ctx, ue); err != nil {
+			subscriptionUnavailable = true
+		}
 	}
 
 	if err := handleRequestedNssaiForRegistration(ctx, ue, registrationRequest, anType); err != nil {
@@ -876,12 +881,28 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	}
 
 	if ue.AllowedNssaiLen(anType) == 0 {
-		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+		// Cause #7 tells the UE its USIM is not allowed 5G services on this PLMN: per
+		// TS 24.501 5.5.1.2.5 it deletes its 5G-GUTI, TAI list and ngKSI, and treats the
+		// USIM as invalid for 5GS until it is switched off, the UICC is removed or T3245
+		// expires. That answers an empty allowed NSSAI the UDM actually returned, not a
+		// UDM that could not be reached. Answer that with congestion instead: sent without
+		// a T3346 value it is an abnormal case (5.5.1.2.7), and the UE retries on T3511
+		// and then T3502.
+		cause := nasMessage.Cause5GMM5GSServicesNotAllowed
+		reason := "allowed nssai list is nil"
+
+		if subscriptionUnavailable {
+			cause = nasMessage.Cause5GMMCongestion
+			reason = "slice subscription could not be fetched"
+		}
+
+		sendRegistrationRejectForRegistration(ranUe, cause, "")
 		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
 			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
 		ue.PublishUeCtxtInfoOnRemoval(anType)
 		ue.Remove()
-		return fmt.Errorf("allowed nssai list is nil")
+
+		return fmt.Errorf("%s", reason)
 	}
 
 	//TODO: this is commented because Radysis USIM is not sending this IE
@@ -962,14 +983,26 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		time.Sleep(500 * time.Millisecond) // sleep a while when search NF Instance fail
 	}
 
+	// A PCF that refused or could not be reached says nothing about whether this
+	// subscriber is entitled to 5G service, so it must not be answered with cause #7.
 	problemDetails, err := amPolicyControlCreateForRegistration(ctx, ue, anType)
-	if problemDetails != nil {
-		ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
-		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
-		return fmt.Errorf("AMPolicy Control Create failed at PCF")
-	} else if err != nil {
-		ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
-		gmm_message.SendRegistrationReject(ranUe, nasMessage.Cause5GMM5GSServicesNotAllowed, "")
+	if problemDetails != nil || err != nil {
+		if problemDetails != nil {
+			ue.GmmLog.Errorf("AM Policy Control Create Failed Problem[%+v]", problemDetails)
+			err = fmt.Errorf("AMPolicy Control Create failed at PCF")
+		} else {
+			ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
+		}
+
+		// Torn down as for an empty allowed NSSAI. Congestion has the UE retry, and a
+		// context left in ContextSetup would take that retry for a state mismatch and drop
+		// it.
+		sendRegistrationRejectForRegistration(ranUe, nasMessage.Cause5GMMCongestion, "")
+		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
+			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+		ue.PublishUeCtxtInfoOnRemoval(anType)
+		ue.Remove()
+
 		return err
 	}
 
@@ -1052,7 +1085,12 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 
 	// Registration with AMF re-allocation (TS 23.502 4.2.2.2.3)
 	if len(ue.SubscribedNssai) == 0 {
-		getSubscribedNssai(ctx, ue)
+		// getSubscribedNssai has logged any failure, and nothing on this path answers
+		// differently for one: unlike initial registration, it does not refuse an empty
+		// allowed NSSAI.
+		if err := getSubscribedNssai(ctx, ue); err != nil {
+			ue.GmmLog.Debugln("continuing the registration update without the slice subscription")
+		}
 	}
 
 	if err := handleRequestedNssai(ctx, ue, registrationRequest, anType); err != nil {
@@ -1489,7 +1527,11 @@ func communicateWithUDM(ctx ctxt.Context, ue *context.AmfUe, accessType models.A
 	return nil
 }
 
-func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) {
+// getSubscribedNssai fetches the UE's slice subscription, and returns an error only if
+// the UDM did not answer. The caller needs that distinction: an empty NSSAI because the
+// UDM said so and an empty NSSAI because it could not be reached demand different
+// answers to the UE.
+func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) error {
 	amfSelf := context.AMF_Self()
 	configureSearchUDMRequest := func(request Nnrf_NFDiscovery.ApiSearchNFInstancesRequest) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest {
 		return request.Supi(ue.GetSupi())
@@ -1504,11 +1546,34 @@ func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) {
 		}
 	}
 	problemDetails, err := consumer.SDMGetSliceSelectionSubscriptionData(ctx, ue)
-	if problemDetails != nil {
-		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data Failed Problem[%+v]", problemDetails)
-	} else if err != nil {
-		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data Error[%+v]", err)
+	unavailable := sliceSubscriptionUnavailable(problemDetails, err)
+	switch {
+	case unavailable != nil:
+		ue.GmmLog.Errorf("SDM_Get Slice Selection Subscription Data unavailable: %+v", unavailable)
+	case problemDetails != nil:
+		// A 404: the UDM holds no slice data for this subscriber. A normal answer that
+		// leaves SubscribedNssai empty, not a failure to log as an error.
+		ue.GmmLog.Debugf("the UDM has no slice subscription for the subscriber: %+v", problemDetails)
 	}
+
+	return unavailable
+}
+
+// sliceSubscriptionUnavailable tells a slice-selection fetch that settled the subscription
+// from one that did not. Only a 404 settles it: the UDM holds no slice data for this
+// subscriber, which is treated like any other empty NSSAI. Any other problem -- a 400, 401
+// or 403 about the AMF's own request, a 408 or 429 asking it to try again, a server error,
+// or a problem with no status -- and no response at all leave the subscription unknown.
+func sliceSubscriptionUnavailable(problemDetails *models.ProblemDetails, err error) error {
+	if problemDetails != nil {
+		if problemDetails.GetStatus() == http.StatusNotFound {
+			return nil
+		}
+
+		return fmt.Errorf("slice selection subscription data unavailable: %v", problemDetails)
+	}
+
+	return err
 }
 
 // TS 23.502 4.2.2.2.3 Registration with AMF Re-allocation
