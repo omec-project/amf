@@ -1013,8 +1013,8 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	// since have gone to another UE. Behind an SCTP load balancer an AMF restart is followed by
 	// no NG Setup, the RAN node can still release the RanUe, and the stale-RanUe release path
 	// has to find it, so it stays.
-	if oldRanUe != nil && !AMF_Self().EnableSctpLb && oldRanUe.restoredUnlisted.Load() {
-		AMF_Self().RanUePool.CompareAndDelete(oldRanUe.AmfUeNgapId, oldRanUe)
+	if oldRanUe != nil && !AMF_Self().EnableSctpLb {
+		oldRanUe.unpoolIfRestoredUnlisted()
 	}
 
 	if oldRanUe != nil {

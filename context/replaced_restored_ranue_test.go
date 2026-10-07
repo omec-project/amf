@@ -126,3 +126,53 @@ func TestAReplacedRanUeThatARanListsStaysInRanUePool(t *testing.T) {
 		}
 	})
 }
+
+// A RAN that lists a restored RanUe after a replacement took it out of RanUePool holds the
+// connection, so the RanUe's release will come, and it is published again for that release
+// to find. Not over another RanUe that has taken its id since.
+func TestARestoredRanUeListedAfterItsRemovalIsPublishedAgain(t *testing.T) {
+	withSctpLb(t, false)
+	self := AMF_Self()
+
+	switchTarget := func(t *testing.T, gnbID string) *AmfRan {
+		t.Helper()
+
+		target := self.NewAmfRanId(gnbID)
+		target.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+		t.Cleanup(func() { self.AmfRanPool.Delete(gnbID) })
+
+		return target
+	}
+
+	t.Run("published again", func(t *testing.T) {
+		ran, restored, restoredRanUe := restoredAfterARestart(t, "imsi-208930100009952", 952)
+		restored.AttachRanUe(newRanUeOn(t, ran, 953))
+		if self.RanUeFindByAmfUeNgapIDLocal(restoredRanUe.AmfUeNgapId) == restoredRanUe {
+			t.Fatal("the replaced restored RanUe was not taken out of RanUePool")
+		}
+
+		if err := restoredRanUe.SwitchToRan(switchTarget(t, "208:93:relist-target"), 954); err != nil {
+			t.Fatalf("SwitchToRan: %v", err)
+		}
+
+		if self.RanUeFindByAmfUeNgapIDLocal(restoredRanUe.AmfUeNgapId) != restoredRanUe {
+			t.Error("a restored RanUe listed after its removal is not in RanUePool")
+		}
+	})
+
+	t.Run("not over a RanUe that has taken its id", func(t *testing.T) {
+		ran, restored, restoredRanUe := restoredAfterARestart(t, "imsi-208930100009955", 955)
+		restored.AttachRanUe(newRanUeOn(t, ran, 956))
+		other := &RanUe{AmfUeNgapId: restoredRanUe.AmfUeNgapId}
+		self.RanUePool.Store(other.AmfUeNgapId, other)
+		t.Cleanup(func() { self.RanUePool.CompareAndDelete(other.AmfUeNgapId, other) })
+
+		if err := restoredRanUe.SwitchToRan(switchTarget(t, "208:93:taken-target"), 957); err != nil {
+			t.Fatalf("SwitchToRan: %v", err)
+		}
+
+		if self.RanUeFindByAmfUeNgapIDLocal(other.AmfUeNgapId) != other {
+			t.Error("publishing the restored RanUe again displaced the RanUe that holds its id")
+		}
+	})
+}
