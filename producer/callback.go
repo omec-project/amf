@@ -19,9 +19,9 @@ import (
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas"
+	"github.com/omec-project/amf/nasconv"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/nas/v2/nasConvert"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
@@ -117,7 +117,7 @@ func SmContextStatusNotifyProcedure(ctx ctxt.Context, guti string, pduSessionID 
 				anType := smContext.AccessType()
 
 				if smContext.ULNASTransport().SNSSAI != nil {
-					snssai = nasConvert.SnssaiToModels(smContext.ULNASTransport().SNSSAI)
+					snssai = nasconv.SnssaiToModels(smContext.ULNASTransport().SNSSAI)
 				} else {
 					if allowedNssai := ue.GetAllowedNssai(anType); allowedNssai != nil {
 						snssai = allowedNssai[0].AllowedSnssai

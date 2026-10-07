@@ -23,7 +23,9 @@ import (
 	gmm_message "github.com/omec-project/amf/gmm/message"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
+	"github.com/omec-project/amf/nasconv"
 	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/v2"
@@ -31,7 +33,6 @@ import (
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
 	"github.com/omec-project/nas/v2/security"
-	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/v2/models"
@@ -450,7 +451,7 @@ func releaseDuplicatePDUSession(
 
 func pickSnssai(ulNasTransport *nasMessage.ULNASTransport, ue *context.AmfUe, anType models.AccessType) (models.Snssai, error) {
 	if ulNasTransport.SNSSAI != nil {
-		return nasConvert.SnssaiToModels(ulNasTransport.SNSSAI), nil
+		return nasconv.SnssaiToModels(ulNasTransport.SNSSAI), nil
 	}
 	if allowed := ue.GetAllowedNssai(anType); len(allowed) > 0 {
 		return allowed[0].AllowedSnssai, nil
@@ -690,7 +691,7 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		ue.PlmnId = plmnID
 		ue.GmmLog.Debugf("SUCI: %s", ue.Suci)
 	case nasMessage.MobileIdentity5GSType5gGuti:
-		guamiFromUeGutiTmp, guti := nasConvert.GutiToString(mobileIdentity5GSContents)
+		guamiFromUeGutiTmp, guti := nasconv.GutiToString(mobileIdentity5GSContents)
 		guamiFromUeGuti = guamiFromUeGutiTmp
 		ue.GmmLog.Debugf("GUTI: %s", guti)
 		guamiMatched := false
@@ -1520,7 +1521,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 	}
 
 	if registrationRequest != nil && registrationRequest.RequestedNSSAI != nil {
-		requestedNssai, err := nasConvert.RequestedNssaiToModels(registrationRequest.RequestedNSSAI)
+		requestedNssai, err := nasconv.RequestedNssaiToModels(registrationRequest.RequestedNSSAI)
 		if err != nil {
 			return fmt.Errorf("decode failed at RequestedNSSAI[%s]", err)
 		}
@@ -1637,7 +1638,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 				callback.SendN1MessageNotifyAtAMFReAllocation(ue, n1Message.Bytes(), registerContext)
 			} else {
 				// Condition (B) Step 7: initial AMF can not find Target AMF via NRF -> Send Reroute NAS Request to RAN
-				allowedNssaiNgap := ngapConvert.AllowedNssaiToNgap(ue.GetAllowedNssai(anType))
+				allowedNssaiNgap := ngapconv.AllowedNssaiToNgap(ue.GetAllowedNssai(anType))
 				ngap_message.SendRerouteNasRequest(ue, anType, nil, ranUe.InitialUEMessage, &allowedNssaiNgap)
 			}
 			return nil
@@ -1769,7 +1770,7 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 		if ue.MacFailed {
 			return fmt.Errorf("NAS message integrity check failed")
 		}
-		_, guti := nasConvert.GutiToString(mobileIdentityContents)
+		_, guti := nasconv.GutiToString(mobileIdentityContents)
 		ue.SetGuti(guti)
 		ue.GmmLog.Debugf("get GUTI: %s", guti)
 	case nasMessage.MobileIdentity5GSType5gSTmsi:

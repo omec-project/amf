@@ -14,6 +14,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/nasconv"
 	"github.com/omec-project/nas/v2"
 	"github.com/omec-project/nas/v2/nasConvert"
 	"github.com/omec-project/nas/v2/nasMessage"
@@ -150,7 +151,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			return nil
 		}
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
-			guami, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
+			guami, guti = nasconv.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Registration Request Message: %v", guti)
 			if len(amfSelf.ServedGuamiList) == 0 {
 				logger.CommLog.Warnln("no served GUAMI configured; clearing GUTI")
@@ -198,7 +199,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 			return nil
 		}
 		if nasMessage.MobileIdentity5GSType5gGuti == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
-			_, guti = nasConvert.GutiToString(mobileIdentity5GSContents)
+			_, guti = nasconv.GutiToString(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti received in Deregistraion Request Message: %v", guti)
 		}
 	}
