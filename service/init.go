@@ -274,7 +274,8 @@ func (amf *AMF) Start() {
 		os.Exit(0)
 	}()
 
-	sslLog := filepath.Dir(factory.AmfConfig.CfgLocation) + "/sslkey.log"
+	// TLS key logging is a debugging aid: off unless the operator sets SSLKEYLOGFILE.
+	sslLog := os.Getenv("SSLKEYLOGFILE")
 	server, err := http2_util.NewServer(addr, sslLog, router)
 
 	if server == nil {
@@ -291,6 +292,10 @@ func (amf *AMF) Start() {
 	case "http":
 		err = server.ListenAndServe()
 	case "https":
+		if server.TLSConfig != nil && server.TLSConfig.KeyLogWriter != nil {
+			logger.InitLog.Warnf("TLS key logging is enabled (SSLKEYLOGFILE=%s): SBI traffic is "+
+				"decryptable by anyone who can read this file", sslLog)
+		}
 		err = server.ListenAndServeTLS(self.PEM, self.Key)
 	default:
 		logger.InitLog.Fatalf("HTTP server setup failed: invalid server scheme %+v", serverScheme)
