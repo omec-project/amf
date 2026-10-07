@@ -27,3 +27,30 @@ func TestRequestedNssaiToModels(t *testing.T) {
 		t.Fatalf("RequestedNssaiToModels() = %#v", got)
 	}
 }
+
+func TestRequestedNssaiToModelsRejectsMalformedLengths(t *testing.T) {
+	for _, input := range []*nasType.RequestedNSSAI{
+		{Len: 10, Buffer: []uint8{0x01, 0x01}},
+		{Len: 3, Buffer: []uint8{0x08, 0x01, 0x02}},
+		{Len: 2, Buffer: []uint8{0x04, 0x01, 0x01, 0x02, 0x03}},
+	} {
+		if _, err := RequestedNssaiToModels(input); err == nil {
+			t.Fatalf("RequestedNssaiToModels(%x) succeeded", input.Buffer)
+		}
+	}
+}
+
+func TestGutiToStringUpstreamCases(t *testing.T) {
+	for _, tc := range []struct {
+		buf  []byte
+		want string
+	}{
+		{[]byte{1, 2, 3}, ""},
+		{[]byte{0xf1, 0x12, 0x93, 0x11, 0x22, 0x33, 1, 2, 3, 4, 5}, "21311922330102030405"},
+	} {
+		_, got := GutiToString(tc.buf)
+		if got != tc.want {
+			t.Fatalf("GutiToString(%x) = %q, want %q", tc.buf, got, tc.want)
+		}
+	}
+}
