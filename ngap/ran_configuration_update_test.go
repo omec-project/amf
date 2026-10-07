@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/context"
-	"github.com/omec-project/ngap/v2/ngapConvert"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,10 +29,10 @@ func ranConfigurationUpdateWithTACs(tacs ...string) *ngapType.NGAPPDU {
 
 		item := ngapType.SupportedTAItem{TAC: ngapType.TAC{Value: raw}}
 		item.BroadcastPLMNList.List = append(item.BroadcastPLMNList.List, ngapType.BroadcastPLMNItem{
-			PLMNIdentity: ngapConvert.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
+			PLMNIdentity: ngapconv.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
 			TAISliceSupportList: ngapType.SliceSupportList{
 				List: []ngapType.SliceSupportItem{
-					{SNSSAI: ngapConvert.SNssaiToNgap(models.Snssai{Sst: 1})},
+					{SNSSAI: ngapconv.SNssaiToNgap(models.Snssai{Sst: 1})},
 				},
 			},
 		})
