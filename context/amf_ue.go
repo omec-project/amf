@@ -1017,12 +1017,11 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 			defer ue.Mutex.Unlock()
 
 			// Detach the replaced RanUe unless it is the UE's current RanUe again, whatever
-			// became of the one that replaced it. Conditionally, under the RanUe's own lock:
-			// another UE's AttachRanUe, which holds that UE's lock and not this one, can take
-			// the RanUe between the check and the clear.
-			if oldRanUe.GetAmfUe() == ue && ue.RanUe[anType] != oldRanUe {
+			// became of the one that replaced it, and only while it still points at this UE:
+			// another UE's AttachRanUe, which holds that UE's lock and not this one, may have
+			// taken it. DetachAmfUeIf checks and clears under the RanUe's own lock.
+			if ue.RanUe[anType] != oldRanUe && oldRanUe.DetachAmfUeIf(ue) {
 				detachLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
-				oldRanUe.DetachAmfUeIf(ue)
 			}
 		}(oldRanUe, anType)
 	}

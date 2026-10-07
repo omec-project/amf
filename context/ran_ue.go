@@ -175,17 +175,21 @@ func (ranUe *RanUe) DetachAmfUe() {
 
 // DetachAmfUeIf drops the association only while it still points at amfUe, so a
 // release that overlaps a re-attach to a different context cannot undo the newer one.
-func (ranUe *RanUe) DetachAmfUeIf(amfUe *AmfUe) {
+// It reports whether it dropped it.
+func (ranUe *RanUe) DetachAmfUeIf(amfUe *AmfUe) bool {
 	if ranUe == nil {
-		return
+		return false
 	}
 
 	ranUe.amfUeMu.Lock()
 	defer ranUe.amfUeMu.Unlock()
 
-	if ranUe.AmfUe == amfUe {
-		ranUe.AmfUe = nil
+	if ranUe.AmfUe != amfUe {
+		return false
 	}
+	ranUe.AmfUe = nil
+
+	return true
 }
 
 func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
