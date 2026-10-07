@@ -344,16 +344,14 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
 	} else if httpResp != nil {
-		// A problem the client decoded is the UDM's answer, whatever the error's text says.
-		// The client writes the problem's title and detail into that text, so it never
-		// equals the bare status line, and comparing the two returned every answer -- a
-		// 404 included -- as though the UDM had not been reached. The caller tells those
-		// apart.
-		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
-			problemDetails = &problem
-		} else {
-			err = localErr
+		problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr)
+		if !ok {
+			// No body, or one that would not decode
+			// The status still answers; keep the raw error as detail so it is not lost
+			problem.SetDetail(localErr.Error())
 		}
+		problem.SetStatus(int32(httpResp.StatusCode))
+		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("Could not contact UDM at %v, %+v", ue.NudmSDMUri, localErr)
 	}
