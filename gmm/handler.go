@@ -866,10 +866,17 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 	ue.UpdateSecurityContext(anType)
 
 	// Registration with AMF re-allocation (TS 23.502 4.2.2.2.3)
-	subscriptionUnavailable := false
 	if len(ue.SubscribedNssai) == 0 {
 		if err := getSubscribedNssaiForRegistration(ctx, ue); err != nil {
-			subscriptionUnavailable = true
+			// Every Allowed NSSAI, the AMF's own or the NSSF's, is built from the Subscribed
+			// S-NSSAIs (TS 23.501 5.15.5.2.1), so without them there is no Allowed NSSAI to
+			// accept the registration with, not even through slice selection, which would
+			// query the NSSF with none. A UDM that did not answer says nothing about the
+			// subscriber, so the answer is congestion: sent without a T3346 value it is an
+			// abnormal case (TS 24.501 5.5.1.2.7), and the UE retries on T3511 and then T3502.
+			rejectAndTearDownForRegistration(ue, ranUe, anType, nasMessage.Cause5GMMCongestion)
+
+			return fmt.Errorf("slice subscription could not be fetched: %w", err)
 		}
 	}
 
@@ -885,25 +892,11 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 		// Cause #7 tells the UE its USIM is not allowed 5G services on this PLMN: per
 		// TS 24.501 5.5.1.2.5 it deletes its 5G-GUTI, TAI list and ngKSI, and treats the
 		// USIM as invalid for 5GS until it is switched off, the UICC is removed or T3245
-		// expires. That answers an empty allowed NSSAI the UDM actually returned, not a
-		// UDM that could not be reached. Answer that with congestion instead: sent without
-		// a T3346 value it is an abnormal case (5.5.1.2.7), and the UE retries on T3511
-		// and then T3502.
-		cause := nasMessage.Cause5GMM5GSServicesNotAllowed
-		reason := "allowed nssai list is nil"
+		// expires. It answers an empty allowed NSSAI the UDM actually returned; a UDM that
+		// could not be reached was answered above, with congestion.
+		rejectAndTearDownForRegistration(ue, ranUe, anType, nasMessage.Cause5GMM5GSServicesNotAllowed)
 
-		if subscriptionUnavailable {
-			cause = nasMessage.Cause5GMMCongestion
-			reason = "slice subscription could not be fetched"
-		}
-
-		sendRegistrationRejectForRegistration(ranUe, cause, "")
-		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
-			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
-		ue.PublishUeCtxtInfoOnRemoval(anType)
-		ue.Remove()
-
-		return fmt.Errorf("%s", reason)
+		return fmt.Errorf("allowed nssai list is nil")
 	}
 
 	//TODO: this is commented because Radysis USIM is not sending this IE
@@ -995,14 +988,7 @@ func HandleInitialRegistration(ctx ctxt.Context, ue *context.AmfUe, anType model
 			ue.GmmLog.Errorf("AM Policy Control Create Error[%+v]", err)
 		}
 
-		// Torn down as for an empty allowed NSSAI. Congestion has the UE retry, and a
-		// context left in ContextSetup would take that retry for a state mismatch and drop
-		// it.
-		sendRegistrationRejectForRegistration(ranUe, nasMessage.Cause5GMMCongestion, "")
-		ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
-			ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
-		ue.PublishUeCtxtInfoOnRemoval(anType)
-		ue.Remove()
+		rejectAndTearDownForRegistration(ue, ranUe, anType, nasMessage.Cause5GMMCongestion)
 
 		return err
 	}
@@ -1086,9 +1072,10 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 
 	// Registration with AMF re-allocation (TS 23.502 4.2.2.2.3)
 	if len(ue.SubscribedNssai) == 0 {
-		// getSubscribedNssai has logged any failure, and nothing on this path answers
-		// differently for one: unlike initial registration, it does not refuse an empty
-		// allowed NSSAI.
+		// getSubscribedNssai has logged any failure. Unlike initial registration, this path
+		// carries on without the slice subscription, and with a Requested NSSAI it asks the
+		// NSSF with no Subscribed S-NSSAIs. Only a UE holding none gets here: this path does
+		// not clear them first.
 		if err := getSubscribedNssai(ctx, ue); err != nil {
 			ue.GmmLog.Debugln("continuing the registration update without the slice subscription")
 		}
@@ -1558,6 +1545,18 @@ func getSubscribedNssai(ctx ctxt.Context, ue *context.AmfUe) error {
 	}
 
 	return unavailable
+}
+
+// rejectAndTearDownForRegistration rejects an initial registration with cause and tears down
+// what the attempt left: it releases N2 and removes the UE. After a congestion reject the UE
+// retries, and a context left in ContextSetup would take that retry for a state mismatch and
+// drop it.
+func rejectAndTearDownForRegistration(ue *context.AmfUe, ranUe *context.RanUe, anType models.AccessType, cause uint8) {
+	sendRegistrationRejectForRegistration(ranUe, cause, "")
+	ngap_message.SendUEContextReleaseCommand(ranUe, context.UeContextN2NormalRelease,
+		ngapType.CausePresentNas, ngapType.CauseNasPresentNormalRelease)
+	ue.PublishUeCtxtInfoOnRemoval(anType)
+	ue.Remove()
 }
 
 // sliceSubscriptionUnavailable tells a slice-selection fetch that settled the subscription

@@ -334,3 +334,59 @@ func TestSliceSubscriptionUnavailableTellsNoAnswerFromAnAnswer(t *testing.T) {
 		})
 	}
 }
+
+// Every Allowed NSSAI, the AMF's own or the NSSF's, is built from the Subscribed S-NSSAIs
+// (TS 23.501 5.15.5.2.1). A failed slice fetch therefore ends the registration with congestion
+// before any slice selection, even when slice selection would have produced an Allowed NSSAI,
+// as an NSSF queried with no Subscribed S-NSSAIs can.
+func TestAFailedSliceFetchIsCongestionBeforeSliceSelection(t *testing.T) {
+	disableKafkaForRelayTest(t)
+	stubRegistrationUpToPolicy(t)
+	originalPolicy := amPolicyControlCreateForRegistration
+	t.Cleanup(func() { amPolicyControlCreateForRegistration = originalPolicy })
+
+	getSubscribedNssaiForRegistration = func(ctxt.Context, *context.AmfUe) error {
+		return errors.New("udm unreachable")
+	}
+	selected := false
+	handleRequestedNssaiForRegistration = func(
+		_ ctxt.Context, ue *context.AmfUe, _ *nasMessage.RegistrationRequest, anType models.AccessType,
+	) error {
+		selected = true
+		ue.AllowedNssai[anType] = []models.AllowedSnssai{{AllowedSnssai: models.Snssai{Sst: 1}}}
+
+		return nil
+	}
+	contacted := false
+	communicateWithUDMForRegistration = func(ctxt.Context, *context.AmfUe, models.AccessType) error {
+		contacted = true
+
+		return nil
+	}
+	// Ends a registration that went on regardless, without a real PCF call.
+	amPolicyControlCreateForRegistration = func(
+		ctxt.Context, *context.AmfUe, models.AccessType,
+	) (*models.ProblemDetails, error) {
+		return nil, errors.New("not reached")
+	}
+	cause := captureRejectCause(t)
+	ue := pooledRejectTestUe(t)
+
+	if err := HandleInitialRegistration(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS); err == nil {
+		t.Fatal("HandleInitialRegistration succeeded without the Subscribed S-NSSAIs")
+	}
+
+	if selected {
+		t.Error("slice selection ran without the Subscribed S-NSSAIs")
+	}
+	if contacted {
+		t.Error("the registration went on to the UDM")
+	}
+	if *cause == nil {
+		t.Fatal("no registration reject was sent for a failed slice fetch")
+	}
+	if **cause != nasMessage.Cause5GMMCongestion {
+		t.Errorf("reject cause = %d, want congestion (%d)", **cause, nasMessage.Cause5GMMCongestion)
+	}
+	assertTornDown(t, ue)
+}
