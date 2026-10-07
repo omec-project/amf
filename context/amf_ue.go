@@ -1010,17 +1010,21 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 		// reassign, and a deferred read of it here would race those writes from a goroutine
 		// that outlives the test. Reading it now keeps the goroutine self-contained.
 		detachLog := logger.ContextLog
-		go func(oldRanUe, newRanUe *RanUe, anType models.AccessType) {
+		go func(oldRanUe *RanUe, anType models.AccessType) {
 			time.Sleep(time.Second * 2)
 
 			ue.Mutex.Lock()
 			defer ue.Mutex.Unlock()
 
-			if oldRanUe.GetAmfUe() == ue && ue.RanUe[anType] == newRanUe {
+			// Detach the replaced RanUe unless it is the UE's current RanUe again, whatever
+			// became of the one that replaced it. Conditionally, under the RanUe's own lock:
+			// another UE's AttachRanUe, which holds that UE's lock and not this one, can take
+			// the RanUe between the check and the clear.
+			if oldRanUe.GetAmfUe() == ue && ue.RanUe[anType] != oldRanUe {
 				detachLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
-				oldRanUe.DetachAmfUe()
+				oldRanUe.DetachAmfUeIf(ue)
 			}
-		}(oldRanUe, ranUe, anType)
+		}(oldRanUe, anType)
 	}
 }
 
