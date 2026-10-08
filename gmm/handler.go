@@ -25,6 +25,7 @@ import (
 	"github.com/omec-project/amf/nas/nas_security"
 	"github.com/omec-project/amf/nasconv"
 	ngap_message "github.com/omec-project/amf/ngap/message"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/amf/producer/callback"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/v2"
@@ -1638,7 +1639,7 @@ func handleRequestedNssai(ctx ctxt.Context, ue *context.AmfUe, registrationReque
 				callback.SendN1MessageNotifyAtAMFReAllocation(ue, n1Message.Bytes(), registerContext)
 			} else {
 				// Condition (B) Step 7: initial AMF can not find Target AMF via NRF -> Send Reroute NAS Request to RAN
-				allowedNssaiNgap := ngapConvert.AllowedNssaiToNgap(ue.GetAllowedNssai(anType))
+				allowedNssaiNgap := ngapconv.AllowedNssaiToNgap(ue.GetAllowedNssai(anType))
 				ngap_message.SendRerouteNasRequest(ue, anType, nil, ranUe.InitialUEMessage, &allowedNssaiNgap)
 			}
 			return nil
