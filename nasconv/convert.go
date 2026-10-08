@@ -166,7 +166,7 @@ func LadnToNas(dnn string, taiLists []models.Tai) []uint8 {
 }
 
 func PartialServiceAreaListToNas(plmnID models.PlmnId, restriction models.ServiceAreaRestriction) []byte {
-	allowedType := uint8(nasMessage.AllowedTypeNonAllowedArea)
+	allowedType := nasMessage.AllowedTypeNonAllowedArea
 	if restriction.RestrictionType != nil && *restriction.RestrictionType == models.RESTRICTIONTYPE_ALLOWED_AREAS {
 		allowedType = nasMessage.AllowedTypeAllowedArea
 	}
