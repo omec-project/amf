@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+
 package ngapconv
 
 import (
@@ -13,8 +16,11 @@ func TestPlmnIdToModelsUpstreamCases(t *testing.T) {
 		value   []byte
 		wantErr bool
 	}{
-		{[]byte{0x02, 0xf8, 0x39}, false}, {[]byte{0x13, 0x20, 0x06}, false},
-		{[]byte{0x02, 0xf8}, true}, {[]byte{0xa2, 0xf8, 0x39}, true}, {[]byte{0x02, 0xf8, 0xa9}, true},
+		{[]byte{0x02, 0xf8, 0x39}, false},
+		{[]byte{0x13, 0x20, 0x06}, false},
+		{[]byte{0x02, 0xf8}, true},
+		{[]byte{0xa2, 0xf8, 0x39}, true},
+		{[]byte{0x02, 0xf8, 0xa9}, true},
 	} {
 		_, err := PlmnIdToModels(ngapType.PLMNIdentity{Value: tc.value})
 		if (err != nil) != tc.wantErr {
