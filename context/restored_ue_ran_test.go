@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	ngaputil "github.com/omec-project/amf/ngap/util"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/ngap/v2/aper"
-	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 )
@@ -25,7 +25,7 @@ func newDirectSctpRan(t *testing.T, gnbValue []byte) *AmfRan {
 	globalRANNodeID := &ngapType.GlobalRANNodeID{
 		Present: ngapType.GlobalRANNodeIDPresentGlobalGNBID,
 		GlobalGNBID: &ngapType.GlobalGNBID{
-			PLMNIdentity: ngapConvert.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
+			PLMNIdentity: ngapconv.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
 			GNBID: ngapType.GNBID{
 				Present: ngapType.GNBIDPresentGNBID,
 				GNBID:   &aper.BitString{Bytes: gnbValue, BitLength: 24},
@@ -135,7 +135,7 @@ func TestAmfRanFindByGnbIdDoesNotMatchADegenerateId(t *testing.T) {
 		return &ngapType.GlobalRANNodeID{
 			Present: ngapType.GlobalRANNodeIDPresentGlobalGNBID,
 			GlobalGNBID: &ngapType.GlobalGNBID{
-				PLMNIdentity: ngapConvert.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
+				PLMNIdentity: ngapconv.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
 				GNBID:        ngapType.GNBID{Present: ngapType.GNBIDPresentChoiceExtensions},
 			},
 		}
