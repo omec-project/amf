@@ -641,12 +641,11 @@ func BuildRegistrationAccept(
 		ue.AmPolicyAssociation.ServAreaRes != nil {
 		partialServiceAreaList, err := nasconv.PartialServiceAreaListToNas(ue.PlmnId, *ue.AmPolicyAssociation.ServAreaRes)
 		if err != nil {
-			logger.GmmLog.Errorf("encode registration accept service area list: %v", err)
-		} else {
-			registrationAccept.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.RegistrationAcceptServiceAreaListType)
-			registrationAccept.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
-			registrationAccept.SetPartialServiceAreaList(partialServiceAreaList)
+			return nil, fmt.Errorf("encode registration accept service area list: %w", err)
 		}
+		registrationAccept.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.RegistrationAcceptServiceAreaListType)
+		registrationAccept.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
+		registrationAccept.SetPartialServiceAreaList(partialServiceAreaList)
 	}
 
 	// Temporary: commented this timer because UESIM is not supporting
@@ -753,12 +752,11 @@ func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType
 		ue.AmPolicyAssociation.ServAreaRes != nil {
 		partialServiceAreaList, err := nasconv.PartialServiceAreaListToNas(ue.PlmnId, *ue.AmPolicyAssociation.ServAreaRes)
 		if err != nil {
-			logger.GmmLog.Errorf("encode configuration update service area list: %v", err)
-		} else {
-			configurationUpdateCommand.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.ConfigurationUpdateCommandServiceAreaListType)
-			configurationUpdateCommand.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
-			configurationUpdateCommand.SetPartialServiceAreaList(partialServiceAreaList)
+			return nil, fmt.Errorf("encode configuration update service area list: %w", err)
 		}
+		configurationUpdateCommand.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.ConfigurationUpdateCommandServiceAreaListType)
+		configurationUpdateCommand.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
+		configurationUpdateCommand.SetPartialServiceAreaList(partialServiceAreaList)
 	}
 
 	amfSelf := context.AMF_Self()
