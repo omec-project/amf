@@ -1196,7 +1196,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 				recommendedRanNode.Present = context.RecommendRanNodePresentRanNode
 				recommendedRanNode.GlobalRanNodeId = new(models.GlobalRanNodeId)
 				// TODO: Convert item.AMFPagingTarget.GlobalRANNodeID with
-				// globalRanNodeID, err := ngapConvert.RanIdToModels(item.AMFPagingTarget.GlobalRANNodeID),
+				// globalRanNodeID, err := ngapconv.RanIdToModels(item.AMFPagingTarget.GlobalRANNodeID),
 				// handle err, then assign recommendedRanNode.GlobalRanNodeId = &globalRanNodeID.
 			case ngapType.AMFPagingTargetPresentTAI:
 				recommendedRanNode.Present = context.RecommendRanNodePresentTAI
