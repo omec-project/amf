@@ -1,9 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Intel Corporation
+// Copyright 2019 free5GC.org
 // SPDX-License-Identifier: Apache-2.0
 
 package nasconv
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -28,6 +30,16 @@ func TestRequestedNssaiToModels(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].ServingSnssai.GetSst() != 1 || got[0].ServingSnssai.GetSd() != "010203" {
 		t.Fatalf("RequestedNssaiToModels() = %#v", got)
+	}
+}
+
+func TestRequestedNssaiToModelsPreservesNilSliceForZeroLength(t *testing.T) {
+	got, err := RequestedNssaiToModels(&nasType.RequestedNSSAI{})
+	if err != nil {
+		t.Fatalf("RequestedNssaiToModels() error = %v", err)
+	}
+	if got != nil {
+		t.Fatalf("RequestedNssaiToModels() = %#v, want nil", got)
 	}
 }
 
@@ -56,4 +68,41 @@ func TestGutiToStringUpstreamCases(t *testing.T) {
 			t.Fatalf("GutiToString(%x) = %q, want %q", tc.buf, got, tc.want)
 		}
 	}
+}
+
+func TestPartialServiceAreaListToNas(t *testing.T) {
+	got, err := PartialServiceAreaListToNas(models.PlmnId{Mcc: "208", Mnc: "93"}, models.ServiceAreaRestriction{
+		Areas: []models.Area{
+			{Tacs: []string{"000001"}},
+			{Tacs: []string{"000002", "000003"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("PartialServiceAreaListToNas() error = %v", err)
+	}
+	want := []byte{0x82, 0x02, 0xf8, 0x39, 0x00, 0x00, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x03}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("PartialServiceAreaListToNas() = %x, want %x", got, want)
+	}
+}
+
+func TestPartialServiceAreaListToNasRejectsInvalidTacCounts(t *testing.T) {
+	plmnID := models.PlmnId{Mcc: "208", Mnc: "93"}
+	for _, restriction := range []models.ServiceAreaRestriction{
+		{},
+		{Areas: []models.Area{{Tacs: []string{"not-hex"}}}},
+		{Areas: []models.Area{{Tacs: makeTacs(33)}}},
+	} {
+		if _, err := PartialServiceAreaListToNas(plmnID, restriction); err == nil {
+			t.Fatalf("PartialServiceAreaListToNas(%#v) succeeded", restriction)
+		}
+	}
+}
+
+func makeTacs(count int) []string {
+	tacs := make([]string, count)
+	for index := range tacs {
+		tacs[index] = fmt.Sprintf("%06x", index)
+	}
+	return tacs
 }

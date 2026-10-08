@@ -1,6 +1,11 @@
 // SPDX-FileCopyrightText: 2026 Intel Corporation
+// Copyright 2019 free5GC.org
 // SPDX-License-Identifier: Apache-2.0
 
+// Package nasconv translates between OpenAPI models and NAS protocol types.
+//
+// It is owned by AMF so the NAS protocol library can remain independent of
+// OpenAPI-generated SBI models.
 package nasconv
 
 import (
@@ -25,7 +30,7 @@ func RequestedNssaiToModels(nasNssai *nasType.RequestedNSSAI) ([]models.MappingO
 	}
 	buf = buf[:length]
 
-	requested := make([]models.MappingOfSnssai, 0)
+	var requested []models.MappingOfSnssai
 	for offset := 0; offset < length; {
 		itemLength := buf[offset]
 		item, err := requestedSnssaiToModels(itemLength, buf[offset:])
@@ -165,23 +170,37 @@ func LadnToNas(dnn string, taiLists []models.Tai) []uint8 {
 	return append(result, taiList...)
 }
 
-func PartialServiceAreaListToNas(plmnID models.PlmnId, restriction models.ServiceAreaRestriction) []byte {
+func PartialServiceAreaListToNas(plmnID models.PlmnId, restriction models.ServiceAreaRestriction) ([]byte, error) {
 	allowedType := nasMessage.AllowedTypeNonAllowedArea
 	if restriction.RestrictionType != nil && *restriction.RestrictionType == models.RESTRICTIONTYPE_ALLOWED_AREAS {
 		allowedType = nasMessage.AllowedTypeAllowedArea
 	}
-	result := []byte{((allowedType << 7) & 0x80) + uint8(len(restriction.Areas))}
-	result = append(result, PlmnIDToNas(plmnID)...)
+
+	tacs := make([][]byte, 0)
 	for _, area := range restriction.Areas {
 		for _, tac := range area.Tacs {
-			if bytes, err := hex.DecodeString(tac); err != nil {
-				logger.ConvertLog.Warnf("decode tac failed: %+v", err)
-			} else {
-				result = append(result, bytes...)
+			bytes, err := hex.DecodeString(tac)
+			if err != nil {
+				return nil, fmt.Errorf("decode TAC %q: %w", tac, err)
 			}
+			if len(bytes) != 3 {
+				return nil, fmt.Errorf("TAC %q has %d octets, want 3", tac, len(bytes))
+			}
+			tacs = append(tacs, bytes)
 		}
 	}
-	return result
+	if len(tacs) == 0 || len(tacs) > 32 {
+		return nil, fmt.Errorf("partial service area list has %d TACs, want 1-32", len(tacs))
+	}
+
+	// TS 24.501 9.11.3.49: for type-00 lists, the low five bits encode
+	// the number of TAC elements minus one.
+	result := []byte{((allowedType << 7) & 0x80) + uint8(len(tacs)-1)}
+	result = append(result, PlmnIDToNas(plmnID)...)
+	for _, tac := range tacs {
+		result = append(result, tac...)
+	}
+	return result, nil
 }
 
 func GutiToString(buf []byte) (models.Guami, string) {

@@ -639,10 +639,14 @@ func BuildRegistrationAccept(
 
 	if anType == models.ACCESSTYPE__3_GPP_ACCESS && ue.AmPolicyAssociation != nil &&
 		ue.AmPolicyAssociation.ServAreaRes != nil {
-		registrationAccept.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.RegistrationAcceptServiceAreaListType)
-		partialServiceAreaList := nasconv.PartialServiceAreaListToNas(ue.PlmnId, *ue.AmPolicyAssociation.ServAreaRes)
-		registrationAccept.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
-		registrationAccept.SetPartialServiceAreaList(partialServiceAreaList)
+		partialServiceAreaList, err := nasconv.PartialServiceAreaListToNas(ue.PlmnId, *ue.AmPolicyAssociation.ServAreaRes)
+		if err != nil {
+			logger.GmmLog.Errorf("encode registration accept service area list: %v", err)
+		} else {
+			registrationAccept.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.RegistrationAcceptServiceAreaListType)
+			registrationAccept.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
+			registrationAccept.SetPartialServiceAreaList(partialServiceAreaList)
+		}
 	}
 
 	// Temporary: commented this timer because UESIM is not supporting
@@ -747,10 +751,14 @@ func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType
 	// TODO: UniversalTimeAndLocalTimeZone
 	if anType == models.ACCESSTYPE__3_GPP_ACCESS && ue.AmPolicyAssociation != nil &&
 		ue.AmPolicyAssociation.ServAreaRes != nil {
-		configurationUpdateCommand.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.ConfigurationUpdateCommandServiceAreaListType)
-		partialServiceAreaList := nasconv.PartialServiceAreaListToNas(ue.PlmnId, *ue.AmPolicyAssociation.ServAreaRes)
-		configurationUpdateCommand.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
-		configurationUpdateCommand.SetPartialServiceAreaList(partialServiceAreaList)
+		partialServiceAreaList, err := nasconv.PartialServiceAreaListToNas(ue.PlmnId, *ue.AmPolicyAssociation.ServAreaRes)
+		if err != nil {
+			logger.GmmLog.Errorf("encode configuration update service area list: %v", err)
+		} else {
+			configurationUpdateCommand.ServiceAreaList = nasType.NewServiceAreaList(nasMessage.ConfigurationUpdateCommandServiceAreaListType)
+			configurationUpdateCommand.ServiceAreaList.SetLen(uint8(len(partialServiceAreaList)))
+			configurationUpdateCommand.SetPartialServiceAreaList(partialServiceAreaList)
+		}
 	}
 
 	amfSelf := context.AMF_Self()
