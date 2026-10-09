@@ -12,6 +12,8 @@ import (
 	"github.com/omec-project/openapi/v2/models"
 )
 
+const validTraceRecordingSessionReference = "abcd"
+
 func TestPlmnIdToModelsUpstreamCases(t *testing.T) {
 	for _, tc := range []struct {
 		value   []byte
@@ -55,7 +57,7 @@ func TestTaiToModelsRejectsMalformedPlmn(t *testing.T) {
 
 func TestTraceDataToNgap(t *testing.T) {
 	trace := *models.NewTraceData("20893-a1b2c3", models.TRACEDEPTH_MINIMUM, "01", "01")
-	got, err := TraceDataToNgap(trace, "abcd")
+	got, err := TraceDataToNgap(trace, validTraceRecordingSessionReference)
 	if err != nil {
 		t.Fatalf("TraceDataToNgap() error = %v", err)
 	}
@@ -69,10 +71,10 @@ func TestTraceDataToNgapRejectsMalformedTraceReference(t *testing.T) {
 		traceRef string
 		trsr     string
 	}{
-		{"invalid", "abcd"},
-		{"2089300-a1b2c3", "abcd"},
-		{"20893-a1b2", "abcd"},
-		{"20893-a1b2cg", "abcd"},
+		{"invalid", validTraceRecordingSessionReference},
+		{"2089300-a1b2c3", validTraceRecordingSessionReference},
+		{"20893-a1b2", validTraceRecordingSessionReference},
+		{"20893-a1b2cg", validTraceRecordingSessionReference},
 		{"20893-a1b2c3", "abcg"},
 	} {
 		trace := *models.NewTraceData(tc.traceRef, models.TRACEDEPTH_MINIMUM, "01", "01")
