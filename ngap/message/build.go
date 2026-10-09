@@ -1083,7 +1083,10 @@ func BuildInitialContextSetupRequest(
 		ie.Value.TraceActivation = new(ngapType.TraceActivation)
 		// TS 32.422 4.2.2.9
 		// TODO: AMF allocate Trace Recording Session Reference
-		traceActivation := ngapconv.TraceDataToNgap(*amfUe.TraceData, ranUe.Trsr)
+		traceActivation, err := ngapconv.TraceDataToNgap(*amfUe.TraceData, ranUe.Trsr)
+		if err != nil {
+			return nil, fmt.Errorf("build trace activation: %w", err)
+		}
 		ie.Value.TraceActivation = &traceActivation
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 	}

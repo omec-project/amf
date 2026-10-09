@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Intel Corporation
+// Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
 // SPDX-License-Identifier: Apache-2.0
 
 package ngapconv
@@ -52,11 +53,32 @@ func TestTaiToModelsRejectsMalformedPlmn(t *testing.T) {
 	}
 }
 
+func TestTraceDataToNgap(t *testing.T) {
+	trace := *models.NewTraceData("20893-a1b2c3", models.TRACEDEPTH_MINIMUM, "01", "01")
+	got, err := TraceDataToNgap(trace, "abcd")
+	if err != nil {
+		t.Fatalf("TraceDataToNgap() error = %v", err)
+	}
+	if want := []byte{0x02, 0xf8, 0x39, 0xa1, 0xb2, 0xc3, 0xab, 0xcd}; string(got.NGRANTraceID.Value) != string(want) {
+		t.Fatalf("TraceDataToNgap() NGRANTraceID = %x, want %x", got.NGRANTraceID.Value, want)
+	}
+}
+
 func TestTraceDataToNgapRejectsMalformedTraceReference(t *testing.T) {
-	trace := *models.NewTraceData("invalid", models.TRACEDEPTH_MINIMUM, "01", "01")
-	got := TraceDataToNgap(trace, "abcd")
-	if len(got.NGRANTraceID.Value) != 0 {
-		t.Fatalf("malformed trace reference encoded %x", got.NGRANTraceID.Value)
+	for _, tc := range []struct {
+		traceRef string
+		trsr     string
+	}{
+		{"invalid", "abcd"},
+		{"2089300-a1b2c3", "abcd"},
+		{"20893-a1b2", "abcd"},
+		{"20893-a1b2cg", "abcd"},
+		{"20893-a1b2c3", "abcg"},
+	} {
+		trace := *models.NewTraceData(tc.traceRef, models.TRACEDEPTH_MINIMUM, "01", "01")
+		if _, err := TraceDataToNgap(trace, tc.trsr); err == nil {
+			t.Fatalf("TraceDataToNgap(%q, %q) succeeded", tc.traceRef, tc.trsr)
+		}
 	}
 }
 

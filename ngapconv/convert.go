@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: 2026 Intel Corporation
+// Copyright 2019 Communication Service/Software Laboratory, National Chiao Tung University (free5gc.org)
 // SPDX-License-Identifier: Apache-2.0
 
 // Package ngapconv translates between OpenAPI models and NGAP protocol types.
@@ -169,28 +170,36 @@ func RanIdToModels(ran ngapType.GlobalRANNodeID) (models.GlobalRanNodeId, error)
 	return result, nil
 }
 
-func TraceDataToNgap(traceData models.TraceData, trsr string) ngapType.TraceActivation {
+func TraceDataToNgap(traceData models.TraceData, trsr string) (ngapType.TraceActivation, error) {
 	result := ngapType.TraceActivation{}
 	if len(trsr) != 4 {
-		logger.NgapLog.Warnln("trace Recording Session Reference should be 2 octets")
-		return result
+		return result, fmt.Errorf("trace recording session reference has %d hexadecimal characters, want 4", len(trsr))
 	}
+	trsrValue, err := hex.DecodeString(trsr)
+	if err != nil || len(trsrValue) != 2 {
+		return result, fmt.Errorf("invalid trace recording session reference %q", trsr)
+	}
+
 	parts := strings.Split(traceData.TraceRef, "-")
-	if len(parts) != 2 || len(parts[0]) < 5 {
-		logger.NgapLog.Warnln("traceRef format is not correct")
-		return result
+	if len(parts) != 2 || (len(parts[0]) != 5 && len(parts[0]) != 6) || !digits(parts[0]) {
+		return result, fmt.Errorf("invalid trace reference PLMN %q", traceData.TraceRef)
+	}
+	if len(parts[1]) != 6 {
+		return result, fmt.Errorf("trace reference ID has %d hexadecimal characters, want 6", len(parts[1]))
 	}
 	traceID, err := hex.DecodeString(parts[1])
-	if err != nil {
-		logger.NgapLog.Warnf("traceIDTmp is empty")
+	if err != nil || len(traceID) != 3 {
+		return result, fmt.Errorf("invalid trace reference ID %q", parts[1])
 	}
 	plmn := models.PlmnId{Mcc: parts[0][:3], Mnc: parts[0][3:]}
-	traceRef := append(PlmnIdToNgap(plmn).Value, traceID...)
-	trsrValue, err := hex.DecodeString(trsr)
-	if err != nil {
-		logger.NgapLog.Warnf("decode trsr failed: %+v", err)
+	plmnValue := PlmnIdToNgap(plmn).Value
+	if len(plmnValue) != 3 {
+		return result, fmt.Errorf("invalid trace reference PLMN %q", parts[0])
 	}
-	result.NGRANTraceID.Value = append(traceRef, trsrValue...)
+	result.NGRANTraceID.Value = make([]byte, 0, 8)
+	result.NGRANTraceID.Value = append(result.NGRANTraceID.Value, plmnValue...)
+	result.NGRANTraceID.Value = append(result.NGRANTraceID.Value, traceID...)
+	result.NGRANTraceID.Value = append(result.NGRANTraceID.Value, trsrValue...)
 	result.InterfacesToTrace.Value = aper.BitString{Bytes: []byte{0}, BitLength: 8}
 	if value := traceData.GetInterfaceList(); value != "" {
 		if decoded, err := hex.DecodeString(value); err != nil {
@@ -214,5 +223,5 @@ func TraceDataToNgap(traceData models.TraceData, trsr string) ngapType.TraceActi
 	case models.TRACEDEPTH_MAXIMUM_WO_VENDOR_EXTENSION:
 		result.TraceDepth.Value = ngapType.TraceDepthPresentMaximumWithoutVendorSpecificExtension
 	}
-	return result
+	return result, nil
 }
