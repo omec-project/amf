@@ -432,7 +432,7 @@ func (context *AMFContext) NewAmfRanId(GnbId string) *AmfRan {
 //
 // The range is skipped for an id that cannot identify one gNB, because a loose match on such
 // an id is worse than no match. SetRanId builds GnbId as "<mcc>:<mnc>:" and then appends the
-// gNB value, and ngapConvert.RanIdToModels leaves that value empty -- without returning an
+// gNB value, and ngapconv.RanIdToModels leaves that value empty -- without returning an
 // error -- whenever the GNBID arrives on the CHOICE's extension arm rather than
 // GNBIDPresentGNBID. The result is a trailing colon: non-empty, and shared by every gNB on
 // that PLMN whose id degenerated the same way. An empty GnbId is the same problem from the

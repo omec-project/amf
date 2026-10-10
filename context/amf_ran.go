@@ -16,8 +16,8 @@ import (
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/amf/protos/sdcoreAmfServer"
-	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 	mi "github.com/omec-project/util/metricinfo"
@@ -201,7 +201,7 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 }
 
 func (ran *AmfRan) SetRanId(ranNodeId *ngapType.GlobalRANNodeID) error {
-	ranId, err := ngapConvert.RanIdToModels(*ranNodeId)
+	ranId, err := ngapconv.RanIdToModels(*ranNodeId)
 	if err != nil {
 		return fmt.Errorf("set RanId failed: %w", err)
 	}

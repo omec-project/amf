@@ -14,6 +14,7 @@ import (
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/msgtypes/ngapmsgtypes"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/ngap/v2"
 	"github.com/omec-project/ngap/v2/aper"
 	"github.com/omec-project/ngap/v2/ngapConvert"
@@ -50,7 +51,7 @@ func appendAllowedNSSAIItem(
 	}
 
 	allowedNSSAIItem := ngapType.AllowedNSSAIItem{}
-	allowedNSSAIItem.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
+	allowedNSSAIItem.SNSSAI = ngapconv.SNssaiToNgap(snssai)
 	allowedNSSAI.List = append(allowedNSSAI.List, allowedNSSAIItem)
 	seen[key] = struct{}{}
 	return nil
@@ -184,7 +185,7 @@ func BuildNGSetupResponse() ([]byte, error) {
 			Mcc: guami.PlmnId.GetMcc(),
 			Mnc: guami.PlmnId.GetMnc(),
 		}
-		servedGUAMIItem.GUAMI.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnId)
+		servedGUAMIItem.GUAMI.PLMNIdentity = ngapconv.PlmnIdToNgap(plmnId)
 		regionId, setId, prtId := ngapConvert.AmfIdToNgap(guami.AmfId)
 		servedGUAMIItem.GUAMI.AMFRegionID.Value = regionId
 		servedGUAMIItem.GUAMI.AMFSetID.Value = setId
@@ -215,10 +216,10 @@ func BuildNGSetupResponse() ([]byte, error) {
 	pLMNSupportList := ie.Value.PLMNSupportList
 	for _, plmnItem := range amfSelf.PlmnSupportList {
 		pLMNSupportItem := ngapType.PLMNSupportItem{}
-		pLMNSupportItem.PLMNIdentity = ngapConvert.PlmnIdToNgap(plmnItem.PlmnId)
+		pLMNSupportItem.PLMNIdentity = ngapconv.PlmnIdToNgap(plmnItem.PlmnId)
 		for _, snssai := range plmnItem.SNssaiList {
 			sliceSupportItem := ngapType.SliceSupportItem{}
-			sliceSupportItem.SNSSAI = ngapConvert.SNssaiToNgap(snssai)
+			sliceSupportItem.SNSSAI = ngapconv.SNssaiToNgap(snssai)
 			pLMNSupportItem.SliceSupportList.List = append(pLMNSupportItem.SliceSupportList.List, sliceSupportItem)
 		}
 		pLMNSupportList.List = append(pLMNSupportList.List, pLMNSupportItem)
@@ -996,7 +997,7 @@ func BuildInitialContextSetupRequest(
 		Mcc: servedGuami.PlmnId.GetMcc(),
 		Mnc: servedGuami.PlmnId.GetMnc(),
 	}
-	*plmnID = ngapConvert.PlmnIdToNgap(plmnId)
+	*plmnID = ngapconv.PlmnIdToNgap(plmnId)
 	amfRegionID.Value, amfSetID.Value, amfPtrID.Value = ngapConvert.AmfIdToNgap(servedGuami.AmfId)
 
 	initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
@@ -1082,7 +1083,10 @@ func BuildInitialContextSetupRequest(
 		ie.Value.TraceActivation = new(ngapType.TraceActivation)
 		// TS 32.422 4.2.2.9
 		// TODO: AMF allocate Trace Recording Session Reference
-		traceActivation := ngapConvert.TraceDataToNgap(*amfUe.TraceData, ranUe.Trsr)
+		traceActivation, err := ngapconv.TraceDataToNgap(*amfUe.TraceData, ranUe.Trsr)
+		if err != nil {
+			return nil, fmt.Errorf("build trace activation: %w", err)
+		}
 		ie.Value.TraceActivation = &traceActivation
 		initialContextSetupRequestIEs.List = append(initialContextSetupRequestIEs.List, ie)
 	}
@@ -1579,7 +1583,7 @@ func BuildHandoverRequest(ue *context.RanUe, cause ngapType.Cause,
 		Mcc: servedGuami.PlmnId.GetMcc(),
 		Mnc: servedGuami.PlmnId.GetMnc(),
 	}
-	*plmnID = ngapConvert.PlmnIdToNgap(plmnId)
+	*plmnID = ngapconv.PlmnIdToNgap(plmnId)
 	amfRegionID.Value, amfSetID.Value, amfPtrID.Value = ngapConvert.AmfIdToNgap(servedGuami.AmfId)
 
 	handoverRequestIEs.List = append(handoverRequestIEs.List, ie)
@@ -2012,7 +2016,7 @@ func BuildPaging(
 		for _, tai := range registrationArea {
 			var tac []byte
 			taiListforPagingItem := ngapType.TAIListForPagingItem{}
-			taiListforPagingItem.TAI.PLMNIdentity = ngapConvert.PlmnIdToNgap(tai.PlmnId)
+			taiListforPagingItem.TAI.PLMNIdentity = ngapconv.PlmnIdToNgap(tai.PlmnId)
 			tac, err = hex.DecodeString(tai.Tac)
 			if err != nil {
 				logger.NgapLog.Errorf("[Build Error] DecodeString tai.Tac error: %+v", err)
@@ -2078,13 +2082,13 @@ func BuildPaging(
 				recommendedCellItem.NGRANCGI.Present = ngapType.NGRANCGIPresentNRCGI
 				recommendedCellItem.NGRANCGI.NRCGI = new(ngapType.NRCGI)
 				nrCGI := recommendedCellItem.NGRANCGI.NRCGI
-				nrCGI.PLMNIdentity = ngapConvert.PlmnIdToNgap(recommendedCell.NgRanCGI.NRCGI.PlmnId)
+				nrCGI.PLMNIdentity = ngapconv.PlmnIdToNgap(recommendedCell.NgRanCGI.NRCGI.PlmnId)
 				nrCGI.NRCellIdentity.Value = ngapConvert.HexToBitString(recommendedCell.NgRanCGI.NRCGI.NrCellId, 36)
 			case context.NgRanCgiPresentEUTRACGI:
 				recommendedCellItem.NGRANCGI.Present = ngapType.NGRANCGIPresentEUTRACGI
 				recommendedCellItem.NGRANCGI.EUTRACGI = new(ngapType.EUTRACGI)
 				eutraCGI := recommendedCellItem.NGRANCGI.EUTRACGI
-				eutraCGI.PLMNIdentity = ngapConvert.PlmnIdToNgap(recommendedCell.NgRanCGI.EUTRACGI.PlmnId)
+				eutraCGI.PLMNIdentity = ngapconv.PlmnIdToNgap(recommendedCell.NgRanCGI.EUTRACGI.PlmnId)
 				eutraCGI.EUTRACellIdentity.Value = ngapConvert.HexToBitString(recommendedCell.NgRanCGI.EUTRACGI.EutraCellId, 28)
 			}
 

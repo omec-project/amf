@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/nas/v2/nasType"
-	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
@@ -53,7 +53,7 @@ func TestBuildHandoverRequestUsesUEAllowedNSSAI(t *testing.T) {
 	pduSessionResourceSetupList := ngapType.PDUSessionResourceSetupListHOReq{
 		List: []ngapType.PDUSessionResourceSetupItemHOReq{{
 			PDUSessionID:            ngapType.PDUSessionID{Value: 10},
-			SNSSAI:                  ngapConvert.SNssaiToNgap(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")}),
+			SNSSAI:                  ngapconv.SNssaiToNgap(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")}),
 			HandoverRequestTransfer: []byte{0x00},
 		}},
 	}

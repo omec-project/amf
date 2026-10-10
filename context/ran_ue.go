@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
@@ -250,7 +251,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		}
 
 		tAI := locationInfoEUTRA.TAI
-		plmnID, err := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
+		plmnID, err := ngapconv.PlmnIdToModels(tAI.PLMNIdentity)
 		if err != nil {
 			ranUe.Log.Errorf("decode EUTRA TAI PLMN failed: %+v", err)
 			return
@@ -262,7 +263,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Tai = ranUe.Location.EutraLocation.Tai
 
 		eUTRACGI := locationInfoEUTRA.EUTRACGI
-		ePlmnID, err := ngapConvert.PlmnIdToModels(eUTRACGI.PLMNIdentity)
+		ePlmnID, err := ngapconv.PlmnIdToModels(eUTRACGI.PLMNIdentity)
 		if err != nil {
 			ranUe.Log.Errorf("decode EUTRA CGI PLMN failed: %+v", err)
 			return
@@ -294,7 +295,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		}
 
 		tAI := locationInfoNR.TAI
-		plmnID, err := ngapConvert.PlmnIdToModels(tAI.PLMNIdentity)
+		plmnID, err := ngapconv.PlmnIdToModels(tAI.PLMNIdentity)
 		if err != nil {
 			ranUe.Log.Errorf("decode NR TAI PLMN failed: %+v", err)
 			return
@@ -311,7 +312,7 @@ func (ranUe *RanUe) UpdateLocation(userLocationInformation *ngapType.UserLocatio
 		ranUe.Tai = *taiCopy
 
 		nRCGI := locationInfoNR.NRCGI
-		nRPlmnID, err := ngapConvert.PlmnIdToModels(nRCGI.PLMNIdentity)
+		nRPlmnID, err := ngapconv.PlmnIdToModels(nRCGI.PLMNIdentity)
 		if err != nil {
 			ranUe.Log.Errorf("decode NR CGI PLMN failed: %+v", err)
 			return

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/ngapconv"
 	"github.com/omec-project/ngap/v2/aper"
-	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 )
@@ -32,10 +32,10 @@ func ngSetupRequestWithTACs(tacs ...string) *ngapType.NGAPPDU {
 
 		item := ngapType.SupportedTAItem{TAC: ngapType.TAC{Value: raw}}
 		item.BroadcastPLMNList.List = append(item.BroadcastPLMNList.List, ngapType.BroadcastPLMNItem{
-			PLMNIdentity: ngapConvert.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
+			PLMNIdentity: ngapconv.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
 			TAISliceSupportList: ngapType.SliceSupportList{
 				List: []ngapType.SliceSupportItem{
-					{SNSSAI: ngapConvert.SNssaiToNgap(models.Snssai{Sst: 1})},
+					{SNSSAI: ngapconv.SNssaiToNgap(models.Snssai{Sst: 1})},
 				},
 			},
 		})
@@ -45,7 +45,7 @@ func ngSetupRequestWithTACs(tacs ...string) *ngapType.NGAPPDU {
 	globalRANNodeID := ngapType.GlobalRANNodeID{
 		Present: ngapType.GlobalRANNodeIDPresentGlobalGNBID,
 		GlobalGNBID: &ngapType.GlobalGNBID{
-			PLMNIdentity: ngapConvert.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
+			PLMNIdentity: ngapconv.PlmnIdToNgap(models.PlmnId{Mcc: "208", Mnc: "93"}),
 			GNBID: ngapType.GNBID{
 				Present: ngapType.GNBIDPresentGNBID,
 				GNBID:   &aper.BitString{Bytes: []byte{0x45, 0x46, 0x47}, BitLength: 24},
