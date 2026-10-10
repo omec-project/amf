@@ -1004,6 +1004,19 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	ue.updateAttachedRanUeLogs(ranUe)
 	ue.Mutex.Unlock()
 
+	// A replaced RanUe that a RAN lists leaves RanUePool with its own release. One a restore
+	// published, which no RAN has listed since, stands for a connection the RAN node has
+	// normally dropped when the AMF terminates SCTP itself: after an AMF restart each RAN node
+	// makes an NG Setup, which erases its UE contexts (TS 38.413 8.7.1.1). No release comes for
+	// it, and once replaced it would stay in RanUePool, pointing at this UE, until the process
+	// ends. Only that entry is removed, and only while it still holds this RanUe: either id may
+	// since have gone to another UE. Behind an SCTP load balancer an AMF restart is followed by
+	// no NG Setup, the RAN node can still release the RanUe, and the stale-RanUe release path
+	// has to find it, so it stays.
+	if oldRanUe != nil && !AMF_Self().EnableSctpLb {
+		oldRanUe.unpoolIfRestoredUnlisted()
+	}
+
 	if oldRanUe != nil {
 		// Capture the logger before spawning: this goroutine sleeps, so it reads the value
 		// long after the call returns. logger.ContextLog is a package variable that tests

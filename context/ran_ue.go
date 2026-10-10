@@ -75,6 +75,13 @@ type RanUe struct {
 	AmfUe   *AmfUe `json:"-"`
 	amfUeMu sync.RWMutex
 	Ran     *AmfRan
+	// listing orders a replacement's removal of this RanUe from RanUePool against a RAN
+	// listing it; see unpoolIfRestoredUnlisted and markListed.
+	listing sync.Mutex
+	// restoredUnlisted: a restore published this RanUe in RanUePool, and no RAN has listed it
+	// since. unpooled: a replacement took it out of RanUePool while it was unlisted.
+	restoredUnlisted bool
+	unpooled         bool
 
 	/* Routing ID */
 	RoutingID string
@@ -188,6 +195,40 @@ func (ranUe *RanUe) DetachAmfUeIf(amfUe *AmfUe) {
 	}
 }
 
+// markRestored records that a restore has published this RanUe in RanUePool, on no RAN's list.
+func (ranUe *RanUe) markRestored() {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	ranUe.restoredUnlisted = true
+}
+
+// unpoolIfRestoredUnlisted takes this RanUe out of RanUePool, by identity, if a restore
+// published it and no RAN has listed it since.
+func (ranUe *RanUe) unpoolIfRestoredUnlisted() {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	if ranUe.restoredUnlisted && AMF_Self().RanUePool.CompareAndDelete(ranUe.AmfUeNgapId, ranUe) {
+		ranUe.unpooled = true
+	}
+}
+
+// markListed records that a RAN lists this RanUe. Its release, through that RAN, then has to
+// find it in RanUePool, so one a replacement took out while it was unlisted is published
+// again, unless its id has gone to another RanUe since. The removal takes the same lock, so
+// whichever of the two comes second sees what the first did.
+func (ranUe *RanUe) markListed() {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	ranUe.restoredUnlisted = false
+	if ranUe.unpooled {
+		ranUe.unpooled = false
+		AMF_Self().RanUePool.LoadOrStore(ranUe.AmfUeNgapId, ranUe)
+	}
+}
+
 func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	if ranUe == nil {
 		return fmt.Errorf("ranUe is nil")
@@ -205,6 +246,7 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	oldRan.ranStateMu.Unlock()
 
 	// add ranUe to newRan
+	ranUe.markListed()
 	newRan.ranStateMu.Lock()
 	newRan.RanUeList[ranUeNgapId] = ranUe
 	newRan.ranStateMu.Unlock()

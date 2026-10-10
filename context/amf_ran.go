@@ -192,6 +192,7 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 		ranUe = DbFetchRanUeByRanUeNgapID(ranUeNgapID, ran)
 		if ranUe != nil {
 			ranUe.Ran = ran
+			ranUe.markListed()
 			ran.RanUeList[ranUeNgapID] = ranUe
 			return ranUe
 		}
