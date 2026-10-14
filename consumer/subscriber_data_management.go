@@ -344,15 +344,14 @@ func SDMGetSliceSelectionSubscriptionData(ctx context.Context, ue *amf_context.A
 			ue.SubscribedNssai = append(ue.SubscribedNssai, subscribedSnssai)
 		}
 	} else if httpResp != nil {
-		if httpResp.Status != localErr.Error() {
-			err = localErr
-			return problemDetails, err
+		problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr)
+		if !ok {
+			// No body, or one that would not decode
+			// The status still answers; keep the raw error as detail so it is not lost
+			problem.SetDetail(localErr.Error())
 		}
-		if problem, ok := openapi.ErrorModel[models.ProblemDetails](localErr); ok {
-			problemDetails = &problem
-		} else {
-			err = localErr
-		}
+		problem.SetStatus(int32(httpResp.StatusCode))
+		problemDetails = &problem
 	} else {
 		err = openapi.ReportError("Could not contact UDM at %v, %+v", ue.NudmSDMUri, localErr)
 	}
