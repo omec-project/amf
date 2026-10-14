@@ -1002,6 +1002,12 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	// Under the same lock as the RanUe map: the loggers carry the NGAP id of the RanUe
 	// just attached, and methods holding this lock log through them.
 	ue.updateAttachedRanUeLogs(ranUe)
+	// Counted under the lock the timer checks the count under, so a timer that wakes after
+	// this replacement sees it.
+	var replacement uint64
+	if oldRanUe != nil {
+		replacement = oldRanUe.replacements.Add(1)
+	}
 	ue.Mutex.Unlock()
 
 	if oldRanUe != nil {
@@ -1010,7 +1016,7 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 		// reassign, and a deferred read of it here would race those writes from a goroutine
 		// that outlives the test. Reading it now keeps the goroutine self-contained.
 		detachLog := logger.ContextLog
-		go func(oldRanUe *RanUe, anType models.AccessType) {
+		go func(oldRanUe *RanUe, anType models.AccessType, replacement uint64) {
 			time.Sleep(time.Second * 2)
 
 			ue.Mutex.Lock()
@@ -1019,11 +1025,14 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 			// Detach the replaced RanUe unless it is the UE's current RanUe again, whatever
 			// became of the one that replaced it, and only while it still points at this UE:
 			// another UE's AttachRanUe, which holds that UE's lock and not this one, may have
-			// taken it. DetachAmfUeIf checks and clears under the RanUe's own lock.
-			if ue.RanUe[anType] != oldRanUe && oldRanUe.DetachAmfUeIf(ue) {
+			// taken it. DetachAmfUeIf checks and clears under the RanUe's own lock. Not if it
+			// has been attached again and replaced since: that replacement's own timer gives
+			// it a full grace period.
+			if oldRanUe.replacements.Load() == replacement && ue.RanUe[anType] != oldRanUe &&
+				oldRanUe.DetachAmfUeIf(ue) {
 				detachLog.Infof("detached UeContext from OldRanUe %v", oldRanUe.AmfUeNgapId)
 			}
-		}(oldRanUe, anType)
+		}(oldRanUe, anType, replacement)
 	}
 }
 

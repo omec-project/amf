@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/omec-project/amf/logger"
@@ -99,6 +100,11 @@ type RanUe struct {
 
 	/* Sctplb Redirect Msg */
 	SctplbMsg []byte
+
+	// replacements counts the times an AttachRanUe has replaced this RanUe, so that only the
+	// latest replacement's grace period ends in a detach. Each UE counts under its own lock,
+	// and a RanUe can move between UEs, so the count is atomic.
+	replacements atomic.Uint64
 }
 
 func (ranUe *RanUe) Remove() error {

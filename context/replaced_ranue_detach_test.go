@@ -58,10 +58,11 @@ func lettingGo(ranUe *RanUe) bool {
 }
 
 // A RanUe that a newer one has replaced lets go of the UE once its grace period is over, unless
-// it has become the UE's RanUe again, or another UE's. It used to let go only while the newer
-// one was still attached: once that one had been released, or replaced in turn, the old RanUe
-// kept pointing at the UE indefinitely, and after a deregistration at a UE that was gone. Each
-// case waits out the grace period, so they run in parallel, each on its own RAN.
+// it has become the UE's RanUe again, or another UE's, and if it has been attached again and
+// replaced since, not before that replacement's grace period is over. It used to let go only
+// while the newer one was still attached: once that one had been released, or replaced in turn,
+// the old RanUe kept pointing at the UE indefinitely, and after a deregistration at a UE that
+// was gone. Each case waits out the grace period, so they run in parallel, each on its own RAN.
 func TestAReplacedRanUeLetsGoOfTheUe(t *testing.T) {
 	t.Run("while the newer RanUe is attached", func(t *testing.T) {
 		t.Parallel()
@@ -126,6 +127,30 @@ func TestAReplacedRanUeLetsGoOfTheUe(t *testing.T) {
 
 		if lettingGo(old) {
 			t.Error("the first UE's grace period detached the RanUe from another UE")
+		}
+	})
+
+	t.Run("not before a later replacement's grace period is over", func(t *testing.T) {
+		t.Parallel()
+
+		ue, ran, old, _ := ueReplacingItsRanUe(t, "208:93:detach-later", 952)
+		firstReplaced := time.Now()
+		time.Sleep(time.Second)
+		ue.AttachRanUe(old)
+		latest, err := ran.NewRanUe(954)
+		if err != nil {
+			t.Fatalf("NewRanUe: %v", err)
+		}
+		t.Cleanup(func() { AMF_Self().RanUePool.Delete(latest.AmfUeNgapId) })
+		ue.AttachRanUe(latest)
+
+		// Past the first replacement's grace period, a second into the latest one's.
+		time.Sleep(time.Until(firstReplaced.Add(2500 * time.Millisecond)))
+		if old.GetAmfUe() != ue {
+			t.Fatal("the first replacement's timer cut short the grace period of the latest one")
+		}
+		if !lettingGo(old) {
+			t.Error("the RanUe still points at the UE after the latest replacement's grace period")
 		}
 	})
 }
