@@ -3486,7 +3486,8 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 		// TODO: set newSecurityContextIndicator to true if there is a new security context
 		err := ranUe.SwitchToRan(ran, rANUENGAPID.Value)
 		if err != nil {
-			// The RanUe was removed while the path switch was under way.
+			// The RanUe was removed while the path switch was under way, or its
+			// AMF-UE-NGAP-ID names another RanUe.
 			ranUe.Log.Errorln(err.Error())
 			ngap_message.SendPathSwitchRequestFailure(ran, sourceAMFUENGAPID.Value, rANUENGAPID.Value, nil, nil)
 			return

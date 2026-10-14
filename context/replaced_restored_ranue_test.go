@@ -129,7 +129,8 @@ func TestAReplacedRanUeThatARanListsStaysInRanUePool(t *testing.T) {
 
 // A RAN that lists a restored RanUe after a replacement took it out of RanUePool holds the
 // connection, so the RanUe's release will come, and it is published again for that release
-// to find. Not over another RanUe that has taken its id since.
+// to find. Not if another RanUe has taken its id since: then it is listed nowhere, since a
+// release naming that id would reach the other RanUe.
 func TestARestoredRanUeListedAfterItsRemovalIsPublishedAgain(t *testing.T) {
 	withSctpLb(t, false)
 	self := AMF_Self()
@@ -160,17 +161,20 @@ func TestARestoredRanUeListedAfterItsRemovalIsPublishedAgain(t *testing.T) {
 		}
 	})
 
-	t.Run("not over a RanUe that has taken its id", func(t *testing.T) {
+	t.Run("not when a RanUe has taken its id", func(t *testing.T) {
 		ran, restored, restoredRanUe := restoredAfterARestart(t, "imsi-208930100009955", 955)
 		restored.AttachRanUe(newRanUeOn(t, ran, 956))
 		other := &RanUe{AmfUeNgapId: restoredRanUe.AmfUeNgapId}
 		self.RanUePool.Store(other.AmfUeNgapId, other)
 		t.Cleanup(func() { self.RanUePool.CompareAndDelete(other.AmfUeNgapId, other) })
+		target := switchTarget(t, "208:93:taken-target")
 
-		if err := restoredRanUe.SwitchToRan(switchTarget(t, "208:93:taken-target"), 957); err != nil {
-			t.Fatalf("SwitchToRan: %v", err)
+		if err := restoredRanUe.SwitchToRan(target, 957); err == nil {
+			t.Error("a RanUe whose id names another RanUe switched to another RAN")
 		}
-
+		if target.RanUeFindByRanUeNgapIDLocal(957) != nil {
+			t.Error("a RanUe whose id names another RanUe is on the RAN it switched to")
+		}
 		if self.RanUeFindByAmfUeNgapIDLocal(other.AmfUeNgapId) != other {
 			t.Error("publishing the restored RanUe again displaced the RanUe that holds its id")
 		}
@@ -241,4 +245,31 @@ func TestARemovedRanUeIsNotListedAgain(t *testing.T) {
 			t.Error("Remove left the RanUe on the RAN it had switched to")
 		}
 	})
+}
+
+// A restored RanUe whose id another RanUe has taken over in RanUePool, with no replacement
+// having taken it out first, is listed nowhere either: not by a lookup by RAN-UE-NGAP-ID, and
+// not by a switch.
+func TestARanUeWhoseIdNamesAnotherIsListedNowhere(t *testing.T) {
+	withSctpLb(t, false)
+	self := AMF_Self()
+
+	ran, _, restoredRanUe := restoredAfterARestart(t, "imsi-208930100009965", 965)
+	other := &RanUe{AmfUeNgapId: restoredRanUe.AmfUeNgapId}
+	self.RanUePool.Store(other.AmfUeNgapId, other)
+	t.Cleanup(func() { self.RanUePool.CompareAndDelete(other.AmfUeNgapId, other) })
+
+	if ran.RanUeFindByRanUeNgapID(965) != nil {
+		t.Error("a lookup by RAN-UE-NGAP-ID listed a RanUe whose id names another RanUe")
+	}
+
+	target := self.NewAmfRanId("208:93:named-target")
+	target.AnType = models.ACCESSTYPE__3_GPP_ACCESS
+	t.Cleanup(func() { self.AmfRanPool.Delete("208:93:named-target") })
+	if err := restoredRanUe.SwitchToRan(target, 966); err == nil {
+		t.Error("a RanUe whose id names another RanUe switched to another RAN")
+	}
+	if target.RanUeFindByRanUeNgapIDLocal(966) != nil {
+		t.Error("a RanUe whose id names another RanUe is on the RAN it switched to")
+	}
 }

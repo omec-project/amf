@@ -252,11 +252,12 @@ func (ranUe *RanUe) listedAt() (*AmfRan, int64) {
 }
 
 // listOn lists this RanUe on ran under ranUeNgapID and makes them its RAN and RAN-UE-NGAP-ID,
-// unless Remove has started on it, and reports whether it did. The caller holds ran's
-// ranStateMu. It clears the restore's mark and, if a replacement took the RanUe out of
-// RanUePool while it was unlisted, publishes it again, since its release through this RAN has
-// to find it, unless its id has gone to another RanUe since. The removal from RanUePool and
-// Remove take the same lock, so whichever comes second sees what the first did.
+// unless Remove has started on it or its AMF-UE-NGAP-ID names another RanUe in RanUePool, and
+// reports whether it did. The caller holds ran's ranStateMu. It clears the restore's mark and,
+// if a replacement took the RanUe out of RanUePool while it was unlisted, publishes it again,
+// since its release through this RAN has to find it. A RanUe whose id has gone to another one
+// is listed nowhere: a release naming that id would reach the other RanUe. The removal from
+// RanUePool and Remove take the same lock, so whichever comes second sees what the first did.
 func (ranUe *RanUe) listOn(ran *AmfRan, ranUeNgapID int64) bool {
 	ranUe.listing.Lock()
 	defer ranUe.listing.Unlock()
@@ -264,11 +265,16 @@ func (ranUe *RanUe) listOn(ran *AmfRan, ranUeNgapID int64) bool {
 	if ranUe.removed {
 		return false
 	}
-	ranUe.restoredUnlisted = false
+	pool := &AMF_Self().RanUePool
 	if ranUe.unpooled {
+		if owner, loaded := pool.LoadOrStore(ranUe.AmfUeNgapId, ranUe); loaded && owner != ranUe {
+			return false
+		}
 		ranUe.unpooled = false
-		AMF_Self().RanUePool.LoadOrStore(ranUe.AmfUeNgapId, ranUe)
+	} else if owner, ok := pool.Load(ranUe.AmfUeNgapId); ok && owner != ranUe {
+		return false
 	}
+	ranUe.restoredUnlisted = false
 	ran.RanUeList[ranUeNgapID] = ranUe
 	ranUe.Ran = ran
 	ranUe.RanUeNgapId = ranUeNgapID
@@ -297,8 +303,8 @@ func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
 	listed := ranUe.listOn(newRan, ranUeNgapId)
 	newRan.ranStateMu.Unlock()
 	if !listed {
-		return fmt.Errorf("RanUe[AmfUeNgapID: %d] was removed before it could switch to Ran[Name: %s]",
-			ranUe.AmfUeNgapId, newRan.Name)
+		return fmt.Errorf("RanUe[AmfUeNgapID: %d] cannot switch to Ran[Name: %s]: it was removed, "+
+			"or its AmfUeNgapID names another RanUe", ranUe.AmfUeNgapId, newRan.Name)
 	}
 
 	logger.ContextLog.Infof("RanUe[RanUeNgapID: %d] Switch to new Ran[Name: %s]", ranUeNgapId, newRan.Name)
