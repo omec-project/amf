@@ -47,7 +47,11 @@ func cleanupNfRegistrationService(t *testing.T, cancel context.CancelFunc, servi
 	waitForSignal(t, serviceDone, time.Second, "timed out waiting for NF registration service to stop")
 }
 
-func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *testing.T) {
+// An empty Access and Mobility config deregisters the AMF, and the service goes
+// on running: the configuration may come back, and the AMF must register again
+// when it does. The service used to return here, so an AMF that lost its last
+// slice stayed out of the NRF until it was restarted.
+func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndRegisterAgainWhenConfigReturns(t *testing.T) {
 	isDeregisterNFCalled := false
 	testCases := []struct {
 		name                         string
@@ -70,52 +74,97 @@ func TestNfRegistrationService_WhenEmptyConfig_ThenDeregisterNFAndStopTimer(t *t
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			keepAliveTimerMutex.Lock()
 			keepAliveTimer = time.NewTimer(60 * time.Second)
-			isRegisterNFCalled := false
+			keepAliveTimerMutex.Unlock()
 			isDeregisterNFCalled = false
+			registered := make(chan []nfConfigApi.AccessAndMobility, 1)
 			originalDeregisterNF := consumer.SendDeregisterNFInstance
 			originalRegisterNF := registerNF
 			defer func() {
 				consumer.SendDeregisterNFInstance = originalDeregisterNF
 				registerNF = originalRegisterNF
+				keepAliveTimerMutex.Lock()
 				if keepAliveTimer != nil {
 					keepAliveTimer.Stop()
 				}
+				keepAliveTimerMutex.Unlock()
 			}()
 
 			consumer.SendDeregisterNFInstance = tc.sendDeregisterNFInstanceMock
 			registerNF = func(ctx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {
-				isRegisterNFCalled = true
+				registered <- newAccessAndMobilityConfig
 			}
 
 			ch := make(chan []nfConfigApi.AccessAndMobility, 1)
-			ctx := t.Context()
+			ctx, cancel := context.WithCancel(t.Context())
 			serviceDone := make(chan struct{})
 			go func() {
 				defer close(serviceDone)
 				StartNfRegistrationService(ctx, ch)
 			}()
+
 			ch <- []nfConfigApi.AccessAndMobility{}
-			timeoutTimer := time.NewTimer(1 * time.Second)
-			defer timeoutTimer.Stop()
+			restored := []nfConfigApi.AccessAndMobility{{PlmnId: nfConfigApi.PlmnId{Mcc: "208", Mnc: "93"}}}
+			ch <- restored
 
 			select {
+			case got := <-registered:
+				if !reflect.DeepEqual(got, restored) {
+					t.Errorf("expected registerNF with the restored config %+v, got %+v", restored, got)
+				}
 			case <-serviceDone:
-			case <-timeoutTimer.C:
-				t.Fatal("timed out waiting for NF registration service to stop")
+				t.Fatal("NF registration service stopped after an empty config; the AMF would never register again")
+			case <-time.After(time.Second):
+				t.Fatal("timed out waiting for registerNF after the config returned")
 			}
 
-			if keepAliveTimer != nil {
-				t.Errorf("expected keepAliveTimer to be nil after stopKeepAliveTimer")
+			if currentKeepAliveTimer() != nil {
+				t.Errorf("expected keepAliveTimer to be nil after the empty config")
 			}
 			if !isDeregisterNFCalled {
 				t.Errorf("expected SendDeregisterNFInstance to be called")
 			}
-			if isRegisterNFCalled {
-				t.Errorf("expected registerNF not to be called")
-			}
+
+			cleanupNfRegistrationService(t, cancel, serviceDone)
 		})
 	}
+}
+
+// The poller hands every changed config to the registration service with a
+// blocking send on a channel of capacity 100, before it hands the same config to
+// the context update. If the service is not draining that channel, the 101st
+// change after an empty config blocks the poller for good, and the AMF stops
+// applying configuration at all.
+func TestNfRegistrationService_KeepsDrainingConfigAfterEmptyConfig(t *testing.T) {
+	originalDeregisterNF := consumer.SendDeregisterNFInstance
+	originalRegisterNF := registerNF
+	defer func() {
+		consumer.SendDeregisterNFInstance = originalDeregisterNF
+		registerNF = originalRegisterNF
+	}()
+	consumer.SendDeregisterNFInstance = func(ctx context.Context) error { return nil }
+	registerNF = func(ctx context.Context, newAccessAndMobilityConfig []nfConfigApi.AccessAndMobility) {}
+
+	ch := make(chan []nfConfigApi.AccessAndMobility, 100)
+	ctx, cancel := context.WithCancel(t.Context())
+	serviceDone := make(chan struct{})
+	go func() {
+		defer close(serviceDone)
+		StartNfRegistrationService(ctx, ch)
+	}()
+
+	ch <- []nfConfigApi.AccessAndMobility{}
+	config := []nfConfigApi.AccessAndMobility{{PlmnId: nfConfigApi.PlmnId{Mcc: "208", Mnc: "93"}}}
+	for i := range 101 {
+		select {
+		case ch <- config:
+		case <-time.After(time.Second):
+			t.Fatalf("config %d after an empty config could not be delivered; the poller would block here", i+1)
+		}
+	}
+
+	cleanupNfRegistrationService(t, cancel, serviceDone)
 }
 
 func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTimer(t *testing.T) {
