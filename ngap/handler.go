@@ -865,7 +865,7 @@ func HandleUplinkNasTransport(ctx ctxt.Context, ran *context.AmfRan, message *ng
 		return
 	}
 
-	ranUe.Ran = ran
+	ranUe.SetRan(ran)
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
 		err := ranUe.Remove()
@@ -1116,7 +1116,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		printCriticalityDiagnostics(ran, criticalityDiagnostics)
 	}
 
-	ranUe.Ran = ran
+	ranUe.SetRan(ran)
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
 		ran.Log.Infof("release UE Context: RanUe[AmfUeNgapId: %d]", ranUe.AmfUeNgapId)
@@ -1343,7 +1343,7 @@ func HandleUEContextReleaseComplete(ctx ctxt.Context, ran *context.AmfRan, messa
 		// If target UE RAN is nil, set it to current RAN
 		if targetRanUe.Ran == nil {
 			ran.Log.Warnf("targetRanUe RAN is nil - Setting current RAN for target UE with AmfUeNgapId: %v", ranUe.TargetUe.AmfUeNgapId)
-			targetRanUe.Ran = ran
+			targetRanUe.SetRan(ran)
 		}
 		context.DetachSourceUeTargetUe(ranUe)
 		err := ranUe.Remove()
@@ -1814,7 +1814,7 @@ func HandleInitialUEMessage(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 			}
 		}
 	} else {
-		ranUe.Ran = ran
+		ranUe.SetRan(ran)
 		ranUe.AmfUe.AttachRanUe(ranUe)
 	}
 
@@ -1920,7 +1920,7 @@ func HandlePDUSessionResourceSetupResponse(ctx ctxt.Context, ran *context.AmfRan
 	}
 
 	if ranUe != nil {
-		ranUe.Ran = ran
+		ranUe.SetRan(ran)
 		ranUe.Log.Debugf("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 		amfUe := ranUe.AmfUe
 		if amfUe == nil {
@@ -2090,7 +2090,7 @@ func HandlePDUSessionResourceModifyResponse(ctx ctxt.Context, ran *context.AmfRa
 	}
 
 	if ranUe != nil {
-		ranUe.Ran = ran
+		ranUe.SetRan(ran)
 		ranUe.Log.Debugf("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 		amfUe := ranUe.AmfUe
 		if amfUe == nil {
@@ -2234,7 +2234,7 @@ func HandlePDUSessionResourceNotify(ctx ctxt.Context, ran *context.AmfRan, messa
 		return
 	}
 
-	ranUe.Ran = ran
+	ranUe.SetRan(ran)
 	ranUe.Log.Debugf("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 	amfUe := ranUe.AmfUe
 	if amfUe == nil {
@@ -2858,7 +2858,7 @@ func HandleUEContextReleaseRequest(ctx ctxt.Context, ran *context.AmfRan, messag
 		return
 	}
 
-	ranUe.Ran = ran
+	ranUe.SetRan(ran)
 	ran.Log.Debugf("RanUeNgapID[%d] AmfUeNgapID[%d]", ranUe.RanUeNgapId, ranUe.AmfUeNgapId)
 
 	causeGroup := ngapType.CausePresentRadioNetwork
@@ -2993,7 +2993,7 @@ func HandleUEContextModificationResponse(ran *context.AmfRan, message *ngapType.
 	}
 
 	if ranUe != nil {
-		ranUe.Ran = ran
+		ranUe.SetRan(ran)
 		ranUe.Log.Debugf("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
 		if rRCState != nil {
@@ -3081,7 +3081,7 @@ func HandleUEContextModificationFailure(ran *context.AmfRan, message *ngapType.N
 	}
 
 	if ranUe != nil {
-		ranUe.Ran = ran
+		ranUe.SetRan(ran)
 		ran.Log.Debugf("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 	}
 
@@ -3355,7 +3355,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 		return
 	}
 
-	ranUe.Ran = ran
+	ranUe.SetRan(ran)
 	ran.Log.Debugf("AmfUeNgapID[%d] RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
 	amfUe := ranUe.AmfUe
@@ -3394,7 +3394,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 	}
 
 	if rANUENGAPID != nil {
-		ranUe.RanUeNgapId = rANUENGAPID.Value
+		ranUe.SetRanUeNgapId(rANUENGAPID.Value)
 	}
 
 	ranUe.UpdateLocation(userLocationInformation)
@@ -3585,10 +3585,10 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 	}
 
 	if rANUENGAPID != nil {
-		targetUe.RanUeNgapId = rANUENGAPID.Value
+		targetUe.SetRanUeNgapId(rANUENGAPID.Value)
 	}
 
-	targetUe.Ran = ran
+	targetUe.SetRan(ran)
 	ran.Log.Debugf("Target Ue RanUeNgapID[%d] AmfUeNgapID[%d]", targetUe.RanUeNgapId, targetUe.AmfUeNgapId)
 
 	amfUe := targetUe.AmfUe
@@ -3763,7 +3763,7 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 		return
 	}
 
-	targetUe.Ran = ran
+	targetUe.SetRan(ran)
 	sourceUe := targetUe.SourceUe
 	if sourceUe == nil {
 		// TODO: handle N2 Handover between AMF
@@ -5226,7 +5226,7 @@ func HandleCellTrafficTrace(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 		}
 	}
 
-	ranUe.Ran = ran
+	ranUe.SetRan(ran)
 	ran.Log.Debugf("UE: AmfUeNgapID[%d], RanUeNgapID[%d]", ranUe.AmfUeNgapId, ranUe.RanUeNgapId)
 
 	if nGRANTraceID == nil || nGRANCGI == nil || traceCollectionEntityIPAddress == nil {
