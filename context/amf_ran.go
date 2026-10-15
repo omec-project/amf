@@ -190,9 +190,7 @@ func (ran *AmfRan) RanUeFindByRanUeNgapID(ranUeNgapID int64) *RanUe {
 		ran.ranStateMu.Lock()
 		defer ran.ranStateMu.Unlock()
 		ranUe = DbFetchRanUeByRanUeNgapID(ranUeNgapID, ran)
-		if ranUe != nil {
-			ranUe.Ran = ran
-			ran.RanUeList[ranUeNgapID] = ranUe
+		if ranUe != nil && ranUe.listOn(ran, ranUeNgapID) {
 			return ranUe
 		}
 	}
