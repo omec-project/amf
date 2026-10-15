@@ -64,13 +64,17 @@ func TestDetachAmfUeIfLeavesANewerAssociationAlone(t *testing.T) {
 	ranUe.SetAmfUe(first)
 	ranUe.SetAmfUe(second)
 
-	ranUe.DetachAmfUeIf(first)
+	if ranUe.DetachAmfUeIf(first) {
+		t.Error("DetachAmfUeIf reported clearing an association it left alone")
+	}
 
 	if held := ranUe.GetAmfUe(); held != second {
 		t.Errorf("association = %v, want the newer context %q", held, second.Supi)
 	}
 
-	ranUe.DetachAmfUeIf(second)
+	if !ranUe.DetachAmfUeIf(second) {
+		t.Error("DetachAmfUeIf did not report clearing the association it held")
+	}
 
 	if held := ranUe.GetAmfUe(); held != nil {
 		t.Errorf("association = %v, want nil after releasing the context it holds", held)

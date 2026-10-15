@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/omec-project/amf/logger"
@@ -99,6 +100,11 @@ type RanUe struct {
 
 	/* Sctplb Redirect Msg */
 	SctplbMsg []byte
+
+	// replacements counts the times an AttachRanUe has replaced this RanUe, so that only the
+	// latest replacement's grace period ends in a detach. Each UE counts under its own lock,
+	// and a RanUe can move between UEs, so the count is atomic.
+	replacements atomic.Uint64
 }
 
 func (ranUe *RanUe) Remove() error {
@@ -175,17 +181,21 @@ func (ranUe *RanUe) DetachAmfUe() {
 
 // DetachAmfUeIf drops the association only while it still points at amfUe, so a
 // release that overlaps a re-attach to a different context cannot undo the newer one.
-func (ranUe *RanUe) DetachAmfUeIf(amfUe *AmfUe) {
+// It reports whether it dropped it.
+func (ranUe *RanUe) DetachAmfUeIf(amfUe *AmfUe) bool {
 	if ranUe == nil {
-		return
+		return false
 	}
 
 	ranUe.amfUeMu.Lock()
 	defer ranUe.amfUeMu.Unlock()
 
-	if ranUe.AmfUe == amfUe {
-		ranUe.AmfUe = nil
+	if ranUe.AmfUe != amfUe {
+		return false
 	}
+	ranUe.AmfUe = nil
+
+	return true
 }
 
 func (ranUe *RanUe) SwitchToRan(newRan *AmfRan, ranUeNgapId int64) error {
