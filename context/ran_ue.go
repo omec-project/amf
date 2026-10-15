@@ -251,6 +251,24 @@ func (ranUe *RanUe) listedAt() (*AmfRan, int64) {
 	return ranUe.Ran, ranUe.RanUeNgapId
 }
 
+// SetRan points this RanUe at ran without any RanUeList/RanUePool bookkeeping -- callers that
+// already found this RanUe listed use it only to refresh the pointer. Synchronized with the
+// same lock listOn, markRemoved and listedAt use, so it cannot race their reads of Ran.
+func (ranUe *RanUe) SetRan(ran *AmfRan) {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	ranUe.Ran = ran
+}
+
+// SetRanUeNgapId updates this RanUe's RAN-UE-NGAP-ID the same way SetRan updates its RAN.
+func (ranUe *RanUe) SetRanUeNgapId(ranUeNgapId int64) {
+	ranUe.listing.Lock()
+	defer ranUe.listing.Unlock()
+
+	ranUe.RanUeNgapId = ranUeNgapId
+}
+
 // listOn lists this RanUe on ran under ranUeNgapID and makes them its RAN and RAN-UE-NGAP-ID,
 // unless Remove has started on it or its AMF-UE-NGAP-ID names another RanUe in RanUePool, and
 // reports whether it did. The caller holds ran's ranStateMu. It clears the restore's mark and,
