@@ -10,10 +10,6 @@ import (
 	"github.com/omec-project/openapi/v2/models"
 )
 
-// detachGrace is longer than the time AttachRanUe gives a replaced RanUe before it lets go of
-// the UE.
-const detachGrace = 3 * time.Second
-
 // ueReplacingItsRanUe attaches a UE to one RanUe and then to another on the same RAN, and
 // returns the UE and both RanUes. AttachRanUe starts the replaced RanUe's grace period.
 func ueReplacingItsRanUe(t *testing.T, gnbID string, ranUeNgapID int64) (*AmfUe, *AmfRan, *RanUe, *RanUe) {
@@ -44,14 +40,15 @@ func ueReplacingItsRanUe(t *testing.T, gnbID string, ranUeNgapID int64) (*AmfUe,
 	return ue, ran, old, newer
 }
 
-// lettingGo waits up to detachGrace for ranUe to let go of its UE, and reports whether it did.
+// lettingGo waits, for longer than ranUeDetachGrace, for ranUe to let go of its UE, and reports
+// whether it did.
 func lettingGo(ranUe *RanUe) bool {
-	deadline := time.Now().Add(detachGrace)
+	deadline := time.Now().Add(ranUeDetachGrace() * 3 / 2)
 	for time.Now().Before(deadline) {
 		if ranUe.GetAmfUe() == nil {
 			return true
 		}
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(time.Millisecond)
 	}
 
 	return ranUe.GetAmfUe() == nil
@@ -64,6 +61,9 @@ func lettingGo(ranUe *RanUe) bool {
 // the old RanUe kept pointing at the UE indefinitely, and after a deregistration at a UE that
 // was gone. Each case waits out the grace period, so they run in parallel, each on its own RAN.
 func TestAReplacedRanUeLetsGoOfTheUe(t *testing.T) {
+	original := ranUeDetachGraceNanos.Swap(int64(100 * time.Millisecond))
+	t.Cleanup(func() { ranUeDetachGraceNanos.Store(original) })
+
 	t.Run("while the newer RanUe is attached", func(t *testing.T) {
 		t.Parallel()
 
@@ -135,7 +135,7 @@ func TestAReplacedRanUeLetsGoOfTheUe(t *testing.T) {
 
 		ue, ran, old, _ := ueReplacingItsRanUe(t, "208:93:detach-later", 952)
 		firstReplaced := time.Now()
-		time.Sleep(time.Second)
+		time.Sleep(ranUeDetachGrace() / 2)
 		ue.AttachRanUe(old)
 		latest, err := ran.NewRanUe(954)
 		if err != nil {
@@ -144,8 +144,8 @@ func TestAReplacedRanUeLetsGoOfTheUe(t *testing.T) {
 		t.Cleanup(func() { AMF_Self().RanUePool.Delete(latest.AmfUeNgapId) })
 		ue.AttachRanUe(latest)
 
-		// Past the first replacement's grace period, a second into the latest one's.
-		time.Sleep(time.Until(firstReplaced.Add(2500 * time.Millisecond)))
+		// Past the first replacement's grace period, a quarter of it into the latest one's.
+		time.Sleep(time.Until(firstReplaced.Add(ranUeDetachGrace() * 5 / 4)))
 		if old.GetAmfUe() != ue {
 			t.Fatal("the first replacement's timer cut short the grace period of the latest one")
 		}

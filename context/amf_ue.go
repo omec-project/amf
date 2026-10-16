@@ -985,6 +985,20 @@ func (ue *AmfUe) GetRanUe(anType models.AccessType) *RanUe {
 	return ue.RanUe[anType]
 }
 
+// ranUeDetachGraceNanos is how long, in nanoseconds, AttachRanUe lets a replaced RanUe keep
+// pointing at its UE before detaching it. A detach goroutine a test spawned can still be
+// sleeping on this after that test has returned, so it is read and written atomically rather
+// than as a plain time.Duration. Tests shrink it to avoid sleeping out the real duration.
+var ranUeDetachGraceNanos atomic.Int64
+
+func init() {
+	ranUeDetachGraceNanos.Store(int64(2 * time.Second))
+}
+
+func ranUeDetachGrace() time.Duration {
+	return time.Duration(ranUeDetachGraceNanos.Load())
+}
+
 func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 	/* detach any RanUe associated to it */
 	anType := ranUe.Ran.AnType
@@ -1030,7 +1044,7 @@ func (ue *AmfUe) AttachRanUe(ranUe *RanUe) {
 		// that outlives the test. Reading it now keeps the goroutine self-contained.
 		detachLog := logger.ContextLog
 		go func(oldRanUe *RanUe, anType models.AccessType, replacement uint64) {
-			time.Sleep(time.Second * 2)
+			time.Sleep(ranUeDetachGrace())
 
 			ue.Mutex.Lock()
 			defer ue.Mutex.Unlock()

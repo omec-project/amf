@@ -24,11 +24,11 @@ var (
 	keepAliveTimerMutex sync.Mutex
 	registerCtxMutex    sync.Mutex
 	afterFunc           = time.AfterFunc
+	retryTime           = 10 * time.Second
 )
 
 const (
 	defaultHeartbeatTimer int32 = 60
-	retryTime                   = 10 * time.Second
 )
 
 // StartNfRegistrationService starts the registration service. If the new config is empty, the NF
