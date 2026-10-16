@@ -714,19 +714,45 @@ func problemDetailsFrom(err error) (*models.ProblemDetails, bool) {
 	}
 	if ext, ok := openapi.ErrorModel[models.ExtProblemDetails](err); ok {
 		problemDetails := models.NewProblemDetails()
-		problemDetails.SetType(ext.GetType())
-		problemDetails.SetTitle(ext.GetTitle())
-		problemDetails.SetStatus(ext.GetStatus())
-		problemDetails.SetDetail(ext.GetDetail())
-		problemDetails.SetInstance(ext.GetInstance())
-		problemDetails.SetCause(ext.GetCause())
-		problemDetails.SetInvalidParams(ext.GetInvalidParams())
-		problemDetails.SetSupportedFeatures(ext.GetSupportedFeatures())
-		problemDetails.SetAccessTokenError(ext.GetAccessTokenError())
-		problemDetails.SetAccessTokenRequest(ext.GetAccessTokenRequest())
-		problemDetails.SetNrfId(ext.GetNrfId())
-		problemDetails.SetSupportedApiVersions(ext.GetSupportedApiVersions())
-		problemDetails.SetNoProfileMatchInfo(ext.GetNoProfileMatchInfo())
+		if ext.HasType() {
+			problemDetails.SetType(ext.GetType())
+		}
+		if ext.HasTitle() {
+			problemDetails.SetTitle(ext.GetTitle())
+		}
+		if ext.HasStatus() {
+			problemDetails.SetStatus(ext.GetStatus())
+		}
+		if ext.HasDetail() {
+			problemDetails.SetDetail(ext.GetDetail())
+		}
+		if ext.HasInstance() {
+			problemDetails.SetInstance(ext.GetInstance())
+		}
+		if ext.HasCause() {
+			problemDetails.SetCause(ext.GetCause())
+		}
+		if ext.HasInvalidParams() {
+			problemDetails.SetInvalidParams(ext.GetInvalidParams())
+		}
+		if ext.HasSupportedFeatures() {
+			problemDetails.SetSupportedFeatures(ext.GetSupportedFeatures())
+		}
+		if ext.HasAccessTokenError() {
+			problemDetails.SetAccessTokenError(ext.GetAccessTokenError())
+		}
+		if ext.HasAccessTokenRequest() {
+			problemDetails.SetAccessTokenRequest(ext.GetAccessTokenRequest())
+		}
+		if ext.HasNrfId() {
+			problemDetails.SetNrfId(ext.GetNrfId())
+		}
+		if ext.HasSupportedApiVersions() {
+			problemDetails.SetSupportedApiVersions(ext.GetSupportedApiVersions())
+		}
+		if ext.HasNoProfileMatchInfo() {
+			problemDetails.SetNoProfileMatchInfo(ext.GetNoProfileMatchInfo())
+		}
 		return problemDetails, true
 	}
 	return nil, false

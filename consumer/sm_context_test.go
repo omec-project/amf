@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	amfContext "github.com/omec-project/amf/context"
+	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -890,5 +891,40 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 	}
 	if got := problemDetail.GetTitle(); got != "TOO_MANY_REQUESTS" {
 		t.Errorf("title = %q, want %q", got, "TOO_MANY_REQUESTS")
+	}
+}
+
+// TestProblemDetailsFromPreservesAbsentOptionalFields covers a sparse ExtProblemDetails, such as
+// an SMF 429 carrying only title and detail. Get*/Set* pairs turn an absent optional field into a
+// present zero value, so copying every field unconditionally would add status 0 and an empty
+// access-token object to a problem that reported neither; each field here must be copied only
+// when the source has it set.
+func TestProblemDetailsFromPreservesAbsentOptionalFields(t *testing.T) {
+	var extProblemDetails models.ExtProblemDetails
+	extProblemDetails.SetTitle("TOO_MANY_REQUESTS")
+	extProblemDetails.SetDetail("the SMF is shedding load")
+	err := openapi.GenericOpenAPIError{RawModel: extProblemDetails}
+
+	problemDetail, ok := problemDetailsFrom(err)
+	if !ok {
+		t.Fatal("expected the sparse ExtProblemDetails to be recognized")
+	}
+	if got := problemDetail.GetTitle(); got != "TOO_MANY_REQUESTS" {
+		t.Errorf("title = %q, want %q", got, "TOO_MANY_REQUESTS")
+	}
+	if got := problemDetail.GetDetail(); got != "the SMF is shedding load" {
+		t.Errorf("detail = %q, want %q", got, "the SMF is shedding load")
+	}
+	if problemDetail.HasStatus() {
+		t.Errorf("status = %d, want absent", problemDetail.GetStatus())
+	}
+	if problemDetail.HasCause() {
+		t.Errorf("cause = %q, want absent", problemDetail.GetCause())
+	}
+	if problemDetail.HasAccessTokenError() {
+		t.Errorf("accessTokenError = %+v, want absent", problemDetail.GetAccessTokenError())
+	}
+	if problemDetail.HasInvalidParams() {
+		t.Errorf("invalidParams = %+v, want absent", problemDetail.GetInvalidParams())
 	}
 }
