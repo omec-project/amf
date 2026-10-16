@@ -229,9 +229,14 @@ func TestNfRegistrationService_WhenConfigChanged_ThenRegisterNFSuccessAndStartTi
 func TestNfRegistrationService_ConfigChanged_RetryIfRegisterNFFails(t *testing.T) {
 	originalSendRegisterNFInstance := consumer.SendRegisterNFInstance
 	originalRegisterNF := registerNF
+	originalRetryTime := retryTime
+	retryTime = 20 * time.Millisecond
 	t.Cleanup(func() {
 		consumer.SendRegisterNFInstance = originalSendRegisterNFInstance
 		registerNF = originalRegisterNF
+		registerCtxMutex.Lock()
+		retryTime = originalRetryTime
+		registerCtxMutex.Unlock()
 		if keepAliveTimer != nil {
 			keepAliveTimer.Stop()
 		}

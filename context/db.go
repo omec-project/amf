@@ -45,7 +45,6 @@ const (
 	// indexEnsureAttemptTimeout bounds one EnsureIndex call, which builds the
 	// index and then reads the collection's indexes back to confirm it.
 	indexEnsureAttemptTimeout = 30 * time.Second
-	indexEnsureInitialBackoff = 1 * time.Second
 	indexEnsureMaxBackoff     = 30 * time.Second
 
 	// mongoConnectAttempts bounds the connect loop. ConnectMongo waits three
@@ -53,6 +52,10 @@ const (
 	// reports that it has no datastore.
 	mongoConnectAttempts = 3
 )
+
+// indexEnsureInitialBackoff is a var, not a const, so tests can shrink it instead of sleeping
+// out the real retry delay.
+var indexEnsureInitialBackoff = 1 * time.Second
 
 // dbWriteOp is one write to amf.data.amfState: an upsert of data or, when
 // removed is set, a delete, which closes removed once it has run. Either way it

@@ -199,6 +199,10 @@ func TestEnsureIndexWithRetryReturnsOnceTheIndexIsEnsured(t *testing.T) {
 	fake := &fakeDBClient{results: []error{errors.New("no primary yet")}}
 	withFakeDBClient(t, fake)
 
+	original := indexEnsureInitialBackoff
+	indexEnsureInitialBackoff = time.Millisecond
+	t.Cleanup(func() { indexEnsureInitialBackoff = original })
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
