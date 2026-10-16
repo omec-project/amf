@@ -9,8 +9,8 @@ require (
 	github.com/goccy/go-json v0.11.2
 	github.com/google/uuid v1.6.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
-	github.com/omec-project/nas/v2 v2.2.6
-	github.com/omec-project/ngap/v2 v2.1.9
+	github.com/omec-project/nas/v2 v2.2.7
+	github.com/omec-project/ngap/v2 v2.1.10
 	github.com/omec-project/openapi/v2 v2.2.5
 	github.com/omec-project/util v1.9.2
 	github.com/prometheus/client_golang v1.25.0
