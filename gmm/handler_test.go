@@ -24,7 +24,6 @@ import (
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"go.uber.org/zap"
@@ -93,6 +92,30 @@ func tempBinaryFile(t *testing.T, name string, data []byte) **os.File {
 	return &file
 }
 
+// testN2InfoPduSessionId is the PDU session ID every caller of newN1N2JSONDataWithN2InfoContainer uses.
+const testN2InfoPduSessionId = int32(2)
+
+// newN2SmInfoContainer builds an N2InfoContainer carrying SM N2 info via accessors.
+func newN2SmInfoContainer(snssai *models.Snssai) *models.N2InfoContainer {
+	n2InfoContent := models.NewN2InfoContentWithDefaults()
+	n2InfoContent.SetNgapIeType(models.NGAPIETYPE_PDU_RES_SETUP_REQ)
+	smInfo := models.NewN2SmInformation(testN2InfoPduSessionId)
+	smInfo.SetN2InfoContent(*n2InfoContent)
+	smInfo.SetSNssai(*snssai)
+	container := models.NewN2InfoContainer(models.N2INFORMATIONCLASS_SM)
+	container.SetSmInfo(*smInfo)
+	return container
+}
+
+// newN1N2JSONDataWithN2InfoContainer builds N1N2MessageTransferReqData carrying an
+// N2InfoContainer for PDU session testN2InfoPduSessionId via accessors.
+func newN1N2JSONDataWithN2InfoContainer(snssai *models.Snssai) *models.N1N2MessageTransferReqData {
+	jsonData := models.NewN1N2MessageTransferReqData()
+	jsonData.SetPduSessionId(testN2InfoPduSessionId)
+	jsonData.SetN2InfoContainer(*newN2SmInfoContainer(snssai))
+	return jsonData
+}
+
 func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationRequest(t *testing.T) {
 	originalSendReleaseSmContextRequest := sendReleaseSmContextRequest
 	sendReleaseSmContextRequest = func(
@@ -121,8 +144,8 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationReque
 		SubscriptionDataValid: true,
 		Pei:                   testPei,
 		SubscribedNssai: []models.SubscribedSnssai{{
-			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
-			DefaultIndication: openapi.PtrBool(true),
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: new("010203")},
+			DefaultIndication: new(true),
 		}},
 	}
 	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
@@ -164,19 +187,19 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingSnapshotsRegistrationReque
 	smContext.SetSnssai(*snssai)
 	ue.SmContextList.Store(int32(1), smContext)
 
-	pduSessionId := int32(2)
+	n2InfoContent := models.NewN2InfoContentWithDefaults()
+	n2InfoContent.SetNgapIeType(models.NGAPIETYPE_PDU_RES_SETUP_REQ)
+	smInfo := models.NewN2SmInformation(2)
+	smInfo.SetN2InfoContent(*n2InfoContent)
+	smInfo.SetSNssai(*snssai)
+	n2InfoContainer := models.NewN2InfoContainerWithDefaults()
+	n2InfoContainer.SetSmInfo(*smInfo)
+	n1N2MessageTransferReqData := models.NewN1N2MessageTransferReqData()
+	n1N2MessageTransferReqData.SetPduSessionId(2)
+	n1N2MessageTransferReqData.SetN2InfoContainer(*n2InfoContainer)
 	ue.N1N2Message = &context.N1N2Message{
 		Request: models.N1N2MessageTransferRequest{
-			JsonData: &models.N1N2MessageTransferReqData{
-				PduSessionId: &pduSessionId,
-				N2InfoContainer: &models.N2InfoContainer{
-					SmInfo: &models.N2SmInformation{
-						PduSessionId:  pduSessionId,
-						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
-						SNssai:        snssai,
-					},
-				},
-			},
+			JsonData:                n1N2MessageTransferReqData,
 			BinaryDataN1Message:     tempBinaryFile(t, "n1.bin", []byte{0x01}),
 			BinaryDataN2Information: tempBinaryFile(t, "n2.bin", []byte{0x02}),
 		},
@@ -262,19 +285,19 @@ func TestHandleServiceRequestSnapshotsN1N2Message(t *testing.T) {
 	ue.SmContextList.Store(int32(1), smContext)
 
 	servicePduSessionId := int32(2)
+	n2InfoContent := models.NewN2InfoContentWithDefaults()
+	n2InfoContent.SetNgapIeType(models.NGAPIETYPE_PDU_RES_SETUP_REQ)
+	smInfo := models.NewN2SmInformation(servicePduSessionId)
+	smInfo.SetN2InfoContent(*n2InfoContent)
+	smInfo.SetSNssai(*snssai)
+	n2InfoContainer := models.NewN2InfoContainer(models.N2INFORMATIONCLASS_SM)
+	n2InfoContainer.SetSmInfo(*smInfo)
+	n1N2MessageTransferReqData := models.NewN1N2MessageTransferReqData()
+	n1N2MessageTransferReqData.SetPduSessionId(servicePduSessionId)
+	n1N2MessageTransferReqData.SetN2InfoContainer(*n2InfoContainer)
 	ue.N1N2Message = &context.N1N2Message{
 		Request: models.N1N2MessageTransferRequest{
-			JsonData: &models.N1N2MessageTransferReqData{
-				PduSessionId: &servicePduSessionId,
-				N2InfoContainer: &models.N2InfoContainer{
-					N2InformationClass: models.N2INFORMATIONCLASS_SM,
-					SmInfo: &models.N2SmInformation{
-						PduSessionId:  servicePduSessionId,
-						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
-						SNssai:        snssai,
-					},
-				},
-			},
+			JsonData:                n1N2MessageTransferReqData,
 			BinaryDataN1Message:     tempBinaryFile(t, "srv-n1.bin", []byte{0x01}),
 			BinaryDataN2Information: tempBinaryFile(t, "srv-n2.bin", []byte{0x02}),
 		},
@@ -388,8 +411,8 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 
 	getSubscribedNssaiForRegistration = func(ctx ctxt.Context, ue *context.AmfUe) error {
 		ue.SubscribedNssai = []models.SubscribedSnssai{{
-			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
-			DefaultIndication: openapi.PtrBool(true),
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: new("010203")},
+			DefaultIndication: new(true),
 		}}
 
 		return nil
@@ -403,7 +426,7 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 		handleRequestedNssaiCalls++
 		ue.RegistrationRequest = nil
 		ue.AllowedNssai[anType] = append(ue.AllowedNssai[anType], models.AllowedSnssai{
-			AllowedSnssai: models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
+			AllowedSnssai: models.Snssai{Sst: 1, Sd: new("010203")},
 		})
 		return nil
 	}
@@ -419,7 +442,7 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 			"0": {
 				ServiceName:     models.SERVICENAME_NPCF_AM_POLICY_CONTROL,
 				NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
-				ApiPrefix:       openapi.PtrString("http://pcf.example.com"),
+				ApiPrefix:       new("http://pcf.example.com"),
 			},
 		}
 		nfProfile := models.NFProfileDiscovery{
@@ -468,8 +491,8 @@ func TestHandleInitialRegistrationSnapshotsRegistrationRequest(t *testing.T) {
 		Pei:                   testPei,
 		Supi:                  "imsi-001010000000001",
 		SubscribedNssai: []models.SubscribedSnssai{{
-			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
-			DefaultIndication: openapi.PtrBool(true),
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: new("010203")},
+			DefaultIndication: new(true),
 		}},
 	}
 	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Deregistered)
@@ -544,9 +567,9 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 			ue.SubscribedNssai[i] = models.SubscribedSnssai{
 				SubscribedSnssai: models.Snssai{
 					Sst: int32(i + 1),
-					Sd:  openapi.PtrString(fmt.Sprintf("SD%d", i)),
+					Sd:  new(fmt.Sprintf("SD%d", i)),
 				},
-				DefaultIndication: openapi.PtrBool(i == 0), // Make the first one default
+				DefaultIndication: new(i == 0), // Make the first one default
 			}
 		}
 	}
@@ -558,7 +581,7 @@ func newFuzzUE(fd *FuzzData) *context.AmfUe {
 			allowedSlices[i] = models.AllowedSnssai{
 				AllowedSnssai: models.Snssai{
 					Sst: int32(i + 1),
-					Sd:  openapi.PtrString(fmt.Sprintf("SD%d", i)),
+					Sd:  new(fmt.Sprintf("SD%d", i)),
 				},
 			}
 		}
@@ -973,7 +996,7 @@ func TestPickSnssai(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
 				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: models.Snssai{Sst: 2, Sd: openapi.PtrString("010203")}},
+					{AllowedSnssai: models.Snssai{Sst: 2, Sd: new("010203")}},
 				}
 				return ue
 			},
@@ -1039,8 +1062,8 @@ func TestPickSnssai(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
 				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: models.Snssai{Sst: 3, Sd: openapi.PtrString("111111")}},
-					{AllowedSnssai: models.Snssai{Sst: 2, Sd: openapi.PtrString("222222")}},
+					{AllowedSnssai: models.Snssai{Sst: 3, Sd: new("111111")}},
+					{AllowedSnssai: models.Snssai{Sst: 2, Sd: new("222222")}},
 				}
 				return ue
 			},
@@ -1064,7 +1087,7 @@ func TestPickSnssai(t *testing.T) {
 					AllowedNssai: map[models.AccessType][]models.AllowedSnssai{},
 				}
 				ue.AllowedNssai[models.ACCESSTYPE_NON_3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: models.Snssai{Sst: 3, Sd: openapi.PtrString("fedcba")}},
+					{AllowedSnssai: models.Snssai{Sst: 3, Sd: new("fedcba")}},
 				}
 				return ue
 			},
@@ -1190,7 +1213,7 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
+			snssai:   models.Snssai{Sst: 1, Sd: new("112233")},
 			expected: testDnn,
 		},
 		{
@@ -1206,21 +1229,21 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
+			snssai:   models.Snssai{Sst: 1, Sd: new("112233")},
 			expected: "internet",
 		},
 		{
 			name: "picks default DNN from SmfSelectionData when available",
 			setupUE: func() *context.AmfUe {
-				sn := models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")}
+				sn := models.Snssai{Sst: 1, Sd: new("112233")}
 				key := util.SnssaiModelsToHex(sn)
 
 				smfSelectionData := models.NewSmfSelectionSubscriptionData()
 				subscribedSnssaiInfos := map[string]models.SnssaiInfo{
 					key: {
 						DnnInfos: []models.DnnInfo{
-							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("ims")}, DefaultDnnIndicator: openapi.PtrBool(true)},
-							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: new("ims")}, DefaultDnnIndicator: new(true)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: new("internet-x")}, DefaultDnnIndicator: new(false)},
 						},
 					},
 				}
@@ -1237,21 +1260,21 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
+			snssai:   models.Snssai{Sst: 1, Sd: new("112233")},
 			expected: "ims",
 		},
 		{
 			name: "falls back to support list when no default DNN indicator is true",
 			setupUE: func() *context.AmfUe {
-				sn := models.Snssai{Sst: 2, Sd: openapi.PtrString("aabbcc")}
+				sn := models.Snssai{Sst: 2, Sd: new("aabbcc")}
 				key := util.SnssaiModelsToHex(sn)
 
 				smfSelectionData := models.NewSmfSelectionSubscriptionData()
 				subscribedSnssaiInfos := map[string]models.SnssaiInfo{
 					key: {
 						DnnInfos: []models.DnnInfo{
-							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-x")}, DefaultDnnIndicator: openapi.PtrBool(false)},
-							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("internet-y")}, DefaultDnnIndicator: openapi.PtrBool(false)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: new("internet-x")}, DefaultDnnIndicator: new(false)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: new("internet-y")}, DefaultDnnIndicator: new(false)},
 						},
 					},
 				}
@@ -1268,20 +1291,20 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 2, Sd: openapi.PtrString("aabbcc")},
+			snssai:   models.Snssai{Sst: 2, Sd: new("aabbcc")},
 			expected: "internet-2",
 		},
 		{
 			name: "falls back to support list when SmfSelectionData has no matching SNSSAI",
 			setupUE: func() *context.AmfUe {
-				differentSn := models.Snssai{Sst: 99, Sd: openapi.PtrString("ffffff")}
+				differentSn := models.Snssai{Sst: 99, Sd: new("ffffff")}
 				differentKey := util.SnssaiModelsToHex(differentSn)
 
 				smfSelectionData := models.NewSmfSelectionSubscriptionData()
 				subscribedSnssaiInfos := map[string]models.SnssaiInfo{
 					differentKey: {
 						DnnInfos: []models.DnnInfo{
-							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: openapi.PtrString("other-dnn")}, DefaultDnnIndicator: openapi.PtrBool(true)},
+							{Dnn: models.AccessAndMobilitySubscriptionDataSubscribedDnnListInner{String: new("other-dnn")}, DefaultDnnIndicator: new(true)},
 						},
 					},
 				}
@@ -1298,7 +1321,7 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
+			snssai:   models.Snssai{Sst: 1, Sd: new("112233")},
 			expected: "fallback-dnn",
 		},
 		{
@@ -1315,7 +1338,7 @@ func TestPickDNN(t *testing.T) {
 			setupUL: func() *nasMessage.ULNASTransport {
 				return &nasMessage.ULNASTransport{}
 			},
-			snssai:   models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")},
+			snssai:   models.Snssai{Sst: 1, Sd: new("112233")},
 			expected: "test-dnn",
 		},
 	}
@@ -1519,7 +1542,7 @@ func Test_Transport5GSMMessage(t *testing.T) {
 
 				// Add allowed NSSAI to prevent error
 				ue.AllowedNssai[models.ACCESSTYPE__3_GPP_ACCESS] = []models.AllowedSnssai{
-					{AllowedSnssai: models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")}},
+					{AllowedSnssai: models.Snssai{Sst: 1, Sd: new("112233")}},
 				}
 			},
 			wantNilErr: true,
@@ -1928,8 +1951,8 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingNilBinaryDataN1Message(t *
 				SubscriptionDataValid: true,
 				Pei:                   testPei,
 				SubscribedNssai: []models.SubscribedSnssai{{
-					SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
-					DefaultIndication: openapi.PtrBool(true),
+					SubscribedSnssai:  models.Snssai{Sst: 1, Sd: new("010203")},
+					DefaultIndication: new(true),
 				}},
 			}
 			ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
@@ -1957,22 +1980,11 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingNilBinaryDataN1Message(t *
 				AllowedPDUSessionStatus: allowedPduSessionStatus,
 			}
 
-			pduSessionId := int32(2)
 			snssai := models.NewSnssai(1)
 			snssai.SetSd("010203")
 			ue.N1N2Message = &context.N1N2Message{
 				Request: models.N1N2MessageTransferRequest{
-					JsonData: &models.N1N2MessageTransferReqData{
-						PduSessionId: &pduSessionId,
-						N2InfoContainer: &models.N2InfoContainer{
-							N2InformationClass: models.N2INFORMATIONCLASS_SM,
-							SmInfo: &models.N2SmInformation{
-								PduSessionId:  pduSessionId,
-								N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
-								SNssai:        snssai,
-							},
-						},
-					},
+					JsonData:                newN1N2JSONDataWithN2InfoContainer(snssai),
 					BinaryDataN1Message:     tc.n1MsgFile,
 					BinaryDataN2Information: tempBinaryFile(t, "n2.bin", []byte{0x02}),
 				},
@@ -2048,22 +2060,11 @@ func TestHandleServiceRequestNilBinaryDataN1Message(t *testing.T) {
 			serviceRequest := nasMessage.NewServiceRequest(0)
 			serviceRequest.SetServiceTypeValue(nasMessage.ServiceTypeMobileTerminatedServices)
 
-			pduSessionId := int32(2)
 			snssai := models.NewSnssai(1)
 			snssai.SetSd("010203")
 			ue.N1N2Message = &context.N1N2Message{
 				Request: models.N1N2MessageTransferRequest{
-					JsonData: &models.N1N2MessageTransferReqData{
-						PduSessionId: &pduSessionId,
-						N2InfoContainer: &models.N2InfoContainer{
-							N2InformationClass: models.N2INFORMATIONCLASS_SM,
-							SmInfo: &models.N2SmInformation{
-								PduSessionId:  pduSessionId,
-								N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
-								SNssai:        snssai,
-							},
-						},
-					},
+					JsonData:                newN1N2JSONDataWithN2InfoContainer(snssai),
 					BinaryDataN1Message:     tc.n1MsgFile,
 					BinaryDataN2Information: tempBinaryFile(t, "srv-n2.bin", []byte{0x02}),
 				},
@@ -2104,8 +2105,8 @@ func newRegisteredUeForNilBinaryTests(t *testing.T) (*context.AmfUe, *nasMessage
 		SubscriptionDataValid: true,
 		Pei:                   testPei,
 		SubscribedNssai: []models.SubscribedSnssai{{
-			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")},
-			DefaultIndication: openapi.PtrBool(true),
+			SubscribedSnssai:  models.Snssai{Sst: 1, Sd: new("010203")},
+			DefaultIndication: new(true),
 		}},
 	}
 	ue.State[models.ACCESSTYPE__3_GPP_ACCESS] = fsm.NewState(context.Registered)
@@ -2181,9 +2182,11 @@ func newMTServiceUeForNilBinaryTests(t *testing.T) *context.AmfUe {
 // N1N2MessageTransfer request but the corresponding binary part is absent, preventing
 // the handler from silently branching down the wrong code path (TS 29.518 §6.1.6.2.6).
 func TestHandleMobilityAndPeriodicRegistrationUpdatingContainerBinaryMismatch(t *testing.T) {
-	pduSessionId := int32(2)
 	snssai := models.NewSnssai(1)
 	snssai.SetSd("010203")
+	n1N2MessageTransferReqData := models.NewN1N2MessageTransferReqData()
+	n1N2MessageTransferReqData.SetPduSessionId(testN2InfoPduSessionId)
+	n1N2MessageTransferReqData.SetN1MessageContainer(*models.NewN1MessageContainer(models.N1MESSAGECLASS_SM, *models.NewRefToBinaryData("n1")))
 
 	tests := []struct {
 		name       string
@@ -2191,29 +2194,13 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingContainerBinaryMismatch(t 
 		wantErrSub string
 	}{
 		{
-			name: "N1MessageContainer present but BinaryDataN1Message absent",
-			jsonData: &models.N1N2MessageTransferReqData{
-				PduSessionId: &pduSessionId,
-				N1MessageContainer: models.NewN1MessageContainer(
-					models.N1MESSAGECLASS_SM,
-					models.RefToBinaryData{ContentId: "n1"},
-				),
-			},
+			name:       "N1MessageContainer present but BinaryDataN1Message absent",
+			jsonData:   n1N2MessageTransferReqData,
 			wantErrSub: "N1MessageContainer present but BinaryDataN1Message is missing",
 		},
 		{
-			name: "N2InfoContainer present but BinaryDataN2Information absent",
-			jsonData: &models.N1N2MessageTransferReqData{
-				PduSessionId: &pduSessionId,
-				N2InfoContainer: &models.N2InfoContainer{
-					N2InformationClass: models.N2INFORMATIONCLASS_SM,
-					SmInfo: &models.N2SmInformation{
-						PduSessionId:  pduSessionId,
-						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
-						SNssai:        snssai,
-					},
-				},
-			},
+			name:       "N2InfoContainer present but BinaryDataN2Information absent",
+			jsonData:   newN1N2JSONDataWithN2InfoContainer(snssai),
 			wantErrSub: "N2InfoContainer present but BinaryDataN2Information is missing",
 		},
 	}
@@ -2246,9 +2233,11 @@ func TestHandleMobilityAndPeriodicRegistrationUpdatingContainerBinaryMismatch(t 
 // but the corresponding binary part is absent during Mobile-Terminated service request
 // handling (TS 29.518 §6.1.6.2.6).
 func TestHandleServiceRequestContainerBinaryMismatch(t *testing.T) {
-	pduSessionId := int32(2)
 	snssai := models.NewSnssai(1)
 	snssai.SetSd("010203")
+	n1N2MessageTransferReqData := models.NewN1N2MessageTransferReqData()
+	n1N2MessageTransferReqData.SetPduSessionId(testN2InfoPduSessionId)
+	n1N2MessageTransferReqData.SetN1MessageContainer(*models.NewN1MessageContainer(models.N1MESSAGECLASS_SM, *models.NewRefToBinaryData("n1")))
 
 	tests := []struct {
 		name       string
@@ -2256,29 +2245,13 @@ func TestHandleServiceRequestContainerBinaryMismatch(t *testing.T) {
 		wantErrSub string
 	}{
 		{
-			name: "N1MessageContainer present but BinaryDataN1Message absent",
-			jsonData: &models.N1N2MessageTransferReqData{
-				PduSessionId: &pduSessionId,
-				N1MessageContainer: models.NewN1MessageContainer(
-					models.N1MESSAGECLASS_SM,
-					models.RefToBinaryData{ContentId: "n1"},
-				),
-			},
+			name:       "N1MessageContainer present but BinaryDataN1Message absent",
+			jsonData:   n1N2MessageTransferReqData,
 			wantErrSub: "N1MessageContainer present but BinaryDataN1Message is missing",
 		},
 		{
-			name: "N2InfoContainer present but BinaryDataN2Information absent",
-			jsonData: &models.N1N2MessageTransferReqData{
-				PduSessionId: &pduSessionId,
-				N2InfoContainer: &models.N2InfoContainer{
-					N2InformationClass: models.N2INFORMATIONCLASS_SM,
-					SmInfo: &models.N2SmInformation{
-						PduSessionId:  pduSessionId,
-						N2InfoContent: &models.N2InfoContent{NgapIeType: models.NGAPIETYPE_PDU_RES_SETUP_REQ.Ptr()},
-						SNssai:        snssai,
-					},
-				},
-			},
+			name:       "N2InfoContainer present but BinaryDataN2Information absent",
+			jsonData:   newN1N2JSONDataWithN2InfoContainer(snssai),
 			wantErrSub: "N2InfoContainer present but BinaryDataN2Information is missing",
 		},
 	}

@@ -12,7 +12,6 @@ import (
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"go.uber.org/zap"
 )
@@ -112,8 +111,8 @@ func updateRejection(n1 *os.File) *models.UpdateSmContext400Response {
 	errResponse := models.NewUpdateSmContext400Response()
 	errResponse.SetJsonData(models.SmContextUpdateError{
 		Error: models.ExtProblemDetails{
-			Status: openapi.PtrInt32(403),
-			Cause:  openapi.PtrString("N1_SM_ERROR"),
+			Status: new(int32(403)),
+			Cause:  new("N1_SM_ERROR"),
 		},
 	})
 	if n1 != nil {
@@ -201,8 +200,8 @@ func createRejection(n1 *os.File) *models.PostSmContexts400Response {
 	errResponse := models.NewPostSmContexts400Response()
 	errResponse.SetJsonData(models.SmContextCreateError{
 		Error: models.ExtProblemDetails{
-			Status: openapi.PtrInt32(403),
-			Cause:  openapi.PtrString("N1_SM_ERROR"),
+			Status: new(int32(403)),
+			Cause:  new("N1_SM_ERROR"),
 		},
 	})
 	if n1 != nil {

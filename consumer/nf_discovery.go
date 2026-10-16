@@ -106,14 +106,11 @@ func SendNfDiscoveryToNrf(ctx context.Context, nrfUri string, targetNfType, requ
 		if _, ok := amfSelf.NfStatusSubscriptions.Load(nfProfile.NfInstanceId); !ok {
 			nfInstanceIdCond := models.NewNfInstanceIdCond()
 			nfInstanceIdCond.SetNfInstanceId(nfProfile.NfInstanceId)
-			nrfSubscriptionData := models.SubscriptionData{
-				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
-				SubscrCond: &models.SubscrCond{
-					NfInstanceIdCond: nfInstanceIdCond,
-				},
-				ReqNfType: &requestNfType,
-			}
-			nrfSubData, problemDetails, err1 := SendCreateSubscription(ctx, nrfUri, nrfSubscriptionData)
+			nrfSubscriptionData := models.NewSubscriptionData(
+				fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()))
+			nrfSubscriptionData.SetSubscrCond(models.NfInstanceIdCondAsSubscrCond(nfInstanceIdCond))
+			nrfSubscriptionData.SetReqNfType(requestNfType)
+			nrfSubData, problemDetails, err1 := SendCreateSubscription(ctx, nrfUri, *nrfSubscriptionData)
 			if problemDetails != nil {
 				logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
 			} else if err1 != nil {
@@ -170,14 +167,11 @@ func SendNfDiscoveryToNrfCacheQuery(ctx context.Context, nrfUri string, targetNf
 		if _, ok := amfSelf.NfStatusSubscriptions.Load(nfProfile.NfInstanceId); !ok {
 			nfInstanceIdCond := models.NewNfInstanceIdCond()
 			nfInstanceIdCond.SetNfInstanceId(nfProfile.NfInstanceId)
-			nrfSubscriptionData := models.SubscriptionData{
-				NfStatusNotificationUri: fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()),
-				SubscrCond: &models.SubscrCond{
-					NfInstanceIdCond: nfInstanceIdCond,
-				},
-				ReqNfType: &requestNfType,
-			}
-			nrfSubData, problemDetails, err1 := SendCreateSubscription(ctx, nrfUri, nrfSubscriptionData)
+			nrfSubscriptionData := models.NewSubscriptionData(
+				fmt.Sprintf("%s/namf-callback/v1/nf-status-notify", amfSelf.GetIPv4Uri()))
+			nrfSubscriptionData.SetSubscrCond(models.NfInstanceIdCondAsSubscrCond(nfInstanceIdCond))
+			nrfSubscriptionData.SetReqNfType(requestNfType)
+			nrfSubData, problemDetails, err1 := SendCreateSubscription(ctx, nrfUri, *nrfSubscriptionData)
 			if problemDetails != nil {
 				logger.ConsumerLog.Errorf("SendCreateSubscription to NRF, Problem[%+v]", problemDetails)
 			} else if err1 != nil {

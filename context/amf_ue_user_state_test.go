@@ -39,9 +39,9 @@ func TestAmfUeUserStateConcurrentAccess(t *testing.T) {
 		defer wg.Done()
 		for i := range iterations {
 			tac := fmt.Sprintf("%06x", i)
-			ue.SetLocation(models.UserLocation{
-				NrLocation: &models.NrLocation{Tai: models.Tai{Tac: tac}},
-			})
+			nrLocation := models.NewNrLocationWithDefaults()
+			nrLocation.SetTai(models.Tai{Tac: tac})
+			ue.SetLocation(models.UserLocation{NrLocation: nrLocation})
 			ue.SetTai(models.Tai{Tac: tac})
 			ue.SetRatType(models.RATTYPE_NR)
 		}
@@ -72,9 +72,9 @@ func TestAmfUeUserStateConcurrentAccess(t *testing.T) {
 // given would leave the UE's field aliasing state written without identityMu.
 func TestSetLocationCopiesFromTheCaller(t *testing.T) {
 	ue := &AmfUe{}
-	source := models.UserLocation{
-		NrLocation: &models.NrLocation{Tai: models.Tai{Tac: "000001"}},
-	}
+	nrLocation := models.NewNrLocationWithDefaults()
+	nrLocation.SetTai(models.Tai{Tac: "000001"})
+	source := models.UserLocation{NrLocation: nrLocation}
 	ue.SetLocation(source)
 
 	source.NrLocation.Tai.Tac = mutatedTac
@@ -91,9 +91,9 @@ func TestSetLocationCopiesFromTheCaller(t *testing.T) {
 // goroutine serialises the response.
 func TestGetLocationCopiesToTheConsumer(t *testing.T) {
 	ue := &AmfUe{}
-	ue.SetLocation(models.UserLocation{
-		NrLocation: &models.NrLocation{Tai: models.Tai{Tac: "000001"}},
-	})
+	nrLocation := models.NewNrLocationWithDefaults()
+	nrLocation.SetTai(models.Tai{Tac: "000001"})
+	ue.SetLocation(models.UserLocation{NrLocation: nrLocation})
 
 	got := ue.GetLocation()
 

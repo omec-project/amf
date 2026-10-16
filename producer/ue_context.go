@@ -117,24 +117,14 @@ func createUEContextProcedure(ueContextID string, createUeContextRequest models.
 	}
 	// create the UE context in target amf
 	ue := amfSelf.NewAmfUe(ueContextID)
-	// amfSelf.AmfRanSetByRanId(*ueContextCreateData.TargetId.RanNodeId)
-	// ue.N1N2Message[ueContextId] = &context.N1N2Message{}
-	// ue.N1N2Message[ueContextId].Request.JsonData = &models.N1N2MessageTransferReqData{
-	// 	N2InfoContainer: &models.N2InfoContainer{
-	// 		SmInfo: &models.N2SmInformation{
-	// 			N2InfoContent: ueContextCreateData.SourceToTargetData,
-	// 		},
-	// 	},
-	// }
+	// TODO: forward ueContextCreateData.SourceToTargetData to the target RAN named by
+	// TargetId (inter-AMF N2 handover completion, TS 23.502 4.9.1.2.2); not implemented.
 	ue.HandoverNotifyUri = ueContextCreateData.GetN2NotifyUri()
 
 	amfSelf.AmfRanFindByRanID(*ueContextCreateData.TargetId.RanNodeId.Get())
 	supportedTAI := context.NewSupportedTAI()
-	supportedTAI.Tai.Tac = ueContextCreateData.TargetId.Tai.Tac
-	supportedTAI.Tai.PlmnId = ueContextCreateData.TargetId.Tai.PlmnId
-	// ue.N1N2MessageSubscribeInfo[ueContextID] = &models.UeN1N2InfoSubscriptionCreateData{
-	// 	N2NotifyCallbackUri: ueContextCreateData.N2NotifyUri,
-	// }
+	supportedTAI.Tai.SetTac(ueContextCreateData.TargetId.Tai.GetTac())
+	supportedTAI.Tai.SetPlmnId(ueContextCreateData.TargetId.Tai.GetPlmnId())
 	ue.UnauthenticatedSupi = ueContextCreateData.UeContext.GetSupiUnauthInd()
 	// should be smInfo list
 

@@ -41,13 +41,13 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 
 	amfSelf := amf_context.AMF_Self()
 
-	policyAssociationRequest := models.PolicyAssociationRequest{
-		NotificationUri: amfSelf.GetIPv4Uri() + "/namf-callback/v1/am-policy/",
-		Supi:            ue.GetSupi(),
-		AccessType:      &anType,
-		ServingPlmn:     models.NewPlmnIdNid(ue.PlmnId.GetMcc(), ue.PlmnId.GetMnc()),
-		Guami:           &amfSelf.ServedGuamiList[0],
-	}
+	plmnIdNid := models.NewPlmnIdNid(ue.PlmnId.GetMcc(), ue.PlmnId.GetMnc())
+	policyAssociationRequest := models.NewPolicyAssociationRequestWithDefaults()
+	policyAssociationRequest.SetNotificationUri(amfSelf.GetIPv4Uri() + "/namf-callback/v1/am-policy/")
+	policyAssociationRequest.SetSupi(ue.GetSupi())
+	policyAssociationRequest.SetAccessType(anType)
+	policyAssociationRequest.SetServingPlmn(*plmnIdNid)
+	policyAssociationRequest.SetGuami(amfSelf.ServedGuamiList[0])
 	if ue.GetPei() != "" {
 		policyAssociationRequest.SetPei(ue.GetPei())
 	}
@@ -63,7 +63,7 @@ func AMPolicyControlCreate(ctx context.Context, ue *amf_context.AmfUe, anType mo
 	defer cancel()
 
 	apiCreateIndividualAMPolicyAssociationRequest := client.AMPolicyAssociationsCollectionAPI.CreateIndividualAMPolicyAssociation(ctx)
-	apiCreateIndividualAMPolicyAssociationRequest = apiCreateIndividualAMPolicyAssociationRequest.PolicyAssociationRequest(policyAssociationRequest)
+	apiCreateIndividualAMPolicyAssociationRequest = apiCreateIndividualAMPolicyAssociationRequest.PolicyAssociationRequest(*policyAssociationRequest)
 	res, httpResp, localErr := client.AMPolicyAssociationsCollectionAPI.CreateIndividualAMPolicyAssociationExecute(apiCreateIndividualAMPolicyAssociationRequest)
 	if httpResp != nil {
 		defer func() {

@@ -713,21 +713,47 @@ func problemDetailsFrom(err error) (*models.ProblemDetails, bool) {
 		return &problem, true
 	}
 	if ext, ok := openapi.ErrorModel[models.ExtProblemDetails](err); ok {
-		return &models.ProblemDetails{
-			Type:                 ext.Type,
-			Title:                ext.Title,
-			Status:               ext.Status,
-			Detail:               ext.Detail,
-			Instance:             ext.Instance,
-			Cause:                ext.Cause,
-			InvalidParams:        ext.InvalidParams,
-			SupportedFeatures:    ext.SupportedFeatures,
-			AccessTokenError:     ext.AccessTokenError,
-			AccessTokenRequest:   ext.AccessTokenRequest,
-			NrfId:                ext.NrfId,
-			SupportedApiVersions: ext.SupportedApiVersions,
-			NoProfileMatchInfo:   ext.NoProfileMatchInfo,
-		}, true
+		problemDetails := models.NewProblemDetails()
+		if ext.HasType() {
+			problemDetails.SetType(ext.GetType())
+		}
+		if ext.HasTitle() {
+			problemDetails.SetTitle(ext.GetTitle())
+		}
+		if ext.HasStatus() {
+			problemDetails.SetStatus(ext.GetStatus())
+		}
+		if ext.HasDetail() {
+			problemDetails.SetDetail(ext.GetDetail())
+		}
+		if ext.HasInstance() {
+			problemDetails.SetInstance(ext.GetInstance())
+		}
+		if ext.HasCause() {
+			problemDetails.SetCause(ext.GetCause())
+		}
+		if ext.HasInvalidParams() {
+			problemDetails.SetInvalidParams(ext.GetInvalidParams())
+		}
+		if ext.HasSupportedFeatures() {
+			problemDetails.SetSupportedFeatures(ext.GetSupportedFeatures())
+		}
+		if ext.HasAccessTokenError() {
+			problemDetails.SetAccessTokenError(ext.GetAccessTokenError())
+		}
+		if ext.HasAccessTokenRequest() {
+			problemDetails.SetAccessTokenRequest(ext.GetAccessTokenRequest())
+		}
+		if ext.HasNrfId() {
+			problemDetails.SetNrfId(ext.GetNrfId())
+		}
+		if ext.HasSupportedApiVersions() {
+			problemDetails.SetSupportedApiVersions(ext.GetSupportedApiVersions())
+		}
+		if ext.HasNoProfileMatchInfo() {
+			problemDetails.SetNoProfileMatchInfo(ext.GetNoProfileMatchInfo())
+		}
+		return problemDetails, true
 	}
 	return nil, false
 }

@@ -113,7 +113,8 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resS
 	}
 	client := Nausf_UEAuthentication.NewAPIClient(configuration)
 
-	confirmData := models.NewConfirmationData(*openapi.NewNullableString(&resStar))
+	confirmData := models.NewConfirmationDataWithDefaults()
+	confirmData.SetResStar(resStar)
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -175,7 +176,8 @@ func SendEapAuthConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, eapMsg
 	client := Nausf_UEAuthentication.NewAPIClient(configuration)
 
 	eapPayload := base64.StdEncoding.EncodeToString(eapMsg.GetEAPMessage())
-	eapSession := models.NewEapSession(*openapi.NewNullableString(&eapPayload))
+	eapSession := models.NewEapSessionWithDefaults()
+	eapSession.SetEapPayload(eapPayload)
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -95,7 +94,7 @@ func TestPlmnRoundTrip(t *testing.T) {
 }
 
 func TestSNssaiRoundTrip(t *testing.T) {
-	want := models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")}
+	want := models.Snssai{Sst: 1, Sd: new("010203")}
 	got, err := SNssaiToModels(SNssaiToNgap(want))
 	if err != nil {
 		t.Fatalf("SNssaiToModels() error = %v", err)

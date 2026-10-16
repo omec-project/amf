@@ -17,7 +17,6 @@ import (
 	"github.com/omec-project/nas/v2/logger"
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -49,22 +48,22 @@ func requestedSnssaiToModels(length uint8, buf []byte) (models.MappingOfSnssai, 
 		return result, fmt.Errorf("S-NSSAI contents length %d exceeds remaining buffer", length)
 	}
 	withSD := func(sst byte, sd []byte) models.Snssai {
-		return models.Snssai{Sst: int32(sst), Sd: openapi.PtrString(hex.EncodeToString(sd))}
+		return models.Snssai{Sst: int32(sst), Sd: new(hex.EncodeToString(sd))}
 	}
 	switch length {
 	case 0x01:
-		result.ServingSnssai = models.Snssai{Sst: int32(buf[1])}
+		result.SetServingSnssai(models.Snssai{Sst: int32(buf[1])})
 	case 0x02:
-		result.ServingSnssai = models.Snssai{Sst: int32(buf[1])}
-		result.HomeSnssai = models.Snssai{Sst: int32(buf[2])}
+		result.SetServingSnssai(models.Snssai{Sst: int32(buf[1])})
+		result.SetHomeSnssai(models.Snssai{Sst: int32(buf[2])})
 	case 0x04:
-		result.ServingSnssai = withSD(buf[1], buf[2:5])
+		result.SetServingSnssai(withSD(buf[1], buf[2:5]))
 	case 0x05:
-		result.ServingSnssai = withSD(buf[1], buf[2:5])
-		result.HomeSnssai = models.Snssai{Sst: int32(buf[5])}
+		result.SetServingSnssai(withSD(buf[1], buf[2:5]))
+		result.SetHomeSnssai(models.Snssai{Sst: int32(buf[5])})
 	case 0x08:
-		result.ServingSnssai = withSD(buf[1], buf[2:5])
-		result.HomeSnssai = withSD(buf[5], buf[6:9])
+		result.SetServingSnssai(withSD(buf[1], buf[2:5]))
+		result.SetHomeSnssai(withSD(buf[5], buf[6:9]))
 	default:
 		return result, fmt.Errorf("invalid length of S-NSSAI contents: %d", length)
 	}
@@ -73,14 +72,14 @@ func requestedSnssaiToModels(length uint8, buf []byte) (models.MappingOfSnssai, 
 
 func SnssaiToModels(nasSnssai *nasType.SNSSAI) models.Snssai {
 	sd := nasSnssai.GetSD()
-	return models.Snssai{Sst: int32(nasSnssai.GetSST()), Sd: openapi.PtrString(hex.EncodeToString(sd[:]))}
+	return models.Snssai{Sst: int32(nasSnssai.GetSST()), Sd: new(hex.EncodeToString(sd[:]))}
 }
 
 func SnssaiToNas(snssai models.Snssai) []uint8 {
 	if snssai.GetSd() == "" {
-		return []uint8{0x01, uint8(snssai.Sst)}
+		return []uint8{0x01, uint8(snssai.GetSst())}
 	}
-	result := []uint8{0x04, uint8(snssai.Sst)}
+	result := []uint8{0x04, uint8(snssai.GetSst())}
 	if sd, err := hex.DecodeString(snssai.GetSd()); err != nil {
 		logger.ConvertLog.Warnf("decode snssai.sd failed: %+v", err)
 	} else {
@@ -91,9 +90,9 @@ func SnssaiToNas(snssai models.Snssai) []uint8 {
 
 func rejectedSnssaiToNas(snssai models.Snssai, cause uint8) []uint8 {
 	if snssai.GetSd() == "" {
-		return []uint8{(0x01 << 4) + cause, uint8(snssai.Sst)}
+		return []uint8{(0x01 << 4) + cause, uint8(snssai.GetSst())}
 	}
-	result := []uint8{(0x04 << 4) + cause, uint8(snssai.Sst)}
+	result := []uint8{(0x04 << 4) + cause, uint8(snssai.GetSst())}
 	if sd, err := hex.DecodeString(snssai.GetSd()); err != nil {
 		logger.ConvertLog.Warnf("decode snssai.sd failed: %+v", err)
 	} else {
@@ -124,19 +123,19 @@ func PlmnIDToNas(plmnID models.PlmnId) []uint8 {
 		logger.ConvertLog.Warnf("invalid PLMN digit in %q", value)
 		return 0
 	}
-	mcc1, mcc2, mcc3 := digit(plmnID.Mcc, 0), digit(plmnID.Mcc, 1), digit(plmnID.Mcc, 2)
-	mnc1, mnc2, mnc3 := digit(plmnID.Mnc, 0), digit(plmnID.Mnc, 1), 0x0f
-	if len(plmnID.Mnc) == 3 {
-		mnc3 = digit(plmnID.Mnc, 2)
+	mcc1, mcc2, mcc3 := digit(plmnID.GetMcc(), 0), digit(plmnID.GetMcc(), 1), digit(plmnID.GetMcc(), 2)
+	mnc1, mnc2, mnc3 := digit(plmnID.GetMnc(), 0), digit(plmnID.GetMnc(), 1), 0x0f
+	if len(plmnID.GetMnc()) == 3 {
+		mnc3 = digit(plmnID.GetMnc(), 2)
 	}
 	return []uint8{uint8((mcc2 << 4) | mcc1), uint8((mnc3 << 4) | mcc3), uint8((mnc2 << 4) | mnc1)}
 }
 
 func TaiListToNas(taiList []models.Tai) []uint8 {
 	typeOfList := 0x00
-	plmnID := taiList[0].PlmnId
+	plmnID := taiList[0].GetPlmnId()
 	for _, tai := range taiList {
-		if !reflect.DeepEqual(plmnID, tai.PlmnId) {
+		if !reflect.DeepEqual(plmnID, tai.GetPlmnId()) {
 			typeOfList = 0x02
 		}
 	}
@@ -144,7 +143,7 @@ func TaiListToNas(taiList []models.Tai) []uint8 {
 	if typeOfList == 0x00 {
 		result = append(result, PlmnIDToNas(plmnID)...)
 		for _, tai := range taiList {
-			if tac, err := hex.DecodeString(tai.Tac); err != nil {
+			if tac, err := hex.DecodeString(tai.GetTac()); err != nil {
 				logger.ConvertLog.Warnf("decode tac failed: %+v", err)
 			} else {
 				result = append(result, tac...)
@@ -153,10 +152,10 @@ func TaiListToNas(taiList []models.Tai) []uint8 {
 		return result
 	}
 	for _, tai := range taiList {
-		if tac, err := hex.DecodeString(tai.Tac); err != nil {
+		if tac, err := hex.DecodeString(tai.GetTac()); err != nil {
 			logger.ConvertLog.Warnf("decode tac failed: %+v", err)
 		} else {
-			result = append(result, PlmnIDToNas(tai.PlmnId)...)
+			result = append(result, PlmnIDToNas(tai.GetPlmnId())...)
 			result = append(result, tac...)
 		}
 	}
@@ -172,13 +171,13 @@ func LadnToNas(dnn string, taiLists []models.Tai) []uint8 {
 
 func PartialServiceAreaListToNas(plmnID models.PlmnId, restriction models.ServiceAreaRestriction) ([]byte, error) {
 	allowedType := nasMessage.AllowedTypeNonAllowedArea
-	if restriction.RestrictionType != nil && *restriction.RestrictionType == models.RESTRICTIONTYPE_ALLOWED_AREAS {
+	if restriction.GetRestrictionType() == models.RESTRICTIONTYPE_ALLOWED_AREAS {
 		allowedType = nasMessage.AllowedTypeAllowedArea
 	}
 
 	tacs := make([][]byte, 0)
-	for _, area := range restriction.Areas {
-		for _, tac := range area.Tacs {
+	for _, area := range restriction.GetAreas() {
+		for _, tac := range area.GetTacs() {
 			bytes, err := hex.DecodeString(tac)
 			if err != nil {
 				return nil, fmt.Errorf("decode TAC %q: %w", tac, err)
@@ -227,13 +226,13 @@ func plmnIDToString(buf []byte) string {
 
 func SpareHalfOctetAndNgksiToNas(ngKsi models.NgKsi) nasType.SpareHalfOctetAndNgksi {
 	result := nasType.SpareHalfOctetAndNgksi{}
-	switch ngKsi.Tsc {
+	switch ngKsi.GetTsc() {
 	case models.SCTYPE_NATIVE:
 		result.SetTSC(nasMessage.TypeOfSecurityContextFlagNative)
 	case models.SCTYPE_MAPPED:
 		result.SetTSC(nasMessage.TypeOfSecurityContextFlagMapped)
 	}
 	result.SetSpareHalfOctet(0)
-	result.SetNasKeySetIdentifiler(uint8(ngKsi.Ksi))
+	result.SetNasKeySetIdentifiler(uint8(ngKsi.GetKsi()))
 	return result
 }

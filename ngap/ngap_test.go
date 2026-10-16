@@ -14,7 +14,6 @@ import (
 	"github.com/omec-project/amf/ngap"
 	ngaputil "github.com/omec-project/amf/ngap/util"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -68,10 +67,10 @@ func init() {
 			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			SNssaiList: []models.Snssai{
 				{
-					Sst: 1, Sd: openapi.PtrString("010203"),
+					Sst: 1, Sd: new("010203"),
 				},
 				{
-					Sst: 1, Sd: openapi.PtrString("112233"),
+					Sst: 1, Sd: new("112233"),
 				},
 			},
 		},

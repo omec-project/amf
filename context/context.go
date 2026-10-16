@@ -744,20 +744,20 @@ func ConvertAccessAndMobilityList(newConfig []nfConfigApi.AccessAndMobility) ([]
 			Mnc: plmnSnssaiTacs.PlmnId.GetMnc(),
 		}
 		newSnssai := models.Snssai{
-			Sst: plmnSnssaiTacs.Snssai.Sst,
+			Sst: plmnSnssaiTacs.Snssai.GetSst(),
 		}
 		if plmnSnssaiTacs.Snssai.GetSd() != "" {
-			newSnssai.Sd = plmnSnssaiTacs.Snssai.Sd
+			newSnssai.SetSd(plmnSnssaiTacs.Snssai.GetSd())
 		}
 		if newPlmnSupportItemsMap[newPlmn] == nil {
 			newPlmnSupportItemsMap[newPlmn] = map[string]models.Snssai{}
 		}
 		newPlmnSupportItemsMap[newPlmn][fmt.Sprintf("%d:%s", newSnssai.GetSst(), newSnssai.GetSd())] = newSnssai
-		if len(plmnSnssaiTacs.Tacs) == 0 {
-			logger.ContextLog.Warnf("empty TACs for %+v (SNssai: %+v)", plmnSnssaiTacs.PlmnId, plmnSnssaiTacs.Snssai)
+		if len(plmnSnssaiTacs.GetTacs()) == 0 {
+			logger.ContextLog.Warnf("empty TACs for %+v (SNssai: %+v)", plmnSnssaiTacs.GetPlmnId(), plmnSnssaiTacs.GetSnssai())
 			continue
 		}
-		for _, tac := range plmnSnssaiTacs.Tacs {
+		for _, tac := range plmnSnssaiTacs.GetTacs() {
 			newTai := models.Tai{
 				PlmnId: newPlmn,
 				Tac:    tac,
@@ -811,19 +811,22 @@ func sortPlmnSnssaiList(plmnSnssaiList []models.PlmnSnssai) {
 
 func sortSNssaiList(snssaiList []models.Snssai) {
 	sort.Slice(snssaiList, func(i, j int) bool {
-		if snssaiList[i].Sst != snssaiList[j].Sst {
-			return snssaiList[i].Sst < snssaiList[j].Sst
+		if snssaiList[i].GetSst() != snssaiList[j].GetSst() {
+			return snssaiList[i].GetSst() < snssaiList[j].GetSst()
 		}
-		iSd := snssaiList[i].GetSd()
-		jSd := snssaiList[j].GetSd()
-		if iSd == "" || jSd == "" {
-			if iSd == jSd {
-				return false
-			}
-			return jSd == ""
-		}
-		return iSd < jSd
+		return lessSd(snssaiList[i].GetSd(), snssaiList[j].GetSd())
 	})
+}
+
+// lessSd orders SDs lexicographically, except an absent SD (wildcard) always sorts last.
+func lessSd(a, b string) bool {
+	if a == "" {
+		return false
+	}
+	if b == "" {
+		return true
+	}
+	return a < b
 }
 
 func sortGuamiList(guamiList []models.Guami) {

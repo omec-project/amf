@@ -52,7 +52,7 @@ func StartPollingService(ctx context.Context, webuiUri string, registrationChann
 		case <-time.After(interval):
 			newAccessMobilityConfig, err := fetchAccessAndMobilityConfig(&poller, pollingEndpoint)
 			if err != nil {
-				interval = minDuration(interval*time.Duration(pollingBackoffFactor), pollingMaxBackoff)
+				interval = min(interval*time.Duration(pollingBackoffFactor), pollingMaxBackoff)
 				logger.PollConfigLog.Errorf("polling error. Retrying in %v: %+v", interval, err)
 				continue
 			}
@@ -122,11 +122,4 @@ func (p *nfConfigPoller) fetchAccessAndMobilityConfig(pollingEndpoint string) ([
 	default:
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-}
-
-func minDuration(a, b time.Duration) time.Duration {
-	if a < b {
-		return a
-	}
-	return b
 }

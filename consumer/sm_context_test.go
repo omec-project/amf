@@ -100,7 +100,7 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("010203")})
 	smContext.SetDnn("internet")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 
@@ -594,10 +594,10 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 		// rejection the UE has to receive travels in the nested error object.
 		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextCreateError{
 			Error: models.ExtProblemDetails{
-				Title:  openapi.PtrString("DNN_DENIED"),
-				Detail: openapi.PtrString("DNN not configured for the requested slice"),
+				Title:  new("DNN_DENIED"),
+				Detail: new("DNN not configured for the requested slice"),
 			},
-			N1SmMsg: &models.RefToBinaryData{ContentId: n1SmMsgContentId},
+			N1SmMsg: models.NewRefToBinaryData(n1SmMsgContentId),
 		}, rejectNas)
 	}))
 	defer server.Close()
@@ -616,7 +616,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("010203")})
 	smContext.SetDnn("internet")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 
@@ -665,8 +665,8 @@ func TestSendUpdateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		readMultipartRequestPartsByName(t, r, []string{jsonDataPart, binaryDataN1SmMessagePart})
 		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextUpdateError{
-			Error:   models.ExtProblemDetails{Title: openapi.PtrString("MODIFICATION_REJECTED")},
-			N1SmMsg: &models.RefToBinaryData{ContentId: n1SmMsgContentId},
+			Error:   models.ExtProblemDetails{Title: new("MODIFICATION_REJECTED")},
+			N1SmMsg: models.NewRefToBinaryData(n1SmMsgContentId),
 		}, rejectNas)
 	}))
 	defer server.Close()
@@ -842,10 +842,10 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusTooManyRequests)
 		if err := json.NewEncoder(w).Encode(models.ProblemDetails{
-			Title:  openapi.PtrString("TOO_MANY_REQUESTS"),
-			Detail: openapi.PtrString("the SMF is shedding load"),
-			Cause:  openapi.PtrString("INSUFFICIENT_RESOURCES"),
-			Status: openapi.PtrInt32(http.StatusTooManyRequests),
+			Title:  new("TOO_MANY_REQUESTS"),
+			Detail: new("the SMF is shedding load"),
+			Cause:  new("INSUFFICIENT_RESOURCES"),
+			Status: new(int32(http.StatusTooManyRequests)),
 		}); err != nil {
 			t.Errorf("failed to write the problem details: %v", err)
 		}
@@ -866,7 +866,7 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("010203")})
 	smContext.SetDnn("internet")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 
@@ -891,5 +891,40 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 	}
 	if got := problemDetail.GetTitle(); got != "TOO_MANY_REQUESTS" {
 		t.Errorf("title = %q, want %q", got, "TOO_MANY_REQUESTS")
+	}
+}
+
+// TestProblemDetailsFromPreservesAbsentOptionalFields covers a sparse ExtProblemDetails, such as
+// an SMF 429 carrying only title and detail. Get*/Set* pairs turn an absent optional field into a
+// present zero value, so copying every field unconditionally would add status 0 and an empty
+// access-token object to a problem that reported neither; each field here must be copied only
+// when the source has it set.
+func TestProblemDetailsFromPreservesAbsentOptionalFields(t *testing.T) {
+	var extProblemDetails models.ExtProblemDetails
+	extProblemDetails.SetTitle("TOO_MANY_REQUESTS")
+	extProblemDetails.SetDetail("the SMF is shedding load")
+	err := openapi.GenericOpenAPIError{RawModel: extProblemDetails}
+
+	problemDetail, ok := problemDetailsFrom(err)
+	if !ok {
+		t.Fatal("expected the sparse ExtProblemDetails to be recognized")
+	}
+	if got := problemDetail.GetTitle(); got != "TOO_MANY_REQUESTS" {
+		t.Errorf("title = %q, want %q", got, "TOO_MANY_REQUESTS")
+	}
+	if got := problemDetail.GetDetail(); got != "the SMF is shedding load" {
+		t.Errorf("detail = %q, want %q", got, "the SMF is shedding load")
+	}
+	if problemDetail.HasStatus() {
+		t.Errorf("status = %d, want absent", problemDetail.GetStatus())
+	}
+	if problemDetail.HasCause() {
+		t.Errorf("cause = %q, want absent", problemDetail.GetCause())
+	}
+	if problemDetail.HasAccessTokenError() {
+		t.Errorf("accessTokenError = %+v, want absent", problemDetail.GetAccessTokenError())
+	}
+	if problemDetail.HasInvalidParams() {
+		t.Errorf("invalidParams = %+v, want absent", problemDetail.GetInvalidParams())
 	}
 }
