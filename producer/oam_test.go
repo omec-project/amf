@@ -14,7 +14,6 @@ import (
 	"github.com/omec-project/amf/gmm"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 )
@@ -43,10 +42,10 @@ func init() {
 			PlmnId: models.PlmnId{Mcc: "208", Mnc: "93"},
 			SNssaiList: []models.Snssai{
 				{
-					Sst: 1, Sd: openapi.PtrString("010203"),
+					Sst: 1, Sd: new("010203"),
 				},
 				{
-					Sst: 1, Sd: openapi.PtrString("112233"),
+					Sst: 1, Sd: new("112233"),
 				},
 			},
 		},
@@ -147,7 +146,7 @@ func TestBuildUEContextUsesProvidedAccessType(t *testing.T) {
 	smContext := context.NewSmContext(10)
 	smContext.SetAccessType(models.ACCESSTYPE_NON_3_GPP_ACCESS)
 	smContext.SetSmContextRef("sm-context-ref")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("112233")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("112233")})
 	smContext.SetDnn("internet")
 	ue.SmContextList.Store(smContext.PduSessionID(), smContext)
 

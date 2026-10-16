@@ -55,8 +55,10 @@ func TestProvideLocationInfoDoesNotAliasLiveUeLocation(t *testing.T) {
 		ue.Remove()
 	}()
 
+	nrLocation := models.NewNrLocationWithDefaults()
+	nrLocation.SetTai(models.Tai{Tac: "000001"})
 	ue.SetLocation(models.UserLocation{
-		NrLocation: &models.NrLocation{Tai: models.Tai{Tac: "000001"}},
+		NrLocation: nrLocation,
 	})
 
 	requestLocInfo := models.NewRequestLocInfo()

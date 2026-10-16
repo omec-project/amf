@@ -11,12 +11,11 @@ import (
 
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
 func TestSnssaiToNas(t *testing.T) {
-	got := SnssaiToNas(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	got := SnssaiToNas(models.Snssai{Sst: 1, Sd: new("010203")})
 	if want := []uint8{0x04, 0x01, 0x01, 0x02, 0x03}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("SnssaiToNas() = %x, want %x", got, want)
 	}

@@ -14,7 +14,6 @@ import (
 	"github.com/omec-project/ngap/v2/logger"
 	"github.com/omec-project/ngap/v2/ngapConvert"
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -62,9 +61,10 @@ func digits(value string) bool {
 }
 
 func PlmnIdToNgap(plmn models.PlmnId) ngapType.PLMNIdentity {
-	mcc, mnc := strings.Split(plmn.Mcc, ""), strings.Split(plmn.Mnc, "")
+	mcc := strings.Split(plmn.GetMcc(), "")
+	mnc := strings.Split(plmn.GetMnc(), "")
 	encoded := mcc[1] + mcc[0]
-	if len(plmn.Mnc) == 2 {
+	if len(plmn.GetMnc()) == 2 {
 		encoded += "f" + mcc[2] + mnc[1] + mnc[0]
 	} else {
 		encoded += mnc[0] + mcc[2] + mnc[2] + mnc[1]
@@ -87,7 +87,7 @@ func SNssaiToModels(snssai ngapType.SNSSAI) (models.Snssai, error) {
 		if len(snssai.SD.Value) != 3 {
 			return models.Snssai{}, fmt.Errorf("invalid S-NSSAI SD length %d", len(snssai.SD.Value))
 		}
-		result.Sd = openapi.PtrString(hex.EncodeToString(snssai.SD.Value))
+		result.SetSd(hex.EncodeToString(snssai.SD.Value))
 	}
 	return result, nil
 }
@@ -133,25 +133,27 @@ func RanIdToModels(ran ngapType.GlobalRANNodeID) (models.GlobalRanNodeId, error)
 		if err != nil {
 			return result, fmt.Errorf("invalid GlobalGNBID PLMN identity: %w", err)
 		}
-		result.PlmnId, result.GNbId = plmn, models.NewGNbIdWithDefaults()
+		result.SetPlmnId(plmn)
+		result.GNbId = models.NewGNbIdWithDefaults()
 		if ran.GlobalGNBID.GNBID.Present == ngapType.GNBIDPresentGNBID {
 			value := ran.GlobalGNBID.GNBID.GNBID
-			result.GNbId.BitLength, result.GNbId.GNBValue = int32(value.BitLength), ngapConvert.BitStringToHex(value)
+			result.GNbId.SetBitLength(int32(value.BitLength))
+			result.GNbId.SetGNBValue(ngapConvert.BitStringToHex(value))
 		}
 	case ngapType.GlobalRANNodeIDPresentGlobalNgENBID:
 		plmn, err := PlmnIdToModels(ran.GlobalNgENBID.PLMNIdentity)
 		if err != nil {
 			return result, fmt.Errorf("invalid GlobalNgENBID PLMN identity: %w", err)
 		}
-		result.PlmnId = plmn
+		result.SetPlmnId(plmn)
 		id := ran.GlobalNgENBID.NgENBID
 		switch id.Present {
 		case ngapType.NgENBIDPresentMacroNgENBID:
-			result.NgeNbId = openapi.PtrString("MacroNGeNB-" + ngapConvert.BitStringToHex(id.MacroNgENBID))
+			result.SetNgeNbId("MacroNGeNB-" + ngapConvert.BitStringToHex(id.MacroNgENBID))
 		case ngapType.NgENBIDPresentShortMacroNgENBID:
-			result.NgeNbId = openapi.PtrString("SMacroNGeNB-" + ngapConvert.BitStringToHex(id.ShortMacroNgENBID))
+			result.SetNgeNbId("SMacroNGeNB-" + ngapConvert.BitStringToHex(id.ShortMacroNgENBID))
 		case ngapType.NgENBIDPresentLongMacroNgENBID:
-			result.NgeNbId = openapi.PtrString("LMacroNGeNB-" + ngapConvert.BitStringToHex(id.LongMacroNgENBID))
+			result.SetNgeNbId("LMacroNGeNB-" + ngapConvert.BitStringToHex(id.LongMacroNgENBID))
 		default:
 			return models.GlobalRanNodeId{}, fmt.Errorf("unsupported NgENBID present type %d", id.Present)
 		}
@@ -160,9 +162,9 @@ func RanIdToModels(ran ngapType.GlobalRANNodeID) (models.GlobalRanNodeId, error)
 		if err != nil {
 			return result, fmt.Errorf("invalid GlobalN3IWFID PLMN identity: %w", err)
 		}
-		result.PlmnId = plmn
+		result.SetPlmnId(plmn)
 		if ran.GlobalN3IWFID.N3IWFID.Present == ngapType.N3IWFIDPresentN3IWFID {
-			result.N3IwfId = openapi.PtrString(ngapConvert.BitStringToHex(ran.GlobalN3IWFID.N3IWFID.N3IWFID))
+			result.SetN3IwfId(ngapConvert.BitStringToHex(ran.GlobalN3IWFID.N3IWFID.N3IWFID))
 		}
 	default:
 		return models.GlobalRanNodeId{}, fmt.Errorf("unsupported GlobalRANNodeID present type %d", ran.Present)
@@ -180,9 +182,9 @@ func TraceDataToNgap(traceData models.TraceData, trsr string) (ngapType.TraceAct
 		return result, fmt.Errorf("invalid trace recording session reference %q", trsr)
 	}
 
-	parts := strings.Split(traceData.TraceRef, "-")
+	parts := strings.Split(traceData.GetTraceRef(), "-")
 	if len(parts) != 2 || (len(parts[0]) != 5 && len(parts[0]) != 6) || !digits(parts[0]) {
-		return result, fmt.Errorf("invalid trace reference PLMN %q", traceData.TraceRef)
+		return result, fmt.Errorf("invalid trace reference PLMN %q", traceData.GetTraceRef())
 	}
 	if len(parts[1]) != 6 {
 		return result, fmt.Errorf("trace reference ID has %d hexadecimal characters, want 6", len(parts[1]))

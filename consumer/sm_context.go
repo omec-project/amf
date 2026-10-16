@@ -713,21 +713,21 @@ func problemDetailsFrom(err error) (*models.ProblemDetails, bool) {
 		return &problem, true
 	}
 	if ext, ok := openapi.ErrorModel[models.ExtProblemDetails](err); ok {
-		return &models.ProblemDetails{
-			Type:                 ext.Type,
-			Title:                ext.Title,
-			Status:               ext.Status,
-			Detail:               ext.Detail,
-			Instance:             ext.Instance,
-			Cause:                ext.Cause,
-			InvalidParams:        ext.InvalidParams,
-			SupportedFeatures:    ext.SupportedFeatures,
-			AccessTokenError:     ext.AccessTokenError,
-			AccessTokenRequest:   ext.AccessTokenRequest,
-			NrfId:                ext.NrfId,
-			SupportedApiVersions: ext.SupportedApiVersions,
-			NoProfileMatchInfo:   ext.NoProfileMatchInfo,
-		}, true
+		problemDetails := models.NewProblemDetails()
+		problemDetails.SetType(ext.GetType())
+		problemDetails.SetTitle(ext.GetTitle())
+		problemDetails.SetStatus(ext.GetStatus())
+		problemDetails.SetDetail(ext.GetDetail())
+		problemDetails.SetInstance(ext.GetInstance())
+		problemDetails.SetCause(ext.GetCause())
+		problemDetails.SetInvalidParams(ext.GetInvalidParams())
+		problemDetails.SetSupportedFeatures(ext.GetSupportedFeatures())
+		problemDetails.SetAccessTokenError(ext.GetAccessTokenError())
+		problemDetails.SetAccessTokenRequest(ext.GetAccessTokenRequest())
+		problemDetails.SetNrfId(ext.GetNrfId())
+		problemDetails.SetSupportedApiVersions(ext.GetSupportedApiVersions())
+		problemDetails.SetNoProfileMatchInfo(ext.GetNoProfileMatchInfo())
+		return problemDetails, true
 	}
 	return nil, false
 }

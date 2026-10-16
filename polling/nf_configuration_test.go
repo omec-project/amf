@@ -66,15 +66,14 @@ func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (n
 	if err != nil {
 		return nfConfigApi.AccessAndMobility{}, err
 	}
-	sstint := int32(sstUint64)
 	return nfConfigApi.AccessAndMobility{
 		PlmnId: nfConfigApi.PlmnId{
 			Mcc: mcc,
 			Mnc: mnc,
 		},
 		Snssai: nfConfigApi.Snssai{
-			Sst: sstint,
-			Sd:  &sd,
+			Sst: int32(sstUint64),
+			Sd:  new(sd),
 		},
 		Tacs: tacs,
 	}, nil
@@ -233,7 +232,7 @@ func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
 	})
 
 	timeout := time.After(5 * initialPollingInterval)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		select {
 		case <-updateCtxChan:
 			receivedCount++

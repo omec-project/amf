@@ -17,7 +17,6 @@ import (
 	"testing"
 
 	amfContext "github.com/omec-project/amf/context"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 )
 
@@ -100,7 +99,7 @@ func TestSendCreateSmContextRequestIncludesRequestTypeAndN1Payload(t *testing.T)
 	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("010203")})
 	smContext.SetDnn("internet")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 
@@ -594,10 +593,10 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 		// rejection the UE has to receive travels in the nested error object.
 		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextCreateError{
 			Error: models.ExtProblemDetails{
-				Title:  openapi.PtrString("DNN_DENIED"),
-				Detail: openapi.PtrString("DNN not configured for the requested slice"),
+				Title:  new("DNN_DENIED"),
+				Detail: new("DNN not configured for the requested slice"),
 			},
-			N1SmMsg: &models.RefToBinaryData{ContentId: n1SmMsgContentId},
+			N1SmMsg: models.NewRefToBinaryData(n1SmMsgContentId),
 		}, rejectNas)
 	}))
 	defer server.Close()
@@ -616,7 +615,7 @@ func TestSendCreateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("010203")})
 	smContext.SetDnn("internet")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 
@@ -665,8 +664,8 @@ func TestSendUpdateSmContextRequestRelaysSmfRejection(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		readMultipartRequestPartsByName(t, r, []string{jsonDataPart, binaryDataN1SmMessagePart})
 		writeMultipartRejection(t, w, http.StatusForbidden, models.SmContextUpdateError{
-			Error:   models.ExtProblemDetails{Title: openapi.PtrString("MODIFICATION_REJECTED")},
-			N1SmMsg: &models.RefToBinaryData{ContentId: n1SmMsgContentId},
+			Error:   models.ExtProblemDetails{Title: new("MODIFICATION_REJECTED")},
+			N1SmMsg: models.NewRefToBinaryData(n1SmMsgContentId),
 		}, rejectNas)
 	}))
 	defer server.Close()
@@ -842,10 +841,10 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 		w.Header().Set("Content-Type", "application/problem+json")
 		w.WriteHeader(http.StatusTooManyRequests)
 		if err := json.NewEncoder(w).Encode(models.ProblemDetails{
-			Title:  openapi.PtrString("TOO_MANY_REQUESTS"),
-			Detail: openapi.PtrString("the SMF is shedding load"),
-			Cause:  openapi.PtrString("INSUFFICIENT_RESOURCES"),
-			Status: openapi.PtrInt32(http.StatusTooManyRequests),
+			Title:  new("TOO_MANY_REQUESTS"),
+			Detail: new("the SMF is shedding load"),
+			Cause:  new("INSUFFICIENT_RESOURCES"),
+			Status: new(int32(http.StatusTooManyRequests)),
 		}); err != nil {
 			t.Errorf("failed to write the problem details: %v", err)
 		}
@@ -866,7 +865,7 @@ func TestSendCreateSmContextRequestSurfacesAProblemDetails(t *testing.T) {
 	smContext := amfContext.NewSmContext(10)
 	smContext.SetSmfUri(server.URL)
 	smContext.SetSmfID("smf-test")
-	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")})
+	smContext.SetSnssai(models.Snssai{Sst: 1, Sd: new("010203")})
 	smContext.SetDnn("internet")
 	smContext.SetAccessType(models.ACCESSTYPE__3_GPP_ACCESS)
 

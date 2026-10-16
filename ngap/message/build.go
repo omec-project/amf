@@ -29,7 +29,7 @@ func buildAllowedNSSAIFromAllowedSnssai(snssais []models.AllowedSnssai) (*ngapTy
 	seen := make(map[string]struct{}, len(snssais))
 
 	for _, allowedSnssai := range snssais {
-		if err := appendAllowedNSSAIItem(allowedNSSAI, allowedSnssai.AllowedSnssai, seen); err != nil {
+		if err := appendAllowedNSSAIItem(allowedNSSAI, allowedSnssai.GetAllowedSnssai(), seen); err != nil {
 			return nil, err
 		}
 	}
@@ -42,7 +42,7 @@ func appendAllowedNSSAIItem(
 	snssai models.Snssai,
 	seen map[string]struct{},
 ) error {
-	key := fmt.Sprintf("%d-%s", snssai.Sst, snssai.GetSd())
+	key := fmt.Sprintf("%d-%s", snssai.GetSst(), snssai.GetSd())
 	if _, ok := seen[key]; ok {
 		return nil
 	}

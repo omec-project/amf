@@ -14,7 +14,6 @@ import (
 	"github.com/omec-project/nas/v2/nasMessage"
 	"github.com/omec-project/nas/v2/nasType"
 	"github.com/omec-project/ngap/v2/ngapType"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"go.uber.org/zap"
@@ -112,6 +111,14 @@ func captureRejectCause(t *testing.T) **uint8 {
 	return &got
 }
 
+// problemDetailsWithStatus is a ProblemDetails carrying only the status the UDM answered with.
+func problemDetailsWithStatus(status int32) *models.ProblemDetails {
+	problemDetails := models.NewProblemDetails()
+	problemDetails.SetStatus(status)
+
+	return problemDetails
+}
+
 // The AMF reaches the same empty allowed NSSAI whether the UDM said the subscriber has
 // no slices or could not be reached, so the fetch outcome is what decides the cause.
 func TestAnEmptyAllowedNssaiIsCause7OnlyWhenTheUdmAnswered(t *testing.T) {
@@ -179,7 +186,7 @@ func TestAPolicyAssociationFailureIsAnsweredWithCongestion(t *testing.T) {
 	}{
 		{
 			name:           "the PCF refused",
-			problemDetails: &models.ProblemDetails{Status: openapi.PtrInt32(403)},
+			problemDetails: problemDetailsWithStatus(403),
 		},
 		{
 			name: "the PCF could not be reached",
@@ -233,9 +240,9 @@ func stubRegistrationUpToPolicy(t *testing.T) {
 		sendSearchNFInstancesForRegistration = originalSearch
 	})
 
-	slice := models.Snssai{Sst: 1, Sd: openapi.PtrString("010203")}
+	slice := models.Snssai{Sst: 1, Sd: new("010203")}
 	getSubscribedNssaiForRegistration = func(_ ctxt.Context, ue *context.AmfUe) error {
-		ue.SubscribedNssai = []models.SubscribedSnssai{{SubscribedSnssai: slice, DefaultIndication: openapi.PtrBool(true)}}
+		ue.SubscribedNssai = []models.SubscribedSnssai{{SubscribedSnssai: slice, DefaultIndication: new(true)}}
 
 		return nil
 	}
@@ -260,7 +267,7 @@ func stubRegistrationUpToPolicy(t *testing.T) {
 			"0": {
 				ServiceName:     models.SERVICENAME_NPCF_AM_POLICY_CONTROL,
 				NfServiceStatus: models.NFSERVICESTATUS_REGISTERED,
-				ApiPrefix:       openapi.PtrString("http://pcf.example.com"),
+				ApiPrefix:       new("http://pcf.example.com"),
 			},
 		})
 
@@ -281,41 +288,41 @@ func TestSliceSubscriptionUnavailableTellsNoAnswerFromAnAnswer(t *testing.T) {
 		{name: "fetched"},
 		{
 			name:           "404: the UDM has no slice data for the subscriber",
-			problemDetails: &models.ProblemDetails{Status: openapi.PtrInt32(404)},
+			problemDetails: problemDetailsWithStatus(404),
 		},
 		{
 			name:            "400: the AMF's request was wrong",
-			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(400)},
+			problemDetails:  problemDetailsWithStatus(400),
 			wantUnavailable: true,
 		},
 		{
 			name:            "401: the AMF was not authorised",
-			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(401)},
+			problemDetails:  problemDetailsWithStatus(401),
 			wantUnavailable: true,
 		},
 		{
 			name:            "403: the AMF was not allowed",
-			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(403)},
+			problemDetails:  problemDetailsWithStatus(403),
 			wantUnavailable: true,
 		},
 		{
 			name:            "429: the UDM asked the AMF to slow down",
-			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(429)},
+			problemDetails:  problemDetailsWithStatus(429),
 			wantUnavailable: true,
 		},
 		{
 			name:            "408: the UDM timed the request out",
-			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(408)},
+			problemDetails:  problemDetailsWithStatus(408),
 			wantUnavailable: true,
 		},
 		{
 			name:            "503: the UDM could not answer",
-			problemDetails:  &models.ProblemDetails{Status: openapi.PtrInt32(503)},
+			problemDetails:  problemDetailsWithStatus(503),
 			wantUnavailable: true,
 		},
 		{
 			name:            "a problem with no status",
-			problemDetails:  &models.ProblemDetails{},
+			problemDetails:  models.NewProblemDetails(),
 			wantUnavailable: true,
 		},
 		{

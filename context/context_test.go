@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/omec-project/amf/factory"
-	"github.com/omec-project/openapi/v2"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
 )
@@ -94,7 +93,7 @@ func TestUpdateAMFContext(t *testing.T) {
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: openapi.PtrString("01")},
+						{Sst: 1, Sd: new("01")},
 					},
 				},
 			},
@@ -119,7 +118,7 @@ func TestUpdateAMFContext(t *testing.T) {
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: openapi.PtrString("01")},
+						{Sst: 1, Sd: new("01")},
 					},
 				},
 			},
@@ -162,13 +161,13 @@ func TestUpdateAMFContext(t *testing.T) {
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: openapi.PtrString("01")},
+						{Sst: 1, Sd: new("01")},
 					},
 				},
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "02"},
 					SNssaiList: []models.Snssai{
-						{Sst: 2, Sd: openapi.PtrString(sdValue2)},
+						{Sst: 2, Sd: new(sdValue2)},
 					},
 				},
 			},
@@ -207,8 +206,8 @@ func TestUpdateAMFContext(t *testing.T) {
 				{
 					PlmnId: models.PlmnId{Mcc: "001", Mnc: "01"},
 					SNssaiList: []models.Snssai{
-						{Sst: 1, Sd: openapi.PtrString("01")},
-						{Sst: 2, Sd: openapi.PtrString("01")},
+						{Sst: 1, Sd: new("01")},
+						{Sst: 2, Sd: new("01")},
 					},
 				},
 			},
@@ -240,19 +239,19 @@ func TestUpdateAMFContext(t *testing.T) {
 
 func TestSortSNssaiListOrdersBySstThenSdWithEmptyLast(t *testing.T) {
 	snssaiList := []models.Snssai{
-		{Sst: 1, Sd: openapi.PtrString("bbbbbb")},
+		{Sst: 1, Sd: new("bbbbbb")},
 		{Sst: 1},
-		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
+		{Sst: 1, Sd: new("aaaaaa")},
 		{Sst: 2},
-		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
+		{Sst: 1, Sd: new("aaaaaa")},
 	}
 
 	sortSNssaiList(snssaiList)
 
 	expected := []models.Snssai{
-		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
-		{Sst: 1, Sd: openapi.PtrString("aaaaaa")},
-		{Sst: 1, Sd: openapi.PtrString("bbbbbb")},
+		{Sst: 1, Sd: new("aaaaaa")},
+		{Sst: 1, Sd: new("aaaaaa")},
+		{Sst: 1, Sd: new("bbbbbb")},
 		{Sst: 1},
 		{Sst: 2},
 	}
@@ -263,8 +262,8 @@ func TestSortSNssaiListOrdersBySstThenSdWithEmptyLast(t *testing.T) {
 }
 
 func TestConvertAccessAndMobilityListDeduplicatesSnssaiByValue(t *testing.T) {
-	firstSd := openapi.PtrString("112233")
-	secondSd := openapi.PtrString("112233")
+	firstSd := new("112233")
+	secondSd := new("112233")
 	_, plmnSnssaiList, _ := ConvertAccessAndMobilityList([]nfConfigApi.AccessAndMobility{
 		{
 			PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},

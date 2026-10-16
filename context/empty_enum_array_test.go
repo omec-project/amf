@@ -48,7 +48,9 @@ func storedUeWithTriggers(t *testing.T, supi string, triggers []models.RequestTr
 	// context, which the strict decode also refuses; a real one keeps this test about
 	// the triggers alone.
 	ue.NgKsi = models.NgKsi{Tsc: models.SCTYPE_NATIVE, Ksi: 0}
-	ue.AmPolicyAssociation = &models.PolicyAssociation{Triggers: triggers}
+	policyAssoc := models.NewPolicyAssociationWithDefaults()
+	policyAssoc.SetTriggers(triggers)
+	ue.AmPolicyAssociation = policyAssoc
 
 	raw, err := gojson.Marshal(ue)
 	if err != nil {
