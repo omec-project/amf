@@ -237,9 +237,9 @@ func (amf *AMF) Start() {
 			case <-ctx.Done():
 				return
 			case cfg := <-contextUpdateChan:
-				err = amfContext.UpdateAmfContext(self, cfg)
-				if err != nil {
-					logger.PollConfigLog.Errorf("AMF context update failed: %v", err)
+				updateErr := amfContext.UpdateAmfContext(self, cfg)
+				if updateErr != nil {
+					logger.PollConfigLog.Errorf("AMF context update failed: %v", updateErr)
 				} else {
 					logger.PollConfigLog.Debugln("AMF context updated from WebConsole config")
 				}
