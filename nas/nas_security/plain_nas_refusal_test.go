@@ -104,9 +104,9 @@ func FuzzDecode(f *testing.F) {
 	f.Add([]byte{0x7e, 0x02}, false)
 	f.Add([]byte{}, false)
 	// Regression seeds: inputs that used to panic.
-	f.Add([]byte{0x7e}, true)                                        // too short for a security header type
-	f.Add([]byte{0x7e, 0x01, 0, 0, 0, 0, 0}, true)                   // integrity protected, no message after the header
-	f.Add([]byte{0x7e, 0x01, 0, 0, 0, 0, 0, 0x2e, 0, 0, 0, 0}, true) // 5GSM message under a failed MAC
+	f.Add([]byte{0x7e}, true)                                                          // too short for a security header type
+	f.Add([]byte{0x7e, 0x01, 0, 0, 0, 0, 0}, true)                                     // integrity protected, no message after the header
+	f.Add([]byte{0x7e, 0x01, 0xff, 0xff, 0xff, 0xff, 0, 0x2e, 0x01, 0x01, 0xd1}, true) // 5GSM message under a failed MAC
 
 	f.Fuzz(func(t *testing.T, payload []byte, secured bool) {
 		ue := &context.AmfUe{
@@ -136,4 +136,20 @@ func FuzzFetchUeContextWithMobileIdentity(f *testing.F) {
 	f.Fuzz(func(t *testing.T, payload []byte) {
 		nas_security.FetchUeContextWithMobileIdentity(payload)
 	})
+}
+
+// A 5GSM message under a failed MAC must be refused, not handed on: TS 24.501 subclause 4.4.4.3
+// lets only a short list of 5GMM messages through. NIA0 yields an all-zero MAC, so a non-zero MAC
+// in the header is a mismatch.
+func TestFailedMacOn5GSMMessageIsRefused(t *testing.T) {
+	ue := ueHoldingASecurityContext()
+	payload := []byte{0x7e, 0x01, 0xff, 0xff, 0xff, 0xff, 0x00, 0x2e, 0x01, 0x01, 0xd1}
+
+	msg, err := nas_security.Decode(ue, models.ACCESSTYPE__3_GPP_ACCESS, payload)
+	if !ue.MacFailed {
+		t.Fatal("fixture did not produce a MAC failure")
+	}
+	if msg != nil || err == nil {
+		t.Errorf("Decode() = %v, %v; want a refusal", msg, err)
+	}
 }
