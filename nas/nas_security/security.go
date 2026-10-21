@@ -113,7 +113,7 @@ func StmsiToGuti(buf [7]byte) (guti string) {
 fetch Guti if present incase of integrity protected Nas Message
 */
 func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
-	if payload == nil {
+	if len(payload) < 2 {
 		return nil
 	}
 
@@ -123,7 +123,7 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 	switch msg.SecurityHeaderType {
 	case nas.SecurityHeaderTypeIntegrityProtected:
 		logger.CommLog.Infoln("security header type: Integrity Protected")
-		if len(payload) < 7 {
+		if len(payload) <= 7 {
 			logger.CommLog.Errorln("integrity protected NAS payload is too short")
 			return nil
 		}
@@ -138,6 +138,10 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 		}
 	default:
 		logger.CommLog.Infoln("security header type is not plain or integrity protected")
+		return nil
+	}
+	if msg.GmmMessage == nil {
+		logger.CommLog.Debugln("NAS message is not a 5GMM message")
 		return nil
 	}
 	var ue *context.AmfUe = nil
@@ -188,7 +192,9 @@ func FetchUeContextWithMobileIdentity(payload []byte) *context.AmfUe {
 		}
 	} else if msg.GmmHeader.GetMessageType() == nas.MsgTypeServiceRequest {
 		mobileIdentity5GSContents := msg.TMSI5GS.Octet
-		if nasMessage.MobileIdentity5GSType5gSTmsi == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
+		if len(amfSelf.ServedGuamiList) == 0 {
+			logger.CommLog.Warnln("no served GUAMI configured; cannot derive GUTI from S-TMSI")
+		} else if nasMessage.MobileIdentity5GSType5gSTmsi == nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0]) {
 			guti = StmsiToGuti(mobileIdentity5GSContents)
 			logger.CommLog.Debugf("Guti derived from Service Request Message: %v", guti)
 		}
@@ -228,8 +234,8 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 	if ue == nil {
 		return nil, fmt.Errorf("amfUe is nil")
 	}
-	if payload == nil {
-		return nil, fmt.Errorf("nas payload is empty")
+	if len(payload) < 2 {
+		return nil, fmt.Errorf("nas payload is too short")
 	}
 
 	msg := new(nas.Message)
@@ -300,8 +306,9 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			return msg, err
 		}
 	} else { // Security protected NAS message
-		// check payload lenth to prevent crash
-		if len(payload) < 7 {
+		// check payload lenth to prevent crash: 6 bytes of security header, the sequence
+		// number, and at least one byte of plain NAS message
+		if len(payload) <= 7 {
 			return nil, fmt.Errorf("nas payload is too short")
 		}
 
@@ -373,6 +380,9 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			except below message types
 		*/
 		if err == nil && ue.MacFailed {
+			if msg.GmmMessage == nil {
+				return nil, fmt.Errorf("mac verification for a non-5GMM nas message failed")
+			}
 			switch msg.GmmHeader.GetMessageType() {
 			case nas.MsgTypeRegistrationRequest:
 				return msg, nil
