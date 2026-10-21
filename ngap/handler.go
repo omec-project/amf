@@ -3906,13 +3906,21 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		return
 	}
 
-	if targetID.Present != ngapType.TargetIDPresentTargetRANNodeID {
-		ran.Log.Errorf("targetID type[%d] is not supported", targetID.Present)
-		return
-	}
 	amfUe.SetOnGoing(sourceUe.Ran.AnType, &context.OnGoingProcedureWithPrio{
 		Procedure: context.OnGoingProcedureN2Handover,
 	})
+	if targetID.Present != ngapType.TargetIDPresentTargetRANNodeID {
+		// e.g. a target eNB (N26); only handover to a NG-RAN node is implemented
+		sourceUe.Log.Errorf("targetID type[%d] is not supported", targetID.Present)
+		cause = &ngapType.Cause{
+			Present: ngapType.CausePresentRadioNetwork,
+			RadioNetwork: &ngapType.CauseRadioNetwork{
+				Value: ngapType.CauseRadioNetworkPresentUnknownTargetID,
+			},
+		}
+		ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
+		return
+	}
 	if !amfUe.SecurityContextIsValid() {
 		sourceUe.Log.Infoln("handle Handover Preparation Failure [Authentication Failure]")
 		cause = &ngapType.Cause{
@@ -3942,9 +3950,17 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		// handover between different AMF
 		sourceUe.Log.Warnf("Handover required : cannot find target Ran Node Id[%+v] in this AMF", targetRanNodeId)
 		sourceUe.Log.Errorln("Handover between different AMF has not been implemented yet")
-		return
-		// TODO: Send to T-AMF
+		// Fail the preparation so the source RAN stops waiting for a Handover Command.
+		// TODO: Send to T-AMF instead
 		// Described in (23.502 4.9.1.3.2) step 3.Namf_Communication_CreateUEContext Request
+		cause = &ngapType.Cause{
+			Present: ngapType.CausePresentRadioNetwork,
+			RadioNetwork: &ngapType.CauseRadioNetwork{
+				Value: ngapType.CauseRadioNetworkPresentUnknownTargetID,
+			},
+		}
+		ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
+		return
 	} else {
 		// Handover in same AMF
 		sourceUe.HandOverType.Value = handoverType.Value
