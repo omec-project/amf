@@ -122,6 +122,16 @@ test-local: $(COVERAGE_DIR) ## Run unit tests locally (without Docker)
 		-v \
 		$(GO_PACKAGES)
 
+FUZZ_TIME                ?= 30s
+
+fuzz: ## Run every fuzz target for FUZZ_TIME each (default 30s)
+	@for pkg in $$(go list ./...); do \
+		for target in $$(go test $$pkg -list '^Fuzz' | grep '^Fuzz'); do \
+			echo "Fuzzing $$pkg $$target for $(FUZZ_TIME)..."; \
+			go test $$pkg -run '^$$' -fuzz "^$$target$$" -fuzztime $(FUZZ_TIME) || exit 1; \
+		done; \
+	done
+
 ## Code quality targets
 fmt: ## Format Go code
 	@echo "Formatting Go code..."
@@ -192,4 +202,5 @@ env: ## Print environment variables
         lint-local \
         print-version \
         test \
-        test-local
+        test-local \
+        fuzz

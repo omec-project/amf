@@ -9,6 +9,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
+	"github.com/omec-project/ngap/v2"
 	"github.com/omec-project/ngap/v2/ngapType"
 	"github.com/omec-project/openapi/v2/models"
 )
@@ -442,4 +443,26 @@ func TestHandleUEContextReleaseCompleteHandoverPromotesTargetRanUe(t *testing.T)
 	if self.RanUeFindByAmfUeNgapIDLocal(targetRanUe.AmfUeNgapId) != targetRanUe {
 		t.Fatal("expected target RanUe to remain in the pool")
 	}
+}
+
+// FuzzFetchRanUeContext decodes arbitrary bytes as NGAP and, when they decode, resolves the
+// UE context the PDU refers to. This is the first thing every received message goes through.
+func FuzzFetchRanUeContext(f *testing.F) {
+	f.Add([]byte{0x00, 0x15, 0x00, 0x00})
+	f.Add([]byte{0x20, 0x15, 0x00, 0x00})
+	f.Add([]byte{0x00})
+	f.Add([]byte{})
+
+	amfSelf := context.AMF_Self()
+	prev := amfSelf.Rcvd
+	amfSelf.Rcvd = true
+	f.Cleanup(func() { amfSelf.Rcvd = prev })
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		pdu, err := ngap.Decoder(data)
+		if err != nil {
+			return
+		}
+		FetchRanUeContext(context.NewAmfRanDefault(), pdu)
+	})
 }
