@@ -166,8 +166,10 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
-	// The decoder keeps fixed-size octet strings (PLMN, TAC, 5G-TMSI) as sub-slices of its input,
-	// and the caller reuses its read buffer, so decode from a private copy.
+	// The caller reuses its read buffer, and the aper decoder returns fixed-size octet strings
+	// (PLMN, TAC, 5G-TMSI) as sub-slices of the bytes it parses. Today those bytes are already a
+	// copy, because IE values are open types whose contents the decoder copies out, but that is
+	// the decoder's detail, so decode from a private copy rather than depend on it.
 	pdu, err := ngap.Decoder(append([]byte(nil), msg...))
 	if err != nil {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
