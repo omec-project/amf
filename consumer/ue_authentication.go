@@ -95,14 +95,61 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amfContext
 	}
 }
 
+// _links member names of the AUSF authentication responses (TS 29.509).
+const (
+	LinkKey5gAka      = "5g-aka"
+	LinkKeyEapSession = "eap-session"
+	linkKeyLegacy     = "link"
+)
+
+// confirmationHref returns the href of the _links member named by TS 29.509 (specKey), falling back to
+// the legacy "link" member sent by AUSFs that predate the spec-compliant names. A member is either a
+// single link or an array of links (models.LinksValueSchema); the first nonempty href is used. Members
+// without a usable href are skipped so that they do not shadow a usable one.
+func confirmationHref(links map[string]models.LinksValueSchema, specKey string) string {
+	for _, key := range []string{specKey, linkKeyLegacy} {
+		v, ok := links[key]
+		if !ok {
+			continue
+		}
+		if v.Link != nil && v.Link.GetHref() != "" {
+			return v.Link.GetHref()
+		}
+		if v.ArrayOfLink != nil {
+			for _, l := range *v.ArrayOfLink {
+				if l.GetHref() != "" {
+					return l.GetHref()
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// HasConfirmationHref reports whether links holds a usable confirmation href for specKey or the legacy name.
+func HasConfirmationHref(links map[string]models.LinksValueSchema, specKey string) bool {
+	return confirmationHref(links, specKey) != ""
+}
+
+// ausfRootUri returns the scheme and host of the AUSF confirmation href for specKey.
+func ausfRootUri(links map[string]models.LinksValueSchema, specKey string) (string, error) {
+	href := confirmationHref(links, specKey)
+	if href == "" {
+		return "", fmt.Errorf("no AUSF confirmation link in authentication context")
+	}
+	confirmUri, err := url.Parse(href)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s://%s", confirmUri.Scheme, confirmUri.Host), nil
+}
+
 func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resStar string) (
 	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
 ) {
-	var ausfUri string
-	if confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Link.GetHref()); err != nil {
+	ausfUri, err := ausfRootUri(ue.AuthenticationCtx.Links, LinkKey5gAka)
+	if err != nil {
 		return nil, nil, err
-	} else {
-		ausfUri = fmt.Sprintf("%s://%s", confirmUri.Scheme, confirmUri.Host)
 	}
 
 	configuration := Nausf_UEAuthentication.NewConfiguration()
@@ -161,11 +208,11 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resS
 func SendEapAuthConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, eapMsg nasType.EAPMessage) (
 	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
 ) {
-	confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Link.GetHref())
+	ausfUri, err := ausfRootUri(ue.AuthenticationCtx.Links, LinkKeyEapSession)
 	if err != nil {
-		logger.ConsumerLog.Errorf("url Parse failed: %+v", err)
+		logger.ConsumerLog.Errorf("AUSF confirmation URI failed: %+v", err)
+		return nil, nil, err
 	}
-	ausfUri := fmt.Sprintf("%s://%s", confirmUri.Scheme, confirmUri.Host)
 
 	configuration := Nausf_UEAuthentication.NewConfiguration()
 	serverConfig := &configuration.Servers[0]

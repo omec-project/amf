@@ -463,35 +463,45 @@ func (context *AMFContext) AmfRanFindByGnbId(gnbId string) (*AmfRan, bool) {
 	return ran, found
 }
 
-// use ranNodeID to find RAN context, return *AmfRan and ok bit
+// use ranNodeID to find RAN context, return *AmfRan and ok bit.
+// A registered RAN is only compared against ranNodeID when both carry the same node ID type;
+// the others are skipped, since the node ID members of models.GlobalRanNodeId are optional.
+// A Global RAN Node ID is the PLMN plus the node ID (TS 38.413 9.3.1.5), and node IDs are only
+// unique within a PLMN, so the PLMN must match as well.
 func (context *AMFContext) AmfRanFindByRanID(ranNodeID models.GlobalRanNodeId) (*AmfRan, bool) {
 	var ran *AmfRan
 	var ok bool
 	context.AmfRanPool.Range(func(key, value any) bool {
-		amfRan := value.(*AmfRan)
+		amfRan, isRan := value.(*AmfRan)
+		if !isRan || amfRan.RanId == nil {
+			return true
+		}
+		if amfRan.RanId.PlmnId != ranNodeID.PlmnId {
+			return true
+		}
+		var match bool
 		switch amfRan.RanPresent {
 		case RanPresentGNbId:
-			if amfRan.RanId.GNbId.GNBValue == ranNodeID.GNbId.GNBValue {
-				ran = amfRan
-				ok = true
-				return false
-			}
+			match = amfRan.RanId.GNbId != nil && ranNodeID.GNbId != nil &&
+				amfRan.RanId.GNbId.GNBValue == ranNodeID.GNbId.GNBValue
 		case RanPresentNgeNbId:
-			if amfRan.RanId.NgeNbId == ranNodeID.NgeNbId {
-				ran = amfRan
-				ok = true
-				return false
-			}
+			match = equalStrPtr(amfRan.RanId.NgeNbId, ranNodeID.NgeNbId)
 		case RanPresentN3IwfId:
-			if amfRan.RanId.N3IwfId == ranNodeID.N3IwfId {
-				ran = amfRan
-				ok = true
-				return false
-			}
+			match = equalStrPtr(amfRan.RanId.N3IwfId, ranNodeID.N3IwfId)
+		}
+		if match {
+			ran = amfRan
+			ok = true
+			return false
 		}
 		return true
 	})
 	return ran, ok
+}
+
+// equalStrPtr reports whether both pointers are set and point to equal strings.
+func equalStrPtr(a, b *string) bool {
+	return a != nil && b != nil && *a == *b
 }
 
 func (context *AMFContext) DeleteAmfRan(conn net.Conn) {
