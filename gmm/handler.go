@@ -2475,6 +2475,14 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		if err != nil {
 			return err
 		}
+		if authenticationResponse.AuthenticationResponseParameter == nil {
+			ue.GmmLog.Errorln("Authentication Response without Authentication Response Parameter IE")
+			gmm_message.SendAuthenticationReject(ranUe, "")
+			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthFailEvent, fsm.ArgsType{
+				ArgAmfUe:      ue,
+				ArgAccessType: accessType,
+			})
+		}
 		resStar := authenticationResponse.GetRES()
 
 		// Calculate HRES* (TS 33.501 Annex A.5)
@@ -2544,6 +2552,14 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 			}
 		}
 	case models.AUTHTYPE_EAP_AKA_PRIME:
+		if authenticationResponse.EAPMessage == nil {
+			ue.GmmLog.Errorln("Authentication Response without EAP message IE")
+			gmm_message.SendAuthenticationReject(ranUe, "")
+			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthFailEvent, fsm.ArgsType{
+				ArgAmfUe:      ue,
+				ArgAccessType: accessType,
+			})
+		}
 		response, problemDetails, err := consumer.SendEapAuthConfirmRequest(ctx, ue, *authenticationResponse.EAPMessage)
 		if err != nil {
 			return err
@@ -2592,7 +2608,8 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		case models.AUTHRESULT_AUTHENTICATION_ONGOING:
 			eapPayload := response.GetEapPayload()
 			ue.AuthenticationCtx.SetVar5gAuthData(models.StringAsUEAuthenticationCtx5gAuthData(&eapPayload))
-			if _, exists := response.Links["link"]; exists {
+			// the AUSF names the member "eap-session" (TS 29.509) or, in older releases, "link"
+			if _, exists := response.Links["eap-session"]; exists || response.Links["link"].Link != nil {
 				ue.AuthenticationCtx.Links = response.Links
 			}
 			gmm_message.SendAuthenticationRequest(ranUe)
@@ -2615,6 +2632,10 @@ func HandleAuthenticationFailure(ctx ctxt.Context, ue *context.AmfUe, anType mod
 	}
 
 	cause5GMM := authenticationFailure.GetCauseValue()
+
+	if ue.AuthenticationCtx == nil {
+		return fmt.Errorf("ue authentication context is nil")
+	}
 
 	switch ue.AuthenticationCtx.AuthType {
 	case models.AUTHTYPE__5_G_AKA:
@@ -2648,6 +2669,11 @@ func HandleAuthenticationFailure(ctx ctxt.Context, ue *context.AmfUe, anType mod
 				return GmmFSM.SendEvent(ctx, ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType})
 			}
 
+			if authenticationFailure.AuthenticationFailureParameter == nil {
+				ue.GmmLog.Errorln("Synch Failure without Authentication Failure Parameter (AUTS)")
+				gmm_message.SendAuthenticationReject(ranUe, "")
+				return GmmFSM.SendEvent(ctx, ue.State[anType], AuthFailEvent, fsm.ArgsType{ArgAmfUe: ue, ArgAccessType: anType})
+			}
 			auts := authenticationFailure.GetAuthenticationFailureParameter()
 			resynchronizationInfo := models.NewResynchronizationInfoWithDefaults()
 			resynchronizationInfo.SetAuts(hex.EncodeToString(auts[:]))

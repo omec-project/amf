@@ -166,7 +166,9 @@ func Dispatch(conn net.Conn, msg []byte) {
 		return
 	}
 
-	pdu, err := ngap.Decoder(msg)
+	// The decoder keeps fixed-size octet strings (PLMN, TAC, 5G-TMSI) as sub-slices of its input,
+	// and the caller reuses its read buffer, so decode from a private copy.
+	pdu, err := ngap.Decoder(append([]byte(nil), msg...))
 	if err != nil {
 		ran.Log.Errorf("NGAP decode error: %+v", err)
 		return

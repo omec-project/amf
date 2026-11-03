@@ -95,11 +95,22 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amfContext
 	}
 }
 
+// confirmationHref returns the href of the _links member named by TS 29.509 (specKey), falling back to
+// the legacy "link" member sent by AUSFs that predate the spec-compliant names.
+func confirmationHref(links map[string]models.LinksValueSchema, specKey string) string {
+	for _, key := range []string{specKey, "link"} {
+		if v, ok := links[key]; ok && v.Link != nil {
+			return v.Link.GetHref()
+		}
+	}
+	return ""
+}
+
 func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resStar string) (
 	*models.ConfirmationDataResponse, *models.ProblemDetails, error,
 ) {
 	var ausfUri string
-	if confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Link.GetHref()); err != nil {
+	if confirmUri, err := url.Parse(confirmationHref(ue.AuthenticationCtx.Links, "5g-aka")); err != nil {
 		return nil, nil, err
 	} else {
 		ausfUri = fmt.Sprintf("%s://%s", confirmUri.Scheme, confirmUri.Host)
@@ -161,7 +172,7 @@ func SendAuth5gAkaConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, resS
 func SendEapAuthConfirmRequest(ctx context.Context, ue *amfContext.AmfUe, eapMsg nasType.EAPMessage) (
 	response *models.EapSession, problemDetails *models.ProblemDetails, err1 error,
 ) {
-	confirmUri, err := url.Parse(ue.AuthenticationCtx.Links["link"].Link.GetHref())
+	confirmUri, err := url.Parse(confirmationHref(ue.AuthenticationCtx.Links, "eap-session"))
 	if err != nil {
 		logger.ConsumerLog.Errorf("url Parse failed: %+v", err)
 	}

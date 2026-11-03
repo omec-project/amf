@@ -3344,8 +3344,24 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 		}
 	}
 
-	if sourceAMFUENGAPID == nil {
-		ran.Log.Errorln("SourceAmfUeNgapID is nil")
+	if sourceAMFUENGAPID == nil || rANUENGAPID == nil {
+		// Both are mandatory with criticality reject (TS 38.413 10.3.5); the failure message
+		// cannot be built without them, so answer with an Error Indication.
+		ran.Log.Errorln("mandatory IE missing in PathSwitchRequest (SourceAmfUeNgapID or RanUeNgapID)")
+		cause := ngapType.Cause{
+			Present: ngapType.CausePresentProtocol,
+			Protocol: &ngapType.CauseProtocol{
+				Value: ngapType.CauseProtocolPresentAbstractSyntaxErrorReject,
+			},
+		}
+		var amfID, ranID *int64
+		if sourceAMFUENGAPID != nil {
+			amfID = &sourceAMFUENGAPID.Value
+		}
+		if rANUENGAPID != nil {
+			ranID = &rANUENGAPID.Value
+		}
+		ngap_message.SendErrorIndication(ran, amfID, ranID, &cause, nil)
 		return
 	}
 	ranUe = context.AMF_Self().RanUeFindByAmfUeNgapID(sourceAMFUENGAPID.Value)
@@ -3393,9 +3409,7 @@ func HandlePathSwitchRequest(ctx ctxt.Context, ran *context.AmfRan, message *nga
 		}
 	}
 
-	if rANUENGAPID != nil {
-		ranUe.SetRanUeNgapId(rANUENGAPID.Value)
-	}
+	ranUe.SetRanUeNgapId(rANUENGAPID.Value)
 
 	ranUe.UpdateLocation(userLocationInformation)
 
@@ -4020,6 +4034,16 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		}
 		// Update NH
 		amfUe.UpdateNH()
+		if cause == nil {
+			// Cause has criticality ignore in HANDOVER REQUIRED (TS 38.413 9.2.3.1, 10.3.5), so a
+			// missing IE must be tolerated.
+			cause = &ngapType.Cause{
+				Present: ngapType.CausePresentRadioNetwork,
+				RadioNetwork: &ngapType.CauseRadioNetwork{
+					Value: ngapType.CauseRadioNetworkPresentUnspecified,
+				},
+			}
+		}
 		ngap_message.SendHandoverRequest(sourceUe, targetRan, *cause, pduSessionReqList,
 			*sourceToTargetTransparentContainer, false)
 	}
@@ -4530,7 +4554,8 @@ func HandleUplinkRanConfigurationTransfer(ran *context.AmfRan, message *ngapType
 			return
 		}
 
-		if targetRanNodeID.GNbId.GNBValue != "" {
+		// GNbId is only set for a Global gNB ID; ng-eNB and N3IWF targets leave it nil.
+		if targetRanNodeID.GNbId != nil && targetRanNodeID.GNbId.GNBValue != "" {
 			ran.Log.Debugf("targerRanID [%s]", targetRanNodeID.GNbId.GNBValue)
 		}
 
@@ -4539,6 +4564,7 @@ func HandleUplinkRanConfigurationTransfer(ran *context.AmfRan, message *ngapType
 		targetRan, ok := aMFSelf.AmfRanFindByRanID(targetRanNodeID)
 		if !ok {
 			ran.Log.Warnln("targetRan is nil")
+			return
 		}
 
 		ngap_message.SendDownlinkRanConfigurationTransfer(targetRan, sONConfigurationTransferUL)
@@ -4774,6 +4800,10 @@ func HandleLocationReport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 			uEPresence := uEPresenceInAreaOfInterestItem.UEPresence.Value
 			referenceID := uEPresenceInAreaOfInterestItem.LocationReportingReferenceID.Value
 
+			if locationReportingRequestType.AreaOfInterestList == nil {
+				ran.Log.Warnln("AreaOfInterestList is missing")
+				return
+			}
 			for _, AOIitem := range locationReportingRequestType.AreaOfInterestList.List {
 				if referenceID == AOIitem.LocationReportingReferenceID.Value {
 					ran.Log.Debugf("uEPresence[%d], presence AOI ReferenceID[%d]", uEPresence, referenceID)
@@ -4788,6 +4818,10 @@ func HandleLocationReport(ran *context.AmfRan, message *ngapType.NGAPPDU) {
 
 	case ngapType.EventTypePresentStopUePresenceInAreaOfInterest:
 		ranUe.Log.Debugln("to stop reporting UE presence in the area of interest")
+		if locationReportingRequestType.LocationReportingReferenceIDToBeCancelled == nil {
+			ran.Log.Warnln("LocationReportingReferenceIDToBeCancelled is missing")
+			return
+		}
 		ranUe.Log.Debugf("ReferenceID To Be Cancelled[%d]",
 			locationReportingRequestType.LocationReportingReferenceIDToBeCancelled.Value)
 		// TODO: Clear location report

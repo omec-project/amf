@@ -6,6 +6,7 @@ package service
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/ishidawataru/sctp"
 	"github.com/omec-project/amf/context"
@@ -110,6 +111,45 @@ func withSctpLb(t *testing.T, enabled bool) {
 	captureServingPath()
 }
 
+// listenAndServeFailingBind drives listenAndServe through a bind that cannot succeed, on any
+// host. It takes a loopback port itself and asks listenAndServe for the same one, rather than
+// relying on an address the machine does not own: with net.ipv4.ip_nonlocal_bind=1 such a bind
+// succeeds, and listenAndServe then blocks in its accept loop for good.
+//
+// listenAndServe is run on its own goroutine so that a bind which does succeed fails the case
+// instead of hanging it until the test binary's timeout.
+func listenAndServeFailingBind(t *testing.T) {
+	t.Helper()
+
+	loopback := []net.IPAddr{{IP: net.ParseIP("127.0.0.1")}}
+
+	holder, err := sctp.ListenSCTP("sctp", &sctp.SCTPAddr{IPAddrs: loopback})
+	if err != nil {
+		t.Skipf("cannot open an SCTP listener to occupy a port: %v", err)
+	}
+
+	t.Cleanup(func() { _ = holder.Close() })
+
+	taken, ok := holder.Addr().(*sctp.SCTPAddr)
+	if !ok || taken.Port == 0 {
+		t.Fatalf("occupying listener reported %v, want an SCTP address with a port", holder.Addr())
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		listenAndServe(&sctp.SCTPAddr{IPAddrs: loopback, Port: taken.Port}, NGAPHandler{})
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatalf("listenAndServe did not return: it bound to a port that was already taken")
+	}
+}
+
 // The fault above reached from the other side: an AMF whose listener never bound has served
 // nobody and never can, and Run starts exactly one listenAndServe with nothing to retry it.
 // Until this it answered the liveness endpoint with "no NGAP association has been served
@@ -123,11 +163,7 @@ func TestUnhealthyWhenTheListenerNeverBound(t *testing.T) {
 	withCleanState(t)
 	withSctpLb(t, false)
 
-	// TEST-NET-1, which is not a local address, so the bind cannot succeed.
-	listenAndServe(&sctp.SCTPAddr{
-		IPAddrs: []net.IPAddr{{IP: net.ParseIP("192.0.2.1")}},
-		Port:    38412,
-	}, NGAPHandler{})
+	listenAndServeFailingBind(t)
 
 	if !bindFailed.Load() {
 		t.Fatal("listenAndServe returned without recording the bind failure")
@@ -153,10 +189,7 @@ func TestALoadBalancedAmfIsNotUnhealthyForAnUnusedListener(t *testing.T) {
 	withCleanState(t)
 	withSctpLb(t, true)
 
-	listenAndServe(&sctp.SCTPAddr{
-		IPAddrs: []net.IPAddr{{IP: net.ParseIP("192.0.2.1")}},
-		Port:    38412,
-	}, NGAPHandler{})
+	listenAndServeFailingBind(t)
 
 	if !bindFailed.Load() {
 		t.Fatal("listenAndServe returned without recording the bind failure")
@@ -175,10 +208,7 @@ func TestShuttingDownOutranksAFailedBind(t *testing.T) {
 	withCleanState(t)
 	withSctpLb(t, false)
 
-	listenAndServe(&sctp.SCTPAddr{
-		IPAddrs: []net.IPAddr{{IP: net.ParseIP("192.0.2.1")}},
-		Port:    38412,
-	}, NGAPHandler{})
+	listenAndServeFailingBind(t)
 
 	if !bindFailed.Load() {
 		t.Fatal("listenAndServe returned without recording the bind failure")
