@@ -3,7 +3,7 @@ module github.com/omec-project/amf
 go 1.27.0
 
 require (
-	github.com/gin-contrib/cors v1.7.10
+	github.com/gin-contrib/cors v1.7.11
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/goccy/go-json v0.12.0
