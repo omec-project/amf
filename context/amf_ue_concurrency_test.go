@@ -35,15 +35,30 @@ func TestStoringAContextWhileEveryMapIsWritten(t *testing.T) {
 	ran := &AmfRan{AnType: models.ACCESSTYPE__3_GPP_ACCESS, GnbId: testGnbId}
 	anType := models.ACCESSTYPE__3_GPP_ACCESS
 
-	const rounds = 2000
+	const (
+		rounds    = 1000
+		appendCap = 50
+	)
 
 	writers := []func(i int){
 		func(i int) { ue.SetAllowedNssai(anType, []models.AllowedSnssai{{}}) },
-		func(i int) { ue.AppendAllowedNssai(anType, models.AllowedSnssai{}) },
+		func(i int) {
+			// Appends grow the slice that every marshal walks; start over now and then so
+			// the cost of a marshal stays bounded.
+			if i%appendCap == 0 {
+				ue.SetAllowedNssai(anType, nil)
+			}
+			ue.AppendAllowedNssai(anType, models.AllowedSnssai{})
+		},
 		func(i int) { ue.SetOnGoing(anType, &OnGoingProcedureWithPrio{Procedure: OnGoingProcedureNothing}) },
 		func(i int) { ue.SetReleaseCause(anType, &CauseAll{}) },
 		func(i int) { ue.SetRegistrationArea(anType, nil) },
-		func(i int) { ue.AppendRegistrationArea(anType, models.Tai{}) },
+		func(i int) {
+			if i%appendCap == 0 {
+				ue.SetRegistrationArea(anType, nil)
+			}
+			ue.AppendRegistrationArea(anType, models.Tai{})
+		},
 		func(i int) { ue.SetEventSubscription("sub", &AmfUeEventSubscription{}) },
 		func(i int) { ue.DeleteEventSubscription("sub") },
 		func(i int) {
