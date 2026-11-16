@@ -1,13 +1,13 @@
-// SPDX-License-Identifier: Apache-2.0
+// Copyright (C) 2026 Intel Corporation
 // SPDX-FileCopyrightText: 2024 Canonical Ltd.
-/*
- *  Tests for AMF Configuration Factory
- */
+// SPDX-License-Identifier: Apache-2.0
 
 package factory
 
 import (
 	"testing"
+
+	"github.com/omec-project/util/nfconfig"
 )
 
 func TestWebuiUrl(t *testing.T) {
@@ -19,7 +19,7 @@ func TestWebuiUrl(t *testing.T) {
 		{
 			name:       "default webui URL",
 			configFile: "../util/testdata/amfcfg.yaml",
-			want:       defaultWebuiURI,
+			want:       nfconfig.DefaultWebuiUri,
 		},
 		{
 			name:       "custom webui URL",
@@ -171,72 +171,6 @@ func TestTelemetryConfigEnabledNoEndpointReturnsError(t *testing.T) {
 		t.Errorf("expected error when OTLP endpoint is not set, but got none")
 	} else {
 		t.Logf("Received expected error: %v", err)
-	}
-}
-
-func TestValidateWebuiUri(t *testing.T) {
-	tests := []struct {
-		name    string
-		uri     string
-		isValid bool
-	}{
-		{
-			name:    "valid https URI with port",
-			uri:     "https://webui:5001",
-			isValid: true,
-		},
-		{
-			name:    "valid http URI with port",
-			uri:     defaultWebuiURI,
-			isValid: true,
-		},
-		{
-			name:    "valid https URI without port",
-			uri:     "https://webui",
-			isValid: true,
-		},
-		{
-			name:    "valid http URI without port",
-			uri:     "http://webui.com",
-			isValid: true,
-		},
-		{
-			name:    "invalid host",
-			uri:     "http://:8080",
-			isValid: false,
-		},
-		{
-			name:    "invalid scheme",
-			uri:     "ftp://webui:21",
-			isValid: false,
-		},
-		{
-			name:    "missing scheme",
-			uri:     "webui:9090",
-			isValid: false,
-		},
-		{
-			name:    "missing host",
-			uri:     "https://",
-			isValid: false,
-		},
-		{
-			name:    "empty string",
-			uri:     "",
-			isValid: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateWebuiUri(tc.uri)
-			if err == nil && !tc.isValid {
-				t.Errorf("expected URI: %s to be invalid", tc.uri)
-			}
-			if err != nil && tc.isValid {
-				t.Errorf("expected URI: %s to be valid", tc.uri)
-			}
-		})
 	}
 }
 

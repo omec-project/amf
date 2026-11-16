@@ -1,362 +1,153 @@
+// Copyright (C) 2026 Intel Corporation
 // SPDX-FileCopyrightText: 2025 Canonical Ltd.
-//
 // SPDX-License-Identifier: Apache-2.0
-//
-/*
- * NF Polling Unit Tests
- *
- */
 
 package polling
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"strconv"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	gojson "github.com/goccy/go-json"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
+	"github.com/omec-project/openapi/v2/nfconfigpoll"
 )
 
-const contentTypeJSON = "application/json"
+// The polling logic is tested in openapi/nfconfigpoll. These tests check the AMF wiring: endpoint,
+// config type, normalization and delivery to both channels.
 
-func waitForSignal(t *testing.T, signal <-chan struct{}, timeout time.Duration, message string) {
+const accessMobilityJSON = `[{"plmnId":{"mcc":"208","mnc":"93"},"snssai":{"sst":1,"sd":"010203"},"tacs":["1","2"]}]`
+
+func startPoller(t *testing.T, handler http.HandlerFunc, regCap, updCap int) (<-chan []nfConfigApi.AccessAndMobility, <-chan []nfConfigApi.AccessAndMobility) {
 	t.Helper()
-	timeoutTimer := time.NewTimer(timeout)
-	defer timeoutTimer.Stop()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	reg := make(chan []nfConfigApi.AccessAndMobility, regCap)
+	upd := make(chan []nfConfigApi.AccessAndMobility, updCap)
+	poller, err := newPoller(srv.URL, reg, upd, 5*time.Millisecond)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); poller.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	return reg, upd
+}
+
+func serveJSON(t *testing.T, body string, polls *atomic.Int32) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		if polls != nil {
+			polls.Add(1)
+		}
+		if r.URL.Path != pollingPath {
+			http.Error(w, "unexpected path "+r.URL.Path, http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if _, err := w.Write([]byte(body)); err != nil {
+			t.Errorf("write response: %v", err)
+		}
+	}
+}
+
+func recv(t *testing.T, ch <-chan []nfConfigApi.AccessAndMobility, what string) []nfConfigApi.AccessAndMobility {
+	t.Helper()
+	select {
+	case got := <-ch:
+		return got
+	case <-time.After(2 * time.Second):
+		t.Fatalf("no config delivered on the %s channel", what)
+		return nil
+	}
+}
+
+func TestPolling_DeliversConfigToBothChannelsOnce(t *testing.T) {
+	reg, upd := startPoller(t, serveJSON(t, accessMobilityJSON, nil), 4, 4)
+
+	for name, ch := range map[string]<-chan []nfConfigApi.AccessAndMobility{"registration": reg, "context update": upd} {
+		got := recv(t, ch, name)
+		if len(got) != 1 || got[0].PlmnId.Mcc != "208" || got[0].PlmnId.Mnc != "93" || got[0].Snssai.Sst != 1 || len(got[0].Tacs) != 2 {
+			t.Errorf("%s channel got %+v", name, got)
+		}
+	}
+	select {
+	case got := <-reg:
+		t.Errorf("unchanged config delivered again: %+v", got)
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestPolling_RegistrationChannelIsServedBeforeContextUpdateChannel(t *testing.T) {
+	// unbuffered registration channel: nothing may reach the context update channel before it is read
+	reg, upd := startPoller(t, serveJSON(t, accessMobilityJSON, nil), 0, 4)
 
 	select {
-	case <-signal:
-	case <-timeoutTimer.C:
-		t.Fatal(message)
+	case got := <-upd:
+		t.Fatalf("context update channel got %+v before the registration channel was served", got)
+	case <-time.After(50 * time.Millisecond):
 	}
+	recv(t, reg, "registration")
+	recv(t, upd, "context update")
 }
 
-func cleanupPollingService(t *testing.T, cancel context.CancelFunc, serviceDone <-chan struct{}) {
-	t.Helper()
-	cancel()
-	waitForSignal(t, serviceDone, time.Second, "timed out waiting for polling service to stop")
-}
+func TestPolling_EmptyInitialConfigIsNotDelivered(t *testing.T) {
+	var polls atomic.Int32
+	reg, upd := startPoller(t, serveJSON(t, `[]`, &polls), 4, 4)
 
-// useFastPollingIntervals shrinks the package's polling interval and backoff cap for the
-// duration of a test. Restored only once the polling goroutine the test started has
-// stopped: register this before the cleanup that stops it, so cleanups run in the reverse
-// order (LIFO) and the goroutine is gone before these vars change under it.
-func useFastPollingIntervals(t *testing.T) {
-	t.Helper()
-	originalInterval := initialPollingInterval
-	originalMaxBackoff := pollingMaxBackoff
-	initialPollingInterval = 20 * time.Millisecond
-	pollingMaxBackoff = 80 * time.Millisecond
-	t.Cleanup(func() {
-		initialPollingInterval = originalInterval
-		pollingMaxBackoff = originalMaxBackoff
-	})
-}
-
-func makeAccessMobilityConfig(mcc, mnc, sst string, sd string, tacs []string) (nfConfigApi.AccessAndMobility, error) {
-	sstUint64, err := strconv.ParseUint(sst, 10, 8)
-	if err != nil {
-		return nfConfigApi.AccessAndMobility{}, err
+	deadline := time.Now().Add(2 * time.Second)
+	for polls.Load() < 3 && time.Now().Before(deadline) {
+		time.Sleep(2 * time.Millisecond)
 	}
-	return nfConfigApi.AccessAndMobility{
-		PlmnId: nfConfigApi.PlmnId{
-			Mcc: mcc,
-			Mnc: mnc,
-		},
-		Snssai: nfConfigApi.Snssai{
-			Sst: int32(sstUint64),
-			Sd:  new(sd),
-		},
-		Tacs: tacs,
-	}, nil
-}
-
-func TestStartPollingService_Success(t *testing.T) {
-	useFastPollingIntervals(t)
-	ctx, cancel := context.WithCancel(t.Context())
-	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
-	t.Cleanup(func() {
-		fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig
-	})
-
-	expectedConfig := []nfConfigApi.AccessAndMobility{
-		{
-			PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"},
-			Snssai: nfConfigApi.Snssai{Sst: 1},
-			Tacs:   []string{"1"},
-		},
+	if got := polls.Load(); got < 3 {
+		t.Fatalf("the poller made %d requests, want at least 3: the empty first config was never put to the test", got)
 	}
-
-	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, pollingEndpoint string) ([]nfConfigApi.AccessAndMobility, error) {
-		return expectedConfig, nil
-	}
-	regChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	serviceDone := make(chan struct{})
-	go func() {
-		defer close(serviceDone)
-		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
-	}()
-	t.Cleanup(func() {
-		cleanupPollingService(t, cancel, serviceDone)
-	})
-
 	select {
-	case result := <-updateCtxChan:
-		if !reflect.DeepEqual(result, expectedConfig) {
-			t.Errorf("expected %+v, got %+v", expectedConfig, result)
-		}
-	case <-time.After(initialPollingInterval + time.Second):
-		t.Errorf("timeout waiting for PLMN config")
+	case got := <-reg:
+		t.Errorf("empty config delivered on the registration channel: %+v", got)
+	case got := <-upd:
+		t.Errorf("empty config delivered on the context update channel: %+v", got)
+	default:
 	}
 }
 
-func TestStartPollingService_RetryAfterFailure(t *testing.T) {
-	useFastPollingIntervals(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	originalFetchAccessAndMobilityConfig := fetchAccessAndMobilityConfig
-	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetchAccessAndMobilityConfig })
-
-	var callCount atomic.Int32
-	attempts := make(chan struct{}, 2)
-	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, pollingEndpoint string) ([]nfConfigApi.AccessAndMobility, error) {
-		callCount.Add(1)
-		select {
-		case attempts <- struct{}{}:
-		default:
+// The poller used to normalize with goccy/go-json; nfconfigpoll uses encoding/json. Both must give the
+// same config for AccessAndMobility, otherwise the change detection would differ.
+func TestNormalizeMatchesGoccyJSONRoundTrip(t *testing.T) {
+	sd := "010203"
+	configs := [][]nfConfigApi.AccessAndMobility{
+		{},
+		{{PlmnId: nfConfigApi.PlmnId{Mcc: "208", Mnc: "93"}, Snssai: nfConfigApi.Snssai{Sst: 1, Sd: &sd}, Tacs: []string{"1", "2"}}},
+		{{PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"}, Snssai: nfConfigApi.Snssai{Sst: 2}}},
+		{
+			{PlmnId: nfConfigApi.PlmnId{Mcc: "001", Mnc: "01"}, Snssai: nfConfigApi.Snssai{Sst: 1}, Tacs: []string{}},
+			{PlmnId: nfConfigApi.PlmnId{Mcc: "208", Mnc: "93"}, Snssai: nfConfigApi.Snssai{Sst: 3, Sd: &sd}, Tacs: []string{"7"}},
+		},
+	}
+	for _, cfg := range configs {
+		got, err := nfconfigpoll.JSONRoundTrip(cfg)
+		if err != nil {
+			t.Fatalf("JSONRoundTrip(%+v): %v", cfg, err)
 		}
-		return nil, errors.New("mock failure")
-	}
-	regChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	serviceDone := make(chan struct{})
-	go func() {
-		defer close(serviceDone)
-		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
-	}()
-	t.Cleanup(func() {
-		cleanupPollingService(t, cancel, serviceDone)
-	})
-
-	waitForSignal(t, attempts, initialPollingInterval+time.Second, "timed out waiting for first polling attempt")
-	waitForSignal(t, attempts, 2*initialPollingInterval+time.Second, "timed out waiting for retry polling attempt")
-
-	if callCount.Load() < 2 {
-		t.Errorf("expected to retry after failure")
-	}
-	t.Logf("Tried %v times", callCount.Load())
-}
-
-func TestStartPollingService_NoUpdateOnIdenticalPlmnConfig(t *testing.T) {
-	useFastPollingIntervals(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	originalFetcher := fetchAccessAndMobilityConfig
-	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetcher })
-	accessMobility1, err := makeAccessMobilityConfig("222", "02", "1", "1", []string{"1"})
-	if err != nil {
-		t.Fatalf("failed to create access mobility config: %v", err)
-	}
-	callCount := 0
-	expectedConfig := []nfConfigApi.AccessAndMobility{accessMobility1}
-	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, endpoint string) ([]nfConfigApi.AccessAndMobility, error) {
-		return expectedConfig, nil
-	}
-
-	regChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 1)
-	serviceDone := make(chan struct{})
-	go func() {
-		defer close(serviceDone)
-		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
-	}()
-	t.Cleanup(func() {
-		cleanupPollingService(t, cancel, serviceDone)
-	})
-
-	timeout := time.After(5 * initialPollingInterval)
-	for i := range 1 {
-		select {
-		case <-updateCtxChan:
-			// expected update
-			callCount++
-		case <-timeout:
-			t.Fatalf("Timed out waiting for config update #%d", i+1)
+		data, err := gojson.Marshal(cfg)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-
-	if callCount != 1 {
-		t.Errorf("expected callback to be called once for new config, got %d", callCount)
-	}
-}
-
-func TestStartPollingService_UpdateOnDifferentConfig(t *testing.T) {
-	useFastPollingIntervals(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	originalFetcher := fetchAccessAndMobilityConfig
-	t.Cleanup(func() { fetchAccessAndMobilityConfig = originalFetcher })
-	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
-	if err != nil {
-		t.Fatalf("failed to create access mobility config: %v", err)
-	}
-	accessMobility2, err := makeAccessMobilityConfig("111", "02", "2", "5", []string{"2"})
-	if err != nil {
-		t.Fatalf("failed to create access mobility config: %v", err)
-	}
-	var fetchCount atomic.Int32
-	receivedCount := 0
-
-	fetchAccessAndMobilityConfig = func(poller *nfConfigPoller, endpoint string) ([]nfConfigApi.AccessAndMobility, error) {
-		if fetchCount.Add(1) == 1 {
-			return []nfConfigApi.AccessAndMobility{accessMobility1}, nil
+		var want []nfConfigApi.AccessAndMobility
+		if err := gojson.Unmarshal(data, &want); err != nil {
+			t.Fatal(err)
 		}
-		return []nfConfigApi.AccessAndMobility{accessMobility2}, nil
-	}
-
-	regChan := make(chan []nfConfigApi.AccessAndMobility, 2)
-	updateCtxChan := make(chan []nfConfigApi.AccessAndMobility, 2)
-	serviceDone := make(chan struct{})
-	go func() {
-		defer close(serviceDone)
-		StartPollingService(ctx, "http://dummy", regChan, updateCtxChan)
-	}()
-	t.Cleanup(func() {
-		cleanupPollingService(t, cancel, serviceDone)
-	})
-
-	timeout := time.After(5 * initialPollingInterval)
-	for i := range 2 {
-		select {
-		case <-updateCtxChan:
-			receivedCount++
-			// expected update
-		case <-timeout:
-			t.Fatalf("Timed out waiting for config update #%d", i+1)
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("round trips differ for %+v:\n encoding/json: %+v\n goccy/go-json: %+v", cfg, got, want)
 		}
-	}
-
-	if receivedCount != 2 {
-		t.Errorf("expected callback to be called twice for different configs, got %d", receivedCount)
-	}
-}
-
-func TestFetchAccessAndMobilityConfig(t *testing.T) {
-	var accessMobilityConfigs []nfConfigApi.AccessAndMobility
-	accessMobility1, err := makeAccessMobilityConfig("111", "01", "1", "1", []string{"1"})
-	if err != nil {
-		t.Fatalf("failed to create access mobility config: %v", err)
-	}
-	accessMobilityConfigs = append(accessMobilityConfigs, accessMobility1)
-	validJson, err := json.Marshal(accessMobilityConfigs)
-	if err != nil {
-		t.Fail()
-	}
-
-	var expectedAccessAndMobility []nfConfigApi.AccessAndMobility
-	err = json.Unmarshal(validJson, &expectedAccessAndMobility)
-	if err != nil {
-		t.Fatalf("failed to unmarshal expectedAccessAndMobility: %v", err)
-	}
-
-	tests := []struct {
-		name           string
-		statusCode     int
-		contentType    string
-		responseBody   string
-		expectedError  string
-		expectedResult []nfConfigApi.AccessAndMobility
-	}{
-		{
-			name:           "200 OK with valid JSON",
-			statusCode:     http.StatusOK,
-			contentType:    contentTypeJSON,
-			responseBody:   string(validJson),
-			expectedError:  "",
-			expectedResult: expectedAccessAndMobility,
-		},
-		{
-			name:          "200 OK with invalid Content-Type",
-			statusCode:    http.StatusOK,
-			contentType:   "text/plain",
-			responseBody:  string(validJson),
-			expectedError: "unexpected Content-Type: got text/plain, want application/json",
-		},
-		{
-			name:          "400 Bad Request",
-			statusCode:    http.StatusBadRequest,
-			contentType:   contentTypeJSON,
-			responseBody:  "",
-			expectedError: "server returned 400 error code",
-		},
-		{
-			name:          "500 Internal Server Error",
-			statusCode:    http.StatusInternalServerError,
-			contentType:   contentTypeJSON,
-			responseBody:  "",
-			expectedError: "server returned 500 error code",
-		},
-		{
-			name:          "Unexpected Status Code 418",
-			statusCode:    http.StatusTeapot,
-			contentType:   contentTypeJSON,
-			responseBody:  "",
-			expectedError: "unexpected status code: 418",
-		},
-		{
-			name:          "200 OK with invalid JSON",
-			statusCode:    http.StatusOK,
-			contentType:   contentTypeJSON,
-			responseBody:  "{invalid-json}",
-			expectedError: "failed to parse JSON response:",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			handler := func(w http.ResponseWriter, r *http.Request) {
-				accept := r.Header.Get("Accept")
-				if accept != contentTypeJSON {
-					t.Errorf("expected Accept header 'application/json', got '%s'", accept)
-				}
-
-				w.Header().Set("Content-Type", tc.contentType)
-				w.WriteHeader(tc.statusCode)
-				_, err = w.Write([]byte(tc.responseBody))
-				if err != nil {
-					t.Fail()
-				}
-			}
-			server := httptest.NewServer(http.HandlerFunc(handler))
-			poller := nfConfigPoller{
-				currentAccessAndMobilityConfig: accessMobilityConfigs,
-				client:                         server.Client(),
-			}
-			defer server.Close()
-
-			fetchedConfig, err := poller.fetchAccessAndMobilityConfig(server.URL)
-
-			if tc.expectedError == "" {
-				if err != nil {
-					t.Errorf("expected no error, got `%v`", err)
-				}
-				if !reflect.DeepEqual(tc.expectedResult, fetchedConfig) {
-					t.Errorf("error in fetched config: expected `%v`, got `%v`", tc.expectedResult, fetchedConfig)
-				}
-			} else {
-				if err == nil {
-					t.Errorf("expected error `%v`, got nil", tc.expectedError)
-				}
-				if !strings.Contains(err.Error(), tc.expectedError) {
-					t.Errorf("expected error `%v`, got `%v`", tc.expectedError, err)
-				}
-			}
-		})
 	}
 }

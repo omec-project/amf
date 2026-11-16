@@ -4,7 +4,11 @@
 package consumer
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	amf_context "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
@@ -131,5 +135,36 @@ func TestGetNfProfileUsesIpv4AddressForLiteralRegistration(t *testing.T) {
 	}
 	if amfCtx.RegisterIPv4Address() != registerIPv4 {
 		t.Fatalf("RegisterIPv4Address() = %q, want %q", amfCtx.RegisterIPv4Address(), registerIPv4)
+	}
+}
+
+// SendUpdateNFInstance is bounded by the context it is given, so that an NRF that never answers cannot hold up
+// whoever waits for it.
+func TestSendUpdateNFInstanceHonoursItsContext(t *testing.T) {
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { <-release }))
+	t.Cleanup(func() { close(release); srv.Close() })
+
+	self := amf_context.AMF_Self()
+	origUri, origId := self.NrfUri, self.NfId
+	self.NrfUri, self.NfId = srv.URL, "4947a69a-f61b-4bc1-b9da-47c9c5d14b64"
+	t.Cleanup(func() { self.NrfUri, self.NfId = origUri, origId })
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	patch := []models.PatchItem{{Op: models.PATCHOPERATION_REPLACE, Path: "/nfStatus", Value: models.NFSTATUS_REGISTERED}}
+
+	returned := make(chan error, 1)
+	go func() {
+		_, _, err := SendUpdateNFInstance(ctx, patch)
+		returned <- err
+	}()
+	select {
+	case err := <-returned:
+		if err == nil {
+			t.Error("expected an error for a request that was cut off")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("SendUpdateNFInstance did not return after its context ended")
 	}
 }

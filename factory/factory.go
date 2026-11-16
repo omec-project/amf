@@ -1,49 +1,34 @@
+// Copyright (C) 2026 Intel Corporation
 // SPDX-FileCopyrightText: 2021 Open Networking Foundation <info@opennetworking.org>
 // Copyright 2019 free5GC.org
 //
 // SPDX-License-Identifier: Apache-2.0
-//
-
-/*
- * AMF Configuration Factory
- */
 
 package factory
 
 import (
 	"fmt"
-	"net/url"
-	"os"
 	"regexp"
 
 	"github.com/omec-project/amf/logger"
-	"go.yaml.in/yaml/v4"
+	"github.com/omec-project/util/nfconfig"
 )
 
 var AmfConfig Config
 
 const (
-	AMFID_PATTERN   = "^[A-Fa-f0-9]{6}$"
-	defaultAmfID    = "cafe00"
-	defaultWebuiURI = "http://webui:5001"
+	AMFID_PATTERN = "^[A-Fa-f0-9]{6}$"
+	defaultAmfID  = "cafe00"
 )
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
-	content, err := os.ReadFile(f)
-	if err != nil {
-		return err
-	}
-	if err = yaml.Unmarshal(content, &AmfConfig); err != nil {
+	if err := nfconfig.LoadYAML(f, &AmfConfig); err != nil {
 		return err
 	}
 	if AmfConfig.Configuration.AmfId == "" {
 		AmfConfig.Configuration.AmfId = defaultAmfID
 		logger.CfgLog.Infof("amfId not set in configuration file. Using %s", AmfConfig.Configuration.AmfId)
-	}
-	if AmfConfig.Configuration.WebuiUri == "" {
-		AmfConfig.Configuration.WebuiUri = defaultWebuiURI
-		logger.CfgLog.Infof("webuiUri not set in configuration file. Using %s", AmfConfig.Configuration.WebuiUri)
 	}
 	if AmfConfig.Configuration.KafkaInfo.EnableKafka == nil {
 		enableKafka := true
@@ -59,38 +44,18 @@ func InitConfigFactory(f string) error {
 			return fmt.Errorf("OTLP endpoint is not set in the configuration")
 		}
 	}
-	if err = validateWebuiUri(AmfConfig.Configuration.WebuiUri); err != nil {
-		return err
-	}
-	err = validateAmfId(AmfConfig.Configuration.AmfId)
-	return err
-}
-
-func CheckConfigVersion() error {
-	currentVersion := AmfConfig.GetVersion()
-
-	if currentVersion != AMF_EXPECTED_CONFIG_VERSION {
-		return fmt.Errorf("config version is [%s], but expected is [%s]",
-			currentVersion, AMF_EXPECTED_CONFIG_VERSION)
-	}
-
-	logger.CfgLog.Infof("config version [%s]", currentVersion)
-
-	return nil
-}
-
-func validateWebuiUri(uri string) error {
-	parsedUrl, err := url.ParseRequestURI(uri)
+	// Resolved after the telemetry checks so that error precedence matches the old code:
+	// telemetry error, then webuiUri, then amfId.
+	webuiUri, err := nfconfig.ResolveWebuiUri(AmfConfig.Configuration.WebuiUri, logger.CfgLog)
 	if err != nil {
 		return err
 	}
-	if parsedUrl.Scheme != "http" && parsedUrl.Scheme != "https" {
-		return fmt.Errorf("unsupported scheme for webuiUri: %s", parsedUrl.Scheme)
-	}
-	if parsedUrl.Hostname() == "" {
-		return fmt.Errorf("missing host in webuiUri")
-	}
-	return nil
+	AmfConfig.Configuration.WebuiUri = webuiUri
+	return validateAmfId(AmfConfig.Configuration.AmfId)
+}
+
+func CheckConfigVersion() error {
+	return nfconfig.CheckVersion(AmfConfig.GetVersion(), AMF_EXPECTED_CONFIG_VERSION, logger.CfgLog)
 }
 
 func validateAmfId(amfId string) error {

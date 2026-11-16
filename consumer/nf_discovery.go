@@ -1,7 +1,6 @@
+// Copyright (C) 2026 Intel Corporation
 // Copyright 2019 free5GC.org
-//
 // SPDX-License-Identifier: Apache-2.0
-//
 
 package consumer
 
@@ -16,22 +15,13 @@ import (
 	"github.com/omec-project/openapi/v2/Nnrf_NFDiscovery"
 	"github.com/omec-project/openapi/v2/models"
 	nrfCache "github.com/omec-project/openapi/v2/nrfcache"
+	"github.com/omec-project/openapi/v2/nrfclient"
 	"go.opentelemetry.io/otel/attribute"
 )
 
 type SearchNFInstancesRequestConfigurer func(
 	Nnrf_NFDiscovery.ApiSearchNFInstancesRequest,
 ) Nnrf_NFDiscovery.ApiSearchNFInstancesRequest
-
-func newNFDiscoveryClient(nrfUri string) *Nnrf_NFDiscovery.APIClient {
-	configuration := Nnrf_NFDiscovery.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = nrfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	return Nnrf_NFDiscovery.NewAPIClient(configuration)
-}
 
 func buildSearchNFInstancesRequest(
 	ctx context.Context,
@@ -51,7 +41,7 @@ func buildSearchNFInstancesRequest(
 func SendSearchNFInstances(ctx context.Context, nrfUri string, targetNfType, requestNfType models.NFType,
 	configure SearchNFInstancesRequestConfigurer,
 ) (*models.SearchResult, error) {
-	client := newNFDiscoveryClient(nrfUri)
+	client := nrfclient.NewNFDiscoveryClient(nrfUri)
 	request := buildSearchNFInstancesRequest(ctx, client, targetNfType, requestNfType, configure)
 
 	if amf_context.AMF_Self().EnableNrfCaching {
@@ -76,7 +66,7 @@ func SendNfDiscoveryToNrf(ctx context.Context, nrfUri string, targetNfType, requ
 		attribute.String("request.nf.type", string(requestNfType)),
 	)
 
-	client := newNFDiscoveryClient(nrfUri)
+	client := nrfclient.NewNFDiscoveryClient(nrfUri)
 	request := buildSearchNFInstancesRequest(ctx, client, targetNfType, requestNfType, configure)
 
 	result, res, err := client.NFInstancesStoreAPI.SearchNFInstancesExecute(request)
