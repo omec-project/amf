@@ -11,6 +11,7 @@ package nfregistration
 
 import (
 	"context"
+	"time"
 
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/logger"
@@ -51,5 +52,11 @@ func StartNfRegistrationService(ctx context.Context, accessAndMobilityConfigChan
 
 // DeregisterNF stops the heartbeat and deregisters the NF from the NRF.
 var DeregisterNF = func(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, deregisterTimeout)
+	defer cancel()
 	service.Deregister(ctx)
 }
+
+// deregisterTimeout bounds DeregisterNF: it waits for the registration work in progress, which it cancels, and
+// then sends the DELETE, and an NRF that does not answer must not hold up the termination of the NF.
+var deregisterTimeout = 10 * time.Second

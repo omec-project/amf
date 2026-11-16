@@ -175,3 +175,22 @@ func TestHeartbeatContextEndsAHeartbeatThatIsNotAnswered(t *testing.T) {
 		t.Error("the heartbeat request did not see its context cancelled")
 	}
 }
+
+// DeregisterNF is bounded: an NRF that does not answer the DELETE must not hold up the termination of the NF.
+func TestDeregisterNFGivesUpOnAnNrfThatDoesNotAnswer(t *testing.T) {
+	orig, origTimeout := consumer.SendDeregisterNFInstance, deregisterTimeout
+	t.Cleanup(func() { consumer.SendDeregisterNFInstance, deregisterTimeout = orig, origTimeout })
+	deregisterTimeout = 100 * time.Millisecond
+	consumer.SendDeregisterNFInstance = func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	finished := make(chan struct{})
+	go func() { DeregisterNF(context.Background()); close(finished) }()
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("DeregisterNF did not return for an NRF that does not answer")
+	}
+}
