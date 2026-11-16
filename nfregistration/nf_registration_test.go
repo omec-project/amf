@@ -116,7 +116,7 @@ func TestHeartbeatUsesSendUpdateNFInstance(t *testing.T) {
 	consumer.SendRegisterNFInstance = func(context.Context, []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
 		return profile, "", nil
 	}
-	consumer.SendUpdateNFInstance = func([]models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
+	consumer.SendUpdateNFInstance = func(context.Context, []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
 		updated.Add(1)
 		return profile, nil, nil
 	}
@@ -124,4 +124,54 @@ func TestHeartbeatUsesSendUpdateNFInstance(t *testing.T) {
 	ch := startService(t, context.Background())
 	ch <- []nfConfigApi.AccessAndMobility{{PlmnId: nfConfigApi.PlmnId{Mcc: "208", Mnc: "93"}}}
 	waitFor(t, func() bool { return updated.Load() >= 1 }, "heartbeat did not call SendUpdateNFInstance")
+}
+
+// The heartbeat holds the registration service's mutex while it runs, so an NRF that does not answer must not
+// keep it for good: the context the service passes is cancelled by DeregisterNF, and has to reach the request.
+func TestHeartbeatContextEndsAHeartbeatThatIsNotAnswered(t *testing.T) {
+	origRegister, origUpdate, origDeregister := consumer.SendRegisterNFInstance, consumer.SendUpdateNFInstance, consumer.SendDeregisterNFInstance
+	t.Cleanup(func() {
+		consumer.SendRegisterNFInstance, consumer.SendUpdateNFInstance, consumer.SendDeregisterNFInstance = origRegister, origUpdate, origDeregister
+	})
+	profile := models.NewNFProfileWithDefaults()
+	profile.SetHeartBeatTimer(1)
+	started := make(chan struct{}, 1)
+	var cancelled atomic.Bool
+	consumer.SendRegisterNFInstance = func(context.Context, []nfConfigApi.AccessAndMobility) (*models.NFProfile, string, error) {
+		return profile, "", nil
+	}
+	consumer.SendUpdateNFInstance = func(ctx context.Context, _ []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-ctx.Done() // the NRF never answers
+		cancelled.Store(true)
+		return nil, nil, ctx.Err()
+	}
+	consumer.SendDeregisterNFInstance = func(context.Context) error { return nil }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	ch := make(chan []nfConfigApi.AccessAndMobility)
+	go func() { defer close(done); StartNfRegistrationService(ctx, ch) }()
+	t.Cleanup(func() { cancel(); <-done })
+
+	ch <- []nfConfigApi.AccessAndMobility{*nfConfigApi.NewAccessAndMobilityWithDefaults()}
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the heartbeat was not sent")
+	}
+
+	finished := make(chan struct{})
+	go func() { DeregisterNF(context.Background()); close(finished) }()
+	select {
+	case <-finished:
+	case <-time.After(5 * time.Second):
+		t.Fatal("DeregisterNF is blocked by a heartbeat the NRF does not answer")
+	}
+	if !cancelled.Load() {
+		t.Error("the heartbeat request did not see its context cancelled")
+	}
 }

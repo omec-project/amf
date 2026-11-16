@@ -31,8 +31,8 @@ func newService() *nrfregistration.Service[[]nfConfigApi.AccessAndMobility] {
 			nfProfile, _, err := consumer.SendRegisterNFInstance(ctx, cfg)
 			return nfProfile, err
 		},
-		Update: func(_ context.Context, patch []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
-			return consumer.SendUpdateNFInstance(patch)
+		Update: func(ctx context.Context, patch []models.PatchItem) (*models.NFProfile, *models.ProblemDetails, error) {
+			return consumer.SendUpdateNFInstance(ctx, patch)
 		},
 		Deregister: func(ctx context.Context) error { return consumer.SendDeregisterNFInstance(ctx) },
 	})

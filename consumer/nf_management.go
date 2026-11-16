@@ -143,11 +143,14 @@ var SendDeregisterNFInstance = func(ctx context.Context) error {
 	return newNrfClient(amfSelf.NrfUri).Deregister(ctx, amfSelf.NfId)
 }
 
-var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile *models.NFProfile, problemDetails *models.ProblemDetails, err error) {
+// SendUpdateNFInstance sends the heartbeat. ctx bounds the request: the registration service holds its
+// registration mutex while the heartbeat runs, and cancels ctx to end it when a new configuration arrives or
+// the NF terminates.
+var SendUpdateNFInstance = func(ctx context.Context, patchItem []models.PatchItem) (receivedNfProfile *models.NFProfile, problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Debugln("send Update NFInstance")
 
 	amfSelf := amfContext.AMF_Self()
-	return newNrfClient(amfSelf.NrfUri).Update(context.Background(), amfSelf.NfId, patchItem)
+	return newNrfClient(amfSelf.NrfUri).Update(ctx, amfSelf.NfId, patchItem)
 }
 
 var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscriptionData models.SubscriptionData) (nrfSubData *models.SubscriptionData, problemDetails *models.ProblemDetails, err error) {
