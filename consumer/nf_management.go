@@ -1,26 +1,27 @@
-// Copyright 2019 free5GC.org
+// Copyright (C) 2026 Intel Corporation
 // SPDX-FileCopyrightText: 2025 Canonical Ltd.
-//
+// Copyright 2019 free5GC.org
 // SPDX-License-Identifier: Apache-2.0
-//
 
 package consumer
 
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strings"
 
 	amfContext "github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/openapi/v2"
-	"github.com/omec-project/openapi/v2/Nnrf_NFManagement"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/openapi/v2/nfConfigApi"
+	"github.com/omec-project/openapi/v2/nrfclient"
 	"go.opentelemetry.io/otel/attribute"
 )
+
+func newNrfClient(nrfUri string) *nrfclient.Client {
+	return nrfclient.New(nrfUri, nrfclient.WithLogger(logger.ConsumerLog))
+}
 
 func getNfProfile(amfCtx *amfContext.AMFContext, accessAndMobilityConfig []nfConfigApi.AccessAndMobility) (profile models.NFProfile, err error) {
 	if amfCtx == nil {
@@ -110,37 +111,19 @@ var SendRegisterNFInstance = func(ctx context.Context, accessAndMobilityConfig [
 		attribute.String("amf.nf.type", string(nfProfile.GetNfType())),
 	)
 
-	configuration := Nnrf_NFManagement.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = self.NrfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	client := Nnrf_NFManagement.NewAPIClient(configuration)
-	apiRegisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.RegisterNFInstance(ctx, nfProfile.GetNfInstanceId())
-	apiRegisterNFInstanceRequest = apiRegisterNFInstanceRequest.NFProfile(nfProfile)
-	receivedNfProfile, res, err := client.NFInstanceIDDocumentAPI.RegisterNFInstanceExecute(apiRegisterNFInstanceRequest)
+	result, err := newNrfClient(self.NrfUri).Register(ctx, nfProfile)
 	if err != nil {
 		return models.NewNFProfileWithDefaults(), "", err
 	}
-	if res == nil {
-		return models.NewNFProfileWithDefaults(), "", openapi.ReportError("no response from server")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK: // NFUpdate
-		logger.ConsumerLog.Debugln("AMF NF profile updated with complete replacement")
-		return receivedNfProfile, "", nil
-	case http.StatusCreated: // NFRegister
-		resourceUri := res.Header.Get("Location")
-		resourceNrfUri = resourceUri[:strings.Index(resourceUri, "/nnrf-nfm/")]
-		retrieveNfInstanceId := resourceUri[strings.LastIndex(resourceUri, "/")+1:]
-		self.NfId = retrieveNfInstanceId
+	if result.Created {
 		logger.ConsumerLog.Debugln("AMF NF profile registered to the NRF")
-		return receivedNfProfile, resourceNrfUri, nil
-	default:
-		return receivedNfProfile, "", openapi.ReportError("NRF returned unexpected status code %d", res.StatusCode)
+		if result.NfInstanceID != "" {
+			self.NfId = result.NfInstanceID
+		}
+	} else {
+		logger.ConsumerLog.Debugln("AMF NF profile updated with complete replacement")
 	}
+	return result.Profile, result.NrfURI, nil
 }
 
 var SendDeregisterNFInstance = func(ctx context.Context) error {
@@ -157,62 +140,14 @@ var SendDeregisterNFInstance = func(ctx context.Context) error {
 		attribute.String("net.peer.name", amfSelf.NrfUri),
 		attribute.String("amf.nf.id", amfSelf.NfId),
 	)
-	// Set client and set url
-	configuration := Nnrf_NFManagement.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = amfSelf.NrfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	client := Nnrf_NFManagement.NewAPIClient(configuration)
-	apiDeregisterNFInstanceRequest := client.NFInstanceIDDocumentAPI.DeregisterNFInstance(ctx, amfSelf.NfId)
-	res, err := client.NFInstanceIDDocumentAPI.DeregisterNFInstanceExecute(apiDeregisterNFInstanceRequest)
-	if err != nil {
-		return err
-	}
-	if res == nil {
-		return openapi.ReportError("no response from server")
-	}
-	if res.StatusCode == http.StatusNoContent {
-		return nil
-	}
-	return openapi.ReportError("unexpected response code")
+	return newNrfClient(amfSelf.NrfUri).Deregister(ctx, amfSelf.NfId)
 }
 
 var SendUpdateNFInstance = func(patchItem []models.PatchItem) (receivedNfProfile *models.NFProfile, problemDetails *models.ProblemDetails, err error) {
 	logger.ConsumerLog.Debugln("send Update NFInstance")
 
 	amfSelf := amfContext.AMF_Self()
-	configuration := Nnrf_NFManagement.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = amfSelf.NrfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	client := Nnrf_NFManagement.NewAPIClient(configuration)
-
-	var res *http.Response
-	apiUpdateNFInstanceRequest := client.NFInstanceIDDocumentAPI.UpdateNFInstance(context.Background(), amfSelf.NfId)
-	apiUpdateNFInstanceRequest = apiUpdateNFInstanceRequest.PatchItem(patchItem)
-	receivedNfProfile, res, err = client.NFInstanceIDDocumentAPI.UpdateNFInstanceExecute(apiUpdateNFInstanceRequest)
-	if err != nil {
-		if openapiErr, ok := openapi.AsGenericOpenAPIError(err); ok {
-			if model := openapiErr.Model(); model != nil {
-				if problem, ok := model.(models.ProblemDetails); ok {
-					return models.NewNFProfileWithDefaults(), &problem, nil
-				}
-			}
-		}
-		return models.NewNFProfileWithDefaults(), nil, err
-	}
-
-	if res == nil {
-		return models.NewNFProfileWithDefaults(), nil, openapi.ReportError("no response from server")
-	}
-	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusNoContent {
-		return receivedNfProfile, nil, nil
-	}
-	return models.NewNFProfileWithDefaults(), nil, openapi.ReportError("unexpected response code %d", res.StatusCode)
+	return newNrfClient(amfSelf.NrfUri).Update(context.Background(), amfSelf.NfId, patchItem)
 }
 
 var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscriptionData models.SubscriptionData) (nrfSubData *models.SubscriptionData, problemDetails *models.ProblemDetails, err error) {
@@ -228,40 +163,7 @@ var SendCreateSubscription = func(ctx context.Context, nrfUri string, nrfSubscri
 		attribute.String("amf.nf.id", amfContext.AMF_Self().NfId),
 	)
 
-	// Set client and set url
-	configuration := Nnrf_NFManagement.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = nrfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	client := Nnrf_NFManagement.NewAPIClient(configuration)
-
-	var res *http.Response
-	apiCreateSubscriptionRequest := client.SubscriptionsCollectionAPI.CreateSubscription(ctx)
-	apiCreateSubscriptionRequest = apiCreateSubscriptionRequest.SubscriptionData(nrfSubscriptionData)
-	nrfSubData, res, err = client.SubscriptionsCollectionAPI.CreateSubscriptionExecute(apiCreateSubscriptionRequest)
-	if err == nil {
-		return nrfSubData, problemDetails, err
-	}
-	if res != nil {
-		defer func() {
-			if resCloseErr := res.Body.Close(); resCloseErr != nil {
-				logger.ConsumerLog.Errorf("SendCreateSubscription response cannot close: %+v", resCloseErr)
-			}
-		}()
-		// Logged for every error response now, not only for the ones the removed guard let through.
-		// The message was already true in both cases and the subscription failing is worth a line.
-		logger.ConsumerLog.Errorf("SendCreateSubscription received error response: %s", res.Status)
-		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
-			problemDetails = &problem
-		} else {
-			return nrfSubData, problemDetails, err
-		}
-	} else {
-		err = openapi.ReportError("server no response")
-	}
-	return nrfSubData, problemDetails, err
+	return newNrfClient(nrfUri).CreateSubscription(ctx, nrfSubscriptionData)
 }
 
 var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (problemDetails *models.ProblemDetails, err error) {
@@ -279,33 +181,5 @@ var SendRemoveSubscription = func(ctx context.Context, subscriptionId string) (p
 		attribute.String("amf.nf.id", amfSelf.NfId),
 	)
 
-	// Set client and set url
-	configuration := Nnrf_NFManagement.NewConfiguration()
-	serverConfig := &configuration.Servers[0]
-	if apiRootVar, exists := serverConfig.Variables["apiRoot"]; exists {
-		apiRootVar.DefaultValue = amfSelf.NrfUri
-		serverConfig.Variables["apiRoot"] = apiRootVar
-	}
-	client := Nnrf_NFManagement.NewAPIClient(configuration)
-	var res *http.Response
-
-	apiRemoveSubscriptionRequest := client.SubscriptionIDDocumentAPI.RemoveSubscription(ctx, subscriptionId)
-	res, err = client.SubscriptionIDDocumentAPI.RemoveSubscriptionExecute(apiRemoveSubscriptionRequest)
-	if err == nil {
-		return problemDetails, nil
-	} else if res != nil {
-		defer func() {
-			if bodyCloseErr := res.Body.Close(); bodyCloseErr != nil {
-				err = openapi.ReportError("RemoveSubscription's response body cannot close: %w", bodyCloseErr)
-			}
-		}()
-		if problem, ok := openapi.ErrorModel[models.ProblemDetails](err); ok {
-			problemDetails = &problem
-		} else {
-			return problemDetails, err
-		}
-	} else {
-		err = openapi.ReportError("server no response")
-	}
-	return problemDetails, err
+	return newNrfClient(amfSelf.NrfUri).RemoveSubscription(ctx, subscriptionId)
 }
