@@ -10,9 +10,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/ishidawataru/sctp v0.0.0-20251114114122-19ddcbc6aae2
 	github.com/omec-project/nas/v2 v2.2.8
-	github.com/omec-project/ngap/v2 v2.1.10
-	github.com/omec-project/openapi/v2 v2.5.0
-	github.com/omec-project/util v1.10.1
+	github.com/omec-project/ngap/v2 v2.1.11
+	github.com/omec-project/openapi/v2 v2.5.1
+	github.com/omec-project/util v1.10.2
 	github.com/prometheus/client_golang v1.25.0
 	github.com/segmentio/kafka-go v0.4.51
 	github.com/urfave/cli/v3 v3.14.0
