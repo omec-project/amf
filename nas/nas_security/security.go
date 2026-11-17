@@ -302,8 +302,10 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			}
 		} else {
 			ue.MacFailed = false
-			err := msg.PlainNasDecode(&payload)
-			return msg, err
+			if err := msg.PlainNasDecode(&payload); err != nil {
+				return nil, err
+			}
+			return msg, nil
 		}
 	} else { // Security protected NAS message
 		// check payload lenth to prevent crash: 6 bytes of security header, the sequence
@@ -373,13 +375,15 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 
 		// remove sequece Number
 		payload = payload[1:]
-		err = msg.PlainNasDecode(&payload)
+		if err = msg.PlainNasDecode(&payload); err != nil {
+			return nil, err
+		}
 
 		/*
 			integrity check failed, as per spec 24501 section 4.4.4.3 AMF shouldnt process or forward to SMF
 			except below message types
 		*/
-		if err == nil && ue.MacFailed {
+		if ue.MacFailed {
 			if msg.GmmMessage == nil {
 				return nil, fmt.Errorf("mac verification for a non-5GMM nas message failed")
 			}
@@ -405,7 +409,7 @@ func Decode(ue *context.AmfUe, accessType models.AccessType, payload []byte) (*n
 			}
 		}
 
-		return msg, err
+		return msg, nil
 	}
 }
 
