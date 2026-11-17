@@ -153,3 +153,25 @@ func TestFailedMacOn5GSMMessageIsRefused(t *testing.T) {
 		t.Errorf("Decode() = %v, %v; want a refusal", msg, err)
 	}
 }
+
+// The PDUs from omec-project/amf issues #893 and #894, verbatim. Each used to panic the AMF and
+// must now be refused.
+func TestReportedCrashingPdusAreRefused(t *testing.T) {
+	tests := map[string][]byte{
+		// 7 bytes: security header and sequence number, no inner NAS message
+		"integrity protected with an empty inner payload": {0x7e, 0x04, 0x5e, 0x77, 0x00, 0x01, 0x00},
+		// 5GSM inner message of unknown type under a failed MAC
+		"5GSM inner payload under a failed MAC": {
+			0x7e, 0x01, 0xd5, 0x67, 0x01, 0x00, 0x05, 0x2e, 0x01, 0x02, 0xcd, 0x6f, 0x12, 0x01,
+		},
+	}
+	for name, payload := range tests {
+		t.Run(name, func(t *testing.T) {
+			ue := ueHoldingASecurityContext()
+			msg, err := nas_security.Decode(ue, models.ACCESSTYPE__3_GPP_ACCESS, payload)
+			if msg != nil || err == nil {
+				t.Errorf("Decode() = %v, %v; want a refusal", msg, err)
+			}
+		})
+	}
+}

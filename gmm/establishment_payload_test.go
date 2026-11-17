@@ -16,15 +16,20 @@ import (
 )
 
 // gsmPayload encodes a bare 5GSM message of the given type, which is all the
-// Request-type gate inspects.
+// Request-type gate inspects. The establishment request carries its mandatory
+// Integrity protection maximum data rate IE: the decoder rejects the message without it.
 func gsmPayload(t *testing.T, msgType uint8) []byte {
 	t.Helper()
-	return []byte{
+	payload := []byte{
 		nasMessage.Epd5GSSessionManagementMessage,
 		0x0a, // PDU session identity
 		0x00, // PTI
 		msgType,
 	}
+	if msgType == nas.MsgTypePDUSessionEstablishmentRequest {
+		payload = append(payload, 0xff, 0xff) // Integrity protection maximum data rate
+	}
+	return payload
 }
 
 func TestIsEstablishmentRequestFromUE(t *testing.T) {
