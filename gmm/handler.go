@@ -2608,7 +2608,7 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		case models.AUTHRESULT_AUTHENTICATION_ONGOING:
 			eapPayload := response.GetEapPayload()
 			ue.AuthenticationCtx.SetVar5gAuthData(models.StringAsUEAuthenticationCtx5gAuthData(&eapPayload))
-			// the AUSF names the member "eap-session" (TS 29.509) or, in older releases, "link"
+			// the AUSF names the member "eap-session" (TS 29.509)
 			if consumer.HasConfirmationHref(response.Links, consumer.LinkKeyEapSession) {
 				ue.AuthenticationCtx.Links = response.Links
 			}
