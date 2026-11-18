@@ -9,6 +9,7 @@ package consumer
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -121,6 +122,10 @@ func confirmationHref(links map[string]models.LinksValueSchema, specKey string) 
 	return ""
 }
 
+// ErrNoConfirmationLink is returned when the AUSF authentication context holds no usable confirmation
+// link named by TS 29.509 (5g-aka / eap-session).
+var ErrNoConfirmationLink = errors.New("no AUSF confirmation link in authentication context")
+
 // HasConfirmationHref reports whether links holds a usable confirmation href for specKey.
 func HasConfirmationHref(links map[string]models.LinksValueSchema, specKey string) bool {
 	return confirmationHref(links, specKey) != ""
@@ -130,7 +135,7 @@ func HasConfirmationHref(links map[string]models.LinksValueSchema, specKey strin
 func ausfRootUri(links map[string]models.LinksValueSchema, specKey string) (string, error) {
 	href := confirmationHref(links, specKey)
 	if href == "" {
-		return "", fmt.Errorf("no AUSF confirmation link in authentication context")
+		return "", ErrNoConfirmationLink
 	}
 	confirmUri, err := url.Parse(href)
 	if err != nil {
