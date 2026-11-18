@@ -9,6 +9,7 @@ package consumer
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -99,34 +100,33 @@ func SendUEAuthenticationAuthenticateRequest(ctx context.Context, ue *amfContext
 const (
 	LinkKey5gAka      = "5g-aka"
 	LinkKeyEapSession = "eap-session"
-	linkKeyLegacy     = "link"
 )
 
-// confirmationHref returns the href of the _links member named by TS 29.509 (specKey), falling back to
-// the legacy "link" member sent by AUSFs that predate the spec-compliant names. A member is either a
-// single link or an array of links (models.LinksValueSchema); the first nonempty href is used. Members
-// without a usable href are skipped so that they do not shadow a usable one.
+// confirmationHref returns the href of the _links member named by TS 29.509 (specKey). A member is either
+// a single link or an array of links (models.LinksValueSchema); the first nonempty href is used.
 func confirmationHref(links map[string]models.LinksValueSchema, specKey string) string {
-	for _, key := range []string{specKey, linkKeyLegacy} {
-		v, ok := links[key]
-		if !ok {
-			continue
-		}
-		if v.Link != nil && v.Link.GetHref() != "" {
-			return v.Link.GetHref()
-		}
-		if v.ArrayOfLink != nil {
-			for _, l := range *v.ArrayOfLink {
-				if l.GetHref() != "" {
-					return l.GetHref()
-				}
+	v, ok := links[specKey]
+	if !ok {
+		return ""
+	}
+	if v.Link != nil && v.Link.GetHref() != "" {
+		return v.Link.GetHref()
+	}
+	if v.ArrayOfLink != nil {
+		for _, l := range *v.ArrayOfLink {
+			if l.GetHref() != "" {
+				return l.GetHref()
 			}
 		}
 	}
 	return ""
 }
 
-// HasConfirmationHref reports whether links holds a usable confirmation href for specKey or the legacy name.
+// ErrNoConfirmationLink is returned when the AUSF authentication context holds no usable confirmation
+// link named by TS 29.509 (5g-aka / eap-session).
+var ErrNoConfirmationLink = errors.New("no AUSF confirmation link in authentication context")
+
+// HasConfirmationHref reports whether links holds a usable confirmation href for specKey.
 func HasConfirmationHref(links map[string]models.LinksValueSchema, specKey string) bool {
 	return confirmationHref(links, specKey) != ""
 }
@@ -135,7 +135,7 @@ func HasConfirmationHref(links map[string]models.LinksValueSchema, specKey strin
 func ausfRootUri(links map[string]models.LinksValueSchema, specKey string) (string, error) {
 	href := confirmationHref(links, specKey)
 	if href == "" {
-		return "", fmt.Errorf("no AUSF confirmation link in authentication context")
+		return "", ErrNoConfirmationLink
 	}
 	confirmUri, err := url.Parse(href)
 	if err != nil {

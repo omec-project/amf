@@ -2512,6 +2512,14 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		}
 
 		response, problemDetails, err := consumer.SendAuth5gAkaConfirmRequest(ctx, ue, hex.EncodeToString(resStar[:]))
+		if errors.Is(err, consumer.ErrNoConfirmationLink) {
+			ue.GmmLog.Errorf("Auth5gAkaConfirm: %v", err)
+			gmm_message.SendAuthenticationReject(ranUe, "")
+			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthFailEvent, fsm.ArgsType{
+				ArgAmfUe:      ue,
+				ArgAccessType: accessType,
+			})
+		}
 		if err != nil {
 			return err
 		} else if problemDetails != nil {
@@ -2561,6 +2569,14 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 			})
 		}
 		response, problemDetails, err := consumer.SendEapAuthConfirmRequest(ctx, ue, *authenticationResponse.EAPMessage)
+		if errors.Is(err, consumer.ErrNoConfirmationLink) {
+			ue.GmmLog.Errorf("EapAuthConfirm: %v", err)
+			gmm_message.SendAuthenticationReject(ranUe, "")
+			return GmmFSM.SendEvent(ctx, ue.State[accessType], AuthFailEvent, fsm.ArgsType{
+				ArgAmfUe:      ue,
+				ArgAccessType: accessType,
+			})
+		}
 		if err != nil {
 			return err
 		} else if problemDetails != nil {
@@ -2608,7 +2624,7 @@ func HandleAuthenticationResponse(ctx ctxt.Context, ue *context.AmfUe, accessTyp
 		case models.AUTHRESULT_AUTHENTICATION_ONGOING:
 			eapPayload := response.GetEapPayload()
 			ue.AuthenticationCtx.SetVar5gAuthData(models.StringAsUEAuthenticationCtx5gAuthData(&eapPayload))
-			// the AUSF names the member "eap-session" (TS 29.509) or, in older releases, "link"
+			// the AUSF names the member "eap-session" (TS 29.509)
 			if consumer.HasConfirmationHref(response.Links, consumer.LinkKeyEapSession) {
 				ue.AuthenticationCtx.Links = response.Links
 			}

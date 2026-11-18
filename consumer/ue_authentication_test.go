@@ -4,6 +4,7 @@
 package consumer
 
 import (
+	"errors"
 	"testing"
 
 	amf_context "github.com/omec-project/amf/context"
@@ -76,13 +77,10 @@ func TestConfirmationHref(t *testing.T) {
 		want  string
 	}{
 		{"spec key", map[string]models.LinksValueSchema{LinkKeyEapSession: href("http://a/spec")}, "http://a/spec"},
-		{"legacy fallback", map[string]models.LinksValueSchema{linkKeyLegacy: href(legacyHref)}, legacyHref},
-		{"nil spec link falls back", map[string]models.LinksValueSchema{LinkKeyEapSession: {}, linkKeyLegacy: href(legacyHref)}, legacyHref},
-		{"empty spec href falls back", map[string]models.LinksValueSchema{LinkKeyEapSession: href(""), linkKeyLegacy: href(legacyHref)}, legacyHref},
-		{"empty hrefs", map[string]models.LinksValueSchema{LinkKeyEapSession: href(""), linkKeyLegacy: href("")}, ""},
+		{"legacy link member is ignored", map[string]models.LinksValueSchema{"link": href(legacyHref)}, ""},
+		{"empty hrefs", map[string]models.LinksValueSchema{LinkKeyEapSession: href("")}, ""},
 		{"array spec link", map[string]models.LinksValueSchema{LinkKeyEapSession: hrefs("", "http://a/array")}, "http://a/array"},
-		{"empty array falls back", map[string]models.LinksValueSchema{LinkKeyEapSession: hrefs(), linkKeyLegacy: href(legacyHref)}, legacyHref},
-		{"array legacy link", map[string]models.LinksValueSchema{linkKeyLegacy: hrefs("http://a/array")}, "http://a/array"},
+		{"empty array", map[string]models.LinksValueSchema{LinkKeyEapSession: hrefs()}, ""},
 		{"nil links", map[string]models.LinksValueSchema{LinkKeyEapSession: {}}, ""},
 		{"no links", nil, ""},
 	}
@@ -106,16 +104,20 @@ func TestAusfRootUri(t *testing.T) {
 		links   map[string]models.LinksValueSchema
 		want    string
 		wantErr bool
+		missing bool // wantErr because no usable link exists (as opposed to a malformed one)
 	}{
-		{"spec key", map[string]models.LinksValueSchema{LinkKeyEapSession: href("http://ausf:8080/x/y")}, "http://ausf:8080", false},
-		{"malformed spec href returns error", map[string]models.LinksValueSchema{LinkKeyEapSession: href("http://ausf:bad/eap-session"), linkKeyLegacy: href(legacyHref)}, "", true},
-		{"empty spec href uses legacy", map[string]models.LinksValueSchema{LinkKeyEapSession: href(""), linkKeyLegacy: href(legacyHref)}, "http://a", false},
-		{"no usable link returns error", map[string]models.LinksValueSchema{LinkKeyEapSession: href("")}, "", true},
-		{"no links returns error", nil, "", true},
+		{"spec key", map[string]models.LinksValueSchema{LinkKeyEapSession: href("http://ausf:8080/x/y")}, "http://ausf:8080", false, false},
+		{"malformed spec href returns error", map[string]models.LinksValueSchema{LinkKeyEapSession: href("http://ausf:bad/eap-session")}, "", true, false},
+		{"legacy link member is ignored", map[string]models.LinksValueSchema{"link": href(legacyHref)}, "", true, true},
+		{"no usable link returns error", map[string]models.LinksValueSchema{LinkKeyEapSession: href("")}, "", true, true},
+		{"no links returns error", nil, "", true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := ausfRootUri(tt.links, LinkKeyEapSession)
+			if tt.missing && !errors.Is(err, ErrNoConfirmationLink) {
+				t.Fatalf("err = %v, want ErrNoConfirmationLink", err)
+			}
 			if (err != nil) != tt.wantErr || got != tt.want {
 				t.Fatalf("got (%q, %v), want (%q, err=%v)", got, err, tt.want, tt.wantErr)
 			}

@@ -5,11 +5,14 @@ package gmm
 
 import (
 	ctxt "context"
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/nas/v2/nasMessage"
+	"github.com/omec-project/nas/v2/nasType"
 	"github.com/omec-project/openapi/v2/models"
 	"github.com/omec-project/util/fsm"
 	"go.uber.org/zap"
@@ -104,5 +107,55 @@ func TestHandleAuthenticationFailureNilAuthenticationCtx(t *testing.T) {
 	}
 	if got := ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current(); got != context.Authentication {
 		t.Fatalf("state = %v, want Authentication", got)
+	}
+}
+
+// A legacy-only _links member is not accepted, so confirming with the AUSF fails before any request is
+// built. The UE must then be rejected and leave Authentication rather than stay there with T3560 cleared.
+func TestHandleAuthenticationResponseMissingConfirmationLink(t *testing.T) {
+	legacy := models.NewLink()
+	legacy.SetHref("http://ausf:8080/nausf-auth/v1/ue-authentications/x/5g-aka-confirmation")
+	legacyLinks := map[string]models.LinksValueSchema{"link": {Link: legacy}}
+
+	tests := []struct {
+		name     string
+		authType models.AuthType
+		response func(ue *context.AmfUe) *nasMessage.AuthenticationResponse
+	}{
+		{"5G AKA", models.AUTHTYPE__5_G_AKA, func(ue *context.AmfUe) *nasMessage.AuthenticationResponse {
+			// make HRES* match so that the handler proceeds to the AUSF confirmation
+			res := [16]uint8{}
+			rand, err := hex.DecodeString(ue.AuthenticationCtx.Var5gAuthData.Av5gAka.GetRand())
+			if err != nil {
+				t.Fatalf("decode RAND: %v", err)
+			}
+			sum := sha256.Sum256(append(rand, res[:]...))
+			ue.AuthenticationCtx.Var5gAuthData.Av5gAka.SetHxresStar(hex.EncodeToString(sum[16:]))
+			response := nasMessage.NewAuthenticationResponse(0)
+			response.AuthenticationResponseParameter = nasType.NewAuthenticationResponseParameter(
+				nasMessage.AuthenticationResponseAuthenticationResponseParameterType)
+			response.SetRES(res)
+			return response
+		}},
+		{"EAP-AKA'", models.AUTHTYPE_EAP_AKA_PRIME, func(*context.AmfUe) *nasMessage.AuthenticationResponse {
+			response := nasMessage.NewAuthenticationResponse(0)
+			response.EAPMessage = nasType.NewEAPMessage(nasMessage.AuthenticationResponseEAPMessageType)
+			response.EAPMessage.SetLen(1)
+			response.SetEAPMessage([]uint8{0x02})
+			return response
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ue := newAuthenticationUe(tt.authType)
+			ue.AuthenticationCtx.Links = legacyLinks
+
+			if err := HandleAuthenticationResponse(ctxt.Background(), ue, models.ACCESSTYPE__3_GPP_ACCESS, tt.response(ue)); err != nil {
+				t.Fatalf("expected the UE to be rejected without error, got %v", err)
+			}
+			if got := ue.State[models.ACCESSTYPE__3_GPP_ACCESS].Current(); got != context.Deregistered {
+				t.Fatalf("state = %v, want Deregistered", got)
+			}
+		})
 	}
 }
