@@ -17,6 +17,7 @@ import (
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
 	gmm_message "github.com/omec-project/amf/gmm/message"
+	"github.com/omec-project/amf/lawfulintercept"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
 	"github.com/omec-project/amf/nas"
@@ -3696,11 +3697,129 @@ func HandleHandoverRequestAcknowledge(ctx ctxt.Context, ran *context.AmfRan, mes
 				},
 			}
 			ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, nil)
+			// The acknowledge arrived but the handover failed here, so no record is
+			// emitted and the state HANDOVER REQUIRED stashed has no further use.
+			// This is the one failure exit that runs *after* the stash, so without
+			// this the container would outlive its handover — and a later
+			// acknowledge could build a record around a previous attempt's
+			// source-to-target container, which is worse than the leak.
+			sourceUe.ClearHandoverState()
 			return
 		}
 		ngap_message.SendHandoverCommand(sourceUe, pduSessionResourceHandoverList, pduSessionResourceToReleaseList,
 			*targetToSourceTransparentContainer, nil)
+		reportHandover(sourceUe, targetToSourceTransparentContainer.Value, pduSessionResourceHandoverList)
+		sourceUe.ClearHandoverState()
 	}
+}
+
+// reportHandover emits the two handover xIRIs TS 33.128 mandates, both of which
+// belong at this point: AMFRANHandoverRequest triggers on the AMF *receiving* the
+// HANDOVER REQUEST ACKNOWLEDGE (clause 6.2.2.2.9.3, despite the name), and
+// AMFRANHandoverCommand on the AMF sending the HANDOVER COMMAND (clause 6.2.2.2.9.2).
+// SendHandoverCommand returns no error, so a command it failed to build is reported
+// as sent.
+//
+// The identifiers are the source UE's, because that is the NG association the
+// command travelled over. It is a no-op for an untasked subscriber and cannot
+// affect the handover: it neither returns nor blocks, and every value it reads is
+// already in hand.
+//
+// The association is read once, through GetAmfUe: this runs on the target RAN's read
+// loop, and the source RAN's release or a replaced RanUe's delayed detach can drop it
+// at the same time.
+func reportHandover(sourceUe *context.RanUe, targetToSource []byte,
+	handoverList ngapType.PDUSessionResourceHandoverList,
+) {
+	ue := sourceUe.GetAmfUe()
+	if ue == nil {
+		return
+	}
+	h := handoverOf(sourceUe, ue, targetToSource, handoverList)
+
+	lawfulintercept.ReportHandoverRequest(h)
+	lawfulintercept.ReportHandoverCommand(h)
+}
+
+// handoverOf assembles what the two handover records are built from: the source UE's
+// association, ue as reportHandover read it, the values HANDOVER REQUIRED stashed, and the
+// acknowledge's own container.
+func handoverOf(sourceUe *context.RanUe, ue *context.AmfUe, targetToSource []byte,
+	handoverList ngapType.PDUSessionResourceHandoverList,
+) lawfulintercept.Handover {
+	// The record's vocabulary, not NGAP's — the two number these four values differently, and
+	// casting across would produce `handoverType: 0` for an intra-5GS handover, which the arm's
+	// enumeration does not define. See liHandoverType.
+	handoverType, typeSubstituted := liHandoverType(int64(sourceUe.HandOverType.Value))
+	h := lawfulintercept.Handover{
+		UE:              ue,
+		AMFUENGAPID:     sourceUe.AmfUeNgapId,
+		RANUENGAPID:     sourceUe.RanUeNgapId,
+		HandoverType:    handoverType,
+		TypeSubstituted: typeSubstituted,
+		TargetToSource:  targetToSource,
+		SourceToTarget:  sourceUe.HandOverSourceToTarget,
+		// The stash is nil only when no HANDOVER REQUIRED left one: SendHandoverRequest refuses
+		// an empty container before stashing. The target-to-source container is the
+		// acknowledge's own mandatory IE, which its handler checks present, and may be empty.
+		HasSourceToTarget: sourceUe.HandOverSourceToTarget != nil,
+	}
+	if len(handoverList.List) > 0 {
+		h.PDUSessionID = int32(handoverList.List[0].PDUSessionID.Value)
+		h.HasPDUSessionID = true
+	}
+	if c := sourceUe.HandOverCause; c != nil {
+		h.CauseGroup, h.CauseValue, h.CauseSubstituted, h.HasCause = ngapCauseToLI(c)
+	}
+
+	return h
+}
+
+// ngapCauseToLI splits an NGAP Cause into the group and value the TS 33.128
+// HandoverCause CHOICE wants.
+//
+// Both are CHOICEs over the same five groups, but the value does not pass through: the two
+// number the same causes differently, so a cast would emit every cause one below the value
+// TS 33.128 defines for it, and NGAP's `unspecified(0)` as a zero the record's own enumeration
+// does not include. liCauseValue does the mapping.
+func ngapCauseToLI(c *ngapType.Cause) (group lawfulintercept.HandoverCauseGroup, value int64, substituted, ok bool) {
+	var raw int64
+	switch c.Present {
+	case ngapType.CausePresentRadioNetwork:
+		if c.RadioNetwork == nil {
+			break
+		}
+		group, raw, ok = lawfulintercept.CauseGroupRadioNetwork, int64(c.RadioNetwork.Value), true
+	case ngapType.CausePresentTransport:
+		if c.Transport == nil {
+			break
+		}
+		group, raw, ok = lawfulintercept.CauseGroupTransport, int64(c.Transport.Value), true
+	case ngapType.CausePresentNas:
+		if c.Nas == nil {
+			break
+		}
+		group, raw, ok = lawfulintercept.CauseGroupNAS, int64(c.Nas.Value), true
+	case ngapType.CausePresentProtocol:
+		if c.Protocol == nil {
+			break
+		}
+		group, raw, ok = lawfulintercept.CauseGroupProtocol, int64(c.Protocol.Value), true
+	case ngapType.CausePresentMisc:
+		if c.Misc == nil {
+			break
+		}
+		group, raw, ok = lawfulintercept.CauseGroupMisc, int64(c.Misc.Value), true
+	}
+	if !ok {
+		// An unset or unrecognised cause leaves the record uncompletable, which
+		// ReportHandoverRequest treats as "emit nothing" rather than guessing.
+		return lawfulintercept.CauseGroupRadioNetwork, 0, false, false
+	}
+
+	value, substituted = liCauseValue(group, raw)
+
+	return group, value, substituted, true
 }
 
 func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapType.NGAPPDU) {
@@ -3799,6 +3918,9 @@ func HandleHandoverFailure(ctx ctxt.Context, ran *context.AmfRan, message *ngapT
 			})
 		}
 		ngap_message.SendHandoverPreparationFailure(sourceUe, *cause, criticalityDiagnostics)
+		// The handover is over; drop what HANDOVER REQUIRED stashed for an
+		// acknowledge that is not coming.
+		sourceUe.ClearHandoverState()
 	}
 
 	ngap_message.SendUEContextReleaseCommand(targetUe, context.UeContextReleaseHandover, causePresent, causeValue)
@@ -3977,7 +4099,8 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 		return
 	} else {
 		// Handover in same AMF
-		sourceUe.HandOverType.Value = handoverType.Value
+		// SendHandoverRequest writes the handover type, with the cause and the container, past
+		// its own guards.
 		tai, err := ngapconv.TaiToModels(targetID.TargetRANNodeID.SelectedTAI)
 		if err != nil {
 			sourceUe.Log.Errorf("decode selected TAI failed: %+v", err)
@@ -4044,7 +4167,11 @@ func HandleHandoverRequired(ctx ctxt.Context, ran *context.AmfRan, message *ngap
 				},
 			}
 		}
-		ngap_message.SendHandoverRequest(sourceUe, targetRan, *cause, pduSessionReqList,
+		// Lawful Interception: what the HANDOVER REQUEST ACKNOWLEDGE's xIRI needs is
+		// stashed by SendHandoverRequest, past its own guards, so a duplicate HANDOVER
+		// REQUIRED — refused there as "Handover Required Duplicated" — cannot overwrite
+		// the live handover's stash.
+		ngap_message.SendHandoverRequest(sourceUe, targetRan, *cause, *handoverType, pduSessionReqList,
 			*sourceToTargetTransparentContainer, false)
 	}
 }
@@ -4154,6 +4281,8 @@ func HandleHandoverCancel(ctx ctxt.Context, ran *context.AmfRan, message *ngapTy
 		}
 		ngap_message.SendUEContextReleaseCommand(targetUe, context.UeContextReleaseHandover, causePresent, causeValue)
 		ngap_message.SendHandoverCancelAcknowledge(sourceUe, nil)
+		// Cancelled: the acknowledge will not arrive, so drop the carried state.
+		sourceUe.ClearHandoverState()
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 
 	"github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
+	"github.com/omec-project/amf/lawfulintercept"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/util"
 	"github.com/omec-project/nas/v2"
@@ -604,6 +605,12 @@ func DeregisteredInitiated(ctx ctxt.Context, state *fsm.State, event fsm.EventTy
 		default:
 			amfUe.GmmLog.Errorf("state mismatch: receieve gmm message[message type 0x%0x] at %s state",
 				gmmMessage.GetMessageType(), state.Current())
+			// Lawful Interception IRI-POI: the event below sets this access Deregistered, which
+			// ends the network-initiated deregistration as an accept would, so it is reported as
+			// HandleDeregistrationAccept reports it: before the state is written, and the binding
+			// once it has been.
+			lawfulintercept.ReportDeregistration(amfUe, true, lawfulintercept.AccessScope(accessType))
+			releasesBinding := deregisteringEveryAccess(amfUe, false, accessType)
 			// called SendEvent() to move to deregistered state if state mismatch occurs
 			err := GmmFSM.SendEvent(ctx, state, DeregistrationAcceptEvent, fsm.ArgsType{
 				ArgAmfUe:      amfUe,
@@ -613,6 +620,9 @@ func DeregisteredInitiated(ctx ctxt.Context, state *fsm.State, event fsm.EventTy
 				logger.GmmLog.Errorln(err)
 			} else {
 				amfUe.GmmLog.Info("state reset to Deregistered")
+			}
+			if releasesBinding {
+				lawfulintercept.ReportIdentifierDeassociation(amfUe)
 			}
 		}
 	case DeregistrationAcceptEvent:

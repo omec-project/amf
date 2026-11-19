@@ -22,6 +22,7 @@ import (
 	"github.com/omec-project/amf/consumer"
 	"github.com/omec-project/amf/context"
 	gmm_message "github.com/omec-project/amf/gmm/message"
+	"github.com/omec-project/amf/lawfulintercept"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
 	"github.com/omec-project/amf/nasconv"
@@ -87,6 +88,11 @@ func removePendingPayloadFiles(m *context.N1N2Message) {
 	}
 }
 
+// reportUEPolicyComplete is the Lawful Interception hook for an uplink UE policy container,
+// reached through a package variable so a test can observe that the transport handler raises
+// it. Production behaviour is the same function.
+var reportUEPolicyComplete = lawfulintercept.ReportUEPolicyComplete
+
 func HandleULNASTransport(ctx ctxt.Context, ue *context.AmfUe, anType models.AccessType,
 	ulNasTransport *nasMessage.ULNASTransport,
 ) error {
@@ -108,8 +114,12 @@ func HandleULNASTransport(ctx ctxt.Context, ue *context.AmfUe, anType models.Acc
 		return fmt.Errorf("PayloadContainerTypeSOR has not been implemented yet in UL NAS TRANSPORT")
 	case nasMessage.PayloadContainerTypeUEPolicy:
 		ue.GmmLog.Infoln("AMF Transfer UEPolicy To PCF")
-		callback.SendN1MessageNotify(ue, models.N1MESSAGECLASS_UPDP,
-			ulNasTransport.GetPayloadContainerContents(), nil)
+		policy := ulNasTransport.GetPayloadContainerContents()
+		callback.SendN1MessageNotify(ue, models.N1MESSAGECLASS_UPDP, policy, nil)
+		// Lawful Interception: the uplink half, where a MANAGE UE POLICY COMPLETE triggers
+		// the record. The COMMAND it carries is noted on the downlink, in
+		// BuildDLNASTransport.
+		reportUEPolicyComplete(ue, policy)
 	case nasMessage.PayloadContainerTypeUEParameterUpdate:
 		ue.GmmLog.Infoln("AMF Transfer UEParameterUpdate To UDM")
 		upuMac, err := nasConvert.UpuAckToModels(ulNasTransport.GetPayloadContainerContents())
@@ -674,6 +684,10 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		return fmt.Errorf("empty MobileIdentity5GS contents in Registration Request")
 	}
 	ue.IdentityTypeUsedForRegistration = nasConvert.GetTypeOfIdentity(mobileIdentity5GSContents[0])
+	// A registration by another identity used no SUCI, so the LI records it produces carry none.
+	if ue.IdentityTypeUsedForRegistration != nasMessage.MobileIdentity5GSTypeSuci {
+		ue.SetSuciRaw(nil)
+	}
 	switch ue.IdentityTypeUsedForRegistration { // get type of identity
 	case nasMessage.MobileIdentity5GSTypeNoIdentity:
 		ue.GmmLog.Debugf("No Identity")
@@ -684,6 +698,9 @@ func HandleRegistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType model
 		if err != nil {
 			return fmt.Errorf("decode SUCI failed: %w", err)
 		}
+		// The LI point of interception needs the SUCI members, and the string above
+		// cannot be parsed back into them without loss — see amf/lawfulintercept.
+		ue.SetSuciRaw(mobileIdentity5GSContents)
 		plmnID, err := util.PlmnIdStringToModels(plmnId)
 		if err != nil {
 			err = fmt.Errorf("invalid SUCI: %w", err)
@@ -1367,6 +1384,23 @@ func HandleMobilityAndPeriodicRegistrationUpdating(ctx ctxt.Context, ue *context
 	amfSelf.AllocateRegistrationArea(ue, anType)
 	assignLadnInfo(ue, registrationRequest, anType)
 
+	// Lawful Interception IRI-POI: a mobility registration update means the target
+	// moved while staying registered — emit an AMFLocationUpdate here.
+	//
+	// Periodic updates are deliberately *not* reported here, and that is not the
+	// same as not being reported: BuildRegistrationAccept carries the 5G-GUTI IE
+	// whenever the UE has one, which after an initial registration it does, so per
+	// TS 24.501 clause 5.5.1.3.4 the UE answers with Registration Complete and the
+	// tap in HandleRegistrationComplete reports them. Its guard excludes mobility
+	// for the same reason in reverse. Between them each registration type is
+	// reported exactly once — which is what TS 33.128 asks for, since a periodic
+	// update is a registration procedure the AMF performs and an unreported one is
+	// indistinguishable to an agency from a subject who did nothing. Silent no-op
+	// unless LI is configured.
+	if ue.RegistrationType5GS == nasMessage.RegistrationType5GSMobilityRegistrationUpdating {
+		lawfulintercept.ReportRegistration(ue, anType)
+	}
+
 	// TODO: GUTI reassignment if need (based on operator poilcy)
 	// TODO: T3512/Non3GPP de-registration timer reassignment if need (based on operator policy)
 
@@ -1822,6 +1856,9 @@ func HandleIdentityResponse(ue *context.AmfUe, identityResponse *nasMessage.Iden
 		if err != nil {
 			return fmt.Errorf("decode SUCI failed: %w", err)
 		}
+		// The LI point of interception needs the SUCI members, and the string above
+		// cannot be parsed back into them without loss — see amf/lawfulintercept.
+		ue.SetSuciRaw(mobileIdentityContents)
 		plmnID, err := util.PlmnIdStringToModels(plmnId)
 		if err != nil {
 			err = fmt.Errorf("invalid SUCI: %w", err)
@@ -1986,9 +2023,34 @@ func NetworkInitiatedDeregistrationProcedure(ctx ctxt.Context, ue *context.AmfUe
 	anType := util.AnTypeToNas(accessType)
 	if ue.CmConnect(accessType) && ue.State[accessType].Is(context.Registered) {
 		// setting reregistration required flag to true
+		//
+		// **Nothing is reported here, because the procedure is not over.** It is still a
+		// deregistration: the UE answers with a DEREGISTRATION ACCEPT,
+		// HandleDeregistrationAccept runs, and the state becomes Deregistered — and every SM
+		// context is released below, on this branch as much as the other. So the record is
+		// emitted where the procedure completes: HandleDeregistrationAccept.
 		gmm_message.SendDeregistrationRequest(ue.GetRanUe(accessType), anType, true, 0)
 	} else {
+		// Lawful Interception IRI-POI: this branch actually deregisters the UE, so
+		// emit an AMFDeregistration xIRI (network-initiated) for a tasked target.
+		// Silent no-op unless LI is configured.
+		//
+		// One access here, and it is the one this procedure was called for — a
+		// network-initiated deregistration names its access rather than reading one
+		// out of a request.
+		lawfulintercept.ReportDeregistration(ue, true, lawfulintercept.AccessScope(accessType))
+
+		// The binding goes only if the UE is left registered nowhere. Reported before
+		// SetDeregisteredState, so the state this reads is the one the record
+		// describes; a dual-registered UE losing one access keeps the binding, and the
+		// element keeps producing records under it.
+		// false, not a converted NAS value: a network-initiated deregistration is for
+		// the one access this procedure was called for.
+		releasesBinding := deregisteringEveryAccess(ue, false, accessType)
 		SetDeregisteredState(ue, anType)
+		if releasesBinding {
+			lawfulintercept.ReportIdentifierDeassociation(ue)
+		}
 	}
 	// TODO: Need to implement Nudm_SDM_Unsubscribe
 
@@ -2439,6 +2501,7 @@ func sendServiceAccept(ue *context.AmfUe, anType models.AccessType, ctxList ngap
 		} else {
 			ngap_message.SendInitialContextSetupRequest(ue, anType, nasPdu, nil, nil, nil, nil)
 		}
+		lawfulintercept.ReportServiceAccept(ue)
 	} else if len(suList.List) != 0 {
 		nasPdu, err := gmm_message.BuildServiceAccept(ue, anType, pDUSessionStatus, reactivationResult,
 			errPduSessionId, errCause)
@@ -2446,7 +2509,10 @@ func sendServiceAccept(ue *context.AmfUe, anType models.AccessType, ctxList ngap
 			return err
 		}
 		ngap_message.SendPDUSessionResourceSetupRequest(ranUe, nasPdu, suList)
+		lawfulintercept.ReportServiceAccept(ue)
 	} else {
+		// The third branch reports from inside gmm_message.SendServiceAccept, which
+		// is where a build failure is visible — see the note there.
 		gmm_message.SendServiceAccept(ranUe, anType, pDUSessionStatus, reactivationResult, errPduSessionId, errCause)
 	}
 	return nil
@@ -2727,6 +2793,20 @@ func HandleRegistrationComplete(ctx ctxt.Context, ue *context.AmfUe, accessType 
 ) error {
 	ue.GmmLog.Info("Handle Registration Complete")
 
+	// Lawful Interception IRI-POI: emit an AMFRegistration xIRI if this UE is a
+	// tasked target. No-op (and silent) unless LI is configured.
+	//
+	// A mobility registration update is excluded because it is already reported,
+	// as an AMFLocationUpdate, from HandleMobilityAndPeriodicRegistrationUpdating.
+	// It reaches here too: BuildRegistrationAccept carries the 5G-GUTI IE whenever
+	// the UE has a GUTI — which it does after its initial registration — and
+	// TS 24.501 clause 5.5.1.3.4 then requires the UE to send Registration
+	// Complete. Reporting it in both places would give the agency two location
+	// records for one movement.
+	if ue.RegistrationType5GS != nasMessage.RegistrationType5GSMobilityRegistrationUpdating {
+		lawfulintercept.ReportRegistration(ue, accessType)
+	}
+
 	if ue.T3550 != nil {
 		ue.T3550.Stop()
 		ue.T3550 = nil // clear the timer
@@ -2837,6 +2917,36 @@ func HandleDeregistrationRequest(ctx ctxt.Context, ue *context.AmfUe, anType mod
 	ue.GmmLog.Info("Handle Deregistration Request(UE Originating)")
 
 	targetDeregistrationAccessType := deregistrationRequest.GetAccessType()
+
+	// Lawful Interception IRI-POI: emit an AMFDeregistration xIRI (UE-initiated) for a
+	// tasked target, before the UE context is torn down. Silent no-op unless LI is
+	// configured.
+	//
+	// **The record names the access the element acts on, not the one the message
+	// arrived over.** They differ: the requested type below may be AccessTypeBoth, and
+	// this function then releases the SM contexts of *both* accesses. Reporting anType
+	// there would give the mediation function a record contradicting what the same
+	// function goes on to do — a populated field asserting something false, which nothing
+	// downstream can distinguish from a true one. TS 33.128 table 6.2.2.2.3-1 makes
+	// accessType mandatory with cardinality 1 and its type carries
+	// threeGPPandNonThreeGPPAccess(3), so "both" is a value of the one field rather
+	// than a reason to emit two records.
+	deregScope := lawfulintercept.DeregistrationScope(targetDeregistrationAccessType)
+	if deregScope == 0 {
+		// A requested type this element does not recognise: report the access the
+		// message arrived on rather than inventing a scope.
+		deregScope = lawfulintercept.AccessScope(anType)
+	}
+	lawfulintercept.ReportDeregistration(ue, false, deregScope)
+
+	// The identifier binding is released only when the UE is leaving altogether. A
+	// dual-registered UE deregistering one access keeps its SUPI↔5G-GUTI binding for
+	// the other, and announcing the release while the element goes on producing records
+	// under that same association tells the mediation function something it will then
+	// contradict.
+	if deregisteringEveryAccess(ue, targetDeregistrationAccessType == nasMessage.AccessTypeBoth, anType) {
+		lawfulintercept.ReportIdentifierDeassociation(ue)
+	}
 	ue.SmContextList.Range(func(key, value any) bool {
 		smContext := value.(*context.SmContext)
 
@@ -2961,12 +3071,48 @@ func HandleDeregistrationAccept(ctx ctxt.Context, ue *context.AmfUe, anType mode
 		}
 	}
 
+	// Lawful Interception IRI-POI: a network-initiated deregistration completes here when the
+	// UE accepts. The event below sets the state to Deregistered, and
+	// NetworkInitiatedDeregistrationProcedure has already released every SM context. Its other
+	// two endings report where they happen: T3522 running out (SendDeregistrationRequest's
+	// abort) and another message from the UE in its place (DeregisteredInitiated in sm.go).
+	//
+	// Reported before the event, so deregisteringEveryAccess reads the state the record
+	// describes rather than the state the event is about to write — the same ordering the
+	// initiating function's other branch uses.
+	//
+	// **Not in the DeregistrationAcceptEvent handler**, which would look like the single seam
+	// and is not: the UE-originated path fires that same event, and reports its own record
+	// already, so a record raised there would be emitted twice for every deregistration a
+	// subject asks for.
+	// The access this element acted on, which SendDeregistrationRequest recorded when it sent
+	// the request. A value this element does not recognise falls back to the access the accept
+	// arrived over, rather than inventing a scope — as the UE-originated path does.
+	deregScope := lawfulintercept.DeregistrationScope(ue.DeregistrationTargetAccessType)
+	if deregScope == 0 {
+		deregScope = lawfulintercept.AccessScope(anType)
+	}
+
+	lawfulintercept.ReportDeregistration(ue, true, deregScope)
+
+	releasesBinding := deregisteringEveryAccess(ue,
+		ue.DeregistrationTargetAccessType == nasMessage.AccessTypeBoth, anType)
+
 	ue.DeregistrationTargetAccessType = 0
 
-	return GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
+	err := GmmFSM.SendEvent(ctx, ue.State[models.ACCESSTYPE__3_GPP_ACCESS], DeregistrationAcceptEvent, fsm.ArgsType{
 		ArgAmfUe:      ue,
 		ArgAccessType: anType,
 	})
+
+	// The binding goes only once the UE is left registered nowhere, and after the state says
+	// so: announcing the release while this element is still producing records under the
+	// association tells the mediation function something it will then contradict.
+	if releasesBinding {
+		lawfulintercept.ReportIdentifierDeassociation(ue)
+	}
+
+	return err
 }
 
 func HandleStatus5GMM(ue *context.AmfUe, anType models.AccessType, status5GMM *nasMessage.Status5GMM) error {
@@ -2986,4 +3132,42 @@ func HandleAuthenticationError(ue *context.AmfUe, anType models.AccessType) erro
 		gmm_message.SendRegistrationReject(ue.GetRanUe(anType), nasMessage.Cause5GMMUEIdentityCannotBeDerivedByTheNetwork, "")
 	}
 	return nil
+}
+
+// deregisteringEveryAccess reports whether this deregistration leaves the UE registered
+// on no access at all, which is when its identifier binding is genuinely released.
+//
+// It exists for the Lawful Interception deassociation record. That record says the
+// SUPI↔5G-GUTI binding is gone, and the AMF holds one binding across every access a UE
+// is registered on — so a dual-registered UE deregistering one access keeps it. Emitted
+// per deregistration, the record would tell the mediation function the binding was
+// released while the element goes on producing records under it.
+//
+// bothAccesses says the deregistration covers every access outright; otherwise it covers
+// arrivedOn and the binding survives if the UE is registered anywhere else.
+//
+// It is a bool rather than a NAS access type on purpose. util.AnTypeToNas answers
+// AccessTypeBoth for any value it does not recognise, which is a sound default for
+// addressing a NAS message and the wrong one here: an unknown access would silently
+// claim the identifier binding had been released.
+func deregisteringEveryAccess(ue *context.AmfUe, bothAccesses bool, arrivedOn models.AccessType) bool {
+	if ue == nil {
+		return true
+	}
+	if bothAccesses {
+		return true
+	}
+
+	// Otherwise this deregistration covers the access it arrived on, and the binding
+	// survives if the UE is still registered anywhere else.
+	for access, st := range ue.State {
+		if access == arrivedOn || st == nil {
+			continue
+		}
+		if st.Is(context.Registered) {
+			return false
+		}
+	}
+
+	return true
 }

@@ -74,8 +74,8 @@ const (
 type AmfUe struct {
 	// Mutex sync.Mutex `json:"mutex,omitempty" yaml:"mutex" bson:"mutex,omitempty"`
 	Mutex sync.Mutex `json:"-"`
-	// identityMu guards the UE identity fields (Supi/Pei/Gpsi/Tmsi/Guti and
-	// RegistrationType5GS) and the user-location and reachability fields the service
+	// identityMu guards the UE identity fields (Supi/Pei/Gpsi/Tmsi/Guti,
+	// RegistrationType5GS and SuciRaw) and the user-location and reachability fields the service
 	// handlers read (RatType/Location/Tai/Reachability), so they can be read safely
 	// from goroutines other than the one running the UE's NAS procedure (e.g. SBI
 	// handlers, logging). Use the Get*/Set* accessors below; do not touch those
@@ -108,16 +108,20 @@ type AmfUe struct {
 	TargetAmfProfile *models.NFProfileDiscovery `json:"targetAmfProfile,omitempty"`
 	TargetAmfUri     string                     `json:"targetAmfUri,omitempty"`
 	/* Ue Identity*/
-	PlmnId              models.PlmnId `json:"plmnId,omitempty"`
-	Suci                string        `json:"suci,omitempty"`
-	Supi                string        `json:"supi,omitempty"`
-	UnauthenticatedSupi bool          `json:"unauthenticatedSupi,omitempty"`
-	Gpsi                string        `json:"gpsi,omitempty"`
-	Pei                 string        `json:"pei,omitempty"`
-	Tmsi                int32         `json:"tmsi,omitempty"` // 5G-Tmsi
-	Guti                string        `json:"guti,omitempty"`
-	GroupID             string        `json:"groupID,omitempty"`
-	EBI                 int32         `json:"ebi,omitempty"`
+	PlmnId models.PlmnId `json:"plmnId,omitempty"`
+	Suci   string        `json:"suci,omitempty"`
+	// SuciRaw is the same identity in the octets the UE sent. Kept because the
+	// formatted Suci string cannot be parsed back into the members TS 33.128's sUCI
+	// record member requires without losing information — see amf/lawfulintercept.
+	SuciRaw             []byte `json:"suciRaw,omitempty"`
+	Supi                string `json:"supi,omitempty"`
+	UnauthenticatedSupi bool   `json:"unauthenticatedSupi,omitempty"`
+	Gpsi                string `json:"gpsi,omitempty"`
+	Pei                 string `json:"pei,omitempty"`
+	Tmsi                int32  `json:"tmsi,omitempty"` // 5G-Tmsi
+	Guti                string `json:"guti,omitempty"`
+	GroupID             string `json:"groupID,omitempty"`
+	EBI                 int32  `json:"ebi,omitempty"`
 	/* Ue Identity*/
 	EventSubscriptionsInfo map[string]*AmfUeEventSubscription `json:"eventSubscriptionInfo,omitempty"`
 	/* User Location*/
@@ -666,10 +670,35 @@ type UeIdentity struct {
 	Guti                string
 	Tmsi                int32
 	RegistrationType5GS uint8
+
+	// SuciRaw is the 5GS mobile identity as the UE sent it, kept in its octet form
+	// rather than as the formatted Suci string. TS 33.128's sUCI is a SEQUENCE of six
+	// members, and recovering them from the string is lossy — the routing indicator's
+	// leading zeros are gone and the scheme output has been through a nibble swap.
+	// Cleared when the UE registers by another identity, a 5G-GUTI in the common case,
+	// so the records of that registration report the SUCI as unavailable.
+	SuciRaw []byte
+
+	// TaiList is the 3GPP-access registration area, which is what TS 33.128 means by
+	// fiveGSTAIList: "tracking areas associated with the registration area within
+	// which the UE is current registered". Not the serving TAI, which the AMF also
+	// holds. Only the 3GPP-access area is snapshotted, so a UE registered over
+	// non-3GPP access reports none.
+	TaiList []models.Tai
+
+	// RatType backs the AMF's own rATType. The SMF reports its own from SMContext.
+	RatType models.RatType
 }
 
 // IdentitySnapshot returns a consistent copy of ue's identity fields.
+//
+// The registration area is guarded by Mutex, not identityMu, so it is copied first and
+// under its own lock. Taken before identityMu rather than inside it: MarshalJSON holds
+// Mutex while it reads identity fields, and nesting the two here in the other order
+// would invert that.
 func (ue *AmfUe) IdentitySnapshot() UeIdentity {
+	taiList := ue.GetRegistrationArea(models.ACCESSTYPE__3_GPP_ACCESS)
+
 	ue.identityMu.RLock()
 	defer ue.identityMu.RUnlock()
 	return UeIdentity{
@@ -679,6 +708,9 @@ func (ue *AmfUe) IdentitySnapshot() UeIdentity {
 		Guti:                ue.Guti,
 		Tmsi:                ue.Tmsi,
 		RegistrationType5GS: ue.RegistrationType5GS,
+		SuciRaw:             append([]byte(nil), ue.SuciRaw...),
+		TaiList:             taiList,
+		RatType:             ue.RatType,
 	}
 }
 
@@ -723,6 +755,15 @@ func (ue *AmfUe) SetPei(v string)  { ue.identityMu.Lock(); ue.Pei = v; ue.identi
 func (ue *AmfUe) SetGpsi(v string) { ue.identityMu.Lock(); ue.Gpsi = v; ue.identityMu.Unlock() }
 func (ue *AmfUe) SetGuti(v string) { ue.identityMu.Lock(); ue.Guti = v; ue.identityMu.Unlock() }
 func (ue *AmfUe) SetTmsi(v int32)  { ue.identityMu.Lock(); ue.Tmsi = v; ue.identityMu.Unlock() }
+
+// SetSuciRaw stores the 5GS mobile identity octets alongside the formatted Suci. It
+// copies, because the caller's buffer is a slice of the decoded NAS message and does
+// not outlive the procedure.
+func (ue *AmfUe) SetSuciRaw(v []byte) {
+	ue.identityMu.Lock()
+	ue.SuciRaw = append([]byte(nil), v...)
+	ue.identityMu.Unlock()
+}
 
 func (ue *AmfUe) SetRegistrationType5GS(v uint8) {
 	ue.identityMu.Lock()
@@ -909,6 +950,23 @@ func (ue *AmfUe) IsNtn() bool {
 	return false
 }
 
+// removalHook is called by Remove with the UE it removes. It is for a package this one cannot
+// import: amf/lawfulintercept holds per-UE state keyed by the UE, and registers a hook so
+// that state ends with the context on every path that removes one, rather than only on the
+// paths that remembered to tell it.
+var removalHook atomic.Pointer[func(*AmfUe)]
+
+// SetRemovalHook registers f to be called by Remove with the UE being removed, replacing any
+// hook registered before; nil clears it. f runs on the removing goroutine, after the UE is
+// marked removed and outside its lock, so it must not block.
+func SetRemovalHook(f func(*AmfUe)) {
+	if f == nil {
+		removalHook.Store(nil)
+		return
+	}
+	removalHook.Store(&f)
+}
+
 func (ue *AmfUe) Remove() {
 	ue.Mutex.Lock()
 	ranUes := make([]*RanUe, 0, len(ue.RanUe))
@@ -919,6 +977,10 @@ func (ue *AmfUe) Remove() {
 	eventChannel := ue.EventChannel
 	ue.removed = true
 	ue.Mutex.Unlock()
+
+	if hook := removalHook.Load(); hook != nil {
+		(*hook)(ue)
+	}
 
 	// TryLock, not Lock: Remove must never wait on a handler's own admitMu hold -- the NGAP
 	// connection reader that calls this on a DRSM ownership mismatch depends on returning
