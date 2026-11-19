@@ -458,6 +458,7 @@ a Nsmf_PDUSession_CreateSMContext Response(N2 SM Information (PDU Session ID, ca
 // nsci: new security context indicator, if amfUe has updated security context, set nsci to true, otherwise set to false
 // N2 handover in same AMF
 func SendHandoverRequest(sourceUe *context.RanUe, targetRan *context.AmfRan, cause ngapType.Cause,
+	handoverType ngapType.HandoverType,
 	pduSessionResourceSetupListHOReq ngapType.PDUSessionResourceSetupListHOReq,
 	sourceToTargetTransparentContainer ngapType.SourceToTargetTransparentContainer, nsci bool,
 ) {
@@ -493,6 +494,28 @@ func SendHandoverRequest(sourceUe *context.RanUe, targetRan *context.AmfRan, cau
 		return
 	}
 
+	// Lawful Interception: the two values the HANDOVER REQUEST ACKNOWLEDGE's xIRI needs are
+	// committed here, past every guard above.
+	//
+	// TS 33.128 puts the AMFRANHandoverRequest record on the acknowledgement, and these two
+	// values exist only on the way in — so they have to be stashed. Five guards above return
+	// without sending, and one of them is "Handover Required Duplicated". Stashed before them,
+	// a duplicate would overwrite the *live* handover's stash and send nothing, and that
+	// handover's acknowledgement would be reported with the rejected request's cause and
+	// container — a record describing a handover that never happened, attributed to one that
+	// did. Committed here, the stash and the request carry the same values by construction: a
+	// request that is not sent replaces nothing.
+	sourceUe.HandOverCause = &cause
+	sourceUe.HandOverSourceToTarget = append([]byte(nil), sourceToTargetTransparentContainer.Value...)
+	// **All three, together, past the guards.** The handover type is the third value the
+	// handover records carry. A second HANDOVER REQUIRED for the same UE — a source-gNB
+	// retransmission, or a second attempt — is refused by the duplicate guard and must leave the
+	// type of the handover in flight alone, as it does the cause and the container. Overwritten,
+	// both records for that handover would name a type the subject did not perform: a mandatory
+	// field, populated, plausible and false, which nothing downstream distinguishes from a true
+	// one. ClearHandoverState does not clear it, so a wrong value would outlive the procedure.
+	sourceUe.HandOverType = handoverType
+
 	var targetUe *context.RanUe
 	if targetUeTmp, err := targetRan.NewRanUe(context.RanUeNgapIdUnspecified); err != nil {
 		sourceUe.Log.Errorf("create target UE error: %+v", err)
@@ -508,6 +531,8 @@ func SendHandoverRequest(sourceUe *context.RanUe, targetRan *context.AmfRan, cau
 		sourceToTargetTransparentContainer, nsci)
 	if err != nil {
 		sourceUe.Log.Errorf("build HandoverRequest failed: %s", err.Error())
+		// Not sent, so no acknowledge or failure will come back to drop what was stashed above.
+		sourceUe.ClearHandoverState()
 		return
 	}
 	SendToRanUe(targetUe, pkt)

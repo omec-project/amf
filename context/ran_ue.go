@@ -59,6 +59,17 @@ type RanUe struct {
 	SuccessPduSessionId []int32 `json:"successPduSessionId,omitempty"`
 	SourceUe            *RanUe  `json:"-"`
 	TargetUe            *RanUe  `json:"-"`
+	// HandOverCause and HandOverSourceToTarget are the two values that originate in
+	// HANDOVER REQUIRED but are needed when the HANDOVER REQUEST ACKNOWLEDGE comes
+	// back, which is where TS 33.128 places the AMFRANHandoverRequest xIRI. They
+	// make the same trip HandOverType above already makes.
+	//
+	// HandOverSourceToTarget is a RAN-supplied opaque blob rather than a small
+	// value, so unlike its siblings it is cleared explicitly the moment the
+	// handover ends — see RanUe.ClearHandoverState. Nothing reads it outside the
+	// LI hook, and nothing parses it.
+	HandOverCause          *ngapType.Cause `json:"-"`
+	HandOverSourceToTarget []byte          `json:"-"`
 
 	/* UserLocation*/
 	Tai      models.Tai
@@ -116,6 +127,22 @@ type RanUe struct {
 	// latest replacement's grace period ends in a detach. Each UE counts under its own lock,
 	// and a RanUe can move between UEs, so the count is atomic.
 	replacements atomic.Uint64
+}
+
+// ClearHandoverState drops the values HANDOVER REQUIRED stashed for the
+// acknowledge to use. Call it on every outcome of a handover, not only success:
+// HandOverSourceToTarget is a variable-length RAN-supplied blob, so one that
+// outlives its handover is retained for as long as the UE context is, which is a
+// leak its small-value siblings cannot cause.
+//
+// Safe on a nil receiver and safe to call twice — the failure and cancel paths
+// can both run for one handover.
+func (ranUe *RanUe) ClearHandoverState() {
+	if ranUe == nil {
+		return
+	}
+	ranUe.HandOverCause = nil
+	ranUe.HandOverSourceToTarget = nil
 }
 
 func (ranUe *RanUe) Remove() error {

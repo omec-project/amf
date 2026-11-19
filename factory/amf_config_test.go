@@ -5,6 +5,9 @@
 package factory
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/omec-project/util/nfconfig"
@@ -213,4 +216,190 @@ func TestValidateAmfId(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLiBulkSwitchesAreTriState covers the two keys that carry an agreement the standard
+// leaves to the deployment, at the layer where an operator's `false` is at risk of becoming
+// nothing at all.
+//
+// The third case is the one worth having: a value that is not a boolean must be refused,
+// not read as unset. Unset is the permissive answer for bulk deactivation, so silently
+// defaulting a typo would leave the element performing exactly the operation the operator
+// wrote the key to withhold. It is the rule the UPF's config applies to its keepalive
+// window. The refusal is recorded for the LI subsystem, like an unknown key, and the
+// configuration load itself succeeds.
+func TestLiBulkSwitchesAreTriState(t *testing.T) {
+	load := func(t *testing.T, extra string) error {
+		t.Helper()
+
+		orig := AmfConfig
+		t.Cleanup(func() { AmfConfig = orig; liBlockErr = nil })
+
+		path := filepath.Join(t.TempDir(), "amfcfg.yaml")
+		body := `configuration:
+  li:
+    x1Listen: ":8443"
+    neId: amf-1` + extra + "\n"
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("write config: %v", err)
+		}
+
+		return InitConfigFactory(path)
+	}
+
+	t.Run("both switches carry through", func(t *testing.T) {
+		if err := load(t, `
+    deactivateAllTasks: false
+    removeAllDestinations: true`); err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		if err := LiBlockError(); err != nil {
+			t.Fatalf("li block refused: %v", err)
+		}
+		if got := AmfConfig.Configuration.Li.DeactivateAllTasks; got == nil || *got {
+			t.Errorf("deactivateAllTasks = %v, want a stated false — a dropped restriction leaves "+
+				"the element performing the operation the operator withheld", got)
+		}
+		if got := AmfConfig.Configuration.Li.RemoveAllDestinations; got == nil || !*got {
+			t.Errorf("removeAllDestinations = %v, want a stated true", got)
+		}
+	})
+
+	t.Run("saying nothing is not saying false", func(t *testing.T) {
+		if err := load(t, ""); err != nil {
+			t.Fatalf("load: %v", err)
+		}
+		if err := LiBlockError(); err != nil {
+			t.Fatalf("li block refused: %v", err)
+		}
+		if AmfConfig.Configuration.Li.DeactivateAllTasks != nil || AmfConfig.Configuration.Li.RemoveAllDestinations != nil {
+			t.Error("an li block that states no agreement must leave both unset, so the " +
+				"standard's own defaults apply")
+		}
+	})
+
+	t.Run("a value that is not a boolean is refused", func(t *testing.T) {
+		if err := load(t, "\n    deactivateAllTasks: perhaps"); err != nil {
+			t.Fatalf("a value of the wrong type in the li block failed the whole configuration "+
+				"load, which stops the AMF: %v", err)
+		}
+		if LiBlockError() == nil {
+			t.Errorf("an unparseable value was accepted as %v; it must be refused rather than "+
+				"read as unset, which is the permissive answer",
+				AmfConfig.Configuration.Li.DeactivateAllTasks)
+		}
+	})
+}
+
+// Misspellings of the two LI keys whose defaults fail unsafely, shared by the tests that
+// check a typo in either is refused without stopping the network function.
+const (
+	typoKeepaliveTimeout = "keepaliveTimeut"
+	typoAdmfURL          = "admf_url"
+)
+
+// TestLiBlockRefusesUnknownKeys covers the whole startup path, not strictLiBlock alone: the
+// property is that a mistyped LI key is refused and recorded for the LI subsystem without failing
+// the configuration load, and that is only true if InitConfigFactory calls the check.
+//
+// Both keys below are chosen because their defaults are not what the operator asked for. A
+// dropped `keepaliveTimeout` leaves the X1 keepalive procedure on the clause default rather than
+// the operator's TIME_P2; a dropped `admfUrl` leaves the fault channel a no-op, so nothing it is required to
+// report — including a misconfiguration — reaches the ADMF. Neither is visible from outside: the
+// element runs, answers X1, and looks provisioned.
+func TestLiBlockRefusesUnknownKeys(t *testing.T) {
+	write := func(t *testing.T, body string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "amfcfg.yaml")
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("write config: %v", err)
+		}
+
+		return path
+	}
+
+	const good = `info:
+  version: 1.0.0
+configuration:
+  li:
+    x1Listen: ":8443"
+    neId: amf-1
+    admfUrl: https://admf:9443
+    keepaliveTimeout: 30s
+`
+
+	t.Run("a conformant li block starts", func(t *testing.T) {
+		orig := AmfConfig
+		t.Cleanup(func() { AmfConfig = orig })
+
+		if err := InitConfigFactory(write(t, good)); err != nil {
+			t.Fatalf("a conformant li block was refused: %v", err)
+		}
+		if AmfConfig.Configuration.Li.KeepaliveTimeout != "30s" {
+			t.Errorf("keepaliveTimeout = %q, want 30s — the li decode must not lose a value it can read",
+				AmfConfig.Configuration.Li.KeepaliveTimeout)
+		}
+	})
+
+	for _, tt := range []struct {
+		name string
+		typo string
+	}{
+		{"a misspelled fail-safe window", typoKeepaliveTimeout},
+		{"a misspelled ADMF endpoint", typoAdmfURL},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			orig := AmfConfig
+			t.Cleanup(func() { AmfConfig = orig })
+
+			body := strings.Replace(good, "admfUrl", tt.typo, 1)
+			if tt.typo == typoKeepaliveTimeout {
+				body = strings.Replace(good, "keepaliveTimeout", tt.typo, 1)
+			}
+			// **Both halves.** The key must be refused, *and* the network function must still
+			// come up: a configuration load that fails takes the service-based interface, NGAP, registration and every UE this AMF
+			// serves with it, over a typo in an optional subsystem — and a network function that
+			// will not start announces to every operator and peer that it is LI-provisioned,
+			// which is the disclosure undetectability exists to prevent. Asserting only the
+			// refusal would pass on an AMF that does not start. See LiBlockError.
+			t.Cleanup(func() { liBlockErr = nil })
+
+			if err := InitConfigFactory(write(t, body)); err != nil {
+				t.Fatalf("a misspelled LI key stopped the whole configuration load, which stops "+
+					"the network function: %v", err)
+			}
+
+			err := LiBlockError()
+			if err == nil {
+				t.Fatalf("%s was accepted, so the setting the operator wrote never reached the "+
+					"element and its unsafe default stands with nothing saying so", tt.typo)
+			}
+			if !strings.Contains(err.Error(), tt.typo) {
+				t.Errorf("the refusal does not name the key that was wrong: %v", err)
+			}
+		})
+	}
+
+	t.Run("a key outside the li block is still tolerated", func(t *testing.T) {
+		orig := AmfConfig
+		t.Cleanup(func() { AmfConfig = orig })
+
+		// The scope of the check, asserted rather than assumed. Upstream adds configuration
+		// keys; if strictness leaked past the li block, a configuration carrying a key this
+		// version does not model would stop the AMF from starting.
+		body := strings.Replace(good, "configuration:\n", "configuration:\n  aKeyThisForkDoesNotModel: 1\n", 1)
+		if err := InitConfigFactory(write(t, body)); err != nil {
+			t.Fatalf("an unmodelled key outside the li block was refused, which would stop this "+
+				"fork starting on the next upstream field: %v", err)
+		}
+	})
+
+	t.Run("no li block at all", func(t *testing.T) {
+		orig := AmfConfig
+		t.Cleanup(func() { AmfConfig = orig })
+
+		if err := InitConfigFactory(write(t, "info:\n  version: 1.0.0\nconfiguration:\n  amfName: AMF\n")); err != nil {
+			t.Fatalf("a configuration without interception was refused: %v", err)
+		}
+	})
 }
