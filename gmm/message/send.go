@@ -8,6 +8,7 @@ package message
 
 import (
 	"github.com/omec-project/amf/context"
+	"github.com/omec-project/amf/lawfulintercept"
 	"github.com/omec-project/amf/logger"
 	ngap_message "github.com/omec-project/amf/ngap/message"
 	"github.com/omec-project/amf/producer/callback"
@@ -43,6 +44,16 @@ func SendDLNASTransport(ue *context.RanUe, anType models.AccessType, payloadCont
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 }
+
+// noteUEPolicyCommand is the Lawful Interception hook, reached through a package variable
+// so a test can observe which of this package's paths raise it. In production it is the
+// same function.
+var noteUEPolicyCommand = lawfulintercept.NoteUEPolicyCommand
+
+// liReportRegistration is the Lawful Interception hook for a registration that completes
+// without a REGISTRATION COMPLETE, reached through a package variable so a test can observe
+// it. In production it is the same function.
+var liReportRegistration = lawfulintercept.ReportRegistration
 
 func SendNotification(ue *context.RanUe, nasMsg []byte) {
 	if ue == nil {
@@ -140,6 +151,8 @@ func SendAuthenticationRequest(ue *context.RanUe) {
 						accessType, amfUe.State[accessType].Current())
 					return
 				}
+				// Lawful Interception IRI-POI: the UE context goes, and every access with it.
+				lawfulintercept.ReportAbortedRegistration(amfUe, accessType, true)
 				amfUe.PublishUeCtxtInfoOnRemoval(accessType)
 				amfUe.Remove()
 			})
@@ -147,8 +160,8 @@ func SendAuthenticationRequest(ue *context.RanUe) {
 	}
 }
 
-func SendServiceAccept(ue *context.RanUe, anType models.AccessType, pDUSessionStatus *[16]bool, reactivationResult *[16]bool,
-	errPduSessionId, errCause []uint8,
+func SendServiceAccept(ue *context.RanUe, anType models.AccessType, serviceType uint8, pDUSessionStatus *[16]bool,
+	reactivationResult *[16]bool, errPduSessionId, errCause []uint8,
 ) {
 	if ue == nil {
 		logger.GmmLog.Error("RanUe is nil")
@@ -167,6 +180,10 @@ func SendServiceAccept(ue *context.RanUe, anType models.AccessType, pDUSessionSt
 		return
 	}
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
+	// Reported here rather than in the caller because this function returns no
+	// error: a build failure above logs and returns, and a caller that reported
+	// afterwards would claim an accept that was never built.
+	lawfulintercept.ReportServiceAccept(amfUe, serviceType)
 }
 
 func SendConfigurationUpdateCommand(amfUe *context.AmfUe, accessType models.AccessType,
@@ -262,6 +279,13 @@ func SendRegistrationReject(ue *context.RanUe, cause5GMM uint8, eapMessage strin
 		amfUe.GmmLog.Errorln(err.Error())
 		return
 	}
+
+	// Lawful Interception IRI-POI: every registration reject is sent from here, so this is
+	// where an AMFUnsuccessfulProcedure xIRI is emitted for a tasked target. After the build,
+	// so a reject that could not be built is not reported. Silent no-op unless LI is
+	// configured (and unless the UE is identified enough to match a task).
+	lawfulintercept.ReportRegistrationReject(amfUe, cause5GMM)
+
 	ngap_message.SendDownlinkNasTransport(ue, nasMsg, nil)
 }
 
@@ -305,6 +329,8 @@ func SendSecurityModeCommand(ue *context.RanUe, anType models.AccessType, eapSuc
 						anType, amfUe.State[anType].Current())
 					return
 				}
+				// Lawful Interception IRI-POI: the UE context goes, and every access with it.
+				lawfulintercept.ReportAbortedRegistration(amfUe, anType, true)
 				amfUe.PublishUeCtxtInfoOnRemoval(anType)
 				amfUe.Remove()
 			})
@@ -342,6 +368,12 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 		}, func() {
 			amfUe.GmmLog.Warnf("T3522 Expires %d times, abort deregistration procedure", cfg.MaxRetryTimes)
 			amfUe.T3522 = nil // clear the timer
+			// Lawful Interception IRI-POI: each branch below that goes ahead deregisters the UE
+			// and removes its context, so it reports an AMFDeregistration before writing the
+			// state and an AMFIdentifierDeassociation after: Remove ends the binding on every
+			// access. The deregistration names the access this procedure was for; a UE also
+			// registered over the other access loses that registration with the context, and
+			// it is not reported separately.
 			// Remove() deletes the whole UE; publish the Del first or a resolved-SUPI subscriber is
 			// left stale in Kafka (the Add published on SUPI resolution never gets a matching Del).
 			// Serialized with the EventChannel so this can't race an in-flight NAS message for the
@@ -358,7 +390,9 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 							amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Current())
 						return
 					}
+					lawfulintercept.ReportDeregistration(amfUe, true, lawfulintercept.DeregistrationScope(accessType), nil)
 					amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
+					lawfulintercept.ReportIdentifierDeassociation(amfUe)
 					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
 					amfUe.Remove()
 				})
@@ -370,7 +404,9 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 							amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Current())
 						return
 					}
+					lawfulintercept.ReportDeregistration(amfUe, true, lawfulintercept.DeregistrationScope(accessType), nil)
 					amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
+					lawfulintercept.ReportIdentifierDeassociation(amfUe)
 					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE_NON_3_GPP_ACCESS)
 					amfUe.Remove()
 				})
@@ -384,8 +420,10 @@ func SendDeregistrationRequest(ue *context.RanUe, accessType uint8, reRegistrati
 						amfUe.GmmLog.Infoln("T3522 abort for both access types is stale; skipping removal")
 						return
 					}
+					lawfulintercept.ReportDeregistration(amfUe, true, lawfulintercept.DeregistrationScope(nasMessage.AccessTypeBoth), nil)
 					amfUe.State[models.ACCESSTYPE__3_GPP_ACCESS].Set(context.Deregistered)
 					amfUe.State[models.ACCESSTYPE_NON_3_GPP_ACCESS].Set(context.Deregistered)
+					lawfulintercept.ReportIdentifierDeassociation(amfUe)
 					amfUe.PublishUeCtxtInfoOnRemoval(models.ACCESSTYPE__3_GPP_ACCESS)
 					amfUe.Remove()
 				})
@@ -444,11 +482,13 @@ func SendRegistrationAccept(
 
 	if context.AMF_Self().T3550Cfg.Enable {
 		cfg := context.AMF_Self().T3550Cfg
-		ue.T3550 = context.NewTimer(cfg.ExpireTime, cfg.MaxRetryTimes, func(expireTimes int32) {
+		var t3550 *context.Timer
+		t3550 = context.NewTimer(cfg.ExpireTime, cfg.MaxRetryTimes, func(expireTimes int32) {
 			ranUe := ue.GetRanUe(anType)
 			if ranUe == nil {
+				// Not retransmitted, and T3550 left in place: it still runs, and its last
+				// expiry ends the procedure as for any unanswered accept.
 				ue.GmmLog.Warnln("[NAS] UE Context released, abort retransmission of Registration Accept")
-				ue.T3550 = nil
 			} else {
 				if ranUe.UeContextRequest && !ranUe.RecvdInitialContextSetupResponse {
 					ngap_message.SendInitialContextSetupRequest(ue, anType, nasMsg, pduSessionResourceSetupList, nil, nil, nil)
@@ -459,10 +499,30 @@ func SendRegistrationAccept(
 			}
 		}, func() {
 			ue.GmmLog.Warnf("T3550 Expires %d times, abort retransmission of Registration Accept", cfg.MaxRetryTimes)
-			ue.T3550 = nil // clear the timer
-			// TS 24.501 5.5.1.2.8 case c, 5.5.1.3.8 case c
-			ue.State[anType].Set(context.Registered)
-			ue.ClearRegistrationRequestData(anType)
+			// Serialized with the UE's NAS messages, so it cannot interleave with a REGISTRATION
+			// COMPLETE or a failure that ends the same procedure.
+			ue.RunSerialized(func() { registrationAcceptUnanswered(ue, anType, t3550) })
 		})
+		ue.T3550 = t3550
 	}
+}
+
+// registrationAcceptUnanswered ends the registration whose REGISTRATION ACCEPT t3550 guarded
+// when the UE never answered it: the access becomes Registered (TS 24.501 5.5.1.2.8 case c,
+// 5.5.1.3.8 case c). It runs on the UE's NAS goroutine, and only while the access is still in
+// ContextSetup with t3550 as its T3550: whatever ends the procedure otherwise, a REGISTRATION
+// COMPLETE, a failure, or another accept, stops or replaces that timer, and registering the UE
+// on a late expiry would undo it.
+func registrationAcceptUnanswered(ue *context.AmfUe, anType models.AccessType, t3550 *context.Timer) {
+	if st := ue.State[anType]; st == nil || !st.Is(context.ContextSetup) || ue.T3550 != t3550 {
+		ue.GmmLog.Infof("T3550 ran out for a registration procedure that has ended; nothing to do")
+		return
+	}
+	ue.T3550 = nil
+	// Lawful Interception IRI-POI: the access becomes 5GMM-REGISTERED here instead of at
+	// REGISTRATION COMPLETE, so the registration is reported here, before the state is
+	// written as HandleRegistrationComplete reports it.
+	liReportRegistration(ue, anType)
+	ue.State[anType].Set(context.Registered)
+	ue.ClearRegistrationRequestData(anType)
 }

@@ -8,10 +8,12 @@ package factory
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/util/nfconfig"
+	"go.yaml.in/yaml/v4"
 )
 
 var AmfConfig Config
@@ -23,9 +25,47 @@ const (
 
 // TODO: Support configuration update from REST api
 func InitConfigFactory(f string) error {
+	// Reset first, so a load that returns early cannot leave an earlier load's verdict behind.
+	liBlockErr = nil
 	if err := nfconfig.LoadYAML(f, &AmfConfig); err != nil {
+		// A configuration naming `li` twice is refused by the decode as a whole. That refusal
+		// belongs to the LI block alone, so the rest is decoded without it and strictLiBlock
+		// below refuses the block; see withoutRepeatedLi. Any other error stands.
+		content, readErr := os.ReadFile(f)
+		if readErr != nil {
+			return err
+		}
+		rest, repeated := withoutRepeatedLi(content)
+		if !repeated {
+			return err
+		}
+		if err := yaml.Unmarshal(rest, &AmfConfig); err != nil {
+			return err
+		}
+	}
+	// The lenient decode above stays lenient — the AMF must keep starting on a configuration
+	// carrying a key this version does not model. It does not decode the LI block at all (Config
+	// tags it `yaml:"-"`): the block is held to a stricter standard, on its own, because a key
+	// dropped there lands on a default that fails unsafely and says nothing, and a value of the
+	// wrong type there must not fail this load. See strictLiBlock.
+	//
+	// **Recorded, not returned.** Returning it would fail the whole configuration load, which
+	// stops the AMF: the service-based interface, NGAP, registration with the network, every UE it
+	// serves — over a typo in an optional subsystem; `service/init.go` declines the same outage
+	// for the keepalive settings. It is also the louder half of undetectability: a
+	// network function that will not start is visible to every operator and peer, where a log
+	// line is visible only to whoever reads logs.
+	//
+	// The refusal is carried to the LI subsystem instead, which is the only party that can act
+	// on it — it declines to intercept and reports the invalid configuration to the ADMF, at a
+	// point where the reporting channel exists. See LiBlockError.
+	//
+	// nfconfig.LoadYAML does not hand back the bytes it decoded, so the block is read again.
+	content, err := os.ReadFile(f)
+	if err != nil {
 		return err
 	}
+	AmfConfig.Configuration.Li, liBlockErr = strictLiBlock(content)
 	if AmfConfig.Configuration.AmfId == "" {
 		AmfConfig.Configuration.AmfId = defaultAmfID
 		logger.CfgLog.Infof("amfId not set in configuration file. Using %s", AmfConfig.Configuration.AmfId)
