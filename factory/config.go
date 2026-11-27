@@ -71,6 +71,7 @@ type Configuration struct {
 	NrfUri                          string                    `yaml:"nrfUri,omitempty"`
 	WebuiUri                        string                    `yaml:"webuiUri"`
 	Security                        *Security                 `yaml:"security,omitempty"`
+	Li                              *Li                       `yaml:"-"` // decoded by strictLiBlock
 	NetworkName                     NetworkName               `yaml:"networkName,omitempty"`
 	T3502Value                      int                       `yaml:"t3502Value,omitempty"`
 	T3512Value                      int                       `yaml:"t3512Value,omitempty"`
@@ -168,6 +169,82 @@ type Sbi struct {
 type TLS struct {
 	PEM string `yaml:"pem,omitempty"`
 	Key string `yaml:"key,omitempty"`
+}
+
+// Li configures the Lawful Interception IRI-POI. It is opt-in: when absent, LI
+// is disabled and none of its hooks act.
+type Li struct {
+	X1Listen string `yaml:"x1Listen"` // address for the X1 provisioning listener
+	MDF2     string `yaml:"mdf2"`     // default X2 destination (host:port) for a task naming no destination
+	NEID     string `yaml:"neId"`     // this network element's identifier
+	Cert     string `yaml:"cert"`     // X0 LI PKI: this NE's certificate
+	Key      string `yaml:"key"`      // its private key
+	CACert   string `yaml:"caCert"`   // the LI CA trust anchor
+
+	// Destinations declares DID→endpoint mappings for delivery destinations agreed
+	// out of band. A task naming one of these DIDs is delivered to it exactly as if
+	// the ADMF had provisioned it with CreateDestination; a destination provisioned
+	// over X1 under the same DID takes precedence. Optional — an ADMF that
+	// provisions its own destinations needs none of these, and `mdf2` above still
+	// serves a task that names no destination; without `mdf2` such a task is refused
+	// at activation. A task that names destinations none of which is an X2 endpoint is
+	// refused, not delivered to `mdf2`.
+	Destinations []LiDestination `yaml:"destinations,omitempty"`
+
+	AdmfURL string `yaml:"admfUrl"` // ADMF X1 endpoint for NE-initiated issue reports (optional)
+	AdmfID  string `yaml:"admfId"`  // responsible ADMF identifier (for reports)
+	// The X1 keepalive procedure of ETSI TS 103 221-1 clause 6.6.2, which runs unless
+	// keepaliveDisabled is set: the clause enables it by default. keepaliveTimeout is
+	// TIME_P2, the silence after which the element reports fault 9050 (default 1h);
+	// keepaliveTimeP1 bounds the wait for the ADMF's answer (default 1m), and
+	// keepaliveTimeP3 the wait after an acknowledged report (default 2h) before tasking is
+	// deactivated — unless keepaliveRetainTasking is set.
+	KeepaliveTimeout       string `yaml:"keepaliveTimeout"`                 // duration; TIME_P2 (optional)
+	KeepaliveTimeP1        string `yaml:"keepaliveTimeP1,omitempty"`        // duration; TIME_P1 (optional)
+	KeepaliveTimeP3        string `yaml:"keepaliveTimeP3,omitempty"`        // duration; TIME_P3 (optional)
+	KeepaliveRetainTasking bool   `yaml:"keepaliveRetainTasking,omitempty"` // never deactivate tasking (optional)
+	KeepaliveDisabled      bool   `yaml:"keepaliveDisabled,omitempty"`      // agreed with the agency: no procedure (optional)
+
+	// The X2/X3 keepalive mechanism of ETSI TS 103 221-2 clause 6.2.4, which is a
+	// different mechanism from keepaliveTimeout above: that one is the X1 fail-safe
+	// against an ADMF that goes quiet, this one detects a mediation function that
+	// has stopped answering on the delivery connection. Hence the prefix — the two
+	// read as halves of one setting otherwise, and they are not related at all.
+	//
+	// Enabled is a pointer so that "the operator said false" is distinct from "the
+	// operator said nothing": unset means the mechanism runs, because the
+	// specification requires it and TIME_P1 and TIME_P2 are given normatively (60
+	// and 180 seconds), which is what an element configuring nothing must get.
+	//
+	// Setting it false is for a deployment whose mediation function does not
+	// implement the MDF half of clause 6.2.4 — it will never acknowledge, and this
+	// element would disconnect it every TIME_P2 and lose whatever was in flight.
+	X2X3KeepaliveEnabled *bool  `yaml:"x2x3KeepaliveEnabled,omitempty"`
+	X2X3KeepaliveTimeP1  string `yaml:"x2x3KeepaliveTimeP1,omitempty"` // duration; default 60s
+	X2X3KeepaliveTimeP2  string `yaml:"x2x3KeepaliveTimeP2,omitempty"` // duration; default 180s
+
+	// DeactivateAllTasks and RemoveAllDestinations carry what TS 103 221-1 leaves to
+	// advance agreement between the operator and the agency: whether this element
+	// performs a bulk deactivation of all its tasking, and whether it performs a bulk
+	// removal of all its destinations.
+	//
+	// Both are tri-state. Unset — the pointer is nil — is "no agreement in advance",
+	// the standard's own phrase, and yields the standard's own default for both: the
+	// bulk operation is performed (TS 103 221-1 clauses 6.2.4 and 6.3.4). They are
+	// pointers rather than plain bools so that "the operator said false" is a state
+	// distinct from "the operator said nothing", which for the first of them is the
+	// difference between refusing to stop every interception on this element and doing it.
+	DeactivateAllTasks    *bool `yaml:"deactivateAllTasks,omitempty"`
+	RemoveAllDestinations *bool `yaml:"removeAllDestinations,omitempty"`
+}
+
+// LiDestination is one pre-shared delivery destination: the identifier an ADMF's tasks
+// reference it by, and where it points. Its three fields are the ones CreateDestination
+// carries, because the entry has to resolve identically to a provisioned one.
+type LiDestination struct {
+	DID          string `yaml:"did"`          // UUID, as the X1 schema requires of a DId
+	DeliveryType string `yaml:"deliveryType"` // X2Only | X3Only | X2andX3
+	Address      string `yaml:"address"`      // host:port
 }
 
 type Security struct {

@@ -26,6 +26,7 @@ import (
 	"github.com/omec-project/amf/eventexposure"
 	"github.com/omec-project/amf/factory"
 	"github.com/omec-project/amf/httpcallback"
+	"github.com/omec-project/amf/lawfulintercept"
 	"github.com/omec-project/amf/location"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/metrics"
@@ -49,6 +50,7 @@ import (
 	utilLogger "github.com/omec-project/util/logger"
 	"github.com/urfave/cli/v3"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.uber.org/zap"
 )
 
 type AMF struct{}
@@ -126,6 +128,14 @@ func (amf *AMF) setLogLevel() {
 	utilLogger.ApplyLogSetting("Util", cfgLogger.Util, utilLogger.UtilLog, utilLogger.SetLogLevel)
 }
 
+// declineOptionalSubsystem logs that an optional subsystem did not start, and nothing that says
+// which. The message names none, and the line carries no caller: util's logger records each
+// line's call site, and the file and line of a call inside the Lawful Interception block would
+// name the branch to anyone with the source.
+func declineOptionalSubsystem() {
+	logger.InitLog.WithOptions(zap.WithCaller(false)).Errorln("an optional subsystem failed to initialise")
+}
+
 func (amf *AMF) Start() {
 	logger.InitLog.Infoln("server started")
 	var err error
@@ -168,6 +178,29 @@ func (amf *AMF) Start() {
 
 	self := amfContext.AMF_Self()
 	util.InitAmfContext(self)
+
+	// Lawful Interception: start the IRI-POI (X1 listener + X2 delivery) when
+	// configured. Opt-in — absent config means LI is off and nothing starts.
+	// (An init failure is a deployment/config error; production may route LI
+	// operational logs to a restricted sink per the undetectability requirement.)
+	if li := factory.AmfConfig.Configuration.Li; li != nil {
+		// The keepalive timers and the strict `li`-block decode's verdict are passed on as the
+		// operator wrote them and acted on inside Init. A refusal made here would be a return
+		// from this function, which stops every other subsystem too — the service-based
+		// interface, NGAP, registration with the network. Inside Init the refusal is scoped to
+		// interception, and the fault reporter exists by then, so the ADMF is told that this
+		// element is not intercepting.
+		if err = lawfulintercept.Init(lawfulintercept.ConfigFromFactory(li, factory.LiBlockError())); err != nil {
+			// Do not name the subsystem or echo err (which carries LI-identifying
+			// text) on the general operator log: that would reveal to an unauthorized
+			// operator that this NE is LI-provisioned, which network-element-level
+			// undetectability forbids. A listener-bind failure is already reported to
+			// the ADMF over X1 from within Init; an earlier failure (e.g. bad LI
+			// credentials) has no X1 channel yet and, pending a restricted LI log sink,
+			// is surfaced only non-attributably here.
+			declineOptionalSubsystem()
+		}
+	}
 	if self.EnableDbStore {
 		self.Drsm, err = util.InitDrsm()
 		if err != nil {

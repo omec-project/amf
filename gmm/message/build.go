@@ -14,6 +14,7 @@ import (
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/omec-project/amf/context"
 	"github.com/omec-project/amf/factory"
+	"github.com/omec-project/amf/lawfulintercept"
 	"github.com/omec-project/amf/logger"
 	"github.com/omec-project/amf/nas/nas_security"
 	"github.com/omec-project/amf/nasconv"
@@ -85,7 +86,37 @@ func BuildDLNASTransport(ue *context.AmfUe, anType models.AccessType, payloadCon
 
 	m.DLNASTransport = dLNASTransport
 
-	return nas_security.Encode(ue, m, anType)
+	nasMsg, err := nas_security.Encode(ue, m, anType)
+	if err != nil {
+		return nil, err
+	}
+	// Lawful Interception: **the seam every downlink UE-policy container crosses.**
+	//
+	// TS 33.128 clause 6.2.2.2.12 triggers AMFUEPolicyTransfer on the UE's MANAGE UE POLICY
+	// COMPLETE, and its uEPolicy is the MANAGE UE POLICY COMMAND that COMPLETE confirms — a
+	// container this AMF relays downlink. So the COMMAND is noted here, and the record is
+	// produced when the COMPLETE arrives uplink.
+	//
+	// Not on SendDLNASTransport, because one relay path builds the message here and hands it
+	// to NGAP itself without calling that function; the two paths that relay a pending N1N2
+	// policy message call it. On the builder, which every path must call to have a message at
+	// all, a relay path added later is covered without anybody remembering to.
+	//
+	// Noted only once the message is encoded: a build that fails produces no message, and noting
+	// its COMMAND would replace a pending COMMAND under the same PTI, or push another out of the
+	// bounded cache, for a transfer that never happened.
+	//
+	// **The trade, stated rather than hidden:** this notes the COMMAND once the message is
+	// encoded rather than after the bytes leave. A message built and then not
+	// transmitted — the caller returning on an error between here and its send — is held as
+	// relayed; a UE that never received it does not complete it, so no record follows. The
+	// lower seam, ngap_message.SendDownlinkNasTransport, is common to all three paths but is
+	// handed only bytes: it cannot tell a policy container from an SM one without parsing what
+	// it forwards.
+	if payloadContainerType == nasMessage.PayloadContainerTypeUEPolicy {
+		noteUEPolicyCommand(ue, nasPdu)
+	}
+	return nasMsg, nil
 }
 
 func BuildNotification(ue *context.AmfUe, anType models.AccessType) ([]byte, error) {
@@ -490,6 +521,18 @@ func BuildDeregistrationAccept() ([]byte, error) {
 	return m.PlainNasEncode()
 }
 
+// liReportIdentifierAssociation is the Lawful Interception identifier-association hook,
+// reached through a package variable so a test can observe which of this package's paths
+// call it.
+//
+// A test cannot do that by activating the subsystem: `active` is private to
+// lawfulintercept, and Init needs mTLS material and a TCP bind this package's tests have
+// no business standing up. Without a seam the hook is a silent no-op in every test, so a
+// path that never calls it looks exactly like a path that does.
+//
+// In production it is the same function, a silent no-op when LI is not configured.
+var liReportIdentifierAssociation = lawfulintercept.ReportIdentifierAssociation
+
 func BuildRegistrationAccept(
 	ue *context.AmfUe,
 	anType models.AccessType,
@@ -679,7 +722,29 @@ func BuildRegistrationAccept(
 
 	m.RegistrationAccept = registrationAccept
 
-	return nas_security.Encode(ue, m, anType)
+	payload, err := nas_security.Encode(ue, m, anType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Lawful Interception IRI-POI: TS 33.128 clause 6.2.2.2.7 generates an
+	// AMFIdentifierAssociation whenever a REGISTRATION ACCEPT or a CONFIGURATION UPDATE
+	// (5G-GUTI) is sent to a target UE, "regardless of whether the ... procedure is
+	// subsequently successfully completed or not". So every accept carrying a 5G-GUTI reports
+	// one. Silent no-op unless LI is configured and the UE is a target.
+	//
+	// **Here rather than on SendRegistrationAccept, because that is not the only path that
+	// sends one.** HandleInitialRegistration's non-3GPP branch calls this builder directly and
+	// stores the result in ue.RegistrationAcceptForNon3GPPAccess for the N3IWF's answer. Every
+	// accept is built here, and this is where the 5G-GUTI IE is placed. The record is made once
+	// the accept has been built, not once it has been sent: an accept that is stored or that
+	// finds no RanUe leaves a record for a 5G-GUTI the UE did not receive. That is deliberate:
+	// the clause generates the record regardless of whether the procedure completes.
+	if ue.GetGuti() != "" {
+		liReportIdentifierAssociation(ue)
+	}
+
+	return payload, nil
 }
 
 func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType,
@@ -799,5 +864,17 @@ func BuildConfigurationUpdateCommand(ue *context.AmfUe, anType models.AccessType
 
 	m.ConfigurationUpdateCommand = configurationUpdateCommand
 
-	return m.PlainNasEncode()
+	payload, err := m.PlainNasEncode()
+	if err != nil {
+		return nil, err
+	}
+
+	// Lawful Interception IRI-POI: a CONFIGURATION UPDATE COMMAND carrying the 5G-GUTI
+	// reports an AMFIdentifierAssociation, as a REGISTRATION ACCEPT does (see
+	// BuildRegistrationAccept and TS 33.128 clause 6.2.2.2.7).
+	if configurationUpdateCommand.GUTI5G != nil {
+		liReportIdentifierAssociation(ue)
+	}
+
+	return payload, nil
 }
